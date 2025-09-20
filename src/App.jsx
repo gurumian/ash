@@ -3,6 +3,8 @@ import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
 import './App.css';
 
+import { FitAddon } from '@xterm/addon-fit';
+
 // Class for actual SSH connection management
 class SSHConnection {
   constructor() {
@@ -245,6 +247,7 @@ function App() {
   // Terminal-related refs
   const terminalRefs = useRef({});
   const terminalInstances = useRef({});
+  const fitAddons = useRef({});
   const sshConnections = useRef({});
   
   // Resize handle refs
@@ -339,14 +342,8 @@ function App() {
 
   // Terminal resize utility function
   const resizeTerminal = () => {
-    if (activeSessionId && terminalInstances.current[activeSessionId]) {
-      const terminal = terminalInstances.current[activeSessionId];
-      const terminalRef = terminalRefs.current[activeSessionId];
-      if (terminalRef) {
-        const cols = Math.floor(terminalRef.clientWidth / 8);
-        const rows = Math.floor(terminalRef.clientHeight / 16);
-        terminal.resize(Math.max(cols, 80), Math.max(rows, 24));
-      }
+    if (activeSessionId && fitAddons.current[activeSessionId]) {
+      fitAddons.current[activeSessionId].fit();
     }
   };
 
@@ -493,21 +490,39 @@ function App() {
       delete terminalInstances.current[sessionId];
     }
 
-    // Dynamically calculate terminal size
+    // Dynamically calculate terminal size using computed styles
     const terminalElement = terminalRef;
-    const cols = Math.floor(terminalElement.clientWidth / 8); // Approximate character width
-    const rows = Math.floor(terminalElement.clientHeight / 16); // Approximate character height
+    
+    // Force a layout recalculation
+    terminalElement.offsetHeight;
+    
+    const computedStyle = window.getComputedStyle(terminalElement);
+    const fontSize = parseFloat(computedStyle.fontSize) || 13;
+    
+    // Calculate character dimensions more accurately
+    const charWidth = fontSize * 0.6; // Approximate width for monospace fonts
+    const charHeight = fontSize * 1.4; // Use line-height from CSS
+    
+    const cols = Math.floor(terminalElement.clientWidth / charWidth);
+    const rows = Math.floor(terminalElement.clientHeight / charHeight);
+    
+    console.log(`Terminal init: ${cols}x${rows} (container: ${terminalElement.clientWidth}x${terminalElement.clientHeight}, font: ${fontSize}px, char: ${charWidth}x${charHeight}px)`);
 
     const terminal = new Terminal({
-      cols: Math.max(cols, 80),
-      rows: Math.max(rows, 24),
+      cols: Math.max(cols - 2, 80), // Account for rounding errors
+      rows: Math.max(rows - 2, 24), // Account for rounding errors
       cursorBlink: true,
       scrollback: 1000,
       theme: themes[theme].terminal
     });
 
+    const fitAddon = new FitAddon();
+    terminal.loadAddon(fitAddon);
+
     terminal.open(terminalRef);
+    fitAddon.fit();
     terminalInstances.current[sessionId] = terminal;
+    fitAddons.current[sessionId] = fitAddon;
 
     // Get session info to determine connection type
     const session = sessionInfo || sessions.find(s => s.id === sessionId);
@@ -673,13 +688,25 @@ function App() {
 
   // Adjust terminal size on window resize
   useEffect(() => {
-    const handleResize = () => {
-      resizeTerminal();
-    };
+    function debounce(func, wait) {
+      let timeout;
+      return function executedFunction(...args) {
+        const later = () => {
+          clearTimeout(timeout);
+          func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+      };
+    }
 
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [activeSessionId]);
+    const debouncedResize = debounce(() => {
+      setTimeout(resizeTerminal, 10);
+    }, 250);
+
+    window.addEventListener('resize', debouncedResize);
+    return () => window.removeEventListener('resize', debouncedResize);
+  }, []); // Register once
 
   const activeSession = sessions.find(s => s.id === activeSessionId);
 
