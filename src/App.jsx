@@ -115,7 +115,6 @@ class SerialConnection {
 }
 
 function App() {
-  console.log('[v2] App component rendered');
   // Session management state
   const [sessions, setSessions] = useState([]);
   const [activeSessionId, setActiveSessionId] = useState(null);
@@ -592,7 +591,6 @@ function App() {
 
   useEffect(() => {
     const handleSshData = (event, { connectionId, data }) => {
-      console.log(`[v2] handleSshData received data for connectionId: ${connectionId}`);
       // Find the session that this data belongs to
       const sessionEntry = Object.entries(sshConnections.current).find(
         ([sessionId, conn]) => conn.connectionId === connectionId
@@ -600,15 +598,9 @@ function App() {
 
       if (sessionEntry) {
         const [sessionId, connection] = sessionEntry;
-        console.log(`[v2] Found session ${sessionId} for connectionId ${connectionId}`);
         if (terminalInstances.current[sessionId]) {
-          console.log(`[v2] Writing data to terminal for session ${sessionId}`);
           terminalInstances.current[sessionId].write(data);
-        } else {
-          console.log(`[v2] Terminal for session ${sessionId} not found`);
         }
-      } else {
-        console.log(`[v2] No session found for connectionId ${connectionId}`);
       }
     };
 
