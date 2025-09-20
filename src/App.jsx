@@ -266,7 +266,6 @@ function App() {
             <div 
               ref={terminalRef} 
               className="terminal-content"
-              style={{ width: '100%', height: '400px' }}
             />
           </div>
         )}

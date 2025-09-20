@@ -1,8 +1,10 @@
 /* App.css */
 .app {
-  min-height: 100vh;
+  height: 100%;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  display: flex;
+  flex-direction: column;
 }
 
 .app-header {
@@ -25,9 +27,11 @@
 }
 
 .app-main {
-  max-width: 500px;
-  margin: 0 auto;
-  padding: 0 1rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+  overflow-y: auto;
 }
 
 /* Connection Form Styles */
@@ -36,7 +40,9 @@
   border-radius: 12px;
   padding: 2rem;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-  margin-bottom: 2rem;
+  margin: auto;
+  width: 100%;
+  max-width: 500px;
 }
 
 .connection-form h2 {
@@ -109,6 +115,9 @@
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  flex: 1;
 }
 
 .terminal-header {
@@ -138,29 +147,19 @@
 }
 
 .terminal-content {
-  padding: 2rem;
-  min-height: 300px;
+  flex: 1;
   background: #1e1e1e;
-  color: #ffffff;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  font-size: 0.9rem;
-  line-height: 1.5;
-}
-
-.terminal-content p {
-  margin: 0.5rem 0;
+  /* The terminal instance itself will manage padding and styling */
 }
 
 /* Responsive Design */
 @media (max-width: 600px) {
   .app-main {
-    max-width: 100%;
-    padding: 0 0.5rem;
+    padding: 0.5rem;
   }
   
   .connection-form {
     padding: 1.5rem;
-    margin: 0 0.5rem 2rem 0.5rem;
   }
   
   .app-header h1 {
