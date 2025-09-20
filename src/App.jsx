@@ -76,6 +76,8 @@ function App() {
   });
   const [isConnecting, setIsConnecting] = useState(false);
   const [showConnectionForm, setShowConnectionForm] = useState(false);
+  const [showSessionManager, setShowSessionManager] = useState(true);
+  const [sessionManagerWidth, setSessionManagerWidth] = useState(250);
   
   // Theme-related state
   const [theme, setTheme] = useState(
@@ -183,6 +185,10 @@ function App() {
   const terminalRefs = useRef({});
   const terminalInstances = useRef({});
   const sshConnections = useRef({});
+  
+  // Resize handle refs
+  const resizeHandleRef = useRef(null);
+  const isResizing = useRef(false);
 
   // Connection history and favorites
   const [connectionHistory, setConnectionHistory] = useState(
@@ -233,6 +239,43 @@ function App() {
       ...prev,
       [name]: value
     }));
+  };
+
+  // Terminal resize utility function
+  const resizeTerminal = () => {
+    if (activeSessionId && terminalInstances.current[activeSessionId]) {
+      const terminal = terminalInstances.current[activeSessionId];
+      const terminalRef = terminalRefs.current[activeSessionId];
+      if (terminalRef) {
+        const cols = Math.floor(terminalRef.clientWidth / 8);
+        const rows = Math.floor(terminalRef.clientHeight / 16);
+        terminal.resize(Math.max(cols, 80), Math.max(rows, 24));
+      }
+    }
+  };
+
+  // Resize handlers
+  const handleMouseDown = (e) => {
+    if (!showSessionManager) return;
+    isResizing.current = true;
+    e.preventDefault();
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isResizing.current) return;
+    const newWidth = Math.max(150, Math.min(400, e.clientX));
+    setSessionManagerWidth(newWidth);
+    
+    // Resize terminal when session manager width changes
+    setTimeout(resizeTerminal, 10);
+  };
+
+  const handleMouseUp = () => {
+    isResizing.current = false;
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
   };
 
   // Create new session
@@ -410,15 +453,7 @@ function App() {
   // Adjust terminal size on window resize
   useEffect(() => {
     const handleResize = () => {
-      if (activeSessionId && terminalInstances.current[activeSessionId]) {
-        const terminal = terminalInstances.current[activeSessionId];
-        const terminalRef = terminalRefs.current[activeSessionId];
-        if (terminalRef) {
-          const cols = Math.floor(terminalRef.clientWidth / 8);
-          const rows = Math.floor(terminalRef.clientHeight / 16);
-          terminal.resize(Math.max(cols, 80), Math.max(rows, 24));
-        }
-      }
+      resizeTerminal();
     };
 
     window.addEventListener('resize', handleResize);
@@ -467,6 +502,18 @@ function App() {
       setShowSettings(true);
     });
 
+    // Toggle session manager menu event
+    window.electronAPI.onMenuToggleSessionManager((event, checked) => {
+      setShowSessionManager(checked);
+      // Reset to default width when showing
+      if (checked && sessionManagerWidth === 0) {
+        setSessionManagerWidth(250);
+      }
+      
+      // Resize terminal after toggle
+      setTimeout(resizeTerminal, 350); // Wait for CSS transition to complete
+    });
+
     // About menu event
     window.electronAPI.onMenuAbout(() => {
       alert('ash SSH Client\nVersion 1.0.0\nA modern SSH client built with Electron and React');
@@ -476,10 +523,19 @@ function App() {
       // Clean up event listeners
       window.electronAPI.removeAllListeners('menu-new-session');
       window.electronAPI.removeAllListeners('menu-close-session');
+      window.electronAPI.removeAllListeners('menu-toggle-session-manager');
       window.electronAPI.removeAllListeners('menu-settings');
       window.electronAPI.removeAllListeners('menu-about');
     };
   }, [activeSessionId]);
+
+  // Cleanup resize event listeners on unmount
+  useEffect(() => {
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
 
   // Apply theme with CSS variables
   const currentTheme = themes[theme];
@@ -497,7 +553,10 @@ function App() {
     >
       <div className="main-content">
         {/* Left session manager */}
-        <div className="session-manager">
+        <div 
+          className={`session-manager ${!showSessionManager ? 'hidden' : ''}`}
+          style={{ width: showSessionManager ? `${sessionManagerWidth}px` : '0' }}
+        >
           <div className="session-manager-header">
             <h3>Sessions</h3>
             <div className="header-buttons">
@@ -592,6 +651,15 @@ function App() {
           )}
 
         </div>
+        
+        {/* Resize handle */}
+        {showSessionManager && (
+          <div 
+            ref={resizeHandleRef}
+            className="resize-handle"
+            onMouseDown={handleMouseDown}
+          />
+        )}
 
         {/* Right terminal area */}
         <div className="terminal-area">

@@ -29,6 +29,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Menu events
   onMenuNewSession: (callback) => ipcRenderer.on('menu-new-session', callback),
   onMenuCloseSession: (callback) => ipcRenderer.on('menu-close-session', callback),
+  onMenuToggleSessionManager: (callback) => ipcRenderer.on('menu-toggle-session-manager', callback),
   onMenuSettings: (callback) => ipcRenderer.on('menu-settings', callback),
   onMenuAbout: (callback) => ipcRenderer.on('menu-about', callback),
   

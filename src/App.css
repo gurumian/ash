@@ -43,6 +43,32 @@ html, body {
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
+  transition: width 0.3s ease, opacity 0.3s ease;
+}
+
+.session-manager.hidden {
+  width: 0 !important;
+  opacity: 0;
+  overflow: hidden;
+  border-right: none;
+}
+
+/* Resize handle */
+.resize-handle {
+  width: 4px;
+  background: transparent;
+  cursor: col-resize;
+  flex-shrink: 0;
+  position: relative;
+  transition: background 0.2s;
+}
+
+.resize-handle:hover {
+  background: #4a90e2;
+}
+
+.resize-handle:active {
+  background: #357abd;
 }
 
 .session-manager-header {

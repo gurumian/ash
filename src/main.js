@@ -94,6 +94,18 @@ function createMenu() {
       label: 'View',
       submenu: [
         {
+          label: 'Toggle Session Manager',
+          type: 'checkbox',
+          checked: true,
+          click: (menuItem) => {
+            const focusedWindow = BrowserWindow.getFocusedWindow();
+            if (focusedWindow) {
+              focusedWindow.webContents.send('menu-toggle-session-manager', menuItem.checked);
+            }
+          }
+        },
+        { type: 'separator' },
+        {
           label: 'Settings',
           accelerator: 'CmdOrCtrl+,',
           click: () => {
