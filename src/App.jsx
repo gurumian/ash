@@ -13,6 +13,7 @@ class SSHConnection {
 
   async connect(host, port, user, password) {
     try {
+      console.log(`SSH connecting to ${user}@${host}:${port}`);
       const result = await window.electronAPI.sshConnect({
         host,
         port: parseInt(port),
@@ -20,14 +21,18 @@ class SSHConnection {
         password
       });
       
+      console.log('SSH connect result:', result);
+      
       if (result.success) {
         this.connectionId = result.connectionId;
         this.isConnected = true;
+        console.log(`SSH connection successful: ${this.connectionId}`);
         return result;
       } else {
         throw new Error('SSH connection failed');
       }
     } catch (error) {
+      console.error('SSH connection error:', error);
       throw new Error(`SSH connection failed: ${error.message}`);
     }
   }
@@ -62,18 +67,75 @@ class SSHConnection {
   }
 }
 
+// Class for Serial connection management
+class SerialConnection {
+  constructor() {
+    this.connectionId = null;
+    this.isConnected = false;
+    this.sessionId = null;
+  }
+
+  async connect(options) {
+    try {
+      this.sessionId = Date.now().toString();
+      const result = await window.electronAPI.serialConnect(this.sessionId, options);
+      
+      if (result.success) {
+        this.connectionId = this.sessionId;
+        this.isConnected = true;
+        return result;
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      throw new Error(`Serial connection failed: ${error.message}`);
+    }
+  }
+
+  async startShell() {
+    // Serial connections don't need shell initialization
+    return Promise.resolve();
+  }
+
+  write(data) {
+    if (!this.isConnected) {
+      return;
+    }
+    
+    window.electronAPI.serialWrite(this.connectionId, data);
+  }
+
+  disconnect() {
+    if (this.isConnected && this.connectionId) {
+      window.electronAPI.serialDisconnect(this.connectionId);
+      this.isConnected = false;
+      this.connectionId = null;
+    }
+  }
+}
+
 function App() {
+  console.log('[v2] App component rendered');
   // Session management state
   const [sessions, setSessions] = useState([]);
   const [activeSessionId, setActiveSessionId] = useState(null);
   const [connectionForm, setConnectionForm] = useState({
+    connectionType: 'ssh', // 'ssh' or 'serial'
     host: '',
     port: '22',
     user: '',
     password: '',
     sessionName: '',
-    savePassword: false
+    savePassword: false,
+    // Serial port specific fields
+    serialPort: '',
+    baudRate: '9600',
+    dataBits: '8',
+    stopBits: '1',
+    parity: 'none',
+    flowControl: 'none'
   });
+  const [availableSerialPorts, setAvailableSerialPorts] = useState([]);
   const [isConnecting, setIsConnecting] = useState(false);
   const [showConnectionForm, setShowConnectionForm] = useState(false);
   const [showSessionManager, setShowSessionManager] = useState(true);
@@ -241,6 +303,41 @@ function App() {
     }));
   };
 
+  // Load available serial ports
+  const loadSerialPorts = async () => {
+    try {
+      const ports = await window.electronAPI.serialListPorts();
+      setAvailableSerialPorts(ports);
+      
+      // Add some test ports for development
+      const testPorts = [
+        '/tmp/vserial0',
+        '/tmp/vserial1',
+        '/dev/tty.debug-console',
+        '/dev/cu.debug-console'
+      ];
+      
+      // Add test ports if they don't already exist
+      const allPorts = [...ports];
+      testPorts.forEach(testPort => {
+        if (!allPorts.find(p => p.path === testPort)) {
+          allPorts.push({ path: testPort, manufacturer: 'Test', serialNumber: 'TEST' });
+        }
+      });
+      
+      setAvailableSerialPorts(allPorts);
+    } catch (error) {
+      console.error('Failed to load serial ports:', error);
+      // Still add test ports even if real ports fail
+      setAvailableSerialPorts([
+        { path: '/tmp/vserial0', manufacturer: 'Test', serialNumber: 'TEST' },
+        { path: '/tmp/vserial1', manufacturer: 'Test', serialNumber: 'TEST' },
+        { path: '/dev/tty.debug-console', manufacturer: 'Test', serialNumber: 'TEST' },
+        { path: '/dev/cu.debug-console', manufacturer: 'Test', serialNumber: 'TEST' }
+      ]);
+    }
+  };
+
   // Terminal resize utility function
   const resizeTerminal = () => {
     if (activeSessionId && terminalInstances.current[activeSessionId]) {
@@ -280,59 +377,101 @@ function App() {
 
   // Create new session
   const createNewSession = async () => {
-    if (!connectionForm.host || !connectionForm.user) {
-      alert('Host and Username are required.');
-      return;
+    if (connectionForm.connectionType === 'ssh') {
+      if (!connectionForm.host || !connectionForm.user) {
+        alert('Host and Username are required.');
+        return;
+      }
+    } else if (connectionForm.connectionType === 'serial') {
+      if (!connectionForm.serialPort) {
+        alert('Serial port is required.');
+        return;
+      }
     }
 
     setIsConnecting(true);
     
     try {
       const sessionId = Date.now().toString();
-      const sessionName = connectionForm.sessionName || `${connectionForm.user}@${connectionForm.host}`;
+      const sessionName = connectionForm.connectionType === 'ssh' 
+        ? (connectionForm.sessionName || `${connectionForm.user}@${connectionForm.host}`)
+        : (connectionForm.sessionName || `Serial: ${connectionForm.serialPort}`);
       
-      // Create SSH connection
-      const sshConnection = new SSHConnection();
-      await sshConnection.connect(
-        connectionForm.host,
-        connectionForm.port,
-        connectionForm.user,
-        connectionForm.password
-      );
+      // Create connection based on type
+      let connection;
+      let session;
       
-      // Save session information
-      const session = {
-        id: sessionId,
-        name: sessionName,
-        host: connectionForm.host,
-        port: connectionForm.port,
-        user: connectionForm.user,
-        isConnected: true,
-        createdAt: new Date().toISOString()
-      };
+      if (connectionForm.connectionType === 'ssh') {
+        connection = new SSHConnection();
+        await connection.connect(
+          connectionForm.host,
+          connectionForm.port,
+          connectionForm.user,
+          connectionForm.password
+        );
+        
+        session = {
+          id: sessionId,
+          name: sessionName,
+          host: connectionForm.host,
+          port: connectionForm.port,
+          user: connectionForm.user,
+          connectionType: 'ssh',
+          isConnected: true,
+          createdAt: new Date().toISOString()
+        };
+        
+        // Save connection history
+        saveConnectionHistory({
+          host: connectionForm.host,
+          port: connectionForm.port,
+          user: connectionForm.user,
+          password: connectionForm.password,
+          sessionName: sessionName,
+          savePassword: connectionForm.savePassword
+        });
+      } else if (connectionForm.connectionType === 'serial') {
+        connection = new SerialConnection();
+        await connection.connect({
+          path: connectionForm.serialPort,
+          baudRate: parseInt(connectionForm.baudRate),
+          dataBits: parseInt(connectionForm.dataBits),
+          stopBits: parseInt(connectionForm.stopBits),
+          parity: connectionForm.parity,
+          flowControl: connectionForm.flowControl
+        });
+        
+        session = {
+          id: sessionId,
+          name: sessionName,
+          serialPort: connectionForm.serialPort,
+          baudRate: connectionForm.baudRate,
+          connectionType: 'serial',
+          isConnected: true,
+          createdAt: new Date().toISOString()
+        };
+      }
       
+      // Common session setup
       setSessions(prev => [...prev, session]);
       setActiveSessionId(sessionId);
-      sshConnections.current[sessionId] = sshConnection;
-      
-      // Save connection history
-      saveConnectionHistory({
-        host: connectionForm.host,
-        port: connectionForm.port,
-        user: connectionForm.user,
-        password: connectionForm.password,
-        sessionName: sessionName,
-        savePassword: connectionForm.savePassword
-      });
+      sshConnections.current[sessionId] = connection; // Store both SSH and Serial connections
       
       // Reset form
       setConnectionForm({
+        connectionType: 'ssh',
         host: '',
         port: '22',
         user: '',
         password: '',
         sessionName: '',
-        savePassword: false
+        savePassword: false,
+        serialPort: '',
+        baudRate: '9600',
+        dataBits: '8',
+        stopBits: '1',
+        parity: 'none',
+        flowControl: 'none'
       });
       setShowConnectionForm(false);
       setIsConnecting(false);
@@ -345,9 +484,15 @@ function App() {
   };
 
   // Initialize terminal
-  const initializeTerminal = async (sessionId) => {
+  const initializeTerminal = async (sessionId, sessionInfo = null) => {
     const terminalRef = terminalRefs.current[sessionId];
     if (!terminalRef) return;
+
+    // Clean up existing terminal if it exists
+    if (terminalInstances.current[sessionId]) {
+      terminalInstances.current[sessionId].dispose();
+      delete terminalInstances.current[sessionId];
+    }
 
     // Dynamically calculate terminal size
     const terminalElement = terminalRef;
@@ -365,38 +510,35 @@ function App() {
     terminal.open(terminalRef);
     terminalInstances.current[sessionId] = terminal;
 
-    // Start SSH shell
-    try {
-      await sshConnections.current[sessionId].startShell();
-    } catch (error) {
-      terminal.write(`Failed to start shell: ${error.message}\r\n`);
-      return;
+    // Get session info to determine connection type
+    const session = sessionInfo || sessions.find(s => s.id === sessionId);
+    if (!session) return;
+
+    if (session.connectionType === 'ssh') {
+      // Start SSH shell
+      try {
+        console.log(`Starting SSH shell for session ${sessionId}`);
+        await sshConnections.current[sessionId].startShell();
+        console.log(`SSH shell started successfully for session ${sessionId}`);
+        terminal.write('SSH shell started successfully\r\n');
+      } catch (error) {
+        console.error(`Failed to start SSH shell for session ${sessionId}:`, error);
+        terminal.write(`Failed to start shell: ${error.message}\r\n`);
+        return;
+      }
+
+    } else if (session.connectionType === 'serial') {
+      // Serial port connection
+      terminal.write(`Serial port ${session.serialPort} connected at ${session.baudRate} baud\r\n`);
+      terminal.write('Serial terminal ready\r\n');
+
     }
-
-    // SSH data reception event listener
-    window.electronAPI.onSSHData((event, { connectionId, data }) => {
-      // Send data only to the terminal of the corresponding session
-      const session = sessions.find(s => sshConnections.current[s.id]?.connectionId === connectionId);
-      if (session && terminalInstances.current[session.id]) {
-        terminalInstances.current[session.id].write(data);
-      }
-    });
-
-    // SSH connection close event listener
-    window.electronAPI.onSSHClose((event, { connectionId }) => {
-      const session = sessions.find(s => sshConnections.current[s.id]?.connectionId === connectionId);
-      if (session && terminalInstances.current[session.id]) {
-        terminalInstances.current[session.id].write('\r\nSSH connection closed.\r\n');
-        // Update session status
-        setSessions(prev => prev.map(s => 
-          s.id === session.id ? { ...s, isConnected: false } : s
-        ));
-      }
-    });
 
     // Handle terminal input
     terminal.onData((data) => {
-      sshConnections.current[sessionId].write(data);
+      if (sshConnections.current[sessionId]) {
+        sshConnections.current[sessionId].write(data);
+      }
     });
   };
 
@@ -407,7 +549,10 @@ function App() {
 
   // Disconnect session
   const disconnectSession = (sessionId) => {
-    if (sshConnections.current[sessionId]) {
+    const session = sessions.find(s => s.id === sessionId);
+    
+    // Use polymorphic disconnect
+    if (session && sshConnections.current[sessionId]) {
       sshConnections.current[sessionId].disconnect();
       delete sshConnections.current[sessionId];
     }
@@ -428,25 +573,109 @@ function App() {
   // Connect from history
   const connectFromHistory = (connection) => {
     setConnectionForm({
+      connectionType: connection.connectionType || 'ssh',
       host: connection.host,
       port: connection.port || '22',
       user: connection.user,
       password: connection.password || '',
       sessionName: connection.sessionName || connection.name || '',
-      savePassword: !!connection.password // Check checkbox if saved password exists
+      savePassword: !!connection.password, // Check checkbox if saved password exists
+      serialPort: connection.serialPort || '',
+      baudRate: connection.baudRate || '9600',
+      dataBits: connection.dataBits || '8',
+      stopBits: connection.stopBits || '1',
+      parity: connection.parity || 'none',
+      flowControl: connection.flowControl || 'none'
     });
     setShowConnectionForm(true);
   };
 
-  // Terminal initialization effect
+  useEffect(() => {
+    const handleSshData = (event, { connectionId, data }) => {
+      console.log(`[v2] handleSshData received data for connectionId: ${connectionId}`);
+      // Find the session that this data belongs to
+      const sessionEntry = Object.entries(sshConnections.current).find(
+        ([sessionId, conn]) => conn.connectionId === connectionId
+      );
+
+      if (sessionEntry) {
+        const [sessionId, connection] = sessionEntry;
+        console.log(`[v2] Found session ${sessionId} for connectionId ${connectionId}`);
+        if (terminalInstances.current[sessionId]) {
+          console.log(`[v2] Writing data to terminal for session ${sessionId}`);
+          terminalInstances.current[sessionId].write(data);
+        } else {
+          console.log(`[v2] Terminal for session ${sessionId} not found`);
+        }
+      } else {
+        console.log(`[v2] No session found for connectionId ${connectionId}`);
+      }
+    };
+
+    const handleSshClose = (event, { connectionId }) => {
+      // Find the session that this event belongs to
+      const sessionEntry = Object.entries(sshConnections.current).find(
+        ([sessionId, conn]) => conn.connectionId === connectionId
+      );
+
+      if (sessionEntry) {
+        const [sessionId, connection] = sessionEntry;
+        if (terminalInstances.current[sessionId]) {
+          terminalInstances.current[sessionId].write('\r\nSSH connection closed.\r\n');
+        }
+      }
+    };
+
+    window.electronAPI.onSSHData(handleSshData);
+    window.electronAPI.onSSHClose(handleSshClose);
+
+    return () => {
+      window.electronAPI.offSSHData(handleSshData);
+      window.electronAPI.offSSHClose(handleSshClose);
+    };
+  }, []); // Register once
+
+
+
+
+
+  // Global event listeners - register once
+  useEffect(() => {
+
+    const handleSerialData = (event, receivedSessionId, data) => {
+      if (terminalInstances.current[receivedSessionId]) {
+        terminalInstances.current[receivedSessionId].write(data);
+      }
+    };
+
+    const handleSerialClose = (event, receivedSessionId) => {
+      if (terminalInstances.current[receivedSessionId]) {
+        terminalInstances.current[receivedSessionId].write('\r\nSerial connection closed.\r\n');
+        setSessions(prev => prev.map(s => 
+          s.id === receivedSessionId ? { ...s, isConnected: false } : s
+        ));
+      }
+    };
+
+    window.electronAPI.onSerialData(handleSerialData);
+    window.electronAPI.onSerialClose(handleSerialClose);
+
+    return () => {
+      // Cleanup happens automatically on component unmount
+    };
+  }, []); // Register once
+
+  // Terminal initialization effect - only for existing sessions when switching
   useEffect(() => {
     if (activeSessionId && sessions.find(s => s.id === activeSessionId)?.isConnected) {
-      // Initialize terminal after DOM is fully rendered
-      const timer = setTimeout(() => {
-        initializeTerminal(activeSessionId);
-      }, 200);
-      
-      return () => clearTimeout(timer);
+      // Only initialize if terminal doesn't exist yet (for session switching)
+      if (!terminalInstances.current[activeSessionId]) {
+        const timer = setTimeout(() => {
+          initializeTerminal(activeSessionId);
+        }, 200);
+        
+        return () => clearTimeout(timer);
+      }
     }
   }, [activeSessionId, sessions]);
 
@@ -482,6 +711,13 @@ function App() {
     const timer = setTimeout(updateWindowTitle, 100);
     return () => clearTimeout(timer);
   }, [activeSession]);
+
+  // Load serial ports when connection form opens
+  useEffect(() => {
+    if (showConnectionForm && connectionForm.connectionType === 'serial') {
+      loadSerialPorts();
+    }
+  }, [showConnectionForm, connectionForm.connectionType]);
 
   // Handle system menu events
   useEffect(() => {
@@ -690,10 +926,20 @@ function App() {
                   ))}
                 </div>
               </div>
-              <div 
-                ref={el => terminalRefs.current[activeSessionId] = el}
-                className="terminal-content"
-              />
+              <div className="terminal-content-container" style={{ flex: 1, position: 'relative' }}>
+                {sessions.map(session => (
+                  <div
+                    key={session.id}
+                    style={{ display: activeSessionId === session.id ? 'block' : 'none', height: '100%', width: '100%', position: 'absolute' }}
+                  >
+                    <div
+                      ref={el => terminalRefs.current[session.id] = el}
+                      className="terminal-content"
+                      style={{ height: '100%' }}
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
           ) : (
             <div className="welcome-screen">
@@ -729,7 +975,7 @@ function App() {
         <div className="modal-overlay">
           <div className="connection-modal">
             <div className="modal-header">
-              <h3>New SSH Session</h3>
+              <h3>New Connection</h3>
               <button 
                 className="modal-close"
                 onClick={() => setShowConnectionForm(false)}
@@ -740,6 +986,26 @@ function App() {
             
             <form onSubmit={(e) => { e.preventDefault(); createNewSession(); }}>
               <div className="form-group">
+                <label>Connection Type</label>
+                <div className="connection-type-selector">
+                  <button
+                    type="button"
+                    className={`type-btn ${connectionForm.connectionType === 'ssh' ? 'active' : ''}`}
+                    onClick={() => setConnectionForm(prev => ({ ...prev, connectionType: 'ssh' }))}
+                  >
+                    SSH
+                  </button>
+                  <button
+                    type="button"
+                    className={`type-btn ${connectionForm.connectionType === 'serial' ? 'active' : ''}`}
+                    onClick={() => setConnectionForm(prev => ({ ...prev, connectionType: 'serial' }))}
+                  >
+                    Serial
+                  </button>
+                </div>
+              </div>
+
+              <div className="form-group">
                 <label htmlFor="sessionName">Session Name</label>
                 <input
                   type="text"
@@ -747,81 +1013,206 @@ function App() {
                   name="sessionName"
                   value={connectionForm.sessionName}
                   onChange={handleInputChange}
-                  placeholder="My Server"
+                  placeholder={connectionForm.connectionType === 'ssh' ? "My Server" : "My Serial Device"}
                 />
               </div>
 
-              <div className="form-group">
-                <label htmlFor="host">Host</label>
-                <input
-                  type="text"
-                  id="host"
-                  name="host"
-                  value={connectionForm.host}
-                  onChange={handleInputChange}
-                  placeholder="192.168.1.100 or server.example.com"
-                  required
-                />
-              </div>
+              {connectionForm.connectionType === 'ssh' && (
+                <>
+                  <div className="form-group">
+                    <label htmlFor="host">Host</label>
+                    <input
+                      type="text"
+                      id="host"
+                      name="host"
+                      value={connectionForm.host}
+                      onChange={handleInputChange}
+                      placeholder="192.168.1.100 or server.example.com"
+                      required
+                    />
+                  </div>
 
-              <div className="form-group">
-                <label htmlFor="port">Port</label>
-                <input
-                  type="number"
-                  id="port"
-                  name="port"
-                  value={connectionForm.port}
-                  onChange={handleInputChange}
-                  placeholder="22"
-                  min="1"
-                  max="65535"
-                />
-              </div>
+                  <div className="form-group">
+                    <label htmlFor="port">Port</label>
+                    <input
+                      type="number"
+                      id="port"
+                      name="port"
+                      value={connectionForm.port}
+                      onChange={handleInputChange}
+                      placeholder="22"
+                      min="1"
+                      max="65535"
+                    />
+                  </div>
 
-              <div className="form-group">
-                <label htmlFor="user">Username</label>
-                <input
-                  type="text"
-                  id="user"
-                  name="user"
-                  value={connectionForm.user}
-                  onChange={handleInputChange}
-                  placeholder="root, admin, ubuntu"
-                  required
-                />
-              </div>
+                  <div className="form-group">
+                    <label htmlFor="user">Username</label>
+                    <input
+                      type="text"
+                      id="user"
+                      name="user"
+                      value={connectionForm.user}
+                      onChange={handleInputChange}
+                      placeholder="root, admin, ubuntu"
+                      required
+                    />
+                  </div>
 
-              <div className="form-group">
-                <label htmlFor="password">Password</label>
-                <input
-                  type="password"
-                  id="password"
-                  name="password"
-                  value={connectionForm.password}
-                  onChange={handleInputChange}
-                  placeholder="Password"
-                />
-              </div>
+                  <div className="form-group">
+                    <label htmlFor="password">Password</label>
+                    <input
+                      type="password"
+                      id="password"
+                      name="password"
+                      value={connectionForm.password}
+                      onChange={handleInputChange}
+                      placeholder="Password"
+                    />
+                  </div>
+                </>
+              )}
 
-              <div className="form-group checkbox-group">
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    name="savePassword"
-                    checked={connectionForm.savePassword}
-                    onChange={(e) => {
-                      setConnectionForm(prev => ({
-                        ...prev,
-                        savePassword: e.target.checked
-                      }));
-                    }}
-                  />
-                  <span className="checkbox-text">Save password</span>
-                </label>
-                <div className="checkbox-help">
-                  ⚠️ Passwords are stored locally and not encrypted
+              {connectionForm.connectionType === 'serial' && (
+                <>
+                  <div className="form-group">
+                    <label htmlFor="serialPort">Serial Port</label>
+                    <div className="serial-port-selector">
+                      <select
+                        id="serialPort"
+                        name="serialPort"
+                        value={connectionForm.serialPort}
+                        onChange={handleInputChange}
+                        required
+                      >
+                        <option value="">Select a port</option>
+                        {availableSerialPorts.map((port, index) => (
+                          <option key={index} value={port.path}>
+                            {port.path} {port.manufacturer ? `(${port.manufacturer})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        className="refresh-ports-btn"
+                        onClick={loadSerialPorts}
+                        title="Refresh ports"
+                      >
+                        🔄
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label htmlFor="baudRate">Baud Rate</label>
+                      <select
+                        id="baudRate"
+                        name="baudRate"
+                        value={connectionForm.baudRate}
+                        onChange={handleInputChange}
+                      >
+                        <option value="300">300</option>
+                        <option value="600">600</option>
+                        <option value="1200">1200</option>
+                        <option value="2400">2400</option>
+                        <option value="4800">4800</option>
+                        <option value="9600">9600</option>
+                        <option value="14400">14400</option>
+                        <option value="19200">19200</option>
+                        <option value="28800">28800</option>
+                        <option value="38400">38400</option>
+                        <option value="57600">57600</option>
+                        <option value="76800">76800</option>
+                        <option value="115200">115200</option>
+                        <option value="230400">230400</option>
+                        <option value="460800">460800</option>
+                        <option value="921600">921600</option>
+                        <option value="1000000">1000000</option>
+                        <option value="2000000">2000000</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="dataBits">Data Bits</label>
+                      <select
+                        id="dataBits"
+                        name="dataBits"
+                        value={connectionForm.dataBits}
+                        onChange={handleInputChange}
+                      >
+                        <option value="7">7</option>
+                        <option value="8">8</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label htmlFor="stopBits">Stop Bits</label>
+                      <select
+                        id="stopBits"
+                        name="stopBits"
+                        value={connectionForm.stopBits}
+                        onChange={handleInputChange}
+                      >
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="parity">Parity</label>
+                      <select
+                        id="parity"
+                        name="parity"
+                        value={connectionForm.parity}
+                        onChange={handleInputChange}
+                      >
+                        <option value="none">None</option>
+                        <option value="even">Even</option>
+                        <option value="odd">Odd</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="flowControl">Flow Control</label>
+                    <select
+                      id="flowControl"
+                      name="flowControl"
+                      value={connectionForm.flowControl}
+                      onChange={handleInputChange}
+                    >
+                      <option value="none">None</option>
+                      <option value="xon">XON/XOFF</option>
+                      <option value="rts">RTS/CTS</option>
+                    </select>
+                  </div>
+                </>
+              )}
+
+              {connectionForm.connectionType === 'ssh' && (
+                <div className="form-group checkbox-group">
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      name="savePassword"
+                      checked={connectionForm.savePassword}
+                      onChange={(e) => {
+                        setConnectionForm(prev => ({
+                          ...prev,
+                          savePassword: e.target.checked
+                        }));
+                      }}
+                    />
+                    <span className="checkbox-text">Save password</span>
+                  </label>
+                  <div className="checkbox-help">
+                    ⚠️ Passwords are stored locally and not encrypted
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="modal-actions">
                 <button 

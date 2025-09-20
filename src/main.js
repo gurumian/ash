@@ -231,7 +231,7 @@ function createMenu() {
 // SSH connection IPC handler
 ipcMain.handle('ssh-connect', async (event, connectionInfo) => {
   const { host, port, username, password } = connectionInfo;
-  const connectionId = `${username}@${host}:${port}`;
+  const connectionId = require('crypto').randomUUID();
   
   try {
     // Dynamically import ssh2
@@ -245,6 +245,7 @@ ipcMain.handle('ssh-connect', async (event, connectionInfo) => {
     return new Promise((resolve, reject) => {
       conn.on('ready', () => {
         sshConnections.set(connectionId, conn);
+        console.log(`SSH connection established: ${connectionId}`);
         resolve({ success: true, connectionId });
       });
       
@@ -285,12 +286,14 @@ ipcMain.handle('ssh-start-shell', async (event, connectionId) => {
       
       // Send terminal data to renderer
       stream.on('data', (data) => {
-        event.sender.send('ssh-data', { connectionId, data: data.toString() });
+        console.log(`SSH data for connectionId ${connectionId}`);
+        event.sender.send('ssh-data', { connectionId: connectionId, data: data.toString() });
       });
       
       stream.on('close', () => {
+        console.log(`SSH connection closed: ${connectionId}`);
+        event.sender.send('ssh-closed', { connectionId: connectionId });
         sshStreams.delete(connectionId);
-        event.sender.send('ssh-close', { connectionId });
       });
     });
   });
@@ -303,6 +306,7 @@ ipcMain.handle('ssh-write', async (event, { connectionId, data }) => {
     throw new Error('SSH stream not found');
   }
   
+  console.log(`SSH write to connectionId ${connectionId}: ${data.length} bytes`);
   stream.write(data);
   return { success: true };
 });
@@ -380,3 +384,110 @@ app.on('window-all-closed', () => {
 
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and import them here.
+
+// Serial port support
+const serialConnections = new Map();
+
+// Load serialport
+let SerialPort;
+try {
+  const serialport = require('serialport');
+  SerialPort = serialport.SerialPort;
+  console.log('SerialPort loaded successfully');
+} catch (error) {
+  console.error('Failed to load serialport:', error);
+}
+
+// List available serial ports
+ipcMain.handle('serial-list-ports', async () => {
+  try {
+    if (!SerialPort) {
+      console.error('SerialPort not available');
+      return [];
+    }
+    
+    const ports = await SerialPort.list();
+    return ports.map(port => ({
+      path: port.path,
+      manufacturer: port.manufacturer,
+      serialNumber: port.serialNumber,
+      pnpId: port.pnpId,
+      locationId: port.locationId,
+      vendorId: port.vendorId,
+      productId: port.productId
+    }));
+  } catch (error) {
+    console.error('Error listing serial ports:', error);
+    return [];
+  }
+});
+
+// Connect to serial port
+ipcMain.handle('serial-connect', async (event, sessionId, options) => {
+  try {
+    if (!SerialPort) {
+      throw new Error('SerialPort not available');
+    }
+
+    const port = new SerialPort({
+      path: options.path,
+      baudRate: options.baudRate || 9600,
+      dataBits: options.dataBits || 8,
+      stopBits: options.stopBits || 1,
+      parity: options.parity || 'none',
+      flowControl: options.flowControl || 'none'
+    });
+
+    serialConnections.set(sessionId, port);
+
+    port.on('data', (data) => {
+      event.sender.send('serial-data', sessionId, data.toString());
+    });
+
+    port.on('close', () => {
+      event.sender.send('serial-close', sessionId);
+      serialConnections.delete(sessionId);
+    });
+
+    port.on('error', (error) => {
+      console.error('Serial port error:', error);
+      event.sender.send('serial-error', sessionId, error.message);
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Serial connection error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Write to serial port
+ipcMain.handle('serial-write', async (event, sessionId, data) => {
+  try {
+    const port = serialConnections.get(sessionId);
+    if (!port) {
+      throw new Error('Serial port not connected');
+    }
+
+    port.write(data);
+    return { success: true };
+  } catch (error) {
+    console.error('Serial write error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Disconnect serial port
+ipcMain.handle('serial-disconnect', async (event, sessionId) => {
+  try {
+    const port = serialConnections.get(sessionId);
+    if (port) {
+      port.close();
+      serialConnections.delete(sessionId);
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('Serial disconnect error:', error);
+    return { success: false, error: error.message };
+  }
+});

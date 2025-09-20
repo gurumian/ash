@@ -17,11 +17,25 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Disconnect SSH connection
   sshDisconnect: (connectionId) => ipcRenderer.invoke('ssh-disconnect', connectionId),
   
-  // SSH data reception event
   onSSHData: (callback) => ipcRenderer.on('ssh-data', callback),
   
   // SSH connection close event
-  onSSHClose: (callback) => ipcRenderer.on('ssh-close', callback),
+  onSSHClose: (callback) => ipcRenderer.on('ssh-closed', callback),
+  
+  // Remove SSH event listeners
+  offSSHData: (callback) => ipcRenderer.off('ssh-data', callback),
+  offSSHClose: (callback) => ipcRenderer.off('ssh-closed', callback),
+  
+  // Serial port APIs
+  serialListPorts: () => ipcRenderer.invoke('serial-list-ports'),
+  serialConnect: (sessionId, options) => ipcRenderer.invoke('serial-connect', sessionId, options),
+  serialWrite: (sessionId, data) => ipcRenderer.invoke('serial-write', sessionId, data),
+  serialDisconnect: (sessionId) => ipcRenderer.invoke('serial-disconnect', sessionId),
+  
+  // Serial port events
+  onSerialData: (callback) => ipcRenderer.on('serial-data', callback),
+  onSerialClose: (callback) => ipcRenderer.on('serial-close', callback),
+  onSerialError: (callback) => ipcRenderer.on('serial-error', callback),
   
   // Remove event listeners
   removeAllListeners: (channel) => ipcRenderer.removeAllListeners(channel),
