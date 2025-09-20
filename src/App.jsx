@@ -1,5 +1,67 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Terminal } from '@xterm/xterm';
+import '@xterm/xterm/css/xterm.css';
 import './App.css';
+
+// 실제 SSH 연결을 위한 클래스
+class SSHConnection {
+  constructor() {
+    this.connectionId = null;
+    this.isConnected = false;
+    this.terminal = null;
+  }
+
+  async connect(host, port, user, password) {
+    try {
+      // Electron API를 통해 main 프로세스의 SSH 연결 호출
+      const result = await window.electronAPI.sshConnect({
+        host,
+        port: parseInt(port),
+        username: user,
+        password
+      });
+      
+      if (result.success) {
+        this.connectionId = result.connectionId;
+        this.isConnected = true;
+        return result;
+      } else {
+        throw new Error('SSH connection failed');
+      }
+    } catch (error) {
+      throw new Error(`SSH connection failed: ${error.message}`);
+    }
+  }
+
+  async startShell() {
+    if (!this.isConnected) {
+      throw new Error('Not connected to SSH server');
+    }
+
+    try {
+      const result = await window.electronAPI.sshStartShell(this.connectionId);
+      return result;
+    } catch (error) {
+      throw new Error(`Failed to start shell: ${error.message}`);
+    }
+  }
+
+  write(data) {
+    if (!this.isConnected) {
+      return;
+    }
+    
+    window.electronAPI.sshWrite(this.connectionId, data);
+  }
+
+  disconnect() {
+    if (this.isConnected && this.connectionId) {
+      window.electronAPI.sshDisconnect(this.connectionId);
+      this.isConnected = false;
+      this.connectionId = null;
+    }
+  }
+}
 
 function App() {
   const [connectionForm, setConnectionForm] = useState({
@@ -10,6 +72,10 @@ function App() {
   });
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const terminalRef = useRef(null);
+  const terminalInstanceRef = useRef(null);
+  const sshConnectionRef = useRef(null);
+  const currentCommandRef = useRef('');
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -17,6 +83,68 @@ function App() {
       ...prev,
       [name]: value
     }));
+  };
+
+  // 터미널 초기화
+  useEffect(() => {
+    const initializeTerminal = async () => {
+      if (isConnected && terminalRef.current) {
+        const terminal = new Terminal({
+          cols: 80,
+          rows: 24,
+          cursorBlink: true,
+          theme: {
+            background: '#1e1e1e',
+            foreground: '#ffffff',
+            cursor: '#ffffff'
+          }
+        });
+
+        terminal.open(terminalRef.current);
+        terminalInstanceRef.current = terminal;
+
+        // SSH 셸 시작 (연결은 이미 handleConnect에서 완료됨)
+        try {
+          await sshConnectionRef.current.startShell();
+        } catch (error) {
+          terminal.write(`Failed to start shell: ${error.message}\r\n`);
+          return;
+        }
+
+        // SSH 데이터 수신 이벤트 리스너
+        window.electronAPI.onSSHData((event, { connectionId, data }) => {
+          terminal.write(data);
+        });
+
+        // SSH 연결 종료 이벤트 리스너
+        window.electronAPI.onSSHClose((event, { connectionId }) => {
+          terminal.write('\r\nSSH connection closed.\r\n');
+        });
+
+        // 터미널 입력 처리 - SSH로 직접 전송
+        terminal.onData((data) => {
+          sshConnectionRef.current.write(data);
+        });
+
+        return () => {
+          // 이벤트 리스너 제거
+          window.electronAPI.removeAllListeners('ssh-data');
+          window.electronAPI.removeAllListeners('ssh-close');
+          
+          terminal.dispose();
+          if (sshConnectionRef.current) {
+            sshConnectionRef.current.disconnect();
+          }
+        };
+      }
+    };
+
+    initializeTerminal();
+  }, [isConnected, connectionForm]);
+
+  // 프롬프트 표시 함수 (실제 SSH에서는 서버에서 프롬프트를 보내므로 불필요)
+  const displayPrompt = (terminal) => {
+    // 실제 SSH에서는 서버가 프롬프트를 보내므로 여기서는 아무것도 하지 않음
   };
 
   const handleConnect = async () => {
@@ -28,14 +156,19 @@ function App() {
     setIsConnecting(true);
     
     try {
-      // TODO: SSH 연결 로직 구현
-      console.log('Connecting to:', connectionForm);
+      // SSH 연결 생성 및 연결
+      const sshConnection = new SSHConnection();
+      await sshConnection.connect(
+        connectionForm.host,
+        connectionForm.port,
+        connectionForm.user,
+        connectionForm.password
+      );
       
-      // 임시로 2초 후 연결 성공으로 처리
-      setTimeout(() => {
-        setIsConnected(true);
-        setIsConnecting(false);
-      }, 2000);
+      // 연결 성공 후 SSH 연결 인스턴스를 저장
+      sshConnectionRef.current = sshConnection;
+      setIsConnected(true);
+      setIsConnecting(false);
       
     } catch (error) {
       console.error('Connection failed:', error);
@@ -130,10 +263,11 @@ function App() {
                 연결 해제
               </button>
             </div>
-            <div className="terminal-content">
-              <p>터미널이 여기에 표시됩니다.</p>
-              <p>SSH 연결이 성공했습니다!</p>
-            </div>
+            <div 
+              ref={terminalRef} 
+              className="terminal-content"
+              style={{ width: '100%', height: '400px' }}
+            />
           </div>
         )}
       </main>
