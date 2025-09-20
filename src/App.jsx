@@ -318,6 +318,20 @@ function App() {
 
   const activeSession = sessions.find(s => s.id === activeSessionId);
 
+  // 창 제목 동적 변경
+  useEffect(() => {
+    const updateWindowTitle = () => {
+      if (activeSession) {
+        const title = `${activeSession.user}@${activeSession.host}:${activeSession.port} - ash`;
+        window.electronAPI.setWindowTitle(title);
+      } else {
+        window.electronAPI.setWindowTitle('ash');
+      }
+    };
+
+    updateWindowTitle();
+  }, [activeSession]);
+
   // 시스템 메뉴 이벤트 처리
   useEffect(() => {
     // 새 세션 메뉴 이벤트

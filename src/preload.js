@@ -29,5 +29,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 메뉴 이벤트
   onMenuNewSession: (callback) => ipcRenderer.on('menu-new-session', callback),
   onMenuCloseSession: (callback) => ipcRenderer.on('menu-close-session', callback),
-  onMenuAbout: (callback) => ipcRenderer.on('menu-about', callback)
+  onMenuAbout: (callback) => ipcRenderer.on('menu-about', callback),
+  
+  // 창 제목 변경
+  setWindowTitle: (title) => ipcRenderer.invoke('set-window-title', title)
 });

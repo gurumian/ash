@@ -298,11 +298,22 @@ ipcMain.handle('ssh-disconnect', async (event, connectionId) => {
   return { success: false };
 });
 
+// 창 제목 변경 IPC 핸들러
+ipcMain.handle('set-window-title', async (event, title) => {
+  const focusedWindow = BrowserWindow.getFocusedWindow();
+  if (focusedWindow) {
+    focusedWindow.setTitle(title);
+    return { success: true };
+  }
+  return { success: false };
+});
+
 const createWindow = () => {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
     width: 800,
     height: 600,
+    title: 'ash',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
     },
