@@ -249,6 +249,8 @@ function App() {
   const terminalInstances = useRef({});
   const fitAddons = useRef({});
   const sshConnections = useRef({});
+  const sessionLogs = useRef({}); // Store logs for each session
+  const [logStates, setLogStates] = useState({}); // Track logging state for UI updates
   
   // Resize handle refs
   const resizeHandleRef = useRef(null);
@@ -344,6 +346,121 @@ function App() {
   const resizeTerminal = () => {
     if (activeSessionId && fitAddons.current[activeSessionId]) {
       fitAddons.current[activeSessionId].fit();
+    }
+  };
+
+  // Log management functions
+  const appendToLog = async (sessionId, data) => {
+    if (!sessionLogs.current[sessionId]) return;
+    
+    const logSession = sessionLogs.current[sessionId];
+    logSession.content += data;
+    logSession.bufferSize += data.length;
+    logSession.lineCount += (data.match(/\n/g) || []).length;
+    
+    // Check if we need to flush to file
+    const shouldFlush = logSession.lineCount >= 100 || logSession.bufferSize >= 10240; // 10KB
+    
+    if (shouldFlush && logSession.isLogging) {
+      await flushLogToFile(sessionId);
+    }
+  };
+
+  const flushLogToFile = async (sessionId) => {
+    const logSession = sessionLogs.current[sessionId];
+    if (!logSession || !logSession.content) return;
+    
+    try {
+      const session = sessions.find(s => s.id === sessionId);
+      const sessionName = session ? session.name.replace(/[^a-zA-Z0-9]/g, '_') : `session_${sessionId}`;
+      
+      const result = await window.electronAPI.saveLogToFile(sessionId, logSession.content, sessionName);
+      
+      if (result.success) {
+        logSession.filePath = result.filePath;
+        console.log(`Log flushed to file: ${result.filePath}`);
+        
+        // Reset buffer
+        logSession.content = '';
+        logSession.bufferSize = 0;
+        logSession.lineCount = 0;
+      }
+    } catch (error) {
+      console.error('Failed to flush log to file:', error);
+    }
+  };
+
+  const startLogging = (sessionId) => {
+    if (!sessionLogs.current[sessionId]) {
+      sessionLogs.current[sessionId] = {
+        content: '',
+        startTime: new Date().toISOString(),
+        isLogging: true,
+        bufferSize: 0,
+        lineCount: 0,
+        filePath: null
+      };
+    } else {
+      sessionLogs.current[sessionId].isLogging = true;
+    }
+    
+    // Update UI state
+    setLogStates(prev => ({
+      ...prev,
+      [sessionId]: { isLogging: true }
+    }));
+    
+    // Add log entry when starting
+    const logEntry = `\r\n[${new Date().toLocaleTimeString()}] Logging started\r\n`;
+    appendToLog(sessionId, logEntry);
+  };
+
+  const stopLogging = async (sessionId) => {
+    if (sessionLogs.current[sessionId]) {
+      sessionLogs.current[sessionId].isLogging = false;
+    }
+    
+    // Update UI state
+    setLogStates(prev => ({
+      ...prev,
+      [sessionId]: { isLogging: false }
+    }));
+    
+    // Add log entry when stopping
+    const logEntry = `\r\n[${new Date().toLocaleTimeString()}] Logging stopped\r\n`;
+    await appendToLog(sessionId, logEntry);
+    
+    // Flush any remaining data to file
+    await flushLogToFile(sessionId);
+    
+    if (terminalInstances.current[sessionId]) {
+      terminalInstances.current[sessionId].write(logEntry);
+    }
+  };
+
+  const saveLog = async (sessionId) => {
+    if (sessionLogs.current[sessionId]) {
+      // Flush current buffer to file first
+      await flushLogToFile(sessionId);
+      
+      const logSession = sessionLogs.current[sessionId];
+      if (logSession.filePath) {
+        // Show success message with file path
+        console.log(`Log saved to: ${logSession.filePath}`);
+        alert(`Log saved to: ${logSession.filePath}`);
+      } else {
+        alert('No log data to save');
+      }
+    }
+  };
+
+  const clearLog = (sessionId) => {
+    if (sessionLogs.current[sessionId]) {
+      sessionLogs.current[sessionId].content = '';
+      sessionLogs.current[sessionId].bufferSize = 0;
+      sessionLogs.current[sessionId].lineCount = 0;
+      sessionLogs.current[sessionId].filePath = null;
+      console.log(`Log cleared for session ${sessionId}`);
     }
   };
 
@@ -549,7 +666,12 @@ function App() {
     }
 
     // Handle terminal input
-    terminal.onData((data) => {
+    terminal.onData(async (data) => {
+      // Log the input data if logging is enabled for this session
+      if (sessionLogs.current[sessionId] && sessionLogs.current[sessionId].isLogging) {
+        await appendToLog(sessionId, data);
+      }
+      
       if (sshConnections.current[sessionId]) {
         sshConnections.current[sessionId].write(data);
       }
@@ -562,7 +684,7 @@ function App() {
   };
 
   // Disconnect session
-  const disconnectSession = (sessionId) => {
+  const disconnectSession = async (sessionId) => {
     const session = sessions.find(s => s.id === sessionId);
     
     // Use polymorphic disconnect
@@ -575,6 +697,27 @@ function App() {
       terminalInstances.current[sessionId].dispose();
       delete terminalInstances.current[sessionId];
     }
+    
+    // Clean up fit addon
+    if (fitAddons.current[sessionId]) {
+      delete fitAddons.current[sessionId];
+    }
+    
+    // Clean up session logs
+    if (sessionLogs.current[sessionId]) {
+      // Flush any remaining data before cleanup
+      if (sessionLogs.current[sessionId].isLogging) {
+        await flushLogToFile(sessionId);
+      }
+      delete sessionLogs.current[sessionId];
+    }
+    
+    // Clean up log states
+    setLogStates(prev => {
+      const newStates = { ...prev };
+      delete newStates[sessionId];
+      return newStates;
+    });
     
     setSessions(prev => prev.filter(s => s.id !== sessionId));
     
@@ -615,6 +758,11 @@ function App() {
         const [sessionId, connection] = sessionEntry;
         if (terminalInstances.current[sessionId]) {
           terminalInstances.current[sessionId].write(data);
+          
+          // Log the data if logging is enabled for this session
+          if (sessionLogs.current[sessionId] && sessionLogs.current[sessionId].isLogging) {
+            sessionLogs.current[sessionId].content += data;
+          }
         }
       }
     };
@@ -649,9 +797,14 @@ function App() {
   // Global event listeners - register once
   useEffect(() => {
 
-    const handleSerialData = (event, receivedSessionId, data) => {
+    const handleSerialData = async (event, receivedSessionId, data) => {
       if (terminalInstances.current[receivedSessionId]) {
         terminalInstances.current[receivedSessionId].write(data);
+        
+        // Log the data if logging is enabled for this session
+        if (sessionLogs.current[receivedSessionId] && sessionLogs.current[receivedSessionId].isLogging) {
+          await appendToLog(receivedSessionId, data);
+        }
       }
     };
 
@@ -944,6 +1097,42 @@ function App() {
                     </div>
                   ))}
                 </div>
+                {activeSessionId && (
+                  <div className="log-controls">
+                    <button 
+                      className={`log-btn ${logStates[activeSessionId]?.isLogging ? 'logging' : 'not-logging'}`}
+                      onClick={() => {
+                        if (logStates[activeSessionId]?.isLogging) {
+                          stopLogging(activeSessionId);
+                        } else {
+                          startLogging(activeSessionId);
+                        }
+                      }}
+                      title={logStates[activeSessionId]?.isLogging ? 'Stop Logging' : 'Start Logging'}
+                    >
+                      {logStates[activeSessionId]?.isLogging ? '⏹' : '⏺'}
+                    </button>
+                    <button 
+                      className="log-btn save-log"
+                      onClick={() => saveLog(activeSessionId)}
+                      disabled={!sessionLogs.current[activeSessionId]?.content}
+                      title="Save Log"
+                    >
+                      💾
+                    </button>
+                    <button 
+                      className="log-btn clear-log"
+                      onClick={() => clearLog(activeSessionId)}
+                      disabled={!sessionLogs.current[activeSessionId]?.content}
+                      title="Clear Log"
+                    >
+                      🗑
+                    </button>
+                    <span className="log-status">
+                      {logStates[activeSessionId]?.isLogging ? 'Recording' : 'Not Recording'}
+                    </span>
+                  </div>
+                )}
               </div>
               <div className="terminal-content-container" style={{ flex: 1, position: 'relative' }}>
                 {sessions.map(session => (

@@ -55,5 +55,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
       console.log('setWindowTitle failed:', error);
       return { success: false };
     }
+  },
+
+  // Save log to file
+  saveLogToFile: async (sessionId, logContent, sessionName) => {
+    try {
+      return await ipcRenderer.invoke('save-log-to-file', { sessionId, logContent, sessionName });
+    } catch (error) {
+      console.log('saveLogToFile failed:', error);
+      return { success: false };
+    }
   }
 });

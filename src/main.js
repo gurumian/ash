@@ -491,3 +491,32 @@ ipcMain.handle('serial-disconnect', async (event, sessionId) => {
     return { success: false, error: error.message };
   }
 });
+
+// Save log to file
+ipcMain.handle('save-log-to-file', async (event, { sessionId, logContent, sessionName }) => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const os = require('os');
+    
+    // Create logs directory in user's home folder
+    const logsDir = path.join(os.homedir(), 'ash-logs');
+    if (!fs.existsSync(logsDir)) {
+      fs.mkdirSync(logsDir, { recursive: true });
+    }
+    
+    // Generate filename
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `${sessionName}_${timestamp}.log`;
+    const filePath = path.join(logsDir, filename);
+    
+    // Write log content to file
+    fs.writeFileSync(filePath, logContent, 'utf8');
+    
+    console.log(`Log saved to: ${filePath}`);
+    return { success: true, filePath };
+  } catch (error) {
+    console.error('Save log error:', error);
+    return { success: false, error: error.message };
+  }
+});
