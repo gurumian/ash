@@ -26,16 +26,16 @@ html, body {
   overflow: hidden;
 }
 
-/* 시스템 메뉴 사용으로 UI 메뉴바 제거됨 */
+/* UI menu bar removed due to system menu usage */
 
-/* 메인 콘텐츠 영역 */
+/* Main content area */
 .main-content {
   flex: 1;
   display: flex;
   overflow: hidden;
 }
 
-/* 좌측 세션 매니저 */
+/* Left session manager */
 .session-manager {
   width: 250px;
   background: var(--theme-surface, #f8f8f8);
@@ -101,7 +101,7 @@ html, body {
   background: #5a6268;
 }
 
-/* 섹션 */
+/* Section */
 .section {
   margin-bottom: 8px;
 }
@@ -115,7 +115,7 @@ html, body {
   border-bottom: 1px solid #d0d0d0;
 }
 
-/* 세션 아이템 */
+/* Session item */
 .session-item {
   padding: 6px 12px;
   cursor: pointer;
@@ -189,7 +189,7 @@ html, body {
   background: rgba(255, 255, 255, 0.2);
 }
 
-/* 우측 터미널 영역 */
+/* Right terminal area */
 .terminal-area {
   flex: 1;
   display: flex;
@@ -293,7 +293,7 @@ html, body {
   width: 100%;
 }
 
-/* 환영 화면 */
+/* Welcome screen */
 .welcome-screen {
   flex: 1;
   display: flex;
@@ -333,7 +333,7 @@ html, body {
   background: #357abd;
 }
 
-/* 하단 상태바 */
+/* Bottom status bar */
 .status-bar {
   background: #e8e8e8;
   border-top: 1px solid #d0d0d0;
@@ -353,7 +353,7 @@ html, body {
   gap: 16px;
 }
 
-/* 모달 */
+/* Modal */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -444,7 +444,7 @@ html, body {
   color: #999;
 }
 
-/* 체크박스 그룹 */
+/* Checkbox group */
 .checkbox-group {
   margin-bottom: 12px;
 }
@@ -475,7 +475,7 @@ html, body {
   font-style: italic;
 }
 
-/* 설정 모달 */
+/* Settings modal */
 .settings-modal {
   background: white;
   border-radius: 8px;
@@ -645,7 +645,7 @@ html, body {
   cursor: not-allowed;
 }
 
-/* 애니메이션 */
+/* Animation */
 @keyframes pulse {
   0% { opacity: 1; }
   50% { opacity: 0.5; }
@@ -656,7 +656,7 @@ html, body {
   animation: pulse 1.5s infinite;
 }
 
-/* 반응형 디자인 */
+/* Responsive design */
 @media (max-width: 768px) {
   .session-manager {
     width: 200px;

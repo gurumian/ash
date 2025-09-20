@@ -2,10 +2,10 @@ import { app, BrowserWindow, ipcMain, Menu } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 
-// 앱 이름 설정
+// Set app name
 app.setName('ash');
 
-// ssh2는 main 프로세스에서만 동적으로 import
+// ssh2 is dynamically imported only in main process
 let Client;
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -13,11 +13,11 @@ if (started) {
   app.quit();
 }
 
-// SSH 연결 관리
+// SSH connection management
 let sshConnections = new Map();
 let sshStreams = new Map();
 
-// 시스템 메뉴 생성
+// Create system menu
 function createMenu() {
   const template = [
     {
@@ -27,7 +27,7 @@ function createMenu() {
           label: 'New Session',
           accelerator: 'CmdOrCtrl+N',
           click: () => {
-            // 새 세션 생성 이벤트를 renderer로 전송
+            // Send new session creation event to renderer
             const focusedWindow = BrowserWindow.getFocusedWindow();
             if (focusedWindow) {
               focusedWindow.webContents.send('menu-new-session');
@@ -170,7 +170,7 @@ function createMenu() {
     }
   ];
 
-  // macOS에서는 첫 번째 메뉴를 앱 이름으로 변경
+  // On macOS, change the first menu to app name
   if (process.platform === 'darwin') {
     template.unshift({
       label: app.getName(),
@@ -216,13 +216,13 @@ function createMenu() {
   Menu.setApplicationMenu(menu);
 }
 
-// SSH 연결 IPC 핸들러
+// SSH connection IPC handler
 ipcMain.handle('ssh-connect', async (event, connectionInfo) => {
   const { host, port, username, password } = connectionInfo;
   const connectionId = `${username}@${host}:${port}`;
   
   try {
-    // 동적으로 ssh2 import
+    // Dynamically import ssh2
     if (!Client) {
       const ssh2 = require('ssh2');
       Client = ssh2.Client;
@@ -252,7 +252,7 @@ ipcMain.handle('ssh-connect', async (event, connectionInfo) => {
   }
 });
 
-// SSH 터미널 세션 시작
+// Start SSH terminal session
 ipcMain.handle('ssh-start-shell', async (event, connectionId) => {
   const conn = sshConnections.get(connectionId);
   if (!conn) {
@@ -266,12 +266,12 @@ ipcMain.handle('ssh-start-shell', async (event, connectionId) => {
         return;
       }
       
-      // 스트림 저장
+      // Save stream
       sshStreams.set(connectionId, stream);
       
       resolve({ success: true, streamId: stream.id });
       
-      // 터미널 데이터를 renderer로 전송
+      // Send terminal data to renderer
       stream.on('data', (data) => {
         event.sender.send('ssh-data', { connectionId, data: data.toString() });
       });
@@ -284,7 +284,7 @@ ipcMain.handle('ssh-start-shell', async (event, connectionId) => {
   });
 });
 
-// SSH 터미널에 데이터 전송
+// Send data to SSH terminal
 ipcMain.handle('ssh-write', async (event, { connectionId, data }) => {
   const stream = sshStreams.get(connectionId);
   if (!stream) {
@@ -295,7 +295,7 @@ ipcMain.handle('ssh-write', async (event, { connectionId, data }) => {
   return { success: true };
 });
 
-// SSH 연결 해제
+// Disconnect SSH connection
 ipcMain.handle('ssh-disconnect', async (event, connectionId) => {
   const stream = sshStreams.get(connectionId);
   if (stream) {
@@ -312,7 +312,7 @@ ipcMain.handle('ssh-disconnect', async (event, connectionId) => {
   return { success: false };
 });
 
-// 창 제목 변경 IPC 핸들러
+// Window title change IPC handler
 ipcMain.handle('set-window-title', async (event, title) => {
   const focusedWindow = BrowserWindow.getFocusedWindow();
   if (focusedWindow) {
@@ -349,7 +349,7 @@ const createWindow = () => {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
-  createMenu(); // 시스템 메뉴 생성
+  createMenu(); // Create system menu
   createWindow();
 
   // On OS X it's common to re-create a window in the app when the

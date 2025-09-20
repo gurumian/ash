@@ -3,7 +3,7 @@ import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
 import './App.css';
 
-// 실제 SSH 연결을 위한 클래스
+// Class for actual SSH connection management
 class SSHConnection {
   constructor() {
     this.connectionId = null;
@@ -63,7 +63,7 @@ class SSHConnection {
 }
 
 function App() {
-  // 세션 관리 상태
+  // Session management state
   const [sessions, setSessions] = useState([]);
   const [activeSessionId, setActiveSessionId] = useState(null);
   const [connectionForm, setConnectionForm] = useState({
@@ -77,23 +77,23 @@ function App() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [showConnectionForm, setShowConnectionForm] = useState(false);
   
-  // 테마 관련 상태
+  // Theme-related state
   const [theme, setTheme] = useState(
     localStorage.getItem('ash-theme') || 'dark'
   );
   const [showSettings, setShowSettings] = useState(false);
   
-  // 통합된 테마 정의
+  // Unified theme definitions
   const themes = {
     dark: {
       name: 'Dark',
-      // UI 색상
+      // UI colors
       background: '#1e1e1e',
       surface: '#2c3e50',
       text: '#ffffff',
       border: '#34495e',
       accent: '#4a90e2',
-      // 터미널 색상
+      // Terminal colors
       terminal: {
         background: '#1e1e1e',
         foreground: '#ffffff',
@@ -103,13 +103,13 @@ function App() {
     },
     light: {
       name: 'Light',
-      // UI 색상
+      // UI colors
       background: '#f8f9fa',
       surface: '#ffffff',
       text: '#333333',
       border: '#e0e0e0',
       accent: '#4a90e2',
-      // 터미널 색상
+      // Terminal colors
       terminal: {
         background: '#ffffff',
         foreground: '#000000',
@@ -119,13 +119,13 @@ function App() {
     },
     solarized_dark: {
       name: 'Solarized Dark',
-      // UI 색상
+      // UI colors
       background: '#002b36',
       surface: '#073642',
       text: '#839496',
       border: '#586e75',
       accent: '#268bd2',
-      // 터미널 색상
+      // Terminal colors
       terminal: {
         background: '#002b36',
         foreground: '#839496',
@@ -135,13 +135,13 @@ function App() {
     },
     solarized_light: {
       name: 'Solarized Light',
-      // UI 색상
+      // UI colors
       background: '#fdf6e3',
       surface: '#eee8d5',
       text: '#657b83',
       border: '#93a1a1',
       accent: '#268bd2',
-      // 터미널 색상
+      // Terminal colors
       terminal: {
         background: '#fdf6e3',
         foreground: '#657b83',
@@ -151,13 +151,13 @@ function App() {
     },
     monokai: {
       name: 'Monokai',
-      // UI 색상
+      // UI colors
       background: '#272822',
       surface: '#3e3d32',
       text: '#f8f8f2',
       border: '#49483e',
       accent: '#a6e22e',
-      // 터미널 색상
+      // Terminal colors
       terminal: {
         background: '#272822',
         foreground: '#f8f8f2',
@@ -167,24 +167,24 @@ function App() {
     }
   };
 
-  // 테마 변경 함수
+  // Theme change function
   const changeTheme = (themeKey) => {
     setTheme(themeKey);
     localStorage.setItem('ash-theme', themeKey);
     
-    // 활성 터미널의 테마도 즉시 변경
+    // Also immediately change the theme of active terminal
     if (activeSessionId && terminalInstances.current[activeSessionId]) {
       const terminal = terminalInstances.current[activeSessionId];
       terminal.options.theme = themes[themeKey].terminal;
     }
   };
   
-  // 터미널 관련 refs
+  // Terminal-related refs
   const terminalRefs = useRef({});
   const terminalInstances = useRef({});
   const sshConnections = useRef({});
 
-  // 연결 히스토리 및 즐겨찾기
+  // Connection history and favorites
   const [connectionHistory, setConnectionHistory] = useState(
     JSON.parse(localStorage.getItem('ssh-connections') || '[]')
   );
@@ -192,9 +192,9 @@ function App() {
     JSON.parse(localStorage.getItem('ssh-favorites') || '[]')
   );
 
-  // 연결 히스토리 저장
+  // Save connection history
   const saveConnectionHistory = (connection) => {
-    // 패스워드 저장 옵션이 체크되지 않았으면 패스워드 제거
+    // Remove password if save password option is not checked
     const connectionToSave = {
       ...connection,
       password: connection.savePassword ? connection.password : ''
@@ -202,13 +202,13 @@ function App() {
     
     const newHistory = [connectionToSave, ...connectionHistory.filter(c => 
       !(c.host === connection.host && c.user === connection.user)
-    )].slice(0, 20); // 최대 20개 저장
+    )].slice(0, 20); // Store maximum 20 items
     
     setConnectionHistory(newHistory);
     localStorage.setItem('ssh-connections', JSON.stringify(newHistory));
   };
 
-  // 즐겨찾기 토글
+  // Toggle favorite
   const toggleFavorite = (connection) => {
     const isFavorite = favorites.some(f => 
       f.host === connection.host && f.user === connection.user
@@ -235,10 +235,10 @@ function App() {
     }));
   };
 
-  // 새 세션 생성
+  // Create new session
   const createNewSession = async () => {
     if (!connectionForm.host || !connectionForm.user) {
-      alert('Host와 Username은 필수입니다.');
+      alert('Host and Username are required.');
       return;
     }
 
@@ -248,7 +248,7 @@ function App() {
       const sessionId = Date.now().toString();
       const sessionName = connectionForm.sessionName || `${connectionForm.user}@${connectionForm.host}`;
       
-      // SSH 연결 생성
+      // Create SSH connection
       const sshConnection = new SSHConnection();
       await sshConnection.connect(
         connectionForm.host,
@@ -257,7 +257,7 @@ function App() {
         connectionForm.password
       );
       
-      // 세션 정보 저장
+      // Save session information
       const session = {
         id: sessionId,
         name: sessionName,
@@ -272,7 +272,7 @@ function App() {
       setActiveSessionId(sessionId);
       sshConnections.current[sessionId] = sshConnection;
       
-      // 연결 히스토리 저장
+      // Save connection history
       saveConnectionHistory({
         host: connectionForm.host,
         port: connectionForm.port,
@@ -282,7 +282,7 @@ function App() {
         savePassword: connectionForm.savePassword
       });
       
-      // 폼 초기화
+      // Reset form
       setConnectionForm({
         host: '',
         port: '22',
@@ -297,19 +297,19 @@ function App() {
     } catch (error) {
       console.error('Connection failed:', error);
       setIsConnecting(false);
-      alert('연결에 실패했습니다: ' + error.message);
+      alert('Connection failed: ' + error.message);
     }
   };
 
-  // 터미널 초기화
+  // Initialize terminal
   const initializeTerminal = async (sessionId) => {
     const terminalRef = terminalRefs.current[sessionId];
     if (!terminalRef) return;
 
-    // 터미널 크기를 동적으로 계산
+    // Dynamically calculate terminal size
     const terminalElement = terminalRef;
-    const cols = Math.floor(terminalElement.clientWidth / 8); // 대략적인 문자 너비
-    const rows = Math.floor(terminalElement.clientHeight / 16); // 대략적인 문자 높이
+    const cols = Math.floor(terminalElement.clientWidth / 8); // Approximate character width
+    const rows = Math.floor(terminalElement.clientHeight / 16); // Approximate character height
 
     const terminal = new Terminal({
       cols: Math.max(cols, 80),
@@ -322,7 +322,7 @@ function App() {
     terminal.open(terminalRef);
     terminalInstances.current[sessionId] = terminal;
 
-    // SSH 셸 시작
+    // Start SSH shell
     try {
       await sshConnections.current[sessionId].startShell();
     } catch (error) {
@@ -330,39 +330,39 @@ function App() {
       return;
     }
 
-    // SSH 데이터 수신 이벤트 리스너
+    // SSH data reception event listener
     window.electronAPI.onSSHData((event, { connectionId, data }) => {
-      // 해당 세션의 터미널에만 데이터 전송
+      // Send data only to the terminal of the corresponding session
       const session = sessions.find(s => sshConnections.current[s.id]?.connectionId === connectionId);
       if (session && terminalInstances.current[session.id]) {
         terminalInstances.current[session.id].write(data);
       }
     });
 
-    // SSH 연결 종료 이벤트 리스너
+    // SSH connection close event listener
     window.electronAPI.onSSHClose((event, { connectionId }) => {
       const session = sessions.find(s => sshConnections.current[s.id]?.connectionId === connectionId);
       if (session && terminalInstances.current[session.id]) {
         terminalInstances.current[session.id].write('\r\nSSH connection closed.\r\n');
-        // 세션 상태 업데이트
+        // Update session status
         setSessions(prev => prev.map(s => 
           s.id === session.id ? { ...s, isConnected: false } : s
         ));
       }
     });
 
-    // 터미널 입력 처리
+    // Handle terminal input
     terminal.onData((data) => {
       sshConnections.current[sessionId].write(data);
     });
   };
 
-  // 활성 세션 변경
+  // Switch active session
   const switchToSession = (sessionId) => {
     setActiveSessionId(sessionId);
   };
 
-  // 세션 연결 해제
+  // Disconnect session
   const disconnectSession = (sessionId) => {
     if (sshConnections.current[sessionId]) {
       sshConnections.current[sessionId].disconnect();
@@ -382,7 +382,7 @@ function App() {
     }
   };
 
-  // 히스토리에서 연결
+  // Connect from history
   const connectFromHistory = (connection) => {
     setConnectionForm({
       host: connection.host,
@@ -390,15 +390,15 @@ function App() {
       user: connection.user,
       password: connection.password || '',
       sessionName: connection.sessionName || connection.name || '',
-      savePassword: !!connection.password // 저장된 패스워드가 있으면 체크박스도 체크
+      savePassword: !!connection.password // Check checkbox if saved password exists
     });
     setShowConnectionForm(true);
   };
 
-  // 터미널 초기화 효과
+  // Terminal initialization effect
   useEffect(() => {
     if (activeSessionId && sessions.find(s => s.id === activeSessionId)?.isConnected) {
-      // DOM이 완전히 렌더링된 후 터미널 초기화
+      // Initialize terminal after DOM is fully rendered
       const timer = setTimeout(() => {
         initializeTerminal(activeSessionId);
       }, 200);
@@ -407,7 +407,7 @@ function App() {
     }
   }, [activeSessionId, sessions]);
 
-  // 윈도우 리사이즈 시 터미널 크기 조정
+  // Adjust terminal size on window resize
   useEffect(() => {
     const handleResize = () => {
       if (activeSessionId && terminalInstances.current[activeSessionId]) {
@@ -427,7 +427,7 @@ function App() {
 
   const activeSession = sessions.find(s => s.id === activeSessionId);
 
-  // 창 제목 동적 변경
+  // Dynamic window title change
   useEffect(() => {
     const updateWindowTitle = async () => {
       try {
@@ -439,41 +439,41 @@ function App() {
         }
       } catch (error) {
         console.log('Window title update failed:', error);
-        // IPC 핸들러가 아직 준비되지 않았을 수 있음
+        // IPC handler may not be ready yet
       }
     };
 
-    // 약간의 지연을 두고 실행
+    // Execute with a slight delay
     const timer = setTimeout(updateWindowTitle, 100);
     return () => clearTimeout(timer);
   }, [activeSession]);
 
-  // 시스템 메뉴 이벤트 처리
+  // Handle system menu events
   useEffect(() => {
-    // 새 세션 메뉴 이벤트
+    // New session menu event
     window.electronAPI.onMenuNewSession(() => {
       setShowConnectionForm(true);
     });
 
-    // 세션 닫기 메뉴 이벤트
+    // Close session menu event
     window.electronAPI.onMenuCloseSession(() => {
       if (activeSessionId) {
         disconnectSession(activeSessionId);
       }
     });
 
-    // 설정 메뉴 이벤트
+    // Settings menu event
     window.electronAPI.onMenuSettings(() => {
       setShowSettings(true);
     });
 
-    // About 메뉴 이벤트
+    // About menu event
     window.electronAPI.onMenuAbout(() => {
       alert('ash SSH Client\nVersion 1.0.0\nA modern SSH client built with Electron and React');
     });
 
     return () => {
-      // 이벤트 리스너 정리
+      // Clean up event listeners
       window.electronAPI.removeAllListeners('menu-new-session');
       window.electronAPI.removeAllListeners('menu-close-session');
       window.electronAPI.removeAllListeners('menu-settings');
@@ -481,7 +481,7 @@ function App() {
     };
   }, [activeSessionId]);
 
-  // CSS 변수로 테마 적용
+  // Apply theme with CSS variables
   const currentTheme = themes[theme];
   
   return (
@@ -496,7 +496,7 @@ function App() {
       }}
     >
       <div className="main-content">
-        {/* 좌측 세션 매니저 */}
+        {/* Left session manager */}
         <div className="session-manager">
           <div className="session-manager-header">
             <h3>Sessions</h3>
@@ -518,7 +518,7 @@ function App() {
             </div>
           </div>
           
-          {/* 즐겨찾기 */}
+          {/* Favorites */}
           {favorites.length > 0 && (
             <div className="section">
               <div className="section-header">Favorites</div>
@@ -535,7 +535,7 @@ function App() {
             </div>
           )}
 
-          {/* 활성 세션 */}
+          {/* Active sessions */}
           {sessions.length > 0 && (
             <div className="section">
               <div className="section-header">Active Sessions</div>
@@ -564,7 +564,7 @@ function App() {
             </div>
           )}
 
-          {/* 연결 히스토리 */}
+          {/* Connection history */}
           {connectionHistory.length > 0 && (
             <div className="section">
               <div className="section-header">Recent</div>
@@ -593,7 +593,7 @@ function App() {
 
         </div>
 
-        {/* 우측 터미널 영역 */}
+        {/* Right terminal area */}
         <div className="terminal-area">
           {activeSession ? (
             <div className="terminal-container">
@@ -642,7 +642,7 @@ function App() {
         </div>
       </div>
 
-      {/* 하단 상태바 */}
+      {/* Bottom status bar */}
       <div className="status-bar">
         <div className="status-left">
           {activeSession ? (
@@ -656,7 +656,7 @@ function App() {
         </div>
       </div>
 
-      {/* 연결 폼 모달 */}
+      {/* Connection form modal */}
       {showConnectionForm && (
         <div className="modal-overlay">
           <div className="connection-modal">
@@ -776,7 +776,7 @@ function App() {
         </div>
       )}
 
-      {/* 설정 창 모달 */}
+      {/* Settings window modal */}
       {showSettings && (
         <div className="modal-overlay">
           <div className="settings-modal">
