@@ -77,6 +77,108 @@ function App() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [showConnectionForm, setShowConnectionForm] = useState(false);
   
+  // 테마 관련 상태
+  const [theme, setTheme] = useState(
+    localStorage.getItem('ash-theme') || 'dark'
+  );
+  const [showSettings, setShowSettings] = useState(false);
+  
+  // 통합된 테마 정의
+  const themes = {
+    dark: {
+      name: 'Dark',
+      // UI 색상
+      background: '#1e1e1e',
+      surface: '#2c3e50',
+      text: '#ffffff',
+      border: '#34495e',
+      accent: '#4a90e2',
+      // 터미널 색상
+      terminal: {
+        background: '#1e1e1e',
+        foreground: '#ffffff',
+        cursor: '#ffffff',
+        selection: '#264f78'
+      }
+    },
+    light: {
+      name: 'Light',
+      // UI 색상
+      background: '#f8f9fa',
+      surface: '#ffffff',
+      text: '#333333',
+      border: '#e0e0e0',
+      accent: '#4a90e2',
+      // 터미널 색상
+      terminal: {
+        background: '#ffffff',
+        foreground: '#000000',
+        cursor: '#000000',
+        selection: '#add6ff'
+      }
+    },
+    solarized_dark: {
+      name: 'Solarized Dark',
+      // UI 색상
+      background: '#002b36',
+      surface: '#073642',
+      text: '#839496',
+      border: '#586e75',
+      accent: '#268bd2',
+      // 터미널 색상
+      terminal: {
+        background: '#002b36',
+        foreground: '#839496',
+        cursor: '#839496',
+        selection: '#073642'
+      }
+    },
+    solarized_light: {
+      name: 'Solarized Light',
+      // UI 색상
+      background: '#fdf6e3',
+      surface: '#eee8d5',
+      text: '#657b83',
+      border: '#93a1a1',
+      accent: '#268bd2',
+      // 터미널 색상
+      terminal: {
+        background: '#fdf6e3',
+        foreground: '#657b83',
+        cursor: '#657b83',
+        selection: '#eee8d5'
+      }
+    },
+    monokai: {
+      name: 'Monokai',
+      // UI 색상
+      background: '#272822',
+      surface: '#3e3d32',
+      text: '#f8f8f2',
+      border: '#49483e',
+      accent: '#a6e22e',
+      // 터미널 색상
+      terminal: {
+        background: '#272822',
+        foreground: '#f8f8f2',
+        cursor: '#f8f8f2',
+        selection: '#49483e'
+      }
+    }
+  };
+
+  // 테마 변경 함수
+  const changeTheme = (themeKey) => {
+    setTheme(themeKey);
+    localStorage.setItem('ash-theme', themeKey);
+    
+    // 활성 터미널의 테마도 즉시 변경
+    if (activeSessionId && terminalInstances.current[activeSessionId]) {
+      const terminal = terminalInstances.current[activeSessionId];
+      terminal.options.theme = themes[themeKey].terminal;
+    }
+  };
+  
   // 터미널 관련 refs
   const terminalRefs = useRef({});
   const terminalInstances = useRef({});
@@ -214,11 +316,7 @@ function App() {
       rows: Math.max(rows, 24),
       cursorBlink: true,
       scrollback: 1000,
-      theme: {
-        background: '#1e1e1e',
-        foreground: '#ffffff',
-        cursor: '#ffffff'
-      }
+      theme: themes[theme].terminal
     });
 
     terminal.open(terminalRef);
@@ -364,6 +462,11 @@ function App() {
       }
     });
 
+    // 설정 메뉴 이벤트
+    window.electronAPI.onMenuSettings(() => {
+      setShowSettings(true);
+    });
+
     // About 메뉴 이벤트
     window.electronAPI.onMenuAbout(() => {
       alert('ash SSH Client\nVersion 1.0.0\nA modern SSH client built with Electron and React');
@@ -373,24 +476,46 @@ function App() {
       // 이벤트 리스너 정리
       window.electronAPI.removeAllListeners('menu-new-session');
       window.electronAPI.removeAllListeners('menu-close-session');
+      window.electronAPI.removeAllListeners('menu-settings');
       window.electronAPI.removeAllListeners('menu-about');
     };
   }, [activeSessionId]);
 
+  // CSS 변수로 테마 적용
+  const currentTheme = themes[theme];
+  
   return (
-    <div className="securecrt-app">
+    <div 
+      className="securecrt-app"
+      style={{
+        '--theme-bg': currentTheme.background,
+        '--theme-surface': currentTheme.surface,
+        '--theme-text': currentTheme.text,
+        '--theme-border': currentTheme.border,
+        '--theme-accent': currentTheme.accent
+      }}
+    >
       <div className="main-content">
         {/* 좌측 세션 매니저 */}
         <div className="session-manager">
           <div className="session-manager-header">
             <h3>Sessions</h3>
-            <button 
-              className="new-session-btn"
-              onClick={() => setShowConnectionForm(true)}
-              title="New Session"
-            >
-              +
-            </button>
+            <div className="header-buttons">
+              <button 
+                className="settings-btn"
+                onClick={() => setShowSettings(true)}
+                title="Settings"
+              >
+                ⚙️
+              </button>
+              <button 
+                className="new-session-btn"
+                onClick={() => setShowConnectionForm(true)}
+                title="New Session"
+              >
+                +
+              </button>
+            </div>
           </div>
           
           {/* 즐겨찾기 */}
@@ -465,6 +590,7 @@ function App() {
               ))}
             </div>
           )}
+
         </div>
 
         {/* 우측 터미널 영역 */}
@@ -646,6 +772,101 @@ function App() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 설정 창 모달 */}
+      {showSettings && (
+        <div className="modal-overlay">
+          <div className="settings-modal">
+            <div className="modal-header">
+              <h3>Settings</h3>
+              <button 
+                className="modal-close"
+                onClick={() => setShowSettings(false)}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="settings-content">
+              <div className="settings-section">
+                <h4>Appearance</h4>
+                
+                <div className="setting-group">
+                  <label>Theme</label>
+                  <div className="theme-options">
+                    {Object.entries(themes).map(([key, themeData]) => (
+                      <button
+                        key={key}
+                        className={`theme-option ${theme === key ? 'active' : ''}`}
+                        onClick={() => changeTheme(key)}
+                      >
+                        <div 
+                          className="theme-preview"
+                          style={{ backgroundColor: themeData.background }}
+                        />
+                        {themeData.name}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="setting-description">
+                    Changes both UI and terminal appearance
+                  </p>
+                </div>
+              </div>
+
+              <div className="settings-section">
+                <h4>Connection</h4>
+                
+                <div className="setting-group">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={true}
+                      readOnly
+                    />
+                    Save connection history
+                  </label>
+                  <p className="setting-description">
+                    Automatically save recent connections for quick access
+                  </p>
+                </div>
+
+                <div className="setting-group">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={true}
+                      readOnly
+                    />
+                    Enable favorites
+                  </label>
+                  <p className="setting-description">
+                    Allow marking connections as favorites
+                  </p>
+                </div>
+              </div>
+
+              <div className="settings-section">
+                <h4>About</h4>
+                <div className="about-info">
+                  <p><strong>ash SSH Client</strong></p>
+                  <p>Version 1.0.0</p>
+                  <p>A modern SSH client built with Electron and React</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-actions">
+              <button 
+                className="close-btn"
+                onClick={() => setShowSettings(false)}
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

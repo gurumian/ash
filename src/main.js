@@ -73,8 +73,34 @@ function createMenu() {
       ]
     },
     {
+      label: 'Window',
+      submenu: [
+        {
+          label: 'Minimize',
+          accelerator: 'CmdOrCtrl+M',
+          role: 'minimize'
+        },
+        {
+          label: 'Close',
+          accelerator: 'CmdOrCtrl+W',
+          role: 'close'
+        }
+      ]
+    },
+    {
       label: 'View',
       submenu: [
+        {
+          label: 'Settings',
+          accelerator: 'CmdOrCtrl+,',
+          click: () => {
+            const focusedWindow = BrowserWindow.getFocusedWindow();
+            if (focusedWindow) {
+              focusedWindow.webContents.send('menu-settings');
+            }
+          }
+        },
+        { type: 'separator' },
         {
           label: 'Reload',
           accelerator: 'CmdOrCtrl+R',
@@ -122,21 +148,6 @@ function createMenu() {
               focusedWindow.webContents.setZoomLevel(currentZoom - 0.5);
             }
           }
-        }
-      ]
-    },
-    {
-      label: 'Window',
-      submenu: [
-        {
-          label: 'Minimize',
-          accelerator: 'CmdOrCtrl+M',
-          role: 'minimize'
-        },
-        {
-          label: 'Close',
-          accelerator: 'CmdOrCtrl+W',
-          role: 'close'
         }
       ]
     },
