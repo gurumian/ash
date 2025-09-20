@@ -318,27 +318,35 @@ function App() {
 
   const activeSession = sessions.find(s => s.id === activeSessionId);
 
+  // 시스템 메뉴 이벤트 처리
+  useEffect(() => {
+    // 새 세션 메뉴 이벤트
+    window.electronAPI.onMenuNewSession(() => {
+      setShowConnectionForm(true);
+    });
+
+    // 세션 닫기 메뉴 이벤트
+    window.electronAPI.onMenuCloseSession(() => {
+      if (activeSessionId) {
+        disconnectSession(activeSessionId);
+      }
+    });
+
+    // About 메뉴 이벤트
+    window.electronAPI.onMenuAbout(() => {
+      alert('ash SSH Client\nVersion 1.0.0\nA modern SSH client built with Electron and React');
+    });
+
+    return () => {
+      // 이벤트 리스너 정리
+      window.electronAPI.removeAllListeners('menu-new-session');
+      window.electronAPI.removeAllListeners('menu-close-session');
+      window.electronAPI.removeAllListeners('menu-about');
+    };
+  }, [activeSessionId]);
+
   return (
     <div className="securecrt-app">
-      {/* 상단 메뉴바 */}
-      <div className="menu-bar">
-        <div className="menu-item" onClick={() => setShowConnectionForm(true)}>
-          File → New Session
-        </div>
-        <div className="menu-item">
-          Edit
-        </div>
-        <div className="menu-item">
-          View
-        </div>
-        <div className="menu-item">
-          Options
-        </div>
-        <div className="menu-item">
-          Help
-        </div>
-      </div>
-
       <div className="main-content">
         {/* 좌측 세션 매니저 */}
         <div className="session-manager">

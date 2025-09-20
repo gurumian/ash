@@ -24,5 +24,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onSSHClose: (callback) => ipcRenderer.on('ssh-close', callback),
   
   // 이벤트 리스너 제거
-  removeAllListeners: (channel) => ipcRenderer.removeAllListeners(channel)
+  removeAllListeners: (channel) => ipcRenderer.removeAllListeners(channel),
+  
+  // 메뉴 이벤트
+  onMenuNewSession: (callback) => ipcRenderer.on('menu-new-session', callback),
+  onMenuCloseSession: (callback) => ipcRenderer.on('menu-close-session', callback),
+  onMenuAbout: (callback) => ipcRenderer.on('menu-about', callback)
 });

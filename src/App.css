@@ -25,28 +25,7 @@ html, body {
   overflow: hidden;
 }
 
-/* 상단 메뉴바 */
-.menu-bar {
-  background: #e8e8e8;
-  border-bottom: 1px solid #d0d0d0;
-  padding: 0 8px;
-  display: flex;
-  align-items: center;
-  height: 24px;
-  font-size: 12px;
-  flex-shrink: 0;
-}
-
-.menu-item {
-  padding: 4px 8px;
-  cursor: pointer;
-  border-radius: 2px;
-  transition: background 0.2s;
-}
-
-.menu-item:hover {
-  background: #d0d0d0;
-}
+/* 시스템 메뉴 사용으로 UI 메뉴바 제거됨 */
 
 /* 메인 콘텐츠 영역 */
 .main-content {
