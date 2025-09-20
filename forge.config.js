@@ -4,12 +4,16 @@ const { FuseV1Options, FuseVersion } = require('@electron/fuses');
 module.exports = {
   packagerConfig: {
     asar: true,
+    icon: './assets/icons/icon', // 확장자 없이 (자동으로 .ico, .icns, .png 선택)
   },
   rebuildConfig: {},
   makers: [
     {
       name: '@electron-forge/maker-squirrel',
-      config: {},
+      config: {
+        iconUrl: './assets/icons/icon.ico',
+        setupIcon: './assets/icons/icon.ico',
+      },
     },
     {
       name: '@electron-forge/maker-zip',
@@ -17,11 +21,19 @@ module.exports = {
     },
     {
       name: '@electron-forge/maker-deb',
-      config: {},
+      config: {
+        options: {
+          icon: './assets/icons/icon.png',
+        },
+      },
     },
     {
       name: '@electron-forge/maker-rpm',
-      config: {},
+      config: {
+        options: {
+          icon: './assets/icons/icon.png',
+        },
+      },
     },
   ],
   plugins: [

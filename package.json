@@ -9,7 +9,8 @@
     "package": "electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",
-    "lint": "echo \"No linting configured\""
+    "lint": "echo \"No linting configured\"",
+    "build-icons": "electron-icon-builder --input=./assets/icons/icon.png --output=./assets/icons --flatten"
   },
   "keywords": [],
   "author": {
@@ -28,6 +29,7 @@
     "@electron-forge/plugin-vite": "^7.9.0",
     "@electron/fuses": "^1.8.0",
     "electron": "38.1.2",
+    "electron-icon-builder": "^2.0.1",
     "vite": "^5.4.20"
   },
   "dependencies": {
