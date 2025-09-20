@@ -2,6 +2,9 @@ import { app, BrowserWindow, ipcMain, Menu } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 
+// 앱 이름 설정
+app.setName('ash');
+
 // ssh2는 main 프로세스에서만 동적으로 import
 let Client;
 
@@ -325,6 +328,7 @@ const createWindow = () => {
     width: 800,
     height: 600,
     title: 'ash',
+    titleBarStyle: 'default',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
     },
