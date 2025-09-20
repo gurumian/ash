@@ -1,185 +1,539 @@
-/* App.css */
-.app {
+/* SecureCRT Style CSS */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
   height: 100%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  overflow: hidden;
+}
+
+#root {
+  height: 100vh;
+  width: 100vw;
+}
+
+.securecrt-app {
+  height: 100vh;
+  width: 100vw;
+  background: #f0f0f0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
-.app-header {
-  text-align: center;
-  padding: 2rem 1rem;
+/* 상단 메뉴바 */
+.menu-bar {
+  background: #e8e8e8;
+  border-bottom: 1px solid #d0d0d0;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  height: 24px;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.menu-item {
+  padding: 4px 8px;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background 0.2s;
+}
+
+.menu-item:hover {
+  background: #d0d0d0;
+}
+
+/* 메인 콘텐츠 영역 */
+.main-content {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* 좌측 세션 매니저 */
+.session-manager {
+  width: 250px;
+  background: #f8f8f8;
+  border-right: 1px solid #d0d0d0;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.session-manager-header {
+  background: #e8e8e8;
+  padding: 8px 12px;
+  border-bottom: 1px solid #d0d0d0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.session-manager-header h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+}
+
+.new-session-btn {
+  background: #4a90e2;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.new-session-btn:hover {
+  background: #357abd;
+}
+
+/* 섹션 */
+.section {
+  margin-bottom: 8px;
+}
+
+.section-header {
+  background: #e0e0e0;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #666;
+  border-bottom: 1px solid #d0d0d0;
+}
+
+/* 세션 아이템 */
+.session-item {
+  padding: 6px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background 0.2s;
+}
+
+.session-item:hover {
+  background: #e8e8e8;
+}
+
+.session-item.active {
+  background: #4a90e2;
   color: white;
 }
 
-.app-header h1 {
-  margin: 0;
-  font-size: 2.5rem;
-  font-weight: 700;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+.session-item.active:hover {
+  background: #357abd;
 }
 
-.app-header p {
-  margin: 0.5rem 0 0 0;
-  font-size: 1.1rem;
-  opacity: 0.9;
+.session-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.app-main {
+.connection-status {
+  margin-left: 8px;
+  font-size: 10px;
+}
+
+.connection-status.connected {
+  color: #4caf50;
+}
+
+.connection-status.disconnected {
+  color: #f44336;
+}
+
+.session-item.active .connection-status.connected {
+  color: #a5d6a7;
+}
+
+.session-item.active .connection-status.disconnected {
+  color: #ef9a9a;
+}
+
+.close-session-btn, .favorite-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 2px;
+  font-size: 12px;
+  margin-left: 4px;
+  opacity: 0.7;
+}
+
+.close-session-btn:hover, .favorite-btn:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.session-item.active .close-session-btn:hover,
+.session-item.active .favorite-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* 우측 터미널 영역 */
+.terminal-area {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 1rem;
-  overflow-y: auto;
-}
-
-/* Connection Form Styles */
-.connection-form {
-  background: white;
-  border-radius: 12px;
-  padding: 2rem;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-  margin: auto;
+  background: #1e1e1e;
+  height: 100%;
   width: 100%;
-  max-width: 500px;
+  overflow: hidden;
 }
 
-.connection-form h2 {
-  margin: 0 0 1.5rem 0;
-  color: #333;
-  font-size: 1.5rem;
+.terminal-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #1e1e1e;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+.terminal-header {
+  background: #2d2d2d;
+  border-bottom: 1px solid #404040;
+  flex-shrink: 0;
+}
+
+.tab-bar {
+  display: flex;
+  background: #2d2d2d;
+}
+
+.tab {
+  background: #3c3c3c;
+  color: #cccccc;
+  padding: 8px 16px;
+  cursor: pointer;
+  border-right: 1px solid #404040;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  transition: background 0.2s;
+  min-width: 120px;
+}
+
+.tab:hover {
+  background: #4a4a4a;
+}
+
+.tab.active {
+  background: #1e1e1e;
+  color: white;
+  border-bottom: 2px solid #4a90e2;
+}
+
+.tab-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tab-status {
+  font-size: 10px;
+}
+
+.tab-status.connected {
+  color: #4caf50;
+}
+
+.tab-status.disconnected {
+  color: #f44336;
+}
+
+.tab-close {
+  background: none;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 2px;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.tab-close:hover {
+  background: #555;
+  color: white;
+}
+
+.terminal-content {
+  flex: 1;
+  background: #1e1e1e;
+  color: #ffffff;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 13px;
+  line-height: 1.4;
+  padding: 0;
+  overflow: auto;
+  height: 100%;
+  width: 100%;
+}
+
+/* 환영 화면 */
+.welcome-screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #1e1e1e;
+  color: #cccccc;
   text-align: center;
 }
 
+.welcome-screen h2 {
+  font-size: 24px;
+  margin-bottom: 16px;
+  color: white;
+}
+
+.welcome-screen p {
+  font-size: 16px;
+  margin-bottom: 24px;
+  opacity: 0.8;
+}
+
+.welcome-connect-btn {
+  background: #4a90e2;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.welcome-connect-btn:hover {
+  background: #357abd;
+}
+
+/* 하단 상태바 */
+.status-bar {
+  background: #e8e8e8;
+  border-top: 1px solid #d0d0d0;
+  padding: 4px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: #666;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.status-left, .status-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* 모달 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.connection-modal {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  background: #f8f8f8;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-radius: 8px 8px 0 0;
+}
+
+.modal-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #999;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.modal-close:hover {
+  background: #e0e0e0;
+  color: #333;
+}
+
+.connection-modal form {
+  padding: 20px;
+}
+
 .form-group {
-  margin-bottom: 1.5rem;
+  margin-bottom: 16px;
 }
 
 .form-group label {
   display: block;
-  margin-bottom: 0.5rem;
+  margin-bottom: 6px;
   font-weight: 600;
-  color: #555;
-  font-size: 0.9rem;
+  color: #333;
+  font-size: 13px;
 }
 
 .form-group input {
   width: 100%;
-  padding: 0.75rem;
-  border: 2px solid #e1e5e9;
-  border-radius: 8px;
-  font-size: 1rem;
-  transition: all 0.3s ease;
+  padding: 10px 12px;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: border-color 0.2s;
   box-sizing: border-box;
 }
 
 .form-group input:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: #4a90e2;
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
 }
 
 .form-group input::placeholder {
   color: #999;
 }
 
-.connect-button {
-  width: 100%;
-  padding: 1rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 1.1rem;
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.cancel-btn, .connect-btn {
+  padding: 10px 20px;
+  border-radius: 4px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
-  margin-top: 0.5rem;
+  transition: all 0.2s;
+  border: none;
 }
 
-.connect-button:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+.cancel-btn {
+  background: #f0f0f0;
+  color: #666;
 }
 
-.connect-button:disabled {
+.cancel-btn:hover {
+  background: #e0e0e0;
+}
+
+.connect-btn {
+  background: #4a90e2;
+  color: white;
+}
+
+.connect-btn:hover:not(:disabled) {
+  background: #357abd;
+}
+
+.connect-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-  transform: none;
 }
 
-/* Terminal Container Styles */
-.terminal-container {
-  background: white;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-}
-
-.terminal-header {
-  background: #2c3e50;
-  color: white;
-  padding: 1rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  font-size: 0.9rem;
-}
-
-.disconnect-button {
-  background: #e74c3c;
-  color: white;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  transition: background 0.3s ease;
-}
-
-.disconnect-button:hover {
-  background: #c0392b;
-}
-
-.terminal-content {
-  flex: 1;
-  background: #1e1e1e;
-  /* The terminal instance itself will manage padding and styling */
-}
-
-/* Responsive Design */
-@media (max-width: 600px) {
-  .app-main {
-    padding: 0.5rem;
-  }
-  
-  .connection-form {
-    padding: 1.5rem;
-  }
-  
-  .app-header h1 {
-    font-size: 2rem;
-  }
-  
-  .terminal-header {
-    flex-direction: column;
-    gap: 0.5rem;
-    text-align: center;
-  }
-}
-
-/* Animation for connection state */
+/* 애니메이션 */
 @keyframes pulse {
   0% { opacity: 1; }
   50% { opacity: 0.5; }
   100% { opacity: 1; }
 }
 
-.connect-button:disabled {
+.connect-btn:disabled {
   animation: pulse 1.5s infinite;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+  .session-manager {
+    width: 200px;
+  }
+  
+  .session-manager-header h3 {
+    font-size: 12px;
+  }
+  
+  .session-item {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+  
+  .tab {
+    padding: 6px 12px;
+    font-size: 11px;
+    min-width: 100px;
+  }
+  
+  .connection-modal {
+    width: 95%;
+    margin: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .main-content {
+    flex-direction: column;
+  }
+  
+  .session-manager {
+    width: 100%;
+    height: 200px;
+    border-right: none;
+    border-bottom: 1px solid #d0d0d0;
+  }
+  
+  .terminal-area {
+    flex: 1;
+  }
 }
