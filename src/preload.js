@@ -32,5 +32,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onMenuAbout: (callback) => ipcRenderer.on('menu-about', callback),
   
   // 창 제목 변경
-  setWindowTitle: (title) => ipcRenderer.invoke('set-window-title', title)
+  setWindowTitle: async (title) => {
+    try {
+      return await ipcRenderer.invoke('set-window-title', title);
+    } catch (error) {
+      console.log('setWindowTitle failed:', error);
+      return { success: false };
+    }
+  }
 });

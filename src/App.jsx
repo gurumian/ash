@@ -71,7 +71,8 @@ function App() {
     port: '22',
     user: '',
     password: '',
-    sessionName: ''
+    sessionName: '',
+    savePassword: false
   });
   const [isConnecting, setIsConnecting] = useState(false);
   const [showConnectionForm, setShowConnectionForm] = useState(false);
@@ -91,7 +92,13 @@ function App() {
 
   // 연결 히스토리 저장
   const saveConnectionHistory = (connection) => {
-    const newHistory = [connection, ...connectionHistory.filter(c => 
+    // 패스워드 저장 옵션이 체크되지 않았으면 패스워드 제거
+    const connectionToSave = {
+      ...connection,
+      password: connection.savePassword ? connection.password : ''
+    };
+    
+    const newHistory = [connectionToSave, ...connectionHistory.filter(c => 
       !(c.host === connection.host && c.user === connection.user)
     )].slice(0, 20); // 최대 20개 저장
     
@@ -168,7 +175,9 @@ function App() {
         host: connectionForm.host,
         port: connectionForm.port,
         user: connectionForm.user,
-        sessionName: sessionName
+        password: connectionForm.password,
+        sessionName: sessionName,
+        savePassword: connectionForm.savePassword
       });
       
       // 폼 초기화
@@ -177,7 +186,8 @@ function App() {
         port: '22',
         user: '',
         password: '',
-        sessionName: ''
+        sessionName: '',
+        savePassword: false
       });
       setShowConnectionForm(false);
       setIsConnecting(false);
@@ -280,8 +290,9 @@ function App() {
       host: connection.host,
       port: connection.port || '22',
       user: connection.user,
-      password: '',
-      sessionName: connection.sessionName || connection.name || ''
+      password: connection.password || '',
+      sessionName: connection.sessionName || connection.name || '',
+      savePassword: !!connection.password // 저장된 패스워드가 있으면 체크박스도 체크
     });
     setShowConnectionForm(true);
   };
@@ -320,16 +331,23 @@ function App() {
 
   // 창 제목 동적 변경
   useEffect(() => {
-    const updateWindowTitle = () => {
-      if (activeSession) {
-        const title = `${activeSession.user}@${activeSession.host}:${activeSession.port} - ash`;
-        window.electronAPI.setWindowTitle(title);
-      } else {
-        window.electronAPI.setWindowTitle('ash');
+    const updateWindowTitle = async () => {
+      try {
+        if (activeSession) {
+          const title = `${activeSession.user}@${activeSession.host}:${activeSession.port} - ash`;
+          await window.electronAPI.setWindowTitle(title);
+        } else {
+          await window.electronAPI.setWindowTitle('ash');
+        }
+      } catch (error) {
+        console.log('Window title update failed:', error);
+        // IPC 핸들러가 아직 준비되지 않았을 수 있음
       }
     };
 
-    updateWindowTitle();
+    // 약간의 지연을 두고 실행
+    const timer = setTimeout(updateWindowTitle, 100);
+    return () => clearTimeout(timer);
   }, [activeSession]);
 
   // 시스템 메뉴 이벤트 처리
@@ -589,6 +607,26 @@ function App() {
                   onChange={handleInputChange}
                   placeholder="Password"
                 />
+              </div>
+
+              <div className="form-group checkbox-group">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    name="savePassword"
+                    checked={connectionForm.savePassword}
+                    onChange={(e) => {
+                      setConnectionForm(prev => ({
+                        ...prev,
+                        savePassword: e.target.checked
+                      }));
+                    }}
+                  />
+                  <span className="checkbox-text">Save password</span>
+                </label>
+                <div className="checkbox-help">
+                  ⚠️ Passwords are stored locally and not encrypted
+                </div>
               </div>
 
               <div className="modal-actions">

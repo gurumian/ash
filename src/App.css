@@ -420,6 +420,37 @@ html, body {
   color: #999;
 }
 
+/* 체크박스 그룹 */
+.checkbox-group {
+  margin-bottom: 12px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: normal;
+  margin-bottom: 4px;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: auto;
+  margin-right: 8px;
+  cursor: pointer;
+}
+
+.checkbox-text {
+  font-size: 13px;
+  color: #333;
+}
+
+.checkbox-help {
+  font-size: 11px;
+  color: #666;
+  margin-left: 20px;
+  font-style: italic;
+}
+
 .modal-actions {
   display: flex;
   justify-content: flex-end;
