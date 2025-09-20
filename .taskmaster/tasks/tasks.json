@@ -1,0 +1,614 @@
+{
+    "master": {
+      "tasks": [
+        {
+          "id": 1,
+          "title": "Setup Project Repository",
+          "description": "Initialize the project structure with necessary directories and files",
+          "details": "Create a Git repository, set up basic folder structure (src, assets, config, public), and initialize package.json with Electron, React, xterm.js, and Ollama dependencies. Use TypeScript for type safety.",
+          "testStrategy": "Verify repository structure and package.json contents",
+          "priority": "low",
+          "dependencies": [],
+          "status": "done",
+          "subtasks": [
+            {
+              "id": 1,
+              "title": "Create Git Repository",
+              "description": "Initialize a new Git repository for the project",
+              "dependencies": [],
+              "details": "Use a Git client or library to create a new repository",
+              "status": "done",
+              "testStrategy": ""
+            },
+            {
+              "id": 2,
+              "title": "Set Up Basic Folder Structure and Configure package.json",
+              "description": "Create necessary directories (src, assets, config, public) and initialize package.json with dependencies",
+              "dependencies": [
+                "1.1"
+              ],
+              "details": "Use TypeScript for type safety and include Electron, React, xterm.js, and Ollama dependencies in package.json\n<info added on 2025-09-18T11:40:26.811Z>\nHere is the new text that should be appended to this subtask's details:\n\n\"Completed successfully. The project structure is now ready for development, with a basic folder structure created and package.json initialized with all required dependencies.\"\n</info added on 2025-09-18T11:40:26.811Z>",
+              "status": "done",
+              "testStrategy": ""
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "title": "Implement SSH Core Connection",
+          "description": "Create the foundation for SSH connections and terminal rendering",
+          "details": "Implement SSH connection using ssh2 library, integrate xterm.js for terminal rendering, and create a basic UI for connection parameters. Use node-pty for terminal process management.",
+          "testStrategy": "Test SSH connection to a local server and verify terminal rendering",
+          "priority": "high",
+          "dependencies": [
+            1
+          ],
+          "status": "done",
+          "subtasks": [
+            {
+              "id": 1,
+              "title": "Integrate ssh2 Library",
+              "description": "Implement SSH connection using ssh2 library",
+              "dependencies": [],
+              "details": "Use ssh2 library to establish an SSH connection\n<info added on 2025-09-18T11:47:44.084Z>\nHere is the new text content that should be appended to this subtask's details:\n\n\"Successfully integrated SSH2 library, establishing a full-featured SSH connection with authentication support, stream management for multiple terminals, and event-driven architecture. Implemented main Electron process, IPC handlers, terminal management integration, and event forwarding between processes.\"\n</info added on 2025-09-18T11:47:44.084Z>",
+              "status": "done",
+              "testStrategy": ""
+            },
+            {
+              "id": 2,
+              "title": "Integrate xterm.js for Terminal Rendering",
+              "description": "Integrate xterm.js for terminal rendering",
+              "dependencies": [],
+              "details": "Use xterm.js to render the terminal output\n<info added on 2025-09-18T11:49:51.837Z>\nHere is the new text content that should be appended to this subtask's details:\n\n\"Successfully integrated xterm.js for terminal rendering, including TypeScript type definitions, Terminal React component, main React app, ConnectionManager component, and TerminalTabs component. Additionally, updated webpack configuration for React JSX support.\"\n</info added on 2025-09-18T11:49:51.837Z>",
+              "status": "done",
+              "testStrategy": ""
+            },
+            {
+              "id": 3,
+              "title": "Create Basic UI for Connection Parameters",
+              "description": "Create a basic UI for connection parameters",
+              "dependencies": [],
+              "details": "Implement a simple UI for users to input SSH connection details",
+              "status": "done",
+              "testStrategy": ""
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "title": "Create Quick Connect Feature",
+          "description": "Implement a quick connect button for easy SSH access",
+          "details": "Add a 'Quick Connect' button to the UI that pre-fills connection parameters and initiates SSH connection. Integrate with the existing SSH core implementation.",
+          "testStrategy": "Verify quick connect functionality with pre-configured credentials",
+          "priority": "medium",
+          "dependencies": [
+            2
+          ],
+          "status": "done",
+          "subtasks": [
+            {
+              "id": 1,
+              "title": "Design Quick Connect UI Component",
+              "description": "Create a visually appealing and user-friendly 'Quick Connect' button that pre-fills connection parameters and initiates SSH connection.",
+              "dependencies": [],
+              "details": "Design the UI component for the quick connect feature, ensuring it is intuitive and easy to use.",
+              "status": "done",
+              "testStrategy": ""
+            },
+            {
+              "id": 2,
+              "title": "Integrate Quick Connect with SSH Connection Logic",
+              "description": "Implement the logic that integrates the 'Quick Connect' button with the existing SSH connection implementation.",
+              "dependencies": [],
+              "details": "Write the code that connects the UI component to the underlying SSH connection functionality, ensuring seamless integration.",
+              "status": "done",
+              "testStrategy": ""
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "title": "Implement Profile Management",
+          "description": "Allow users to save and manage SSH connection profiles",
+          "details": "Create a profile management UI with fields for hostname, port, username, and key. Store profiles in JSON format and load them on startup. Implement profile selection and deletion functionality.",
+          "testStrategy": "Verify profile creation, loading, and deletion operations",
+          "priority": "medium",
+          "dependencies": [
+            3
+          ],
+          "status": "done",
+          "subtasks": [
+            {
+              "id": 1,
+              "title": "Create Profile Management UI",
+              "description": "Design and implement the profile management user interface with fields for hostname, port, username, and key.",
+              "dependencies": [],
+              "details": "Implement a simple UI with input fields for profile details and buttons for saving, loading, and deleting profiles.",
+              "status": "done",
+              "testStrategy": ""
+            },
+            {
+              "id": 2,
+              "title": "Store Profiles in JSON Format",
+              "description": "Develop the functionality to store profiles in JSON format and load them on startup.",
+              "dependencies": [
+                "4.1"
+              ],
+              "details": "Implement a data structure to hold profile information and serialize/deserialize it to/from JSON.",
+              "status": "done",
+              "testStrategy": ""
+            },
+            {
+              "id": 3,
+              "title": "Implement Profile Selection and Deletion",
+              "description": "Add functionality for selecting and deleting profiles from the UI.",
+              "dependencies": [
+                "4.1",
+                "4.2"
+              ],
+              "details": "Implement a dropdown list or similar mechanism to select profiles, and add buttons for deleting profiles.",
+              "status": "done",
+              "testStrategy": ""
+            }
+          ]
+        },
+        {
+          "id": 5,
+          "title": "Add Multi-Tab Support",
+          "description": "Enable multiple SSH sessions in separate tabs",
+          "details": "Implement a tab management system that allows users to open multiple SSH connections. Each tab should have its own terminal and connection state. Use React state management for tab switching.",
+          "testStrategy": "Test concurrent SSH connections in separate tabs",
+          "priority": "high",
+          "dependencies": [
+            4
+          ],
+          "status": "done",
+          "subtasks": [
+            {
+              "id": 1,
+              "title": "Implement Tab Management System",
+              "description": "Create a system that allows users to open multiple SSH connections in separate tabs, each with its own terminal and connection state.",
+              "dependencies": [],
+              "details": "Use React state management for tab switching and implement concurrent session handling.",
+              "status": "done",
+              "testStrategy": ""
+            },
+            {
+              "id": 2,
+              "title": "Implement Terminal State Isolation",
+              "description": "Ensure that each tab has its own isolated terminal state, allowing users to switch between tabs without affecting the other terminals.",
+              "dependencies": [],
+              "details": "Use React state management to manage terminal states and implement concurrent session handling.",
+              "status": "done",
+              "testStrategy": ""
+            },
+            {
+              "id": 3,
+              "title": "Test Concurrent SSH Connections",
+              "description": "Verify that multiple SSH connections can be opened in separate tabs concurrently, without affecting each other's performance or stability.",
+              "dependencies": [],
+              "details": "Conduct testing across different scenarios, including long-running sessions and edge cases.",
+              "status": "done",
+              "testStrategy": ""
+            }
+          ]
+        },
+        {
+          "id": 6,
+          "title": "Implement Split Terminal View",
+          "description": "Allow users to split terminals for side-by-side viewing",
+          "details": "Add split view functionality to the terminal UI. Implement horizontal and vertical splits, and ensure each split maintains its own terminal state and session.",
+          "testStrategy": "Verify split view functionality with multiple terminal panes",
+          "priority": "medium",
+          "dependencies": [
+            5
+          ],
+          "status": "done",
+          "subtasks": [
+            {
+              "id": 1,
+              "title": "Design Split UI",
+              "description": "Create a design for the split terminal view UI, including layout options and visual styling.",
+              "dependencies": [],
+              "details": "Sketch out the UI components and their relationships to ensure a seamless user experience.",
+              "status": "done",
+              "testStrategy": ""
+            },
+            {
+              "id": 2,
+              "title": "Implement Split View Logic",
+              "description": "Write code to implement the split view functionality, including horizontal and vertical splits, and session state management for each pane.",
+              "dependencies": [
+                "6.1"
+              ],
+              "details": "Focus on creating a robust and efficient implementation that handles multiple terminal panes.",
+              "status": "done",
+              "testStrategy": ""
+            },
+            {
+              "id": 3,
+              "title": "Test Split View Functionality",
+              "description": "Verify the split view functionality with multiple terminal panes, including testing for edge cases and session state management.",
+              "dependencies": [
+                "6.2"
+              ],
+              "details": "Write comprehensive tests to ensure the implementation meets the requirements and is free from bugs.",
+              "status": "done",
+              "testStrategy": ""
+            }
+          ]
+        },
+        {
+          "id": 7,
+          "title": "Enable ANSI/TrueColor Support",
+          "description": "Support ANSI escape codes and TrueColor for enhanced terminal visuals",
+          "details": "Configure xterm.js to support ANSI and TrueColor rendering. Implement color scheme settings in the preferences panel to allow users to customize terminal appearance.",
+          "testStrategy": "Verify color rendering and ANSI code support in terminal output",
+          "priority": "medium",
+          "dependencies": [
+            6
+          ],
+          "status": "done",
+          "subtasks": [
+            {
+              "id": 1,
+              "title": "Configure xterm.js for ANSI and TrueColor Support",
+              "description": "Implement support for ANSI escape codes and TrueColor rendering in xterm.js",
+              "dependencies": [],
+              "details": "Configure xterm.js to support ANSI and TrueColor rendering.",
+              "status": "done",
+              "testStrategy": ""
+            },
+            {
+              "id": 2,
+              "title": "Implement Color Scheme Settings in Preferences Panel",
+              "description": "Add color scheme settings in the preferences panel to allow users to customize terminal appearance",
+              "dependencies": [
+                "7.1"
+              ],
+              "details": "Implement color scheme settings in the preferences panel.",
+              "status": "done",
+              "testStrategy": ""
+            }
+          ]
+        },
+        {
+          "id": 8,
+          "title": "Implement Log Export Feature",
+          "description": "Allow users to export terminal logs for analysis",
+          "details": "Add a 'Export Logs' button that saves terminal output to a file. Implement log filtering options to allow users to select specific sessions or time ranges for export.",
+          "testStrategy": "Verify log export functionality with different filter options",
+          "priority": "medium",
+          "dependencies": [
+            7
+          ],
+          "status": "done",
+          "subtasks": [
+            {
+              "id": 1,
+              "title": "Create 'Export Logs' Button",
+              "description": "Add a button to the terminal UI that triggers log export functionality.",
+              "dependencies": [],
+              "details": "Implement file export functionality using existing terminal output.",
+              "status": "done",
+              "testStrategy": ""
+            },
+            {
+              "id": 2,
+              "title": "Implement Log Filtering Options",
+              "description": "Develop filtering logic for users to select specific sessions or time ranges for export.",
+              "dependencies": [],
+              "details": "Integrate filtering options with the 'Export Logs' button and existing terminal output.",
+              "status": "done",
+              "testStrategy": ""
+            }
+          ]
+        },
+        {
+          "id": 9,
+          "title": "Create SFTP Browser UI",
+          "description": "Implement a file browser for SFTP operations",
+          "details": "Design a file browser interface for both local and remote file systems. Implement drag-and-drop file transfer and a transfer queue system for managing multiple file transfers.",
+          "testStrategy": "Verify file browsing and drag-and-drop transfer functionality",
+          "priority": "medium",
+          "dependencies": [
+            8
+          ],
+          "status": "done",
+          "subtasks": [
+            {
+              "id": 1,
+              "title": "Design File Browser Interface",
+              "description": "Create a user-friendly file browser interface for both local and remote file systems.",
+              "dependencies": [],
+              "details": "Sketch the UI components, layout, and navigation for the file browser.",
+              "status": "done",
+              "testStrategy": ""
+            },
+            {
+              "id": 2,
+              "title": "Implement Drag-and-Drop File Transfer",
+              "description": "Integrate drag-and-drop functionality for transferring files between local and remote file systems.",
+              "dependencies": [],
+              "details": "Design the transfer process, handle file types, and implement error handling.",
+              "status": "done",
+              "testStrategy": ""
+            },
+            {
+              "id": 3,
+              "title": "Develop Transfer Queue System",
+              "description": "Create a system to manage and resume file transfers, allowing users to pause, resume, and retry transfers.",
+              "dependencies": [],
+              "details": "Design the transfer queue logic, implement progress tracking, and develop resume functionality.",
+              "status": "done",
+              "testStrategy": ""
+            }
+          ]
+        },
+        {
+          "id": 10,
+          "title": "Implement File Transfer Queue",
+          "description": "Create a system for managing and resuming file transfers",
+          "details": "Develop a transfer queue system that allows users to pause, resume, and retry file transfers. Implement resume functionality by tracking transfer progress and resuming from the last position.",
+          "testStrategy": "Verify transfer queue operations with resume and retry capabilities",
+          "priority": "medium",
+          "dependencies": [
+            9
+          ],
+          "status": "pending",
+          "subtasks": [
+            {
+              "id": 1,
+              "title": "Develop Transfer Queue System",
+              "description": "Create a system that allows users to pause, resume, and retry file transfers.",
+              "dependencies": [],
+              "details": "Implement transfer queue operations with resume and retry capabilities.",
+              "status": "pending",
+              "testStrategy": ""
+            },
+            {
+              "id": 2,
+              "title": "Implement Resume Logic",
+              "description": "Develop logic for resuming file transfers from the last position.",
+              "dependencies": [
+                "10.1"
+              ],
+              "details": "Track transfer progress and implement resume functionality.",
+              "status": "pending",
+              "testStrategy": ""
+            },
+            {
+              "id": 3,
+              "title": "Implement Retry Logic",
+              "description": "Develop logic for retrying failed file transfers.",
+              "dependencies": [
+                "10.2"
+              ],
+              "details": "Handle errors and implement retry mechanism.",
+              "status": "pending",
+              "testStrategy": ""
+            }
+          ]
+        },
+        {
+          "id": 11,
+          "title": "Add Port Forwarding Configuration",
+          "description": "Implement port forwarding options for Local, Remote, and Dynamic (SOCKS) modes",
+          "details": "Create a port forwarding configuration UI with options for Local, Remote, and Dynamic (SOCKS) modes. Implement status monitoring to show active connections and their details.",
+          "testStrategy": "Verify port forwarding configuration and status monitoring",
+          "priority": "high",
+          "dependencies": [
+            10
+          ],
+          "status": "pending",
+          "subtasks": [
+            {
+              "id": 1,
+              "title": "Create Port Forwarding Configuration UI",
+              "description": "Design and implement the port forwarding configuration UI with options for Local, Remote, and Dynamic (SOCKS) modes.",
+              "dependencies": [],
+              "details": "Implement a user-friendly interface for users to configure port forwarding settings.",
+              "status": "pending",
+              "testStrategy": ""
+            },
+            {
+              "id": 2,
+              "title": "Implement Status Monitoring",
+              "description": "Develop status monitoring functionality to show active connections and their details.",
+              "dependencies": [
+                "11.1"
+              ],
+              "details": "Monitor the state of port forwarding configurations and display relevant information to users.",
+              "status": "pending",
+              "testStrategy": ""
+            },
+            {
+              "id": 3,
+              "title": "Verify Port Forwarding Configuration and Status Monitoring",
+              "description": "Test the port forwarding configuration UI and status monitoring functionality to ensure they work as expected.",
+              "dependencies": [
+                "11.1",
+                "11.2"
+              ],
+              "details": "Perform thorough testing to validate the correctness of the implemented features.",
+              "status": "pending",
+              "testStrategy": ""
+            }
+          ]
+        },
+        {
+          "id": 12,
+          "title": "Implement AI Assistant Integration",
+          "description": "Integrate the AI assistant with ! prefix commands",
+          "details": "Create a command parser that recognizes ! prefix commands and routes them to the AI assistant. Implement context management to handle conversation history and sensitive data redaction.",
+          "testStrategy": "Verify ! command parsing and context management functionality",
+          "priority": "high",
+          "dependencies": [
+            11
+          ],
+          "status": "pending",
+          "subtasks": [
+            {
+              "id": 1,
+              "title": "Create Command Parser",
+              "description": "Develop a command parser that recognizes ! prefix commands and routes them to the AI assistant.",
+              "dependencies": [],
+              "details": "Implement a robust command parser that can handle various input formats and edge cases.",
+              "status": "pending",
+              "testStrategy": ""
+            },
+            {
+              "id": 2,
+              "title": "Implement Context Management",
+              "description": "Create context management system to handle conversation history and sensitive data redaction.",
+              "dependencies": [],
+              "details": "Design a system that can store and retrieve conversation history, and implement redaction mechanisms for sensitive data.",
+              "status": "pending",
+              "testStrategy": ""
+            },
+            {
+              "id": 3,
+              "title": "Integrate AI Assistant",
+              "description": "Route recognized ! prefix commands to the AI assistant for processing.",
+              "dependencies": [],
+              "details": "Implement a seamless integration with the AI assistant, ensuring that parsed commands are properly routed and processed.",
+              "status": "pending",
+              "testStrategy": ""
+            }
+          ]
+        },
+        {
+          "id": 13,
+          "title": "Create Preferences Panel",
+          "description": "Allow users to customize application settings",
+          "details": "Develop a preferences panel with options for theme, font, scrollback, AI provider, model, temperature, and other settings. Implement Keychain storage for sensitive data like API keys.",
+          "testStrategy": "Verify preference settings and Keychain storage functionality",
+          "priority": "medium",
+          "dependencies": [
+            12
+          ],
+          "status": "pending",
+          "subtasks": [
+            {
+              "id": 1,
+              "title": "Design UI for Preferences Panel",
+              "description": "Create a visually appealing and user-friendly interface for the preferences panel",
+              "dependencies": [],
+              "details": "Sketch wireframes, create prototypes, and refine design based on feedback",
+              "status": "pending",
+              "testStrategy": ""
+            },
+            {
+              "id": 2,
+              "title": "Implement Keychain Storage for Sensitive Data",
+              "description": "Securely store sensitive data like API keys using Keychain storage",
+              "dependencies": [],
+              "details": "Integrate Keychain storage with the preferences panel, ensuring secure and reliable data storage",
+              "status": "pending",
+              "testStrategy": ""
+            }
+          ]
+        },
+        {
+          "id": 14,
+          "title": "Implement Dev Panel (Tweakpane)",
+          "description": "Create a real-time tuning interface for terminal, network, and AI parameters",
+          "details": "Integrate Tweakpane to create a live adjustment panel for terminal settings, network configurations, and AI parameters. Allow users to tweak parameters dynamically during runtime.",
+          "testStrategy": "Verify real-time parameter adjustment and UI responsiveness",
+          "priority": "medium",
+          "dependencies": [
+            13
+          ],
+          "status": "pending",
+          "subtasks": [
+            {
+              "id": 1,
+              "title": "Integrate Tweakpane Library",
+              "description": "Download and integrate the Tweakpane library to enable real-time parameter adjustment",
+              "dependencies": [],
+              "details": "Verify Tweakpane installation and configuration for terminal settings, network configurations, and AI parameters",
+              "status": "pending",
+              "testStrategy": ""
+            },
+            {
+              "id": 2,
+              "title": "Create Live Adjustment Panel",
+              "description": "Design and implement a live adjustment panel for users to tweak parameters dynamically during runtime",
+              "dependencies": [
+                "14.1"
+              ],
+              "details": "Implement UI components for terminal settings, network configurations, and AI parameters with real-time updates",
+              "status": "pending",
+              "testStrategy": ""
+            },
+            {
+              "id": 3,
+              "title": "Verify Real-Time Parameter Adjustment",
+              "description": "Test the real-time parameter adjustment functionality to ensure it works as expected",
+              "dependencies": [
+                "14.2"
+              ],
+              "details": "Verify UI responsiveness and real-time updates for terminal settings, network configurations, and AI parameters",
+              "status": "pending",
+              "testStrategy": ""
+            }
+          ]
+        },
+        {
+          "id": 15,
+          "title": "Stabilization and Testing",
+          "description": "Perform final testing and stabilization of the application",
+          "details": "Conduct comprehensive testing across different scenarios, including long-running sessions, concurrent connections, and edge cases. Fix any bugs and ensure stability for extended use.",
+          "testStrategy": "Verify application stability through extended testing sessions",
+          "priority": "high",
+          "dependencies": [
+            14
+          ],
+          "status": "pending",
+          "subtasks": [
+            {
+              "id": 1,
+              "title": "Conduct Comprehensive Testing",
+              "description": "Execute test scenarios for long-running sessions, concurrent connections, and edge cases to ensure application stability.",
+              "dependencies": [],
+              "details": "Verify application stability through extended testing sessions",
+              "status": "pending",
+              "testStrategy": ""
+            },
+            {
+              "id": 2,
+              "title": "Fix Identified Bugs",
+              "description": "Address any bugs found during comprehensive testing to ensure the application is stable for extended use.",
+              "dependencies": [],
+              "details": "Prioritize bug fixing based on severity and impact",
+              "status": "pending",
+              "testStrategy": ""
+            },
+            {
+              "id": 3,
+              "title": "Verify Stability for Extended Use",
+              "description": "Conduct additional testing to confirm the application remains stable even after prolonged usage.",
+              "dependencies": [],
+              "details": "Test scenarios should include concurrent connections, long-running sessions, and edge cases",
+              "status": "pending",
+              "testStrategy": ""
+            },
+            {
+              "id": 4,
+              "title": "Finalize Testing and Stabilization",
+              "description": "Confirm that all testing has been completed, and the application is stable for extended use.",
+              "dependencies": [],
+              "details": "Verify that all bugs have been fixed and no new issues arise during final testing",
+              "status": "pending",
+              "testStrategy": ""
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "created": "2025-09-18T11:19:40.360Z",
+        "updated": "2025-09-19T15:04:41.113Z",
+        "description": "Tasks for master context"
+      }
+    }
+  }

@@ -1,0 +1,90 @@
+PRD: ash (Personal SSH + AI Assistant)
+
+Version: 1.3 (Final)
+Date: 2025-09-18
+
+⸻
+
+1. Vision
+
+ash is a daily-use SSH client enhanced with an AI assistant.
+	•	Provide a reliable environment for server access, file transfer, and port forwarding.
+	•	Enable AI assistance via ! prefix commands to analyze logs, explain errors, and suggest commands.
+	•	Built on open-source tools (Electron, React, xterm.js, ssh2, Tweakpane, Ollama, etc.), designed for personal use and extensibility.
+
+⸻
+
+2. Scope
+
+In-Scope (v1)
+	•	SSH Core: Profiles, multi-tab, split terminal, ANSI/TrueColor, log export
+	•	SFTP: Local/remote browser, drag & drop, transfer queue, resume/retry
+	•	Port Forwarding: Local/Remote/SOCKS, status monitoring
+	•	AI Assistant: !explain, !fix, !summarize, !compose; context limit + sensitive data redaction; output as overlay cards / side panel; no auto-execution (copy only)
+	•	Preferences: Theme, font, scrollback; AI provider, endpoint, model, max tokens, temperature; API key stored in Keychain; test connection
+	•	Dev Panel (Tweakpane): Real-time tuning of terminal, network, and AI parameters
+
+Out-of-Scope (v1)
+	•	Collaboration / shared sessions
+	•	Advanced SSH ProxyJump / Bastion chaining
+	•	GPU cluster inference
+
+⸻
+
+3. Core Features
+
+Category	Features
+SSH	Quick Connect, profile management, multi-tab/split, ANSI/TrueColor, log export
+File Transfer	SFTP browser, transfer queue/resume/retry, history
+Port Forwarding	Local/Remote/Dynamic(SOCKS), status view, templates
+AI Assistant	! prefix routing; recent log explanation, error analysis, command suggestion; overlay/side panel output; context limit + redact; copy only
+Preferences	General: theme, font, window behavior; Security: known_hosts policy, Keychain; AI: provider, endpoint, model, tokens, temperature, stream, redact, test connection
+Dev Panel	Tweakpane-based live adjustments
+
+
+⸻
+
+4. User Stories
+	•	Admin mode: Quickly summarize recent logs with !explain → faster debugging
+	•	DevOps mode: Build fails, use !fix → get possible solutions instantly
+	•	Learning mode: !compose scp → generate example commands to learn faster
+	•	Security mode: Enable redact + Keychain storage → safe when sharing logs
+
+⸻
+
+5. Architecture
+	•	Frontend: Electron + React + xterm.js
+	•	SSH Worker: node-pty + ssh2
+	•	LLM Worker: Ollama API (default), optional OpenAI/Anthropic
+	•	IPC: ssh:*, llm:* channels
+	•	Config Store: JSON (settings) + Keychain (sensitive data)
+	•	Extensibility: Hooks for custom LLM worker plugins in the future
+
+⸻
+
+6. Milestones
+	•	M0: SSH connection + terminal (Quick Connect) → Test: local server connects successfully
+	•	M1: Multi-tab, profiles, split view → Test: 3 concurrent tabs stable
+	•	M2: AI ! prefix routing + Ollama integration → Test: !explain responds within 5s
+	•	M3: SFTP panel (drag & drop, queue) → Test: 1GB file resume works
+	•	M4: Port forwarding + Preferences + Keychain → Test: SOCKS forwarding + redact confirmed
+	•	M5: Stabilization → Test: 1-hour session without crash
+
+⸻
+
+7. Risks
+	•	Electron overhead: 200–400 MB → negligible on modern PCs (16GB+)
+	•	Model memory usage:
+	•	Remote API (OpenAI/Anthropic): no burden
+	•	Local (Ollama): 7B ≈ 4–6 GB, 13B ≈ 8–12 GB+
+	•	Security: Sensitive data may appear in logs → redact enabled by default
+	•	AI reliability: Model may suggest incorrect commands → no auto-execution
+
+⸻
+
+8. Success Criteria
+	•	Replace existing SSH tools (Termius, default terminal) in daily use
+	•	! prefix AI calls reduce troubleshooting and command lookup time
+	•	SSH + tabs + SFTP + forwarding + AI features work stably
+
+
