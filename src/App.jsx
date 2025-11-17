@@ -274,6 +274,138 @@ function App() {
         cursor: '#f8f8f2',
         selection: '#49483e'
       }
+    },
+    matrix: {
+      name: 'Matrix',
+      // UI colors
+      background: '#000000',
+      surface: '#000000',
+      text: '#00ff00',
+      border: '#003300',
+      accent: '#00ff00',
+      // Terminal colors - Matrix style with various green shades
+      terminal: {
+        background: '#000000',
+        foreground: '#00ff00',
+        cursor: '#00ff00',
+        cursorAccent: '#000000',
+        selection: '#003300',
+        black: '#000000',
+        red: '#ff0000',
+        green: '#00ff00',
+        yellow: '#ffff00',
+        blue: '#0000ff',
+        magenta: '#ff00ff',
+        cyan: '#00ffff',
+        white: '#00ff00',
+        brightBlack: '#333333',
+        brightRed: '#ff3333',
+        brightGreen: '#33ff33',
+        brightYellow: '#ffff33',
+        brightBlue: '#3333ff',
+        brightMagenta: '#ff33ff',
+        brightCyan: '#33ffff',
+        brightWhite: '#ffffff'
+      }
+    },
+    hack: {
+      name: 'Hack',
+      // UI colors
+      background: '#1d1f21',
+      surface: '#282a2e',
+      text: '#00ff00',
+      border: '#373b41',
+      accent: '#00ff00',
+      // Terminal colors - Hack terminal style
+      terminal: {
+        background: '#1d1f21',
+        foreground: '#00ff00',
+        cursor: '#00ff00',
+        cursorAccent: '#1d1f21',
+        selection: '#373b41',
+        black: '#1d1f21',
+        red: '#cc6666',
+        green: '#00ff00',
+        yellow: '#de935f',
+        blue: '#81a2be',
+        magenta: '#b294bb',
+        cyan: '#8abeb7',
+        white: '#c5c8c6',
+        brightBlack: '#969896',
+        brightRed: '#cc6666',
+        brightGreen: '#00ff00',
+        brightYellow: '#f0c674',
+        brightBlue: '#81a2be',
+        brightMagenta: '#b294bb',
+        brightCyan: '#8abeb7',
+        brightWhite: '#ffffff'
+      }
+    },
+    green_on_black: {
+      name: 'Green on Black',
+      // UI colors
+      background: '#000000',
+      surface: '#0a0a0a',
+      text: '#00ff41',
+      border: '#1a1a1a',
+      accent: '#00ff41',
+      // Terminal colors - Classic green on black
+      terminal: {
+        background: '#000000',
+        foreground: '#00ff41',
+        cursor: '#00ff41',
+        cursorAccent: '#000000',
+        selection: '#1a3a1a',
+        black: '#000000',
+        red: '#ff0000',
+        green: '#00ff41',
+        yellow: '#ffff00',
+        blue: '#0000ff',
+        magenta: '#ff00ff',
+        cyan: '#00ffff',
+        white: '#00ff41',
+        brightBlack: '#555555',
+        brightRed: '#ff5555',
+        brightGreen: '#00ff41',
+        brightYellow: '#ffff55',
+        brightBlue: '#5555ff',
+        brightMagenta: '#ff55ff',
+        brightCyan: '#55ffff',
+        brightWhite: '#ffffff'
+      }
+    },
+    retro_green: {
+      name: 'Retro Green',
+      // UI colors
+      background: '#0c0c0c',
+      surface: '#1a1a1a',
+      text: '#39ff14',
+      border: '#2a2a2a',
+      accent: '#39ff14',
+      // Terminal colors - Retro green terminal
+      terminal: {
+        background: '#0c0c0c',
+        foreground: '#39ff14',
+        cursor: '#39ff14',
+        cursorAccent: '#0c0c0c',
+        selection: '#1a3a1a',
+        black: '#0c0c0c',
+        red: '#ff0000',
+        green: '#39ff14',
+        yellow: '#ffff00',
+        blue: '#0000ff',
+        magenta: '#ff00ff',
+        cyan: '#00ffff',
+        white: '#39ff14',
+        brightBlack: '#666666',
+        brightRed: '#ff6666',
+        brightGreen: '#66ff66',
+        brightYellow: '#ffff66',
+        brightBlue: '#6666ff',
+        brightMagenta: '#ff66ff',
+        brightCyan: '#66ffff',
+        brightWhite: '#ffffff'
+      }
     }
   };
 
@@ -837,7 +969,14 @@ function App() {
   const saveGroups = (newGroups) => {
     setGroups(newGroups);
     localStorage.setItem('ash-groups', JSON.stringify(newGroups));
+    console.log('Groups saved to localStorage:', newGroups);
   };
+  
+  // Sync groups to localStorage whenever groups state changes
+  useEffect(() => {
+    localStorage.setItem('ash-groups', JSON.stringify(groups));
+    console.log('Groups synced to localStorage:', groups);
+  }, [groups]);
 
   // Group management functions
   const createGroup = (name) => {
@@ -923,7 +1062,7 @@ function App() {
         return g;
       });
       console.log('Updated groups:', finalGroups);
-      localStorage.setItem('ash-groups', JSON.stringify(finalGroups));
+      // localStorage will be updated by useEffect
       return finalGroups;
     });
   };
@@ -956,7 +1095,7 @@ function App() {
         return g;
       });
       console.log('Updated groups with saved session:', finalGroups);
-      localStorage.setItem('ash-groups', JSON.stringify(finalGroups));
+      // localStorage will be updated by useEffect
       return finalGroups;
     });
   };
@@ -1812,7 +1951,7 @@ function App() {
                                       }
                                       return g;
                                     });
-                                    localStorage.setItem('ash-groups', JSON.stringify(updated));
+                                    // localStorage will be updated by useEffect
                                     return updated;
                                   });
                                 }}
