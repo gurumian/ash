@@ -120,6 +120,18 @@ function App() {
   // Session management state
   const [sessions, setSessions] = useState([]);
   const [activeSessionId, setActiveSessionId] = useState(null);
+  const [groups, setGroups] = useState(
+    JSON.parse(localStorage.getItem('ash-groups') || '[]')
+  );
+  const [draggedSessionId, setDraggedSessionId] = useState(null);
+  const [dragOverGroupId, setDragOverGroupId] = useState(null);
+  const [editingGroupId, setEditingGroupId] = useState(null);
+  const [editingGroupName, setEditingGroupName] = useState('');
+  const [showGroupNameDialog, setShowGroupNameDialog] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
+  const [pendingSessionForGroup, setPendingSessionForGroup] = useState(null);
+  const [formError, setFormError] = useState('');
+  const [pendingGroupAdditions, setPendingGroupAdditions] = useState([]); // [{ sessionId, groupId }]
   const [connectionForm, setConnectionForm] = useState({
     connectionType: 'ssh', // 'ssh' or 'serial'
     host: '',
@@ -309,9 +321,15 @@ function App() {
       password: connection.savePassword ? connection.password : ''
     };
     
-    const newHistory = [connectionToSave, ...connectionHistory.filter(c => 
-      !(c.host === connection.host && c.user === connection.user)
-    )].slice(0, 20); // Store maximum 20 items
+    // For SSH connections, check by host/user/port
+    // For Serial connections, check by serialPort
+    const newHistory = [connectionToSave, ...connectionHistory.filter(c => {
+      if (connection.connectionType === 'serial') {
+        return !(c.connectionType === 'serial' && c.serialPort === connection.serialPort);
+      } else {
+        return !(c.host === connection.host && c.user === connection.user && (c.port || '22') === (connection.port || '22'));
+      }
+    })].slice(0, 20); // Store maximum 20 items
     
     setConnectionHistory(newHistory);
     localStorage.setItem('ssh-connections', JSON.stringify(newHistory));
@@ -319,18 +337,22 @@ function App() {
 
   // Toggle favorite
   const toggleFavorite = (connection) => {
-    const isFavorite = favorites.some(f => 
-      f.host === connection.host && f.user === connection.user
-    );
+    const isSerial = connection.connectionType === 'serial';
+    const isFavorite = isSerial
+      ? favorites.some(f => f.connectionType === 'serial' && f.serialPort === connection.serialPort)
+      : favorites.some(f => f.host === connection.host && f.user === connection.user);
     
     if (isFavorite) {
-      const newFavorites = favorites.filter(f => 
-        !(f.host === connection.host && f.user === connection.user)
-      );
+      const newFavorites = isSerial
+        ? favorites.filter(f => !(f.connectionType === 'serial' && f.serialPort === connection.serialPort))
+        : favorites.filter(f => !(f.host === connection.host && f.user === connection.user));
       setFavorites(newFavorites);
       localStorage.setItem('ssh-favorites', JSON.stringify(newFavorites));
     } else {
-      const newFavorites = [...favorites, { ...connection, name: connection.sessionName || `${connection.user}@${connection.host}` }];
+      const name = connection.sessionName || connection.name || (isSerial
+        ? `Serial: ${connection.serialPort}`
+        : `${connection.user}@${connection.host}`);
+      const newFavorites = [...favorites, { ...connection, name }];
       setFavorites(newFavorites);
       localStorage.setItem('ssh-favorites', JSON.stringify(newFavorites));
     }
@@ -525,16 +547,18 @@ function App() {
     document.removeEventListener('mouseup', handleMouseUp);
   };
 
-  // Create new session
-  const createNewSession = async () => {
-    if (connectionForm.connectionType === 'ssh') {
-      if (!connectionForm.host || !connectionForm.user) {
-        alert('Host and Username are required.');
+  // Create new session with provided data (returns sessionId if successful)
+  const createNewSessionWithData = async (formData, skipFormReset = false) => {
+    setFormError('');
+    
+    if (formData.connectionType === 'ssh') {
+      if (!formData.host || !formData.user) {
+        setFormError('Host and Username are required for SSH connections.');
         return;
       }
-    } else if (connectionForm.connectionType === 'serial') {
-      if (!connectionForm.serialPort) {
-        alert('Serial port is required.');
+    } else if (formData.connectionType === 'serial') {
+      if (!formData.serialPort) {
+        setFormError('Serial port is required for serial connections.');
         return;
       }
     }
@@ -543,29 +567,29 @@ function App() {
     
     try {
       const sessionId = Date.now().toString();
-      const sessionName = connectionForm.connectionType === 'ssh' 
-        ? (connectionForm.sessionName || `${connectionForm.user}@${connectionForm.host}`)
-        : (connectionForm.sessionName || `Serial: ${connectionForm.serialPort}`);
+      const sessionName = formData.connectionType === 'ssh' 
+        ? (formData.sessionName || `${formData.user}@${formData.host}`)
+        : (formData.sessionName || `Serial: ${formData.serialPort}`);
       
       // Create connection based on type
       let connection;
       let session;
       
-      if (connectionForm.connectionType === 'ssh') {
+      if (formData.connectionType === 'ssh') {
         connection = new SSHConnection();
         await connection.connect(
-          connectionForm.host,
-          connectionForm.port,
-          connectionForm.user,
-          connectionForm.password
+          formData.host,
+          formData.port,
+          formData.user,
+          formData.password
         );
         
         session = {
           id: sessionId,
           name: sessionName,
-          host: connectionForm.host,
-          port: connectionForm.port,
-          user: connectionForm.user,
+          host: formData.host,
+          port: formData.port,
+          user: formData.user,
           connectionType: 'ssh',
           isConnected: true,
           createdAt: new Date().toISOString()
@@ -573,33 +597,51 @@ function App() {
         
         // Save connection history
         saveConnectionHistory({
-          host: connectionForm.host,
-          port: connectionForm.port,
-          user: connectionForm.user,
-          password: connectionForm.password,
+          connectionType: 'ssh',
+          host: formData.host,
+          port: formData.port,
+          user: formData.user,
+          password: formData.password,
           sessionName: sessionName,
-          savePassword: connectionForm.savePassword
+          savePassword: formData.savePassword
         });
-      } else if (connectionForm.connectionType === 'serial') {
+      } else if (formData.connectionType === 'serial') {
         connection = new SerialConnection();
         await connection.connect({
-          path: connectionForm.serialPort,
-          baudRate: parseInt(connectionForm.baudRate),
-          dataBits: parseInt(connectionForm.dataBits),
-          stopBits: parseInt(connectionForm.stopBits),
-          parity: connectionForm.parity,
-          flowControl: connectionForm.flowControl
+          path: formData.serialPort,
+          baudRate: parseInt(formData.baudRate),
+          dataBits: parseInt(formData.dataBits),
+          stopBits: parseInt(formData.stopBits),
+          parity: formData.parity,
+          flowControl: formData.flowControl
         });
         
         session = {
           id: sessionId,
           name: sessionName,
-          serialPort: connectionForm.serialPort,
-          baudRate: connectionForm.baudRate,
+          serialPort: formData.serialPort,
+          baudRate: formData.baudRate,
+          dataBits: formData.dataBits,
+          stopBits: formData.stopBits,
+          parity: formData.parity,
+          flowControl: formData.flowControl,
           connectionType: 'serial',
           isConnected: true,
           createdAt: new Date().toISOString()
         };
+        
+        // Save connection history for Serial connections too
+        saveConnectionHistory({
+          connectionType: 'serial',
+          serialPort: formData.serialPort,
+          baudRate: formData.baudRate,
+          dataBits: formData.dataBits,
+          stopBits: formData.stopBits,
+          parity: formData.parity,
+          flowControl: formData.flowControl,
+          sessionName: sessionName,
+          savePassword: false // Serial connections don't have passwords
+        });
       }
       
       // Common session setup
@@ -607,30 +649,42 @@ function App() {
       setActiveSessionId(sessionId);
       sshConnections.current[sessionId] = connection; // Store both SSH and Serial connections
       
-      // Reset form
-      setConnectionForm({
-        connectionType: 'ssh',
-        host: '',
-        port: '22',
-        user: '',
-        password: '',
-        sessionName: '',
-        savePassword: false,
-        serialPort: '',
-        baudRate: '9600',
-        dataBits: '8',
-        stopBits: '1',
-        parity: 'none',
-        flowControl: 'none'
-      });
-      setShowConnectionForm(false);
+      // Reset form (unless skipFormReset is true)
+      if (!skipFormReset) {
+        setConnectionForm({
+          connectionType: 'ssh',
+          host: '',
+          port: '22',
+          user: '',
+          password: '',
+          sessionName: '',
+          savePassword: false,
+          serialPort: '',
+          baudRate: '9600',
+          dataBits: '8',
+          stopBits: '1',
+          parity: 'none',
+          flowControl: 'none'
+        });
+        setShowConnectionForm(false);
+      }
       setIsConnecting(false);
+      
+      return sessionId; // Return sessionId for use in drag-and-drop
       
     } catch (error) {
       console.error('Connection failed:', error);
       setIsConnecting(false);
-      alert('Connection failed: ' + error.message);
+      if (!skipFormReset) {
+        alert('Connection failed: ' + error.message);
+      }
+      throw error; // Re-throw so caller can handle it
     }
+  };
+
+  // Create new session (returns sessionId if successful) - uses connectionForm state
+  const createNewSession = async (skipFormReset = false) => {
+    return createNewSessionWithData(connectionForm, skipFormReset);
   };
 
   // Initialize terminal
@@ -779,6 +833,465 @@ function App() {
     }
   };
 
+  // Save groups to localStorage
+  const saveGroups = (newGroups) => {
+    setGroups(newGroups);
+    localStorage.setItem('ash-groups', JSON.stringify(newGroups));
+  };
+
+  // Group management functions
+  const createGroup = (name) => {
+    const newGroup = {
+      id: Date.now().toString(),
+      name: name || `Group ${groups.length + 1}`,
+      sessionIds: [], // Active session IDs
+      savedSessions: [], // Connection info for unconnected sessions
+      isExpanded: true
+    };
+    saveGroups([...groups, newGroup]);
+    return newGroup.id;
+  };
+
+  const createGroupWithName = (name, sessionId = null) => {
+    const newGroupId = createGroup(name);
+    if (sessionId) {
+      setTimeout(() => {
+        addSessionToGroup(sessionId, newGroupId);
+      }, 100);
+    }
+    return newGroupId;
+  };
+
+  const deleteGroup = (groupId) => {
+    saveGroups(groups.filter(g => g.id !== groupId));
+  };
+
+  const toggleGroupExpanded = (groupId) => {
+    saveGroups(groups.map(g => 
+      g.id === groupId ? { ...g, isExpanded: !g.isExpanded } : g
+    ));
+  };
+
+  const startEditingGroupName = (groupId) => {
+    const group = groups.find(g => g.id === groupId);
+    if (group) {
+      setEditingGroupId(groupId);
+      setEditingGroupName(group.name);
+    }
+  };
+
+  const saveGroupName = (groupId) => {
+    saveGroups(groups.map(g => 
+      g.id === groupId ? { ...g, name: editingGroupName } : g
+    ));
+    setEditingGroupId(null);
+    setEditingGroupName('');
+  };
+
+  const cancelEditingGroupName = () => {
+    setEditingGroupId(null);
+    setEditingGroupName('');
+  };
+
+  const addSessionToGroup = (sessionId, groupId) => {
+    // Allow duplicate sessions in the same group - just add to target group
+    console.log('Adding session to group:', { sessionId, groupId });
+    setGroups(prevGroups => {
+      const finalGroups = prevGroups.map(g => {
+        if (g.id === groupId) {
+          // Remove from savedSessions if it exists there (now it's connected)
+          const updatedSavedSessions = (g.savedSessions || []).filter(saved => {
+            const connType = saved.connectionType || 'ssh';
+            const session = sessions.find(s => s.id === sessionId);
+            if (!session) return true;
+            
+            if (connType === 'serial') {
+              return !(saved.connectionType === 'serial' && saved.serialPort === session.serialPort);
+            } else {
+              return !(saved.host === session.host && 
+                       saved.user === session.user && 
+                       (saved.port || '22') === (session.port || '22'));
+            }
+          });
+          
+          return { 
+            ...g, 
+            sessionIds: [...g.sessionIds, sessionId],
+            savedSessions: updatedSavedSessions
+          };
+        }
+        return g;
+      });
+      console.log('Updated groups:', finalGroups);
+      localStorage.setItem('ash-groups', JSON.stringify(finalGroups));
+      return finalGroups;
+    });
+  };
+
+  const addSavedSessionToGroup = (connection, groupId) => {
+    // Add unconnected session info to group
+    console.log('Adding saved session to group:', { connection, groupId });
+    setGroups(prevGroups => {
+      const finalGroups = prevGroups.map(g => {
+        if (g.id === groupId) {
+          // Check if already exists in savedSessions
+          const exists = (g.savedSessions || []).some(saved => {
+            const connType = connection.connectionType || 'ssh';
+            if (connType === 'serial') {
+              return saved.connectionType === 'serial' && saved.serialPort === connection.serialPort;
+            } else {
+              return saved.host === connection.host && 
+                     saved.user === connection.user && 
+                     (saved.port || '22') === (connection.port || '22');
+            }
+          });
+          
+          if (!exists) {
+            return { 
+              ...g, 
+              savedSessions: [...(g.savedSessions || []), connection]
+            };
+          }
+        }
+        return g;
+      });
+      console.log('Updated groups with saved session:', finalGroups);
+      localStorage.setItem('ash-groups', JSON.stringify(finalGroups));
+      return finalGroups;
+    });
+  };
+
+  const removeSessionFromGroup = (sessionId, groupId, index = null) => {
+    saveGroups(groups.map(g => {
+      if (g.id === groupId) {
+        if (index !== null) {
+          // Remove specific index (for duplicate sessions)
+          const newSessionIds = [...g.sessionIds];
+          newSessionIds.splice(index, 1);
+          return { ...g, sessionIds: newSessionIds };
+        } else {
+          // Remove first occurrence (backward compatibility)
+          const newSessionIds = [...g.sessionIds];
+          const firstIndex = newSessionIds.indexOf(sessionId);
+          if (firstIndex !== -1) {
+            newSessionIds.splice(firstIndex, 1);
+          }
+          return { ...g, sessionIds: newSessionIds };
+        }
+      }
+      return g;
+    }));
+  };
+
+  // Connect all sessions in a group
+  const connectGroup = async (groupId) => {
+    console.log('connectGroup called:', groupId);
+    const group = groups.find(g => g.id === groupId);
+    if (!group) {
+      console.log('Group not found:', groupId);
+      return;
+    }
+
+    console.log('Group found:', { id: group.id, name: group.name, savedSessions: group.savedSessions, sessionIds: group.sessionIds });
+
+    // First, connect saved sessions (unconnected)
+    const savedSessions = group.savedSessions || [];
+    console.log('Saved sessions to connect:', savedSessions.length);
+    for (const conn of savedSessions) {
+      try {
+        // Check if already connected
+        const existingSession = sessions.find(s => {
+          const connType = conn.connectionType || 'ssh';
+          if (connType === 'serial') {
+            return s.connectionType === 'serial' && s.serialPort === conn.serialPort;
+          } else {
+            return s.host === conn.host && 
+                   s.user === conn.user && 
+                   (s.port || '22') === (conn.port || '22') &&
+                   s.connectionType === 'ssh';
+          }
+        });
+        
+        if (existingSession && existingSession.isConnected) {
+          // Already connected, just add to sessionIds if not already there
+          if (!group.sessionIds.includes(existingSession.id)) {
+            addSessionToGroup(existingSession.id, groupId);
+          }
+          continue;
+        }
+        
+        // Create connection form from saved session
+        const oldForm = { ...connectionForm };
+        const connectionFormData = {
+          connectionType: conn.connectionType || 'ssh',
+          host: conn.host || '',
+          port: conn.port || '22',
+          user: conn.user || '',
+          password: conn.password || '',
+          sessionName: conn.sessionName || conn.name || '',
+          savePassword: !!conn.password,
+          serialPort: conn.serialPort || '',
+          baudRate: conn.baudRate || '9600',
+          dataBits: conn.dataBits || '8',
+          stopBits: conn.stopBits || '1',
+          parity: conn.parity || 'none',
+          flowControl: conn.flowControl || 'none'
+        };
+        
+        // Set form and wait a bit for state to update
+        setConnectionForm(connectionFormData);
+        
+        // Use the form data directly instead of relying on state
+        console.log('Connecting saved session:', connectionFormData);
+        const sessionId = await createNewSessionWithData(connectionFormData, true);
+        console.log('Created session ID:', sessionId);
+        
+        if (sessionId) {
+          // Add to group after connection
+          setPendingGroupAdditions(prev => [...prev, { sessionId, groupId }]);
+        }
+        
+        // Restore form
+        setConnectionForm(oldForm);
+      } catch (error) {
+        console.error(`Failed to connect saved session in group:`, error);
+      }
+    }
+    
+    // Then, reconnect disconnected active sessions
+    const groupSessions = sessions.filter(s => group.sessionIds.includes(s.id));
+    const unconnectedSessions = groupSessions.filter(s => !s.isConnected);
+    console.log('Unconnected active sessions:', unconnectedSessions.length);
+
+    for (const session of unconnectedSessions) {
+      try {
+        // Recreate connection for each session
+        if (session.connectionType === 'ssh') {
+          // Try to get password from connection history
+          const historyEntry = connectionHistory.find(c => 
+            c.connectionType === 'ssh' &&
+            c.host === session.host && 
+            c.user === session.user && 
+            (c.port || '22') === (session.port || '22')
+          );
+          const password = session.password || historyEntry?.password || '';
+          
+          const connection = new SSHConnection();
+          await connection.connect(session.host, session.port, session.user, password);
+          await connection.startShell();
+          sshConnections.current[session.id] = connection;
+          
+          // Initialize terminal if not already initialized
+          if (!terminalInstances.current[session.id]) {
+            setTimeout(() => {
+              initializeTerminal(session.id, session);
+            }, 100);
+          }
+          
+          setSessions(prev => prev.map(s => 
+            s.id === session.id ? { ...s, isConnected: true } : s
+          ));
+        } else if (session.connectionType === 'serial') {
+          const connection = new SerialConnection();
+          await connection.connect({
+            path: session.serialPort,
+            baudRate: parseInt(session.baudRate),
+            dataBits: parseInt(session.dataBits || '8'),
+            stopBits: parseInt(session.stopBits || '1'),
+            parity: session.parity || 'none',
+            flowControl: session.flowControl || 'none'
+          });
+          sshConnections.current[session.id] = connection;
+          
+          // Initialize terminal if not already initialized
+          if (!terminalInstances.current[session.id]) {
+            setTimeout(() => {
+              initializeTerminal(session.id, session);
+            }, 100);
+          }
+          
+          setSessions(prev => prev.map(s => 
+            s.id === session.id ? { ...s, isConnected: true } : s
+          ));
+        }
+      } catch (error) {
+        console.error(`Failed to connect session ${session.id}:`, error);
+        alert(`Failed to connect ${session.name}: ${error.message}`);
+      }
+    }
+  };
+
+  // Drag and drop handlers
+  const handleDragStart = (e, sessionId) => {
+    setDraggedSessionId(sessionId);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e, groupId) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverGroupId(groupId);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverGroupId(null);
+  };
+
+  const handleDrop = async (e, groupId) => {
+    e.preventDefault();
+    
+    // Check if it's a saved session from Session List
+    try {
+      const data = e.dataTransfer.getData('application/json');
+      if (data) {
+        const dragData = JSON.parse(data);
+        if (dragData.type === 'saved-session') {
+          // Add saved session to group without connecting
+          const conn = dragData.connection;
+          
+          // Check if session already exists (already connected)
+          const existingSession = sessions.find(s => {
+            const connType = conn.connectionType || 'ssh';
+            if (connType === 'serial') {
+              return s.connectionType === 'serial' && s.serialPort === conn.serialPort;
+            } else {
+              return s.host === conn.host && 
+                     s.user === conn.user && 
+                     (s.port || '22') === (conn.port || '22') &&
+                     s.connectionType === 'ssh';
+            }
+          });
+          
+          if (existingSession) {
+            // Session already exists and is connected, add sessionId to group
+            addSessionToGroup(existingSession.id, groupId);
+          } else {
+            // Session not connected yet, add connection info to group's savedSessions
+            addSavedSessionToGroup(conn, groupId);
+          }
+        } else if (draggedSessionId && groupId) {
+          // It's an active session
+          addSessionToGroup(draggedSessionId, groupId);
+        }
+      } else if (draggedSessionId && groupId) {
+        // Fallback for active sessions
+        addSessionToGroup(draggedSessionId, groupId);
+      }
+    } catch (error) {
+      console.error('Error handling drop:', error);
+      // Fallback
+      if (draggedSessionId && groupId) {
+        addSessionToGroup(draggedSessionId, groupId);
+      }
+    }
+    
+    setDraggedSessionId(null);
+    setDragOverGroupId(null);
+  };
+
+  const handleDropOnNewGroup = async (e) => {
+    e.preventDefault();
+    
+    // Check if it's a saved session from Session List
+    try {
+      const data = e.dataTransfer.getData('application/json');
+      if (data) {
+        const dragData = JSON.parse(data);
+        if (dragData.type === 'saved-session') {
+          // Connect the session first, then show dialog to create group
+          const conn = dragData.connection;
+          
+          // Check if session already exists
+          const existingSession = sessions.find(s => {
+            const connType = conn.connectionType || 'ssh';
+            if (connType === 'serial') {
+              return s.connectionType === 'serial' && s.serialPort === conn.serialPort;
+            } else {
+              return s.host === conn.host && 
+                     s.user === conn.user && 
+                     (s.port || '22') === (conn.port || '22') &&
+                     s.connectionType === 'ssh';
+            }
+          });
+          
+          if (existingSession) {
+            // Session already exists, show dialog to create group
+            setPendingSessionForGroup({ type: 'existing', sessionId: existingSession.id });
+            setShowGroupNameDialog(true);
+          } else {
+            // Create new session first
+            const oldForm = { ...connectionForm };
+            setConnectionForm({
+              connectionType: conn.connectionType || 'ssh',
+              host: conn.host || '',
+              port: conn.port || '22',
+              user: conn.user || '',
+              password: conn.password || '',
+              sessionName: conn.sessionName || conn.name || '',
+              savePassword: !!conn.password,
+              serialPort: conn.serialPort || '',
+              baudRate: conn.baudRate || '9600',
+              dataBits: conn.dataBits || '8',
+              stopBits: conn.stopBits || '1',
+              parity: conn.parity || 'none',
+              flowControl: conn.flowControl || 'none'
+            });
+            
+            try {
+              const sessionId = await createNewSession(true); // Don't reset form
+              // Show dialog to create group
+              if (sessionId) {
+                setPendingSessionForGroup({ type: 'new', sessionId: sessionId, connection: conn });
+                setShowGroupNameDialog(true);
+              }
+              // Restore form
+              setConnectionForm(oldForm);
+            } catch (error) {
+              console.error('Failed to create session from drop:', error);
+              setConnectionForm(oldForm);
+            }
+          }
+        } else if (draggedSessionId) {
+          // It's an active session, show dialog
+          setPendingSessionForGroup({ type: 'existing', sessionId: draggedSessionId });
+          setShowGroupNameDialog(true);
+        }
+      } else if (draggedSessionId) {
+        // Fallback for active sessions
+        setPendingSessionForGroup({ type: 'existing', sessionId: draggedSessionId });
+        setShowGroupNameDialog(true);
+      }
+    } catch (error) {
+      console.error('Error handling drop on new group:', error);
+      // Fallback
+      if (draggedSessionId) {
+        setPendingSessionForGroup({ type: 'existing', sessionId: draggedSessionId });
+        setShowGroupNameDialog(true);
+      }
+    }
+    
+    setDraggedSessionId(null);
+    setDragOverGroupId(null);
+  };
+
+  const handleCreateGroupFromDialog = () => {
+    if (pendingSessionForGroup) {
+      const groupName = newGroupName.trim() || `Group ${groups.length + 1}`;
+      const newGroupId = createGroup(groupName);
+      
+      if (pendingSessionForGroup.type === 'existing') {
+        setPendingGroupAdditions(prev => [...prev, { sessionId: pendingSessionForGroup.sessionId, groupId: newGroupId }]);
+      } else if (pendingSessionForGroup.type === 'new') {
+        // Session was already created, just add to group
+        setPendingGroupAdditions(prev => [...prev, { sessionId: pendingSessionForGroup.sessionId, groupId: newGroupId }]);
+      }
+      
+      setShowGroupNameDialog(false);
+      setNewGroupName('');
+      setPendingSessionForGroup(null);
+    }
+  };
+
   // Connect from history
   const connectFromHistory = (connection) => {
     setConnectionForm({
@@ -876,6 +1389,32 @@ function App() {
       // Cleanup happens automatically on component unmount
     };
   }, []); // Register once
+
+  // Process pending group additions when sessions are available
+  useEffect(() => {
+    if (pendingGroupAdditions.length > 0 && sessions.length > 0) {
+      const toProcess = [...pendingGroupAdditions];
+      const processed = [];
+      const remaining = [];
+      
+      toProcess.forEach(({ sessionId, groupId }) => {
+        // Check if session exists in state
+        const sessionExists = sessions.some(s => s.id === sessionId);
+        if (sessionExists) {
+          console.log('Processing pending group addition:', { sessionId, groupId });
+          addSessionToGroup(sessionId, groupId);
+          processed.push({ sessionId, groupId });
+        } else {
+          remaining.push({ sessionId, groupId });
+        }
+      });
+      
+      // Only update if we processed something
+      if (processed.length > 0) {
+        setPendingGroupAdditions(remaining);
+      }
+    }
+  }, [sessions, pendingGroupAdditions]);
 
   // Terminal initialization effect - only for existing sessions when switching
   useEffect(() => {
@@ -1029,7 +1568,10 @@ function App() {
               </button>
               <button 
                 className="new-session-btn"
-                onClick={() => setShowConnectionForm(true)}
+                onClick={() => {
+                  setFormError('');
+                  setShowConnectionForm(true);
+                }}
                 title="New Session"
               >
                 +
@@ -1041,45 +1583,301 @@ function App() {
           {favorites.length > 0 && (
             <div className="section">
               <div className="section-header">Favorites</div>
-              {favorites.map((fav, index) => (
-                <div 
-                  key={index}
-                  className="session-item favorite"
-                  onClick={() => connectFromHistory(fav)}
-                  title={`${fav.user}@${fav.host}`}
-                >
-                  <span className="session-name">⭐ {fav.name}</span>
-                </div>
-              ))}
+              {favorites.map((fav, index) => {
+                const isSerial = fav.connectionType === 'serial';
+                const tooltip = isSerial 
+                  ? fav.serialPort 
+                  : `${fav.user}@${fav.host}`;
+                return (
+                  <div 
+                    key={index}
+                    className="session-item favorite"
+                    onClick={() => connectFromHistory(fav)}
+                    title={tooltip}
+                  >
+                    <span className="session-name">⭐ {fav.name}</span>
+                  </div>
+                );
+              })}
             </div>
           )}
 
-          {/* Active sessions */}
-          {sessions.length > 0 && (
+          {/* Session List - All saved sessions */}
+          {connectionHistory.length > 0 && (
+            <div className="section">
+              <div className="section-header">Session List</div>
+              {connectionHistory.map((conn, index) => {
+                const isSerial = conn.connectionType === 'serial';
+                const isFavorite = isSerial 
+                  ? favorites.some(f => f.connectionType === 'serial' && f.serialPort === conn.serialPort)
+                  : favorites.some(f => f.host === conn.host && f.user === conn.user);
+                const sessionId = isSerial 
+                  ? `saved-serial-${conn.serialPort}-${index}`
+                  : `saved-${conn.host}-${conn.user}-${conn.port || '22'}-${index}`;
+                const displayName = conn.sessionName || conn.name || (isSerial 
+                  ? `Serial: ${conn.serialPort}`
+                  : `${conn.user}@${conn.host}`);
+                const tooltip = isSerial
+                  ? `${conn.serialPort} - Drag to group or click to connect`
+                  : `${conn.user}@${conn.host} - Drag to group or click to connect`;
+                
+                return (
+                  <div 
+                    key={index}
+                    className="session-item session-list-item"
+                    draggable
+                    onDragStart={(e) => {
+                      // Store connection info in dataTransfer for later use
+                      e.dataTransfer.setData('application/json', JSON.stringify({
+                        type: 'saved-session',
+                        connection: conn,
+                        sessionId: sessionId
+                      }));
+                      setDraggedSessionId(sessionId);
+                    }}
+                    onClick={() => connectFromHistory(conn)}
+                    title={tooltip}
+                  >
+                    <span className="session-name">
+                      {displayName}
+                    </span>
+                    <button 
+                      className="favorite-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleFavorite(conn);
+                      }}
+                      title="Toggle Favorite"
+                    >
+                      {isFavorite ? '★' : '☆'}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Groups */}
+          {groups.length > 0 && (
+            <div className="section">
+              <div className="section-header">Groups</div>
+              {groups.map(group => {
+                const groupSessions = sessions.filter(s => group.sessionIds.includes(s.id));
+                const savedSessions = group.savedSessions || [];
+                const totalSessions = groupSessions.length + savedSessions.length;
+                const allConnected = totalSessions > 0 && 
+                  groupSessions.every(s => s.isConnected) && 
+                  savedSessions.length === 0; // All saved sessions are now connected
+                
+                return (
+                  <div key={group.id} className="group-container">
+                    <div 
+                      className={`group-header ${dragOverGroupId === group.id ? 'drag-over' : ''} ${allConnected ? 'all-connected' : ''}`}
+                      onDragOver={(e) => handleDragOver(e, group.id)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => handleDrop(e, group.id)}
+                      onClick={() => {
+                        // Click on group header to connect all sessions in group
+                        if (!allConnected && totalSessions > 0) {
+                          console.log('Group header clicked for group:', group.id);
+                          connectGroup(group.id);
+                        }
+                      }}
+                      style={{ cursor: (allConnected || totalSessions === 0) ? 'default' : 'pointer' }}
+                    >
+                      <button
+                        className="group-toggle"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleGroupExpanded(group.id);
+                        }}
+                        title={group.isExpanded ? 'Collapse' : 'Expand'}
+                      >
+                        {group.isExpanded ? '▼' : '▶'}
+                      </button>
+                      {editingGroupId === group.id ? (
+                        <input
+                          type="text"
+                          className="group-name-input"
+                          value={editingGroupName}
+                          onChange={(e) => setEditingGroupName(e.target.value)}
+                          onBlur={() => saveGroupName(group.id)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              saveGroupName(group.id);
+                            } else if (e.key === 'Escape') {
+                              cancelEditingGroupName();
+                            }
+                          }}
+                          autoFocus
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      ) : (
+                        <span 
+                          className="group-name"
+                          onDoubleClick={() => startEditingGroupName(group.id)}
+                          title="Double-click to rename"
+                        >
+                          {group.name}
+                        </span>
+                      )}
+                      <span className="group-count">({totalSessions})</span>
+                      <button
+                        className="group-connect-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          console.log('Play button clicked for group:', group.id);
+                          connectGroup(group.id);
+                        }}
+                        title="Connect All Sessions in Group"
+                        disabled={allConnected || totalSessions === 0}
+                      >
+                        ▶
+                      </button>
+                      <button
+                        className="group-delete-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteGroup(group.id);
+                        }}
+                        title="Delete Group"
+                      >
+                        ×
+                      </button>
+                    </div>
+                    {group.isExpanded && (
+                      <div className="group-sessions">
+                        {group.sessionIds.map((sessionId, index) => {
+                          const session = sessions.find(s => s.id === sessionId);
+                          if (!session) return null; // Session might not exist yet
+                          
+                          return (
+                            <div
+                              key={`${sessionId}-${index}`}
+                              className={`session-item group-session-item ${activeSessionId === session.id ? 'active' : ''}`}
+                              draggable
+                              onDragStart={(e) => handleDragStart(e, session.id)}
+                              onClick={() => switchToSession(session.id)}
+                            >
+                              <span className="session-name">{session.name}</span>
+                              <span className={`connection-status ${session.isConnected ? 'connected' : 'disconnected'}`}>
+                                {session.isConnected ? '●' : '○'}
+                              </span>
+                              <button
+                                className="remove-from-group-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removeSessionFromGroup(session.id, group.id, index);
+                                }}
+                                title="Remove from Group"
+                              >
+                                ⊗
+                              </button>
+                              <button
+                                className="close-session-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  disconnectSession(session.id);
+                                }}
+                                title="Close Session"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          );
+                        })}
+                        {/* Saved sessions (not connected yet) */}
+                        {savedSessions.map((conn, index) => {
+                          const displayName = conn.sessionName || conn.name || (conn.connectionType === 'serial'
+                            ? `Serial: ${conn.serialPort}`
+                            : `${conn.user}@${conn.host}`);
+                          return (
+                            <div
+                              key={`saved-${index}`}
+                              className="session-item group-session-item saved-session"
+                            >
+                              <span className="session-name">{displayName} (not connected)</span>
+                              <span className="connection-status disconnected">○</span>
+                              <button
+                                className="remove-from-group-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  // Remove from savedSessions
+                                  setGroups(prevGroups => {
+                                    const updated = prevGroups.map(g => {
+                                      if (g.id === group.id) {
+                                        const newSavedSessions = [...(g.savedSessions || [])];
+                                        newSavedSessions.splice(index, 1);
+                                        return { ...g, savedSessions: newSavedSessions };
+                                      }
+                                      return g;
+                                    });
+                                    localStorage.setItem('ash-groups', JSON.stringify(updated));
+                                    return updated;
+                                  });
+                                }}
+                                title="Remove from Group"
+                              >
+                                ⊗
+                              </button>
+                            </div>
+                          );
+                        })}
+                        {group.sessionIds.length === 0 && savedSessions.length === 0 && (
+                          <div className="group-empty">Drag sessions here</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Create New Group Button */}
+          <div className="section">
+            <button
+              className="new-group-btn"
+              onClick={() => {
+                const groupName = `Group ${groups.length + 1}`;
+                createGroup(groupName);
+              }}
+              title="Create a new empty group"
+            >
+              + Create New Group
+            </button>
+          </div>
+
+          {/* Active sessions (ungrouped) */}
+          {sessions.filter(s => !groups.some(g => g.sessionIds.includes(s.id))).length > 0 && (
             <div className="section">
               <div className="section-header">Active Sessions</div>
-              {sessions.map(session => (
-                <div 
-                  key={session.id}
-                  className={`session-item ${activeSessionId === session.id ? 'active' : ''}`}
-                  onClick={() => switchToSession(session.id)}
-                >
-                  <span className="session-name">{session.name}</span>
-                  <span className={`connection-status ${session.isConnected ? 'connected' : 'disconnected'}`}>
-                    {session.isConnected ? '●' : '○'}
-                  </span>
-                  <button 
-                    className="close-session-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      disconnectSession(session.id);
-                    }}
-                    title="Close Session"
+              {sessions
+                .filter(s => !groups.some(g => g.sessionIds.includes(s.id)))
+                .map(session => (
+                  <div 
+                    key={session.id}
+                    className={`session-item ${activeSessionId === session.id ? 'active' : ''}`}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, session.id)}
+                    onClick={() => switchToSession(session.id)}
                   >
-                    ×
-                  </button>
-                </div>
-              ))}
+                    <span className="session-name">{session.name}</span>
+                    <span className={`connection-status ${session.isConnected ? 'connected' : 'disconnected'}`}>
+                      {session.isConnected ? '●' : '○'}
+                    </span>
+                    <button 
+                      className="close-session-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        disconnectSession(session.id);
+                      }}
+                      title="Close Session"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
             </div>
           )}
 
@@ -1207,7 +2005,10 @@ function App() {
               <p>Create a new session to get started</p>
               <button 
                 className="welcome-connect-btn"
-                onClick={() => setShowConnectionForm(true)}
+                onClick={() => {
+                  setFormError('');
+                  setShowConnectionForm(true);
+                }}
               >
                 New Session
               </button>
@@ -1238,13 +2039,20 @@ function App() {
               <h3>New Connection</h3>
               <button 
                 className="modal-close"
-                onClick={() => setShowConnectionForm(false)}
+                onClick={() => {
+                  setShowConnectionForm(false);
+                  setFormError('');
+                }}
               >
                 ×
               </button>
             </div>
             
-            <form onSubmit={(e) => { e.preventDefault(); createNewSession(); }}>
+            <form onSubmit={(e) => { 
+              e.preventDefault(); 
+              setFormError('');
+              createNewSession(); 
+            }}>
               <div className="form-group">
                 <label>Connection Type</label>
                 <div className="connection-type-selector">
@@ -1264,6 +2072,20 @@ function App() {
                   </button>
                 </div>
               </div>
+
+              {formError && (
+                <div className="form-error" style={{ 
+                  color: '#ff4444', 
+                  backgroundColor: 'rgba(255, 68, 68, 0.1)', 
+                  padding: '8px 12px', 
+                  borderRadius: '4px', 
+                  marginBottom: '16px',
+                  border: '1px solid rgba(255, 68, 68, 0.3)',
+                  fontSize: '12px'
+                }}>
+                  {formError}
+                </div>
+              )}
 
               <div className="form-group">
                 <label htmlFor="sessionName">Session Name</label>
@@ -1491,6 +2313,70 @@ function App() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Group Name Dialog */}
+      {showGroupNameDialog && (
+        <div className="modal-overlay" onClick={() => {
+          setShowGroupNameDialog(false);
+          setNewGroupName('');
+          setPendingSessionForGroup(null);
+        }}>
+          <div className="connection-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Create New Group</h3>
+              <button 
+                className="modal-close"
+                onClick={() => {
+                  setShowGroupNameDialog(false);
+                  setNewGroupName('');
+                  setPendingSessionForGroup(null);
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label>Group Name</label>
+                <input
+                  type="text"
+                  value={newGroupName}
+                  onChange={(e) => setNewGroupName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleCreateGroupFromDialog();
+                    } else if (e.key === 'Escape') {
+                      setShowGroupNameDialog(false);
+                      setNewGroupName('');
+                      setPendingSessionForGroup(null);
+                    }
+                  }}
+                  placeholder={`Group ${groups.length + 1}`}
+                  autoFocus
+                />
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button 
+                className="cancel-btn"
+                onClick={() => {
+                  setShowGroupNameDialog(false);
+                  setNewGroupName('');
+                  setPendingSessionForGroup(null);
+                }}
+              >
+                Cancel
+              </button>
+              <button 
+                className="connect-btn"
+                onClick={handleCreateGroupFromDialog}
+              >
+                Create Group
+              </button>
+            </div>
           </div>
         </div>
       )}
