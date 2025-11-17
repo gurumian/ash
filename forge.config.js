@@ -46,6 +46,20 @@ const makers = [
             height: 400,
           },
         },
+        contents: [
+          {
+            x: 200, // Center horizontally (600/2 - 100)
+            y: 100, // Top area
+            type: 'file',
+            path: 'ash.app',
+          },
+          {
+            x: 200, // Center horizontally
+            y: 250, // Below the app icon
+            type: 'link',
+            path: '/Applications',
+          },
+        ],
       },
     },
   },
