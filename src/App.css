@@ -172,7 +172,7 @@ html, body {
   padding: 4px 12px;
   font-size: 11px;
   font-weight: 600;
-  color: #00ff41;
+  color: #00ff41 !important;
   border-bottom: 1px solid #1a1a1a;
   opacity: 0.7;
 }
@@ -187,7 +187,7 @@ html, body {
   font-size: 12px;
   border-bottom: 1px solid var(--theme-border, #1a1a1a);
   transition: background 0.2s;
-  color: var(--theme-text, #00ff41);
+  color: #00ff41 !important;
 }
 
 .session-item:hover {
@@ -195,13 +195,14 @@ html, body {
 }
 
 .session-item.active {
-  background: var(--theme-accent, #00ff41);
-  color: var(--theme-bg, #000000);
+  background: #1a1a1a;
+  color: #00ff41;
+  border-left: 3px solid #00ff41;
+  padding-left: 9px; /* Adjust padding to account for border */
 }
 
 .session-item.active:hover {
-  background: var(--theme-accent, #00ff41);
-  opacity: 0.8;
+  background: #2a2a2a;
 }
 
 .session-name {
@@ -209,6 +210,7 @@ html, body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: #00ff41 !important;
 }
 
 .connection-status {
@@ -225,7 +227,7 @@ html, body {
 }
 
 .session-item.active .connection-status.connected {
-  color: var(--theme-bg, #000000);
+  color: #00ff41;
 }
 
 .session-item.active .connection-status.disconnected {
@@ -462,9 +464,10 @@ html, body {
 }
 
 .connection-modal {
-  background: white;
+  background: #000000;
   border-radius: 8px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.8);
+  border: 1px solid #1a1a1a;
   width: 90%;
   max-width: 500px;
   max-height: 90vh;
@@ -472,9 +475,9 @@ html, body {
 }
 
 .modal-header {
-  background: #f8f8f8;
+  background: #000000;
   padding: 16px 20px;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid #1a1a1a;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -484,7 +487,7 @@ html, body {
 .modal-header h3 {
   font-size: 16px;
   font-weight: 600;
-  color: #333;
+  color: #00ff41;
 }
 
 .modal-close {
@@ -492,18 +495,21 @@ html, body {
   border: none;
   font-size: 20px;
   cursor: pointer;
-  color: #999;
+  color: #00ff41;
   padding: 4px;
   border-radius: 4px;
+  opacity: 0.7;
 }
 
 .modal-close:hover {
-  background: #e0e0e0;
-  color: #333;
+  background: rgba(0, 255, 65, 0.1);
+  color: #00ff41;
+  opacity: 1;
 }
 
 .connection-modal form {
   padding: 20px;
+  background: #000000;
 }
 
 .form-group {
@@ -514,28 +520,48 @@ html, body {
   display: block;
   margin-bottom: 6px;
   font-weight: 600;
-  color: #333;
+  color: #00ff41;
   font-size: 13px;
 }
 
 .form-group input {
   width: 100%;
   padding: 10px 12px;
-  border: 1px solid #d0d0d0;
+  border: 1px solid #1a1a1a;
   border-radius: 4px;
   font-size: 14px;
   transition: border-color 0.2s;
   box-sizing: border-box;
+  background: #1a1a1a;
+  color: #00ff41;
 }
 
 .form-group input:focus {
   outline: none;
-  border-color: #4a90e2;
-  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+  border-color: #00ff41;
+  box-shadow: 0 0 0 2px rgba(0, 255, 65, 0.2);
 }
 
 .form-group input::placeholder {
-  color: #999;
+  color: #555;
+}
+
+.form-group select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #1a1a1a;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+  background: #1a1a1a;
+  color: #00ff41;
+}
+
+.form-group select:focus {
+  outline: none;
+  border-color: #00ff41;
+  box-shadow: 0 0 0 2px rgba(0, 255, 65, 0.2);
 }
 
 /* Checkbox group */
@@ -559,21 +585,22 @@ html, body {
 
 .checkbox-text {
   font-size: 13px;
-  color: #333;
+  color: #00ff41;
 }
 
 .checkbox-help {
   font-size: 11px;
-  color: #666;
+  color: #555;
   margin-left: 20px;
   font-style: italic;
 }
 
 /* Settings modal */
 .settings-modal {
-  background: white;
+  background: #000000;
   border-radius: 8px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.8);
+  border: 1px solid #1a1a1a;
   width: 90%;
   max-width: 600px;
   max-height: 80vh;
@@ -582,6 +609,7 @@ html, body {
 
 .settings-content {
   padding: 20px;
+  background: #000000;
 }
 
 .settings-section {
@@ -595,10 +623,10 @@ html, body {
 .settings-section h4 {
   font-size: 16px;
   font-weight: 600;
-  color: #333;
+  color: #00ff41;
   margin: 0 0 16px 0;
   padding-bottom: 8px;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid #1a1a1a;
 }
 
 .setting-group {
@@ -608,7 +636,7 @@ html, body {
 .setting-group label {
   display: block;
   font-weight: 600;
-  color: #333;
+  color: #00ff41;
   margin-bottom: 8px;
   font-size: 14px;
 }
@@ -619,7 +647,7 @@ html, body {
 
 .setting-description {
   font-size: 12px;
-  color: #666;
+  color: #555;
   margin: 4px 0 0 0;
   line-height: 1.4;
 }
@@ -634,24 +662,24 @@ html, body {
   display: flex;
   align-items: center;
   padding: 8px;
-  background: white;
-  border: 1px solid #e0e0e0;
+  background: #1a1a1a;
+  border: 1px solid #1a1a1a;
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.2s;
   font-size: 12px;
-  color: #333;
+  color: #00ff41;
 }
 
 .theme-option:hover {
-  background: #f0f0f0;
-  border-color: #4a90e2;
+  background: #2a2a2a;
+  border-color: #00ff41;
 }
 
 .theme-option.active {
-  background: #e3f2fd;
-  border-color: #4a90e2;
-  color: #1976d2;
+  background: rgba(0, 255, 65, 0.1);
+  border-color: #00ff41;
+  color: #00ff41;
 }
 
 .theme-preview {
@@ -664,27 +692,27 @@ html, body {
 }
 
 .about-info {
-  background: #f8f9fa;
+  background: #1a1a1a;
   padding: 12px;
   border-radius: 4px;
-  border-left: 3px solid #4a90e2;
+  border-left: 3px solid #00ff41;
 }
 
 .about-info p {
   margin: 4px 0;
   font-size: 13px;
-  color: #666;
+  color: #555;
 }
 
 .about-info p:first-child {
-  color: #333;
+  color: #00ff41;
   font-size: 14px;
 }
 
 .close-btn {
-  background: #6c757d;
-  color: white;
-  border: none;
+  background: #1a1a1a;
+  color: #00ff41;
+  border: 1px solid #1a1a1a;
   padding: 10px 20px;
   border-radius: 4px;
   font-size: 14px;
@@ -694,7 +722,8 @@ html, body {
 }
 
 .close-btn:hover {
-  background: #5a6268;
+  background: rgba(0, 255, 65, 0.1);
+  border-color: #00ff41;
 }
 
 .modal-actions {
@@ -703,7 +732,7 @@ html, body {
   gap: 12px;
   margin-top: 24px;
   padding-top: 16px;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid #1a1a1a;
 }
 
 .cancel-btn, .connect-btn {
@@ -717,21 +746,23 @@ html, body {
 }
 
 .cancel-btn {
-  background: #f0f0f0;
-  color: #666;
+  background: #1a1a1a;
+  color: #00ff41;
+  border: 1px solid #1a1a1a;
 }
 
 .cancel-btn:hover {
-  background: #e0e0e0;
+  background: rgba(0, 255, 65, 0.1);
+  border-color: #00ff41;
 }
 
 .connect-btn {
-  background: #4a90e2;
-  color: white;
+  background: #00ff41;
+  color: #000000;
 }
 
 .connect-btn:hover:not(:disabled) {
-  background: #357abd;
+  background: rgba(0, 255, 65, 0.8);
 }
 
 .connect-btn:disabled {
@@ -804,9 +835,9 @@ html, body {
 .type-btn {
   flex: 1;
   padding: 8px 16px;
-  border: 1px solid #d0d0d0;
-  background: #fff;
-  color: #666;
+  border: 1px solid #1a1a1a;
+  background: #1a1a1a;
+  color: #00ff41;
   border-radius: 4px;
   cursor: pointer;
   font-size: 13px;
@@ -815,14 +846,15 @@ html, body {
 }
 
 .type-btn:hover {
-  border-color: #4a90e2;
-  color: #4a90e2;
+  border-color: #00ff41;
+  color: #00ff41;
+  background: rgba(0, 255, 65, 0.1);
 }
 
 .type-btn.active {
-  background: #4a90e2;
-  border-color: #4a90e2;
-  color: white;
+  background: #00ff41;
+  border-color: #00ff41;
+  color: #000000;
 }
 
 /* Serial port selector */
@@ -835,25 +867,27 @@ html, body {
 .serial-port-selector select {
   flex: 1;
   padding: 8px 12px;
-  border: 1px solid #d0d0d0;
+  border: 1px solid #1a1a1a;
   border-radius: 4px;
   font-size: 13px;
-  background: white;
+  background: #1a1a1a;
+  color: #00ff41;
 }
 
 .refresh-ports-btn {
   padding: 8px 12px;
-  background: #f8f9fa;
-  border: 1px solid #d0d0d0;
+  background: #1a1a1a;
+  border: 1px solid #1a1a1a;
   border-radius: 4px;
   cursor: pointer;
   font-size: 14px;
   transition: all 0.2s;
+  color: #00ff41;
 }
 
 .refresh-ports-btn:hover {
-  background: #e9ecef;
-  border-color: #adb5bd;
+  background: rgba(0, 255, 65, 0.1);
+  border-color: #00ff41;
 }
 
 /* Form rows for side-by-side inputs */
