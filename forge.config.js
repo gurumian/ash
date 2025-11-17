@@ -1,42 +1,92 @@
 const { FusesPlugin } = require('@electron-forge/plugin-fuses');
 const { FuseV1Options, FuseVersion } = require('@electron/fuses');
 
+const path = require('path');
+
+// Platform-specific makers
+const makers = [
+  // Windows NSIS installer - Build only on Windows
+  {
+    name: '@felixrieseberg/electron-forge-maker-nsis',
+    platforms: ['win32'],
+    config: {
+      name: 'ash',
+      oneClick: false,
+      perMachine: false,
+      allowToChangeInstallationDirectory: true,
+      createDesktopShortcut: true,
+      createStartMenuShortcut: true,
+      shortcutName: 'ash',
+    },
+  },
+  {
+    name: '@electron-forge/maker-squirrel',
+    config: {
+      iconUrl: './assets/icons/icon.ico',
+      setupIcon: './assets/icons/icon.ico',
+    },
+  },
+  {
+    name: '@electron-forge/maker-zip',
+    platforms: ['darwin', 'win32', 'linux'],
+  },
+  {
+    name: '@electron-forge/maker-deb',
+    config: {
+      options: {
+        icon: './assets/icons/icon.png',
+      },
+    },
+  },
+  {
+    name: '@electron-forge/maker-rpm',
+    config: {
+      options: {
+        icon: './assets/icons/icon.png',
+      },
+    },
+  },
+];
+
 module.exports = {
   packagerConfig: {
-    asar: true,
-    icon: './assets/icons/icon', // 확장자 없이 (자동으로 .ico, .icns, .png 선택)
+    asar: {
+      unpack: '**/{serialport,ssh2}/**' // Native modules that need to be unpacked from asar
+    },
+    appBundleId: 'com.gurumlab.ash',
+    executableName: 'ash',
+    icon: path.resolve(__dirname, 'assets/icons/icon'), // Icon path without extension
+    // Electron Forge will automatically find the appropriate format:
+    // - Windows: icon.ico (preferred) or icon.png
+    // - macOS: icon.icns (preferred) or icon.png
+    // - Linux: icon.png
+    // If platform-specific files don't exist, it will fall back to icon.png
+    ignore: [
+      // Documentation and development files only
+      /^\/\.git/,
+      /^\/\.gitignore/,
+      /^\/\.cursorignore/,
+      /^\/\.taskmaster/,
+      /^\/\.cursor/,
+      /^\/\.vscode/,
+      /README\.md$/,
+      
+      // Test files
+      /\/test\//,
+      /\/tests\//,
+      /\.test\./,
+      /\.spec\./,
+    ],
   },
-  rebuildConfig: {},
-  makers: [
-    {
-      name: '@electron-forge/maker-squirrel',
-      config: {
-        iconUrl: './assets/icons/icon.ico',
-        setupIcon: './assets/icons/icon.ico',
-      },
-    },
-    {
-      name: '@electron-forge/maker-zip',
-      platforms: ['darwin', 'win32', 'linux'],
-    },
-    {
-      name: '@electron-forge/maker-deb',
-      config: {
-        options: {
-          icon: './assets/icons/icon.png',
-        },
-      },
-    },
-    {
-      name: '@electron-forge/maker-rpm',
-      config: {
-        options: {
-          icon: './assets/icons/icon.png',
-        },
-      },
-    },
-  ],
+  rebuildConfig: {
+    onlyModules: ['serialport', 'ssh2'] // Native modules that need rebuilding for Electron
+  },
+  makers,
   plugins: [
+    {
+      name: '@electron-forge/plugin-auto-unpack-natives',
+      config: {},
+    },
     {
       name: '@electron-forge/plugin-vite',
       config: {
