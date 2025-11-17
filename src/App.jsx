@@ -672,7 +672,7 @@ function App() {
       scrollback: 1000,
       theme: currentTheme,
       fontSize: 13,
-      fontFamily: "'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', monospace",
+      fontFamily: "'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace",
       fontWeight: 'normal',
       fontWeightBold: 'bold',
       letterSpacing: 0,

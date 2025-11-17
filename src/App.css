@@ -20,7 +20,7 @@ html, body {
   width: 100vw;
   background: var(--theme-bg, #000000);
   color: var(--theme-text, #00ff41);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -360,7 +360,7 @@ html, body {
   flex: 1;
   background: var(--theme-bg, #000000);
   color: var(--theme-text, #00ff41);
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace;
   font-size: 13px;
   line-height: 1.4;
   padding: 0;
