@@ -144,12 +144,45 @@ function App() {
   
   // Theme-related state
   const [theme, setTheme] = useState(
-    localStorage.getItem('ash-theme') || 'dark'
+    localStorage.getItem('ash-theme') || 'terminus'
   );
   const [showSettings, setShowSettings] = useState(false);
   
   // Unified theme definitions
   const themes = {
+    terminus: {
+      name: 'Terminus',
+      // UI colors
+      background: '#000000',
+      surface: '#000000',
+      text: '#00ff41',
+      border: '#1a1a1a',
+      accent: '#00ff41',
+      // Terminal colors - pure black background with bright green text
+      terminal: {
+        background: '#000000',
+        foreground: '#00ff41',
+        cursor: '#00ff41',
+        cursorAccent: '#000000',
+        selection: '#1a3a1a',
+        black: '#000000',
+        red: '#ff0000',
+        green: '#00ff41',
+        yellow: '#ffff00',
+        blue: '#0000ff',
+        magenta: '#ff00ff',
+        cyan: '#00ffff',
+        white: '#00ff41',
+        brightBlack: '#555555',
+        brightRed: '#ff5555',
+        brightGreen: '#00ff41',
+        brightYellow: '#ffff55',
+        brightBlue: '#5555ff',
+        brightMagenta: '#ff55ff',
+        brightCyan: '#55ffff',
+        brightWhite: '#00ff41'
+      }
+    },
     dark: {
       name: 'Dark',
       // UI colors
@@ -237,11 +270,15 @@ function App() {
     setTheme(themeKey);
     localStorage.setItem('ash-theme', themeKey);
     
-    // Also immediately change the theme of active terminal
-    if (activeSessionId && terminalInstances.current[activeSessionId]) {
-      const terminal = terminalInstances.current[activeSessionId];
-      terminal.options.theme = themes[themeKey].terminal;
-    }
+    // Update theme for all existing terminals
+    Object.keys(terminalInstances.current).forEach(sessionId => {
+      const terminal = terminalInstances.current[sessionId];
+      if (terminal) {
+        terminal.options.theme = themes[themeKey].terminal;
+        // Force a refresh by writing a zero-width space and clearing it
+        terminal.refresh(0, terminal.rows - 1);
+      }
+    });
   };
   
   // Terminal-related refs
@@ -625,12 +662,21 @@ function App() {
     
     console.log(`Terminal init: ${cols}x${rows} (container: ${terminalElement.clientWidth}x${terminalElement.clientHeight}, font: ${fontSize}px, char: ${charWidth}x${charHeight}px)`);
 
+    // Get the current theme configuration
+    const currentTheme = themes[theme].terminal;
+    
     const terminal = new Terminal({
       cols: Math.max(cols - 2, 80), // Account for rounding errors
       rows: Math.max(rows - 2, 24), // Account for rounding errors
       cursorBlink: true,
       scrollback: 1000,
-      theme: themes[theme].terminal
+      theme: currentTheme,
+      fontSize: 13,
+      fontFamily: "'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', monospace",
+      fontWeight: 'normal',
+      fontWeightBold: 'bold',
+      letterSpacing: 0,
+      lineHeight: 1.4
     });
 
     const fitAddon = new FitAddon();
@@ -638,6 +684,12 @@ function App() {
 
     terminal.open(terminalRef);
     fitAddon.fit();
+    
+    // Ensure theme is applied (in case it wasn't applied during construction)
+    if (terminal.options.theme !== currentTheme) {
+      terminal.options.theme = currentTheme;
+    }
+    
     terminalInstances.current[sessionId] = terminal;
     fitAddons.current[sessionId] = fitAddon;
 
