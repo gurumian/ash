@@ -32,6 +32,24 @@ const makers = [
     platforms: ['darwin', 'win32', 'linux'],
   },
   {
+    name: '@electron-forge/maker-dmg',
+    platforms: ['darwin'],
+    config: {
+      name: 'ash',
+      icon: path.resolve(__dirname, 'assets/icons/icon.icns'),
+      background: undefined, // Optional: path to background image
+      format: 'UDZO', // UDZO (compressed), UDBZ (bzip2), UDRO (read-only), UDRW (read-write)
+      additionalDMGOptions: {
+        window: {
+          size: {
+            width: 600,
+            height: 400,
+          },
+        },
+      },
+    },
+  },
+  {
     name: '@electron-forge/maker-deb',
     config: {
       options: {
