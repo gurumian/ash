@@ -46,20 +46,12 @@ const makers = [
             height: 400,
           },
         },
-        contents: [
-          {
-            x: 200, // Center horizontally (600/2 - 100)
-            y: 100, // Top area
-            type: 'file',
-            path: 'ash.app',
-          },
-          {
-            x: 200, // Center horizontally
-            y: 250, // Below the app icon
-            type: 'link',
-            path: '/Applications',
-          },
-        ],
+        // Note: Electron Forge automatically adds the app and Applications folder
+        // Icon positions are controlled by macOS Finder defaults (typically left side)
+        // To customize positions, you would need to:
+        // 1. Create a background image with visual guides
+        // 2. Use contents array with correct app path (requires knowing build output path)
+        // For now, using default layout which places icons on the left side
       },
     },
   },
