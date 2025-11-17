@@ -24,6 +24,27 @@ html, body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* On macOS with hiddenInset, add padding to avoid traffic lights and make draggable */
+@supports (-webkit-app-region: drag) {
+  .securecrt-app {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 28px);
+  }
+  
+  /* Make the top area draggable for window dragging */
+  .securecrt-app::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 28px;
+    -webkit-app-region: drag;
+    z-index: 1000;
+    pointer-events: auto;
+  }
 }
 
 /* UI menu bar removed due to system menu usage */
@@ -74,15 +95,26 @@ html, body {
 .session-manager-header {
   background: #000000 !important;
   padding: 8px 12px;
+  padding-left: 90px; /* Space for macOS traffic lights */
   border-bottom: 1px solid #1a1a1a;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  -webkit-app-region: drag; /* Make header draggable */
+}
+
+/* On non-macOS, use normal padding */
+@supports not (-webkit-app-region: drag) {
+  .session-manager-header {
+    padding-left: 12px;
+    -webkit-app-region: auto;
+  }
 }
 
 .header-buttons {
   display: flex;
   gap: 4px;
+  -webkit-app-region: no-drag; /* Buttons should not be draggable */
 }
 
 .session-manager-header h3 {
@@ -247,11 +279,14 @@ html, body {
   background: #000000 !important;
   border-bottom: 1px solid #1a1a1a;
   flex-shrink: 0;
+  padding-left: 0; /* Tab bar doesn't need left padding as it's not on the left edge */
+  -webkit-app-region: drag; /* Make tab bar area draggable */
 }
 
 .tab-bar {
   display: flex;
   background: #000000 !important;
+  -webkit-app-region: drag; /* Make tab bar draggable */
 }
 
 .tab {
@@ -267,6 +302,7 @@ html, body {
   transition: background 0.2s;
   min-width: 120px;
   opacity: 0.7;
+  -webkit-app-region: no-drag; /* Tabs should be clickable, not draggable */
 }
 
 .tab:hover {
@@ -839,6 +875,7 @@ html, body {
   background: rgba(0, 255, 65, 0.05);
   border-radius: 4px;
   margin-left: auto;
+  -webkit-app-region: no-drag; /* Log controls should be clickable */
 }
 
 .log-btn {

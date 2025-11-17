@@ -344,7 +344,13 @@ const createWindow = () => {
     width: 800,
     height: 600,
     title: 'ash',
-    titleBarStyle: 'default',
+    backgroundColor: '#000000',
+    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
+    titleBarOverlay: process.platform !== 'darwin' ? {
+      color: '#000000',
+      symbolColor: '#00ff41',
+      height: 30
+    } : false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
     },
