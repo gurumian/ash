@@ -17,13 +17,14 @@ const makers = [
       createDesktopShortcut: true,
       createStartMenuShortcut: true,
       shortcutName: 'ash',
+      icon: path.resolve(__dirname, 'assets/icons/icon.ico'),
     },
   },
   {
     name: '@electron-forge/maker-squirrel',
     config: {
-      iconUrl: './assets/icons/icon.ico',
-      setupIcon: './assets/icons/icon.ico',
+      iconUrl: path.resolve(__dirname, 'assets/icons/icon.ico'),
+      setupIcon: path.resolve(__dirname, 'assets/icons/icon.ico'),
     },
   },
   {
@@ -34,7 +35,7 @@ const makers = [
     name: '@electron-forge/maker-deb',
     config: {
       options: {
-        icon: './assets/icons/icon.png',
+        icon: path.resolve(__dirname, 'assets/icons/icon.png'),
       },
     },
   },
@@ -42,7 +43,7 @@ const makers = [
     name: '@electron-forge/maker-rpm',
     config: {
       options: {
-        icon: './assets/icons/icon.png',
+        icon: path.resolve(__dirname, 'assets/icons/icon.png'),
       },
     },
   },
