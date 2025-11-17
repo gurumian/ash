@@ -120,9 +120,79 @@ function App() {
   // Session management state
   const [sessions, setSessions] = useState([]);
   const [activeSessionId, setActiveSessionId] = useState(null);
-  const [groups, setGroups] = useState(
-    JSON.parse(localStorage.getItem('ash-groups') || '[]')
-  );
+  const [groups, setGroups] = useState(() => {
+    const saved = localStorage.getItem('ash-groups');
+    console.log('Loading groups from localStorage:', saved);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        console.log('Parsed groups:', parsed);
+        // Ensure all groups have savedSessions field for backward compatibility
+        const groupsWithSavedSessions = parsed.map(g => ({
+          ...g,
+          savedSessions: g.savedSessions || []
+        }));
+        console.log('Groups with savedSessions:', groupsWithSavedSessions);
+        return groupsWithSavedSessions;
+      } catch (e) {
+        console.error('Failed to parse groups from localStorage:', e);
+        return [];
+      }
+    }
+    console.log('No saved groups found in localStorage');
+    return [];
+  });
+  
+  // Clean up orphaned sessionIds: when sessions are disconnected, keep them in savedSessions
+  // This runs when sessions change to ensure groups reflect current session state
+  useEffect(() => {
+    if (sessions.length === 0) {
+      // No active sessions, but we don't want to modify groups on initial load
+      return;
+    }
+    
+    const connectionHistory = JSON.parse(localStorage.getItem('ssh-connections') || '[]');
+    
+    setGroups(prevGroups => {
+      let hasChanges = false;
+      const updatedGroups = prevGroups.map(group => {
+        // Find sessionIds that don't exist in current sessions
+        const orphanedSessionIds = group.sessionIds.filter(sessionId => 
+          !sessions.some(s => s.id === sessionId)
+        );
+        
+        if (orphanedSessionIds.length === 0) {
+          return group; // No orphaned sessions
+        }
+        
+        // For each orphaned session, try to find its connection info from current sessions or history
+        // Since we can't match by sessionId alone, we'll just remove them from sessionIds
+        // They should have been in savedSessions if they weren't connected
+        const newSessionIds = group.sessionIds.filter(sessionId => 
+          sessions.some(s => s.id === sessionId)
+        );
+        
+        // Only update if there are changes
+        if (newSessionIds.length !== group.sessionIds.length) {
+          hasChanges = true;
+          console.log(`Removing ${orphanedSessionIds.length} orphaned sessionIds from group ${group.name}`);
+          return {
+            ...group,
+            sessionIds: newSessionIds
+          };
+        }
+        
+        return group;
+      });
+      
+      if (hasChanges) {
+        console.log('Cleaned up orphaned sessionIds from groups:', updatedGroups);
+        return updatedGroups;
+      }
+      
+      return prevGroups;
+    });
+  }, [sessions]); // Run when sessions change
   const [draggedSessionId, setDraggedSessionId] = useState(null);
   const [dragOverGroupId, setDragOverGroupId] = useState(null);
   const [editingGroupId, setEditingGroupId] = useState(null);
@@ -432,10 +502,11 @@ function App() {
   const sshConnections = useRef({});
   const sessionLogs = useRef({}); // Store logs for each session
   const [logStates, setLogStates] = useState({}); // Track logging state for UI updates
-  
+
   // Resize handle refs
   const resizeHandleRef = useRef(null);
   const isResizing = useRef(false);
+  const isInitialGroupsLoad = useRef(true);
 
   // Connection history and favorites
   const [connectionHistory, setConnectionHistory] = useState(
@@ -972,10 +1043,21 @@ function App() {
     console.log('Groups saved to localStorage:', newGroups);
   };
   
-  // Sync groups to localStorage whenever groups state changes
+  // Sync groups to localStorage whenever groups state changes (skip initial mount)
   useEffect(() => {
-    localStorage.setItem('ash-groups', JSON.stringify(groups));
+    if (isInitialGroupsLoad.current) {
+      isInitialGroupsLoad.current = false;
+      console.log('Initial groups load, skipping sync:', groups);
+      return; // Skip on initial mount
+    }
+    const serialized = JSON.stringify(groups);
+    localStorage.setItem('ash-groups', serialized);
     console.log('Groups synced to localStorage:', groups);
+    console.log('Serialized data:', serialized);
+    
+    // Verify it was saved correctly
+    const verify = localStorage.getItem('ash-groups');
+    console.log('Verification - localStorage contains:', verify);
   }, [groups]);
 
   // Group management functions
@@ -1035,27 +1117,58 @@ function App() {
   const addSessionToGroup = (sessionId, groupId) => {
     // Allow duplicate sessions in the same group - just add to target group
     console.log('Adding session to group:', { sessionId, groupId });
+    const session = sessions.find(s => s.id === sessionId);
+    
     setGroups(prevGroups => {
       const finalGroups = prevGroups.map(g => {
         if (g.id === groupId) {
-          // Remove from savedSessions if it exists there (now it's connected)
-          const updatedSavedSessions = (g.savedSessions || []).filter(saved => {
-            const connType = saved.connectionType || 'ssh';
-            const session = sessions.find(s => s.id === sessionId);
-            if (!session) return true;
-            
-            if (connType === 'serial') {
-              return !(saved.connectionType === 'serial' && saved.serialPort === session.serialPort);
-            } else {
-              return !(saved.host === session.host && 
+          // Build connection info from session
+          let connectionInfo = null;
+          if (session) {
+            connectionInfo = session.connectionType === 'serial' ? {
+              connectionType: 'serial',
+              serialPort: session.serialPort,
+              baudRate: session.baudRate,
+              dataBits: session.dataBits,
+              stopBits: session.stopBits,
+              parity: session.parity,
+              flowControl: session.flowControl,
+              sessionName: session.name
+            } : {
+              connectionType: 'ssh',
+              host: session.host,
+              port: session.port,
+              user: session.user,
+              password: session.password || '',
+              sessionName: session.name
+            };
+          }
+          
+          // Update savedSessions: ensure connection info is stored (for persistence)
+          let updatedSavedSessions = [...(g.savedSessions || [])];
+          if (connectionInfo) {
+            // Check if this connection already exists in savedSessions
+            const exists = updatedSavedSessions.some(saved => {
+              if (session.connectionType === 'serial') {
+                return saved.connectionType === 'serial' && saved.serialPort === session.serialPort;
+              } else {
+                return saved.host === session.host && 
                        saved.user === session.user && 
-                       (saved.port || '22') === (session.port || '22'));
+                       (saved.port || '22') === (session.port || '22');
+              }
+            });
+            
+            if (!exists) {
+              updatedSavedSessions.push(connectionInfo);
             }
-          });
+          }
+          
+          // Add to sessionIds only if session exists (for active tracking)
+          const updatedSessionIds = session ? [...g.sessionIds, sessionId] : g.sessionIds;
           
           return { 
             ...g, 
-            sessionIds: [...g.sessionIds, sessionId],
+            sessionIds: updatedSessionIds,
             savedSessions: updatedSavedSessions
           };
         }
@@ -1090,11 +1203,15 @@ function App() {
               ...g, 
               savedSessions: [...(g.savedSessions || []), connection]
             };
+          } else {
+            // Already exists, return group as is
+            return g;
           }
         }
         return g;
       });
       console.log('Updated groups with saved session:', finalGroups);
+      console.log('Group after adding saved session:', finalGroups.find(g => g.id === groupId));
       // localStorage will be updated by useEffect
       return finalGroups;
     });
