@@ -13,8 +13,12 @@ export function createMenu() {
           accelerator: 'CmdOrCtrl+N',
           click: () => {
             const focusedWindow = BrowserWindow.getFocusedWindow();
-            if (focusedWindow) {
-              focusedWindow.webContents.send('menu-new-session');
+            try {
+              if (focusedWindow && !focusedWindow.isDestroyed() && !focusedWindow.webContents.isDestroyed()) {
+                focusedWindow.webContents.send('menu-new-session');
+              }
+            } catch (error) {
+              console.error('Failed to send menu-new-session:', error);
             }
           }
         },
@@ -23,8 +27,12 @@ export function createMenu() {
           accelerator: 'CmdOrCtrl+W',
           click: () => {
             const focusedWindow = BrowserWindow.getFocusedWindow();
-            if (focusedWindow) {
-              focusedWindow.webContents.send('menu-close-session');
+            try {
+              if (focusedWindow && !focusedWindow.isDestroyed() && !focusedWindow.webContents.isDestroyed()) {
+                focusedWindow.webContents.send('menu-close-session');
+              }
+            } catch (error) {
+              console.error('Failed to send menu-close-session:', error);
             }
           }
         },
@@ -83,8 +91,12 @@ export function createMenu() {
           checked: true,
           click: (menuItem) => {
             const focusedWindow = BrowserWindow.getFocusedWindow();
-            if (focusedWindow) {
-              focusedWindow.webContents.send('menu-toggle-session-manager', menuItem.checked);
+            try {
+              if (focusedWindow && !focusedWindow.isDestroyed() && !focusedWindow.webContents.isDestroyed()) {
+                focusedWindow.webContents.send('menu-toggle-session-manager', menuItem.checked);
+              }
+            } catch (error) {
+              console.error('Failed to send menu-toggle-session-manager:', error);
             }
           }
         },
@@ -94,8 +106,12 @@ export function createMenu() {
           accelerator: 'CmdOrCtrl+,',
           click: () => {
             const focusedWindow = BrowserWindow.getFocusedWindow();
-            if (focusedWindow) {
-              focusedWindow.webContents.send('menu-settings');
+            try {
+              if (focusedWindow && !focusedWindow.isDestroyed() && !focusedWindow.webContents.isDestroyed()) {
+                focusedWindow.webContents.send('menu-settings');
+              }
+            } catch (error) {
+              console.error('Failed to send menu-settings:', error);
             }
           }
         },
@@ -157,8 +173,12 @@ export function createMenu() {
           label: 'About ash',
           click: () => {
             const focusedWindow = BrowserWindow.getFocusedWindow();
-            if (focusedWindow) {
-              focusedWindow.webContents.send('menu-about');
+            try {
+              if (focusedWindow && !focusedWindow.isDestroyed() && !focusedWindow.webContents.isDestroyed()) {
+                focusedWindow.webContents.send('menu-about');
+              }
+            } catch (error) {
+              console.error('Failed to send menu-about:', error);
             }
           }
         }
@@ -175,8 +195,12 @@ export function createMenu() {
           label: 'About ' + app.getName(),
           click: () => {
             const focusedWindow = BrowserWindow.getFocusedWindow();
-            if (focusedWindow) {
-              focusedWindow.webContents.send('menu-about');
+            try {
+              if (focusedWindow && !focusedWindow.isDestroyed() && !focusedWindow.webContents.isDestroyed()) {
+                focusedWindow.webContents.send('menu-about');
+              }
+            } catch (error) {
+              console.error('Failed to send menu-about:', error);
             }
           }
         },

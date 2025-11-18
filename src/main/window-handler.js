@@ -108,11 +108,23 @@ export function initializeWindowHandlers() {
       
       // Wait for window to be ready, then send session data
       newWindow.webContents.once('did-finish-load', () => {
-        newWindow.webContents.send('detached-session', sessionData);
+        try {
+          if (!newWindow.isDestroyed() && !newWindow.webContents.isDestroyed()) {
+            newWindow.webContents.send('detached-session', sessionData);
+          }
+        } catch (error) {
+          console.error('Failed to send detached session data:', error);
+        }
       });
       
       // Remove session from original window
-      event.sender.send('remove-detached-session', sessionId);
+      try {
+        if (!event.sender.isDestroyed()) {
+          event.sender.send('remove-detached-session', sessionId);
+        }
+      } catch (error) {
+        console.error('Failed to send remove detached session:', error);
+      }
       
       return { success: true };
     } catch (error) {

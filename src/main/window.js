@@ -39,10 +39,22 @@ export function createWindow() {
   // Listen for window maximize/unmaximize events (Windows/Linux only)
   if (process.platform !== 'darwin') {
     mainWindow.on('maximize', () => {
-      mainWindow.webContents.send('window-maximized');
+      try {
+        if (!mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed()) {
+          mainWindow.webContents.send('window-maximized');
+        }
+      } catch (error) {
+        // Window was destroyed, ignore
+      }
     });
     mainWindow.on('unmaximize', () => {
-      mainWindow.webContents.send('window-unmaximized');
+      try {
+        if (!mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed()) {
+          mainWindow.webContents.send('window-unmaximized');
+        }
+      } catch (error) {
+        // Window was destroyed, ignore
+      }
     });
   }
 

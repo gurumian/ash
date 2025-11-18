@@ -47,64 +47,64 @@ if (!isDev) {
     });
   }, 4 * 60 * 60 * 1000); // 4 hours
   
+  // Helper function to safely send messages to all windows
+  const sendToAllWindows = (channel, data) => {
+    const { BrowserWindow } = require('electron');
+    BrowserWindow.getAllWindows().forEach(window => {
+      try {
+        // Check if window and webContents are still valid
+        if (!window.isDestroyed() && !window.webContents.isDestroyed()) {
+          window.webContents.send(channel, data);
+        }
+      } catch (error) {
+        // Silently ignore errors for destroyed windows
+        console.warn(`Failed to send ${channel} to window:`, error.message);
+      }
+    });
+  };
+  
   // Update available
   autoUpdater.on('update-available', (info) => {
     console.log('Update available:', info.version);
-    // Notify all windows about the update
-    const { BrowserWindow } = require('electron');
-    BrowserWindow.getAllWindows().forEach(window => {
-      window.webContents.send('update-available', {
-        version: info.version,
-        releaseDate: info.releaseDate,
-        releaseNotes: info.releaseNotes,
-      });
+    sendToAllWindows('update-available', {
+      version: info.version,
+      releaseDate: info.releaseDate,
+      releaseNotes: info.releaseNotes,
     });
   });
   
   // Update not available
   autoUpdater.on('update-not-available', (info) => {
     console.log('Update not available. Current version is latest.');
-    const { BrowserWindow } = require('electron');
-    BrowserWindow.getAllWindows().forEach(window => {
-      window.webContents.send('update-not-available');
-    });
+    sendToAllWindows('update-not-available', null);
   });
   
   // Update download progress
   autoUpdater.on('download-progress', (progressObj) => {
-    const { BrowserWindow } = require('electron');
-    BrowserWindow.getAllWindows().forEach(window => {
-      window.webContents.send('update-download-progress', {
-        percent: progressObj.percent,
-        transferred: progressObj.transferred,
-        total: progressObj.total,
-        bytesPerSecond: progressObj.bytesPerSecond,
-      });
+    sendToAllWindows('update-download-progress', {
+      percent: progressObj.percent,
+      transferred: progressObj.transferred,
+      total: progressObj.total,
+      bytesPerSecond: progressObj.bytesPerSecond,
     });
   });
   
   // Update downloaded and ready to install
   autoUpdater.on('update-downloaded', (info) => {
     console.log('Update downloaded:', info.version);
-    const { BrowserWindow } = require('electron');
-    BrowserWindow.getAllWindows().forEach(window => {
-      window.webContents.send('update-downloaded', {
-        version: info.version,
-        releaseDate: info.releaseDate,
-        releaseNotes: info.releaseNotes,
-      });
+    sendToAllWindows('update-downloaded', {
+      version: info.version,
+      releaseDate: info.releaseDate,
+      releaseNotes: info.releaseNotes,
     });
   });
   
   // Update error
   autoUpdater.on('error', (error) => {
     console.error('Auto-updater error:', error);
-    const { BrowserWindow } = require('electron');
-    BrowserWindow.getAllWindows().forEach(window => {
-      window.webContents.send('update-error', {
-        message: error.message,
-        stack: error.stack,
-      });
+    sendToAllWindows('update-error', {
+      message: error.message,
+      stack: error.stack,
     });
   });
 }
