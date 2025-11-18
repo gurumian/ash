@@ -246,50 +246,52 @@ export const SessionManager = memo(function SessionManager({
                         />
                       );
                     })}
-                    {/* Saved sessions (not connected yet) */}
-                    {savedSessions.map((savedSession) => {
-                      // Check if this saved session has an active session
-                      const activeSession = groupSessions.find(session => {
-                        const connType = savedSession.connectionType || 'ssh';
-                        if (connType === 'serial') {
-                          return session.connectionType === 'serial' && 
-                                 session.serialPort === savedSession.serialPort;
-                        } else {
-                          return session.connectionType === 'ssh' &&
-                                 session.host === savedSession.host && 
-                                 session.user === savedSession.user && 
-                                 (session.port || '22') === (savedSession.port || '22');
-                        }
-                      });
-                      
-                      const displayName = savedSession.label || savedSession.sessionName || savedSession.name || (savedSession.connectionType === 'serial'
-                        ? `Serial: ${savedSession.serialPort}`
-                        : `${savedSession.user}@${savedSession.host}`);
-                      
-                      return (
-                        <div
-                          key={savedSession.id}
-                          className="session-item group-session-item saved-session"
-                        >
-                          <span className="session-name">
-                            {displayName} {!activeSession ? '(not connected)' : ''}
-                          </span>
-                          <span className={`connection-status ${activeSession?.isConnected ? 'connected' : 'disconnected'}`}>
-                            {activeSession?.isConnected ? '●' : '○'}
-                          </span>
-                          <button
-                            className="remove-from-group-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onRemoveSessionFromGroup(savedSession.id, group.id);
-                            }}
-                            title="Remove from Group"
+                    {/* Saved sessions (not connected yet) - only show if not already connected */}
+                    {savedSessions
+                      .filter(savedSession => {
+                        // Only show saved sessions that don't have an active session
+                        const activeSession = groupSessions.find(session => {
+                          const connType = savedSession.connectionType || 'ssh';
+                          if (connType === 'serial') {
+                            return session.connectionType === 'serial' && 
+                                   session.serialPort === savedSession.serialPort;
+                          } else {
+                            return session.connectionType === 'ssh' &&
+                                   session.host === savedSession.host && 
+                                   session.user === savedSession.user && 
+                                   (session.port || '22') === (savedSession.port || '22');
+                          }
+                        });
+                        // Only show if no active session exists (not connected)
+                        return !activeSession;
+                      })
+                      .map((savedSession) => {
+                        const displayName = savedSession.label || savedSession.sessionName || savedSession.name || (savedSession.connectionType === 'serial'
+                          ? `Serial: ${savedSession.serialPort}`
+                          : `${savedSession.user}@${savedSession.host}`);
+                        
+                        return (
+                          <div
+                            key={savedSession.id}
+                            className="session-item group-session-item saved-session"
                           >
-                            ⊗
-                          </button>
-                        </div>
-                      );
-                    })}
+                            <span className="session-name">
+                              {displayName} (not connected)
+                            </span>
+                            <span className="connection-status disconnected">○</span>
+                            <button
+                              className="remove-from-group-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onRemoveSessionFromGroup(savedSession.id, group.id);
+                              }}
+                              title="Remove from Group"
+                            >
+                              ⊗
+                            </button>
+                          </div>
+                        );
+                      })}
                     {savedSessions.length === 0 && (
                       <div className="group-empty">Drag sessions here</div>
                     )}
