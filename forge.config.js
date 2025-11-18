@@ -17,59 +17,28 @@ const makers = [
       createDesktopShortcut: true,
       createStartMenuShortcut: true,
       shortcutName: 'ash',
-      icon: path.resolve(__dirname, 'assets/icons/icon.ico'),
     },
   },
   {
     name: '@electron-forge/maker-squirrel',
-    config: {
-      iconUrl: path.resolve(__dirname, 'assets/icons/icon.ico'),
-      setupIcon: path.resolve(__dirname, 'assets/icons/icon.ico'),
-    },
+    config: {},
   },
   {
     name: '@electron-forge/maker-zip',
-    platforms: ['darwin', 'win32', 'linux'],
+    platforms: ['darwin'],
   },
   {
     name: '@electron-forge/maker-dmg',
     platforms: ['darwin'],
-    config: {
-      name: 'ash',
-      icon: path.resolve(__dirname, 'assets/icons/icon.icns'),
-      background: undefined, // Optional: path to background image
-      format: 'UDZO', // UDZO (compressed), UDBZ (bzip2), UDRO (read-only), UDRW (read-write)
-      additionalDMGOptions: {
-        window: {
-          size: {
-            width: 600,
-            height: 400,
-          },
-        },
-        // Note: Electron Forge automatically adds the app and Applications folder
-        // Icon positions are controlled by macOS Finder defaults (typically left side)
-        // To customize positions, you would need to:
-        // 1. Create a background image with visual guides
-        // 2. Use contents array with correct app path (requires knowing build output path)
-        // For now, using default layout which places icons on the left side
-      },
-    },
+    config: {},
   },
   {
     name: '@electron-forge/maker-deb',
-    config: {
-      options: {
-        icon: path.resolve(__dirname, 'assets/icons/icon.png'),
-      },
-    },
+    config: {},
   },
   {
     name: '@electron-forge/maker-rpm',
-    config: {
-      options: {
-        icon: path.resolve(__dirname, 'assets/icons/icon.png'),
-      },
-    },
+    config: {},
   },
 ];
 
@@ -86,6 +55,8 @@ module.exports = {
     // - macOS: icon.icns (preferred) or icon.png
     // - Linux: icon.png
     // If platform-specific files don't exist, it will fall back to icon.png
+    // Minimal ignore - Electron Forge Vite plugin handles most ignores automatically
+    // Only ignore things that are definitely not needed in the packaged app
     ignore: [
       // Documentation and development files only
       /^\/\.git/,
