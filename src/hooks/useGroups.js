@@ -11,11 +11,29 @@ export function useGroups() {
       try {
         const parsed = JSON.parse(saved);
         console.log('Parsed groups:', parsed);
-        // Ensure all groups have savedSessions field for backward compatibility
-        const groupsWithSavedSessions = parsed.map(g => ({
-          ...g,
-          savedSessions: g.savedSessions || []
-        }));
+        // Ensure all groups have savedSessions field with UUID and label, remove sessionIds (volatile data)
+        const groupsWithSavedSessions = parsed.map(g => {
+          const { sessionIds, ...groupWithoutSessionIds } = g;
+          // Migrate old savedSessions format to new format with UUID and label
+          const migratedSavedSessions = (g.savedSessions || []).map(saved => {
+            // If already has id and label, keep as is
+            if (saved.id && saved.label) {
+              return saved;
+            }
+            // Otherwise, migrate old format to new format
+            return {
+              id: crypto.randomUUID(),
+              label: saved.sessionName || saved.name || (saved.connectionType === 'serial'
+                ? `Serial: ${saved.serialPort}`
+                : `${saved.user}@${saved.host}`),
+              ...saved
+            };
+          });
+          return {
+            ...groupWithoutSessionIds,
+            savedSessions: migratedSavedSessions
+          };
+        });
         console.log('Groups with savedSessions:', groupsWithSavedSessions);
         return groupsWithSavedSessions;
       } catch (e) {
@@ -55,49 +73,18 @@ export function useGroups() {
     console.log('Verification - localStorage contains:', verify);
   }, [groups]);
 
-  // Clean up orphaned sessionIds
-  const cleanupOrphanedSessions = (sessions) => {
-    if (sessions.length === 0) {
-      return;
+  // Helper function to match a saved session (with UUID) with an active session
+  const matchSavedSessionWithActiveSession = (savedSession, session) => {
+    const connType = savedSession.connectionType || 'ssh';
+    if (connType === 'serial') {
+      return session.connectionType === 'serial' && 
+             session.serialPort === savedSession.serialPort;
+    } else {
+      return session.connectionType === 'ssh' &&
+             session.host === savedSession.host && 
+             session.user === savedSession.user && 
+             (session.port || '22') === (savedSession.port || '22');
     }
-    
-    setGroups(prevGroups => {
-      let hasChanges = false;
-      const updatedGroups = prevGroups.map(group => {
-        // Find sessionIds that don't exist in current sessions
-        const orphanedSessionIds = group.sessionIds.filter(sessionId => 
-          !sessions.some(s => s.id === sessionId)
-        );
-        
-        if (orphanedSessionIds.length === 0) {
-          return group; // No orphaned sessions
-        }
-        
-        // Remove orphaned sessionIds
-        const newSessionIds = group.sessionIds.filter(sessionId => 
-          sessions.some(s => s.id === sessionId)
-        );
-        
-        // Only update if there are changes
-        if (newSessionIds.length !== group.sessionIds.length) {
-          hasChanges = true;
-          console.log(`Removing ${orphanedSessionIds.length} orphaned sessionIds from group ${group.name}`);
-          return {
-            ...group,
-            sessionIds: newSessionIds
-          };
-        }
-        
-        return group;
-      });
-      
-      if (hasChanges) {
-        console.log('Cleaned up orphaned sessionIds from groups:', updatedGroups);
-        return updatedGroups;
-      }
-      
-      return prevGroups;
-    });
   };
 
   // Group management functions
@@ -105,8 +92,7 @@ export function useGroups() {
     const newGroup = {
       id: Date.now().toString(),
       name: name || `Group ${groups.length + 1}`,
-      sessionIds: [], // Active session IDs
-      savedSessions: [], // Connection info for unconnected sessions
+      savedSessions: [], // Connection info for sessions (persistent)
       isExpanded: true
     };
     saveGroups([...groups, newGroup]);
@@ -150,63 +136,50 @@ export function useGroups() {
   };
 
   const addSessionToGroup = (sessionId, groupId, session, skipSavedSessions = false) => {
-    // Allow duplicate sessions in the same group - just add to target group
+    // Add session's connection info to group's savedSessions with UUID and label
     console.log('Adding session to group:', { sessionId, groupId, skipSavedSessions });
     
     setGroups(prevGroups => {
       const finalGroups = prevGroups.map(g => {
         if (g.id === groupId) {
-          // Build connection info from session
-          let connectionInfo = null;
+          // Build saved session with UUID and label from session
+          let savedSession = null;
           if (session) {
-            connectionInfo = session.connectionType === 'serial' ? {
-              connectionType: 'serial',
-              serialPort: session.serialPort,
-              baudRate: session.baudRate,
-              dataBits: session.dataBits,
-              stopBits: session.stopBits,
-              parity: session.parity,
-              flowControl: session.flowControl,
-              sessionName: session.name
-            } : {
-              connectionType: 'ssh',
-              host: session.host,
-              port: session.port,
-              user: session.user,
-              password: session.password || '',
-              sessionName: session.name
+            const label = session.name || (session.connectionType === 'serial'
+              ? `Serial: ${session.serialPort}`
+              : `${session.user}@${session.host}`);
+            
+            savedSession = {
+              id: crypto.randomUUID(),
+              label: label,
+              connectionType: session.connectionType,
+              ...(session.connectionType === 'serial' ? {
+                serialPort: session.serialPort,
+                baudRate: session.baudRate,
+                dataBits: session.dataBits,
+                stopBits: session.stopBits,
+                parity: session.parity,
+                flowControl: session.flowControl
+              } : {
+                host: session.host,
+                port: session.port,
+                user: session.user,
+                password: session.password || ''
+              })
             };
           }
           
-          // Update savedSessions: ensure connection info is stored (for persistence)
-          // Skip if skipSavedSessions is true (e.g., when moving from savedSessions to sessionIds)
+          // Update savedSessions: always add as a new instance (allow duplicates)
+          // Skip if skipSavedSessions is true (e.g., when already in savedSessions)
           let updatedSavedSessions = [...(g.savedSessions || [])];
-          if (connectionInfo && !skipSavedSessions) {
-            // Check if this connection already exists in savedSessions
-            const exists = updatedSavedSessions.some(saved => {
-              if (session.connectionType === 'serial') {
-                return saved.connectionType === 'serial' && saved.serialPort === session.serialPort;
-              } else {
-                return saved.host === session.host && 
-                       saved.user === session.user && 
-                       (saved.port || '22') === (session.port || '22');
-              }
-            });
-            
-            if (!exists) {
-              updatedSavedSessions.push(connectionInfo);
-            }
+          if (savedSession && !skipSavedSessions) {
+            // Always add as a new instance - same connection info can be added multiple times
+            // This allows multiple terminals to the same host (class vs instance concept)
+            updatedSavedSessions.push(savedSession);
           }
-          
-          // Add to sessionIds only if session exists (for active tracking)
-          // Also check if already in sessionIds to avoid duplicates
-          const updatedSessionIds = session && !g.sessionIds.includes(sessionId) 
-            ? [...g.sessionIds, sessionId] 
-            : g.sessionIds;
           
           return { 
             ...g, 
-            sessionIds: updatedSessionIds,
             savedSessions: updatedSavedSessions
           };
         }
@@ -219,32 +192,28 @@ export function useGroups() {
   };
 
   const addSavedSessionToGroup = (connection, groupId) => {
-    // Add unconnected session info to group
+    // Add unconnected session info to group with UUID and label
+    // Always creates a new instance - allows multiple instances of the same connection (class vs instance)
     console.log('Adding saved session to group:', { connection, groupId });
     setGroups(prevGroups => {
       const finalGroups = prevGroups.map(g => {
         if (g.id === groupId) {
-          // Check if already exists in savedSessions
-          const exists = (g.savedSessions || []).some(saved => {
-            const connType = connection.connectionType || 'ssh';
-            if (connType === 'serial') {
-              return saved.connectionType === 'serial' && saved.serialPort === connection.serialPort;
-            } else {
-              return saved.host === connection.host && 
-                     saved.user === connection.user && 
-                     (saved.port || '22') === (connection.port || '22');
-            }
-          });
+          // Always create a new instance with UUID and label
+          // Same connection info can be added multiple times (e.g., multiple terminals to same host)
+          const label = connection.sessionName || connection.name || (connection.connectionType === 'serial'
+            ? `Serial: ${connection.serialPort}`
+            : `${connection.user}@${connection.host}`);
           
-          if (!exists) {
-            return { 
-              ...g, 
-              savedSessions: [...(g.savedSessions || []), connection]
-            };
-          } else {
-            // Already exists, return group as is
-            return g;
-          }
+          const savedSession = {
+            id: crypto.randomUUID(),
+            label: label,
+            ...connection
+          };
+          
+          return { 
+            ...g, 
+            savedSessions: [...(g.savedSessions || []), savedSession]
+          };
         }
         return g;
       });
@@ -255,23 +224,12 @@ export function useGroups() {
     });
   };
 
-  const removeSessionFromGroup = (sessionId, groupId, index = null) => {
+  const removeSessionFromGroup = (savedSessionId, groupId) => {
+    // Remove saved session from group by UUID
     saveGroups(groups.map(g => {
       if (g.id === groupId) {
-        if (index !== null) {
-          // Remove specific index (for duplicate sessions)
-          const newSessionIds = [...g.sessionIds];
-          newSessionIds.splice(index, 1);
-          return { ...g, sessionIds: newSessionIds };
-        } else {
-          // Remove first occurrence (backward compatibility)
-          const newSessionIds = [...g.sessionIds];
-          const firstIndex = newSessionIds.indexOf(sessionId);
-          if (firstIndex !== -1) {
-            newSessionIds.splice(firstIndex, 1);
-          }
-          return { ...g, sessionIds: newSessionIds };
-        }
+        const updatedSavedSessions = (g.savedSessions || []).filter(saved => saved.id !== savedSessionId);
+        return { ...g, savedSessions: updatedSavedSessions };
       }
       return g;
     }));
@@ -294,7 +252,7 @@ export function useGroups() {
     addSessionToGroup,
     addSavedSessionToGroup,
     removeSessionFromGroup,
-    cleanupOrphanedSessions
+    matchSavedSessionWithActiveSession
   };
 }
 

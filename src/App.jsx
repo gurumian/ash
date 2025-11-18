@@ -39,7 +39,6 @@ function App() {
     groups,
     setGroups,
     saveGroups,
-    cleanupOrphanedSessions,
     editingGroupId,
     editingGroupName,
     setEditingGroupName,
@@ -52,7 +51,8 @@ function App() {
     cancelEditingGroupName,
     addSessionToGroup: addSessionToGroupHook,
     addSavedSessionToGroup,
-    removeSessionFromGroup
+    removeSessionFromGroup,
+    matchSavedSessionWithActiveSession
   } = useGroups();
   
   // Wrapper for addSessionToGroup to find session
@@ -60,11 +60,6 @@ function App() {
     const session = sessions.find(s => s.id === sessionId);
     addSessionToGroupHook(sessionId, groupId, session, skipSavedSessions);
   };
-  
-  // Clean up orphaned sessionIds when sessions change
-  useEffect(() => {
-    cleanupOrphanedSessions(sessions);
-  }, [sessions, cleanupOrphanedSessions]);
   
   const [showGroupNameDialog, setShowGroupNameDialog] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
@@ -81,7 +76,6 @@ function App() {
     return newGroupId;
   };
   const [formError, setFormError] = useState('');
-  const [pendingGroupAdditions, setPendingGroupAdditions] = useState([]); // [{ sessionId, groupId }]
   const [connectionForm, setConnectionForm] = useState({
     connectionType: 'ssh', // 'ssh' or 'serial'
     host: '',
@@ -213,7 +207,6 @@ function App() {
     connectionHistory,
     groups,
     addSessionToGroup,
-    setPendingGroupAdditions,
     initializeTerminal,
     cleanupLog
   });
@@ -308,10 +301,10 @@ function App() {
       const newGroupId = createGroup(groupName);
       
       if (pendingSessionForGroup.type === 'existing') {
-        setPendingGroupAdditions(prev => [...prev, { sessionId: pendingSessionForGroup.sessionId, groupId: newGroupId }]);
+        addSessionToGroup(pendingSessionForGroup.sessionId, newGroupId);
       } else if (pendingSessionForGroup.type === 'new') {
         // Session was already created, just add to group
-        setPendingGroupAdditions(prev => [...prev, { sessionId: pendingSessionForGroup.sessionId, groupId: newGroupId }]);
+        addSessionToGroup(pendingSessionForGroup.sessionId, newGroupId);
       }
       
       setShowGroupNameDialog(false);
@@ -362,79 +355,6 @@ function App() {
     };
   }, []);
 
-  // Process pending group additions when sessions are available
-  useEffect(() => {
-    if (pendingGroupAdditions.length > 0 && sessions.length > 0) {
-      const toProcess = [...pendingGroupAdditions];
-      const processed = [];
-      const remaining = [];
-      
-      // Group by groupId to process all changes for each group in a single state update
-      const byGroup = {};
-      toProcess.forEach(item => {
-        const sessionExists = sessions.some(s => s.id === item.sessionId);
-        if (sessionExists) {
-          if (!byGroup[item.groupId]) {
-            byGroup[item.groupId] = [];
-          }
-          byGroup[item.groupId].push(item);
-          processed.push(item);
-        } else {
-          remaining.push(item);
-        }
-      });
-      
-      // Process all groups' changes in a single state update to avoid race conditions
-      if (Object.keys(byGroup).length > 0) {
-        setGroups(prevGroups => {
-          return prevGroups.map(g => {
-            const items = byGroup[g.id];
-            if (items && items.length > 0) {
-              let updatedSavedSessions = [...(g.savedSessions || [])];
-              let updatedSessionIds = [...g.sessionIds];
-              
-              items.forEach(({ sessionId, removeFromSavedSessions, savedSessionConnection }) => {
-                console.log('Processing pending group addition:', { sessionId, groupId: g.id, removeFromSavedSessions });
-                
-                // Remove from savedSessions if this was connected from savedSessions
-                if (removeFromSavedSessions && savedSessionConnection) {
-                  const indexToRemove = updatedSavedSessions.findIndex(saved => {
-                    const connType = savedSessionConnection.connectionType || 'ssh';
-                    if (connType === 'serial') {
-                      return saved.connectionType === 'serial' && 
-                             saved.serialPort === savedSessionConnection.serialPort;
-                    } else {
-                      return saved.host === savedSessionConnection.host && 
-                             saved.user === savedSessionConnection.user && 
-                             (saved.port || '22') === (savedSessionConnection.port || '22');
-                    }
-                  });
-                  
-                  if (indexToRemove !== -1) {
-                    updatedSavedSessions.splice(indexToRemove, 1);
-                    console.log('Removed saved session from group after connection:', savedSessionConnection);
-                  }
-                }
-                
-                // Add to sessionIds if not already there
-                if (!updatedSessionIds.includes(sessionId)) {
-                  updatedSessionIds.push(sessionId);
-                }
-              });
-              
-              return { ...g, sessionIds: updatedSessionIds, savedSessions: updatedSavedSessions };
-            }
-            return g;
-          });
-        });
-      }
-      
-      // Only update if we processed something
-      if (processed.length > 0) {
-        setPendingGroupAdditions(remaining);
-      }
-    }
-  }, [sessions, pendingGroupAdditions, setGroups]);
 
   // Terminal initialization effect - only for existing sessions when switching
   useEffect(() => {
@@ -459,12 +379,17 @@ function App() {
   );
 
   // Memoize ungrouped sessions to avoid recalculation
+  // A session is ungrouped if it doesn't match any savedSession in any group
   const ungroupedSessions = useMemo(() => {
-    const groupedSessionIds = new Set(
-      groups.flatMap(g => g.sessionIds)
-    );
-    return sessions.filter(s => !groupedSessionIds.has(s.id));
-  }, [sessions, groups]);
+    return sessions.filter(session => {
+      // Check if this session matches any savedSession in any group
+      return !groups.some(group => {
+        return (group.savedSessions || []).some(savedSession => 
+          matchSavedSessionWithActiveSession(savedSession, session)
+        );
+      });
+    });
+  }, [sessions, groups, matchSavedSessionWithActiveSession]);
 
   // Memoize favorites lookup map for O(1) access
   const favoritesMap = useMemo(() => {

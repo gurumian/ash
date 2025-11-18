@@ -43,14 +43,31 @@ export const SessionManager = memo(function SessionManager({
   setGroups
 }) {
   // Memoize group calculations
+  // Match savedSessions with active sessions at runtime
   const groupCalculations = useMemo(() => {
     return groups.map(group => {
-      const groupSessions = sessions.filter(s => group.sessionIds.includes(s.id));
       const savedSessions = group.savedSessions || [];
-      const totalSessions = groupSessions.length + savedSessions.length;
+      
+      // Find active sessions that match saved sessions
+      const groupSessions = sessions.filter(session => {
+        return savedSessions.some(savedSession => {
+          const connType = savedSession.connectionType || 'ssh';
+          if (connType === 'serial') {
+            return session.connectionType === 'serial' && 
+                   session.serialPort === savedSession.serialPort;
+          } else {
+            return session.connectionType === 'ssh' &&
+                   session.host === savedSession.host && 
+                   session.user === savedSession.user && 
+                   (session.port || '22') === (savedSession.port || '22');
+          }
+        });
+      });
+      
+      const totalSessions = savedSessions.length;
       const allConnected = totalSessions > 0 && 
-        groupSessions.every(s => s.isConnected) && 
-        savedSessions.length === 0;
+        groupSessions.length === totalSessions &&
+        groupSessions.every(s => s.isConnected);
       
       return {
         group,
@@ -192,17 +209,29 @@ export const SessionManager = memo(function SessionManager({
                 </div>
                 {group.isExpanded && (
                   <div className="group-sessions">
-                    {group.sessionIds.map((sessionId, index) => {
-                      const session = sessions.find(s => s.id === sessionId);
-                      if (!session) return null;
+                    {/* Active sessions (connected) */}
+                    {groupSessions.map((session) => {
+                      // Find the savedSession that matches this active session
+                      const matchingSavedSession = savedSessions.find(savedSession => {
+                        const connType = savedSession.connectionType || 'ssh';
+                        if (connType === 'serial') {
+                          return session.connectionType === 'serial' && 
+                                 session.serialPort === savedSession.serialPort;
+                        } else {
+                          return session.connectionType === 'ssh' &&
+                                 session.host === savedSession.host && 
+                                 session.user === savedSession.user && 
+                                 (session.port || '22') === (savedSession.port || '22');
+                        }
+                      });
                       
                       return (
                         <GroupSessionItem
-                          key={`${sessionId}-${index}`}
+                          key={session.id}
                           session={session}
                           isActive={activeSessionId === session.id}
                           groupId={group.id}
-                          index={index}
+                          savedSessionId={matchingSavedSession?.id}
                           onSwitch={onSwitchToSession}
                           onDisconnect={onDisconnectSession}
                           onDragStart={onDragStart}
@@ -211,32 +240,41 @@ export const SessionManager = memo(function SessionManager({
                       );
                     })}
                     {/* Saved sessions (not connected yet) */}
-                    {savedSessions.map((conn, index) => {
-                      const displayName = conn.sessionName || conn.name || (conn.connectionType === 'serial'
-                        ? `Serial: ${conn.serialPort}`
-                        : `${conn.user}@${conn.host}`);
+                    {savedSessions.map((savedSession) => {
+                      // Check if this saved session has an active session
+                      const activeSession = groupSessions.find(session => {
+                        const connType = savedSession.connectionType || 'ssh';
+                        if (connType === 'serial') {
+                          return session.connectionType === 'serial' && 
+                                 session.serialPort === savedSession.serialPort;
+                        } else {
+                          return session.connectionType === 'ssh' &&
+                                 session.host === savedSession.host && 
+                                 session.user === savedSession.user && 
+                                 (session.port || '22') === (savedSession.port || '22');
+                        }
+                      });
+                      
+                      const displayName = savedSession.label || savedSession.sessionName || savedSession.name || (savedSession.connectionType === 'serial'
+                        ? `Serial: ${savedSession.serialPort}`
+                        : `${savedSession.user}@${savedSession.host}`);
+                      
                       return (
                         <div
-                          key={`saved-${index}`}
+                          key={savedSession.id}
                           className="session-item group-session-item saved-session"
                         >
-                          <span className="session-name">{displayName} (not connected)</span>
-                          <span className="connection-status disconnected">○</span>
+                          <span className="session-name">
+                            {displayName} {!activeSession ? '(not connected)' : ''}
+                          </span>
+                          <span className={`connection-status ${activeSession?.isConnected ? 'connected' : 'disconnected'}`}>
+                            {activeSession?.isConnected ? '●' : '○'}
+                          </span>
                           <button
                             className="remove-from-group-btn"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setGroups(prevGroups => {
-                                const updated = prevGroups.map(g => {
-                                  if (g.id === group.id) {
-                                    const newSavedSessions = [...(g.savedSessions || [])];
-                                    newSavedSessions.splice(index, 1);
-                                    return { ...g, savedSessions: newSavedSessions };
-                                  }
-                                  return g;
-                                });
-                                return updated;
-                              });
+                              onRemoveSessionFromGroup(savedSession.id, group.id);
                             }}
                             title="Remove from Group"
                           >
@@ -245,7 +283,7 @@ export const SessionManager = memo(function SessionManager({
                         </div>
                       );
                     })}
-                    {group.sessionIds.length === 0 && savedSessions.length === 0 && (
+                    {savedSessions.length === 0 && (
                       <div className="group-empty">Drag sessions here</div>
                     )}
                   </div>

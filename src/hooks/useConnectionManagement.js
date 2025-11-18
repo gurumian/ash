@@ -229,158 +229,61 @@ export function useConnectionManagement({
       return;
     }
 
-    console.log('Group found:', { id: group.id, name: group.name, savedSessions: group.savedSessions, sessionIds: group.sessionIds });
+    console.log('Group found:', { id: group.id, name: group.name, savedSessions: group.savedSessions });
 
-    // First, connect saved sessions (unconnected)
-    // But skip if they're already in group.sessionIds (already active sessions)
+    // Get all saved sessions (connection info) from the group
     const savedSessions = group.savedSessions || [];
-    const activeSessionIds = new Set(group.sessionIds || []);
     
     console.log('Saved sessions to connect:', savedSessions.length);
-    console.log('Active session IDs in group:', Array.from(activeSessionIds));
     
-    for (const conn of savedSessions) {
+    // Helper function to match saved session (with UUID) with active session
+    const matchSavedSessionWithActiveSession = (savedSession, session) => {
+      const connType = savedSession.connectionType || 'ssh';
+      if (connType === 'serial') {
+        return session.connectionType === 'serial' && session.serialPort === savedSession.serialPort;
+      } else {
+        return session.connectionType === 'ssh' &&
+               session.host === savedSession.host && 
+               session.user === savedSession.user && 
+               (session.port || '22') === (savedSession.port || '22');
+      }
+    };
+    
+    // Connect each saved session instance independently
+    // Each instance creates its own session - allows multiple terminals to same host (class vs instance)
+    for (const savedSession of savedSessions) {
       try {
-        // Check if already connected and in group
-        const existingSession = sessions.find(s => {
-          const connType = conn.connectionType || 'ssh';
-          if (connType === 'serial') {
-            return s.connectionType === 'serial' && s.serialPort === conn.serialPort;
-          } else {
-            return s.host === conn.host && 
-                   s.user === conn.user && 
-                   (s.port || '22') === (conn.port || '22') &&
-                   s.connectionType === 'ssh';
-          }
-        });
+        // Always create a new session for each instance
+        // Even if a session with the same connection info exists, create a new one
+        // This allows multiple terminals to the same host
         
-        if (existingSession) {
-          // Session already exists
-          if (existingSession.isConnected) {
-            // Already connected, just add to sessionIds if not already there
-            if (!activeSessionIds.has(existingSession.id)) {
-              addSessionToGroup(existingSession.id, groupId);
-            }
-          }
-          // If not connected, it will be handled in the reconnect section below
-          continue;
-        }
-        
-        // Check if this saved session corresponds to an active session in group.sessionIds
-        // by matching connection details
-        const matchingActiveSession = sessions.find(s => {
-          if (!activeSessionIds.has(s.id)) return false;
-          const connType = conn.connectionType || 'ssh';
-          if (connType === 'serial') {
-            return s.connectionType === 'serial' && s.serialPort === conn.serialPort;
-          } else {
-            return s.host === conn.host && 
-                   s.user === conn.user && 
-                   (s.port || '22') === (conn.port || '22') &&
-                   s.connectionType === 'ssh';
-          }
-        });
-        
-        if (matchingActiveSession) {
-          // This saved session already has a corresponding active session in the group
-          // Skip creating a new connection - it will be handled in reconnect section
-          console.log('Skipping saved session - already has active session:', matchingActiveSession.id);
-          continue;
-        }
-        
-        // Create connection form from saved session
+        // Create new connection from saved session
         const connectionFormData = {
-          connectionType: conn.connectionType || 'ssh',
-          host: conn.host || '',
-          port: conn.port || '22',
-          user: conn.user || '',
-          password: conn.password || '',
-          sessionName: conn.sessionName || conn.name || '',
-          savePassword: !!conn.password,
-          serialPort: conn.serialPort || '',
-          baudRate: conn.baudRate || '9600',
-          dataBits: conn.dataBits || '8',
-          stopBits: conn.stopBits || '1',
-          parity: conn.parity || 'none',
-          flowControl: conn.flowControl || 'none'
+          connectionType: savedSession.connectionType || 'ssh',
+          host: savedSession.host || '',
+          port: savedSession.port || '22',
+          user: savedSession.user || '',
+          password: savedSession.password || '',
+          sessionName: savedSession.label || savedSession.sessionName || savedSession.name || '',
+          savePassword: !!savedSession.password,
+          serialPort: savedSession.serialPort || '',
+          baudRate: savedSession.baudRate || '9600',
+          dataBits: savedSession.dataBits || '8',
+          stopBits: savedSession.stopBits || '1',
+          parity: savedSession.parity || 'none',
+          flowControl: savedSession.flowControl || 'none'
         };
         
         // Use the form data directly instead of relying on state
         const sessionId = await createNewSessionWithData(connectionFormData, true);
         
         if (sessionId) {
-          // Add to group after connection and remove from savedSessions
-          // We need to match the connection info to remove it from savedSessions
-          setPendingGroupAdditions(prev => [...prev, { 
-            sessionId, 
-            groupId, 
-            removeFromSavedSessions: true, 
-            savedSessionConnection: conn // Store connection info to match and remove
-          }]);
+          // Each instance creates its own session
+          // Connection info is already in savedSessions with UUID
+          console.log('Connected session instance from savedSessions:', { sessionId, savedSessionId: savedSession.id, label: savedSession.label });
         }
       } catch (error) {
-        console.error(`Failed to connect saved session in group:`, error);
-      }
-    }
-    
-    // Then, reconnect disconnected active sessions
-    const groupSessions = sessions.filter(s => activeSessionIds.has(s.id));
-    const unconnectedSessions = groupSessions.filter(s => !s.isConnected);
-
-    for (const session of unconnectedSessions) {
-      try {
-        // Recreate connection for each session
-        if (session.connectionType === 'ssh') {
-          // Try to get password from connection history
-          const historyEntry = connectionHistory.find(c => 
-            c.connectionType === 'ssh' &&
-            c.host === session.host && 
-            c.user === session.user && 
-            (c.port || '22') === (session.port || '22')
-          );
-          const password = session.password || historyEntry?.password || '';
-          
-          const connection = new SSHConnection();
-          await connection.connect(session.host, session.port, session.user, password);
-          await connection.startShell();
-          sshConnections.current[session.id] = connection;
-          
-          // Initialize terminal if not already initialized
-          if (!terminalInstances.current[session.id]) {
-            setTimeout(() => {
-              initializeTerminal(session.id, session);
-            }, 100);
-          }
-          
-          setSessions(prev => prev.map(s => 
-            s.id === session.id ? { ...s, isConnected: true } : s
-          ));
-        } else if (session.connectionType === 'serial') {
-          const connection = new SerialConnection();
-          await connection.connect(session.id, {
-            path: session.serialPort,
-            baudRate: parseInt(session.baudRate),
-            dataBits: parseInt(session.dataBits || '8'),
-            stopBits: parseInt(session.stopBits || '1'),
-            parity: session.parity || 'none',
-            flowControl: session.flowControl || 'none'
-          });
-          sshConnections.current[session.id] = connection;
-          
-          // Initialize terminal if not already initialized
-          if (!terminalInstances.current[session.id]) {
-            setTimeout(() => {
-              initializeTerminal(session.id, session);
-            }, 100);
-          }
-          
-          setSessions(prev => prev.map(s => 
-            s.id === session.id ? { ...s, isConnected: true } : s
-          ));
-        }
-      } catch (error) {
-        console.error(`Failed to connect session ${session.id}:`, error);
-        alert(`Failed to connect ${session.name}: ${error.message}`);
+        console.error(`Failed to connect saved session instance in group:`, error);
       }
     }
   }, [
@@ -389,8 +292,6 @@ export function useConnectionManagement({
     connectionHistory,
     sshConnections,
     terminalInstances,
-    addSessionToGroup,
-    setPendingGroupAdditions,
     createNewSessionWithData,
     initializeTerminal,
     setSessions

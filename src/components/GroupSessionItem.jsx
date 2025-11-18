@@ -7,7 +7,7 @@ export const GroupSessionItem = memo(function GroupSessionItem({
   session,
   isActive,
   groupId,
-  index,
+  savedSessionId,
   onSwitch,
   onDisconnect,
   onDragStart,
@@ -15,8 +15,10 @@ export const GroupSessionItem = memo(function GroupSessionItem({
 }) {
   const handleRemove = useCallback((e) => {
     e.stopPropagation();
-    onRemoveFromGroup(session.id, groupId, index);
-  }, [session.id, groupId, index, onRemoveFromGroup]);
+    if (savedSessionId) {
+      onRemoveFromGroup(savedSessionId, groupId);
+    }
+  }, [savedSessionId, groupId, onRemoveFromGroup]);
 
   const handleDisconnect = useCallback((e) => {
     e.stopPropagation();
