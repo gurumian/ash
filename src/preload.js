@@ -58,9 +58,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   // Save log to file
-  saveLogToFile: async (sessionId, logContent, sessionName) => {
+  saveLogToFile: async (sessionId, logContent, sessionName, groupName) => {
     try {
-      return await ipcRenderer.invoke('save-log-to-file', { sessionId, logContent, sessionName });
+      return await ipcRenderer.invoke('save-log-to-file', { sessionId, logContent, sessionName, groupName });
     } catch (error) {
       console.log('saveLogToFile failed:', error);
       return { success: false };

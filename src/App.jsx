@@ -640,7 +640,11 @@ function App() {
       const session = sessions.find(s => s.id === sessionId);
       const sessionName = session ? session.name.replace(/[^a-zA-Z0-9]/g, '_') : `session_${sessionId}`;
       
-      const result = await window.electronAPI.saveLogToFile(sessionId, logSession.content, sessionName);
+      // Find group for this session
+      const group = groups.find(g => g.sessionIds.includes(sessionId));
+      const groupName = group ? group.name.replace(/[^a-zA-Z0-9]/g, '_') : 'default';
+      
+      const result = await window.electronAPI.saveLogToFile(sessionId, logSession.content, sessionName, groupName);
       
       if (result.success) {
         logSession.filePath = result.filePath;
@@ -1917,7 +1921,29 @@ function App() {
                   <div 
                     key={index}
                     className="session-item favorite"
-                    onClick={() => connectFromHistory(fav)}
+                    onClick={async () => {
+                      try {
+                        // Directly connect without showing dialog
+                        await createNewSessionWithData({
+                          connectionType: fav.connectionType || 'ssh',
+                          host: fav.host || '',
+                          port: fav.port || '22',
+                          user: fav.user || '',
+                          password: fav.password || '',
+                          sessionName: fav.sessionName || fav.name || '',
+                          savePassword: !!fav.password,
+                          serialPort: fav.serialPort || '',
+                          baudRate: fav.baudRate || '9600',
+                          dataBits: fav.dataBits || '8',
+                          stopBits: fav.stopBits || '1',
+                          parity: fav.parity || 'none',
+                          flowControl: fav.flowControl || 'none'
+                        }, true); // skipFormReset = true
+                      } catch (error) {
+                        console.error('Failed to connect from favorite:', error);
+                        alert('Connection failed: ' + error.message);
+                      }
+                    }}
                     title={tooltip}
                   >
                     <span className="session-name">⭐ {fav.name}</span>

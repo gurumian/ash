@@ -555,22 +555,24 @@ ipcMain.handle('serial-disconnect', async (event, sessionId) => {
 });
 
 // Save log to file
-ipcMain.handle('save-log-to-file', async (event, { sessionId, logContent, sessionName }) => {
+ipcMain.handle('save-log-to-file', async (event, { sessionId, logContent, sessionName, groupName = 'default' }) => {
   try {
     const fs = require('fs');
     const path = require('path');
     const os = require('os');
     
-    // Create logs directory in user's home folder
-    const logsDir = path.join(os.homedir(), 'ash-logs');
-    if (!fs.existsSync(logsDir)) {
-      fs.mkdirSync(logsDir, { recursive: true });
+    // Create logs directory: $HOME/Documents/ash/logs/
+    const documentsDir = path.join(os.homedir(), 'Documents', 'ash', 'logs');
+    if (!fs.existsSync(documentsDir)) {
+      fs.mkdirSync(documentsDir, { recursive: true });
     }
     
-    // Generate filename
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const filename = `${sessionName}_${timestamp}.log`;
-    const filePath = path.join(logsDir, filename);
+    // Generate filename: $GROUP-$SESSION-NAME-$DATE-$TIME.log
+    const now = new Date();
+    const date = now.toISOString().split('T')[0]; // YYYY-MM-DD
+    const time = now.toTimeString().split(' ')[0].replace(/:/g, '-'); // HH-MM-SS
+    const filename = `${groupName}-${sessionName}-${date}-${time}.log`;
+    const filePath = path.join(documentsDir, filename);
     
     // Write log content to file
     fs.writeFileSync(filePath, logContent, 'utf8');

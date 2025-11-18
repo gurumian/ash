@@ -76,7 +76,7 @@ npm start
 3. **Save Log**: Click the 💾 (save) button to manually save current buffer
 4. **Clear Log**: Click the 🗑 (trash) button to clear current log data
 
-Logs are automatically saved to `~/ash-logs/` with timestamped filenames.
+Logs are automatically saved to `~/Documents/ash/logs/` with filenames in the format: `$GROUP-$SESSION-NAME-$DATE-$TIME.log`.
 
 ### Session Manager
 - **Resize Panel**: Drag the resize handle to adjust panel width
@@ -103,7 +103,7 @@ The logging system uses a buffered approach for memory efficiency:
 
 1. **Buffer Management**: Data is collected in memory buffers
 2. **Automatic Flushing**: Buffers are flushed when they reach 100 lines or 10KB
-3. **File Storage**: Logs are saved to `~/ash-logs/` with session-specific filenames
+3. **File Storage**: Logs are saved to `~/Documents/ash/logs/` with filenames in the format: `$GROUP-$SESSION-NAME-$DATE-$TIME.log`
 4. **Real-time Updates**: UI shows current logging status and controls
 
 ## File Structure
@@ -129,11 +129,17 @@ ash/
 ## Log File Format
 Logs are saved as plain text files with the following naming convention:
 ```
-~/ash-logs/
-├── SSH_Session_2024-01-15T10-30-45-123Z.log
-├── Serial_Device_2024-01-15T10-35-20-456Z.log
+~/Documents/ash/logs/
+├── Production-Server1-2024-01-15-10-30-45.log
+├── Development-Device1-2024-01-15-10-35-20.log
 └── ...
 ```
+
+Format: `$GROUP-$SESSION-NAME-$DATE-$TIME.log`
+- **Group**: The group name the session belongs to (or 'default' if no group)
+- **Session Name**: The name of the session
+- **Date**: YYYY-MM-DD format
+- **Time**: HH-MM-SS format
 
 Each log file includes:
 - Timestamp markers for session start/stop
