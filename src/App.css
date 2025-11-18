@@ -27,24 +27,29 @@ html, body {
   padding-top: env(safe-area-inset-top, 0px);
 }
 
-/* On macOS with hiddenInset, add padding to avoid traffic lights and make draggable */
-@supports (-webkit-app-region: drag) {
-  .securecrt-app {
-    padding-top: calc(env(safe-area-inset-top, 0px) + 28px);
-  }
-  
-  /* Make the top area draggable for window dragging */
-  .securecrt-app::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 28px;
-    -webkit-app-region: drag;
-    z-index: 1000;
-    pointer-events: auto;
-  }
+/* On macOS with hiddenInset or Windows/Linux with frame:false, add padding and make draggable */
+.securecrt-app {
+  /* macOS: padding for traffic lights */
+  /* Windows/Linux: padding for custom titlebar */
+  padding-top: calc(env(safe-area-inset-top, 0px) + 28px);
+}
+
+/* Make the top area draggable for window dragging (works on all platforms) */
+.securecrt-app::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 28px;
+  -webkit-app-region: drag;
+  z-index: 1000;
+  pointer-events: auto;
+}
+
+/* Buttons and interactive elements should not be draggable */
+button, a, input, select, textarea, [role="button"] {
+  -webkit-app-region: no-drag;
 }
 
 /* UI menu bar removed due to system menu usage */

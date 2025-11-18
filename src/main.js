@@ -345,12 +345,19 @@ const createWindow = () => {
     height: 600,
     title: 'ash',
     backgroundColor: '#000000',
-    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
-    titleBarOverlay: process.platform !== 'darwin' ? {
-      color: '#000000',
-      symbolColor: '#00ff41',
-      height: 30
-    } : false,
+    // macOS: hiddenInset for native look with traffic lights
+    // Windows/Linux: frame false for fully custom titlebar (like macOS)
+    ...(process.platform === 'darwin' 
+      ? { titleBarStyle: 'hiddenInset' }
+      : { 
+          frame: false,
+          titleBarOverlay: {
+            color: '#000000',
+            symbolColor: '#00ff41',
+            height: 30
+          }
+        }
+    ),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
     },
