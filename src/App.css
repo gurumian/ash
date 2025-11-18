@@ -486,7 +486,7 @@ button, a, input, select, textarea, [role="button"] {
   color: var(--theme-text, #00ff41);
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace;
   font-size: 13px;
-  line-height: 1.4;
+  line-height: 1.0;
   padding: 0;
   overflow: hidden;
   height: 100%;
@@ -543,6 +543,12 @@ button, a, input, select, textarea, [role="button"] {
 /* Ensure default text is green - let xterm theme handle other colors */
 .terminal-content .xterm .xterm-rows {
   color: #00ff41;
+  line-height: 1.0;
+}
+
+/* Reduce line spacing in xterm */
+.terminal-content .xterm .xterm-rows > div {
+  line-height: 1.0;
 }
 
 /* Welcome screen */

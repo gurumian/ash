@@ -925,7 +925,7 @@ function App() {
     
     // Calculate character dimensions more accurately
     const charWidth = fontSize * 0.6; // Approximate width for monospace fonts
-    const charHeight = fontSize * 1.4; // Use line-height from CSS
+    const charHeight = fontSize * 1.0; // Use line-height from CSS
     
     const cols = Math.floor(terminalElement.clientWidth / charWidth);
     const rows = Math.floor(terminalElement.clientHeight / charHeight);
@@ -949,7 +949,7 @@ function App() {
       fontWeight: 'normal',
       fontWeightBold: 'bold',
       letterSpacing: 0,
-      lineHeight: 1.4
+      lineHeight: 1.0
     });
 
     const fitAddon = new FitAddon();
