@@ -87,5 +87,23 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Listen for remove detached session
   onRemoveDetachedSession: (callback) => ipcRenderer.on('remove-detached-session', (event, sessionId) => callback(sessionId)),
-  offRemoveDetachedSession: (callback) => ipcRenderer.off('remove-detached-session', callback)
+  offRemoveDetachedSession: (callback) => ipcRenderer.off('remove-detached-session', callback),
+
+  // Auto-update APIs
+  checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+  quitAndInstall: () => ipcRenderer.invoke('quit-and-install'),
+  
+  // Update events
+  onUpdateAvailable: (callback) => ipcRenderer.on('update-available', (event, data) => callback(data)),
+  onUpdateNotAvailable: (callback) => ipcRenderer.on('update-not-available', callback),
+  onUpdateDownloadProgress: (callback) => ipcRenderer.on('update-download-progress', (event, data) => callback(data)),
+  onUpdateDownloaded: (callback) => ipcRenderer.on('update-downloaded', (event, data) => callback(data)),
+  onUpdateError: (callback) => ipcRenderer.on('update-error', (event, data) => callback(data)),
+  
+  // Remove update event listeners
+  offUpdateAvailable: (callback) => ipcRenderer.off('update-available', callback),
+  offUpdateNotAvailable: (callback) => ipcRenderer.off('update-not-available', callback),
+  offUpdateDownloadProgress: (callback) => ipcRenderer.off('update-download-progress', callback),
+  offUpdateDownloaded: (callback) => ipcRenderer.off('update-downloaded', callback),
+  offUpdateError: (callback) => ipcRenderer.off('update-error', callback),
 });

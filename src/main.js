@@ -5,6 +5,7 @@ import { createWindow } from './main/window.js';
 import { initializeSSHHandlers, cleanupSSHConnections } from './main/ssh-handler.js';
 import { initializeSerialHandlers, cleanupSerialConnections } from './main/serial-handler.js';
 import { initializeWindowHandlers } from './main/window-handler.js';
+import { initializeUpdateHandlers, cleanupUpdateHandlers } from './main/update-handler.js';
 
 // Set app name
 app.setName('ash');
@@ -18,6 +19,7 @@ if (started) {
 initializeSSHHandlers();
 initializeSerialHandlers();
 initializeWindowHandlers();
+initializeUpdateHandlers();
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
@@ -44,4 +46,5 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
   cleanupSSHConnections();
   cleanupSerialConnections();
+  cleanupUpdateHandlers();
 });
