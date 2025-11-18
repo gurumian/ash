@@ -5,20 +5,11 @@ import { ipcMain, app, dialog, BrowserWindow } from 'electron';
 const UPDATE_SERVER = 'https://cdn.toktoktalk.com';
 const APP_NAME = 'ash';
 
-// Determine platform-specific update URL
+// Note: Feed URL will be set in initializeUpdateHandlers() after app is ready
 // electron-updater will automatically append platform-specific filenames:
 // - Windows: latest.yml
 // - macOS: latest-mac.yml (or latest-mac-arm64.yml, latest-mac-x64.yml)
 // - Linux: latest-linux.yml (or latest-linux-x86_64.yml, etc.)
-autoUpdater.setFeedURL({
-  provider: 'generic',
-  url: `${UPDATE_SERVER}/update/${APP_NAME}`,
-});
-
-// Configure auto-updater behavior
-autoUpdater.autoDownload = false; // Ask user before downloading (like FAC1)
-autoUpdater.autoInstallOnAppQuit = true; // Automatically install on app quit
-autoUpdater.logger = console; // Enable logging (like FAC1)
 
 // Only check for updates in production (not in development)
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
@@ -102,7 +93,8 @@ const sendUpdateStatus = (status) => {
   sendToAllWindows('update-status-log', status);
 };
 
-if (!isDev) {
+// Setup update event handlers (like FAC1's setupEventHandlers method)
+function setupUpdateEventHandlers() {
   // Auto-check for updates every 4 hours
   setInterval(() => {
     autoUpdater.checkForUpdatesAndNotify().catch(err => {
@@ -435,20 +427,50 @@ if (!isDev) {
 export function initializeUpdateHandlers(scheduleCheck) {
   const { BrowserWindow } = require('electron');
   
+  // Skip in development mode (like FAC1)
+  if (!app.isPackaged) {
+    console.log('Development mode - auto-updater disabled');
+    return;
+  }
+  
+  // Configure server URL (like FAC1 - URL must end with slash)
+  // Server automatically generates latest.yml at /update/ash/latest.yml
+  autoUpdater.setFeedURL({
+    provider: 'generic',
+    url: `${UPDATE_SERVER}/update/${APP_NAME}/`  // Note: trailing slash required (like FAC1)
+  });
+  
+  // Configure auto-updater behavior
+  autoUpdater.autoDownload = false; // Ask user before downloading (like FAC1)
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.logger = console; // Enable logging (like FAC1)
+  
   const status = {
     message: 'Initializing update handlers...',
     isDev,
     isPackaged: app.isPackaged,
     nodeEnv: process.env.NODE_ENV,
     currentVersion: app.getVersion(),
-    updateUrl: `${UPDATE_SERVER}/update/${APP_NAME}`,
+    updateUrl: `${UPDATE_SERVER}/update/${APP_NAME}/`,
   };
   
-  console.log('Initializing update handlers...');
-  console.log('isDev:', isDev);
-  console.log('app.isPackaged:', app.isPackaged);
-  console.log('NODE_ENV:', process.env.NODE_ENV);
-  console.log('Current app version:', app.getVersion());
+  console.log('Auto-updater initialized');
+  console.log('Feed URL:', `${UPDATE_SERVER}/update/${APP_NAME}/`);
+  console.log('Current version:', app.getVersion());
+  console.log('Platform:', process.platform);
+  
+  // Platform-specific update info (like FAC1)
+  if (process.platform === 'win32') {
+    console.log('Update format: NSIS installer (latest.yml)');
+  } else if (process.platform === 'darwin') {
+    console.log('Update format: DMG/ZIP (latest-mac.yml)');
+  } else if (process.platform === 'linux') {
+    console.log('Update format: AppImage (latest-linux.yml)');
+    console.log('AppImage updates support automatic installation without sudo');
+  }
+  
+  // Setup event handlers (like FAC1's setupEventHandlers)
+  setupUpdateEventHandlers();
   
   // Send status to renderer for debugging
   BrowserWindow.getAllWindows().forEach(window => {

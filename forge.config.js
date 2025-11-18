@@ -50,6 +50,9 @@ module.exports = {
     appBundleId: 'com.gurumlab.ash',
     executableName: 'ash',
     icon: path.resolve(__dirname, 'assets/icons/icon'), // Icon path without extension
+    extraResource: [
+      path.resolve(__dirname, 'app-update.yml'), // Auto-updater configuration (like FAC1)
+    ],
     // Electron Forge will automatically find the appropriate format:
     // - Windows: icon.ico (preferred) or icon.png
     // - macOS: icon.icns (preferred) or icon.png
