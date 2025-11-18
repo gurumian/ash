@@ -26,7 +26,10 @@ export function CustomTitleBar({
     };
 
     if (activeMenu) {
-      document.addEventListener('mousedown', handleClickOutside);
+      // Use a slight delay to allow click events to fire first
+      setTimeout(() => {
+        document.addEventListener('mousedown', handleClickOutside);
+      }, 0);
       return () => {
         document.removeEventListener('mousedown', handleClickOutside);
       };
@@ -82,7 +85,11 @@ export function CustomTitleBar({
                 {menu.name}
               </button>
               {activeMenu === menu.name && (
-                <div className="menubar-dropdown">
+                <div 
+                  className="menubar-dropdown"
+                  onClick={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
                   {menu.items.map((item, index) => (
                     item.type === 'separator' ? (
                       <div key={`sep-${index}`} className="menubar-separator" />
@@ -90,7 +97,12 @@ export function CustomTitleBar({
                       <button
                         key={item.label}
                         className="menubar-item-button"
-                        onClick={() => handleMenuItemClick(item.onClick)}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleMenuItemClick(item.onClick);
+                        }}
                       >
                         <span className="menubar-item-label">{item.label}</span>
                         {item.shortcut && (
