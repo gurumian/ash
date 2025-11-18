@@ -1,4 +1,5 @@
 import React, { memo } from 'react';
+import { TabItem } from './TabItem';
 
 /**
  * Terminal View component - Right side terminal area with tabs and terminal content
@@ -27,42 +28,14 @@ export const TerminalView = memo(function TerminalView({
           <div className="terminal-header">
             <div className="tab-bar">
               {sessions.map(session => (
-                <div 
+                <TabItem
                   key={session.id}
-                  className={`tab ${activeSessionId === session.id ? 'active' : ''}`}
-                  draggable
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData('text/plain', session.id);
-                    e.dataTransfer.effectAllowed = 'move';
-                    e.currentTarget.style.opacity = '0.5';
-                  }}
-                  onDragEnd={(e) => {
-                    e.currentTarget.style.opacity = '';
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    const x = e.clientX;
-                    const y = e.clientY;
-                    
-                    if (x < 0 || y < 0 || x > window.innerWidth || y > window.innerHeight) {
-                      onDetachTab(session.id);
-                    }
-                  }}
-                  onClick={() => onSwitchToSession(session.id)}
-                >
-                  <span className="tab-name">{session.name}</span>
-                  <span className={`tab-status ${session.isConnected ? 'connected' : 'disconnected'}`}>
-                    {session.isConnected ? '●' : '○'}
-                  </span>
-                  <button 
-                    className="tab-close"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDisconnectSession(session.id);
-                    }}
-                    title="Close"
-                  >
-                    ×
-                  </button>
-                </div>
+                  session={session}
+                  isActive={activeSessionId === session.id}
+                  onSwitch={onSwitchToSession}
+                  onDisconnect={onDisconnectSession}
+                  onDetachTab={onDetachTab}
+                />
               ))}
             </div>
             {activeSessionId && (

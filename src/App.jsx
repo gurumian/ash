@@ -1114,6 +1114,27 @@ function App() {
     [sessions, activeSessionId]
   );
 
+  // Memoize ungrouped sessions to avoid recalculation
+  const ungroupedSessions = useMemo(() => {
+    const groupedSessionIds = new Set(
+      groups.flatMap(g => g.sessionIds)
+    );
+    return sessions.filter(s => !groupedSessionIds.has(s.id));
+  }, [sessions, groups]);
+
+  // Memoize favorites lookup map for O(1) access
+  const favoritesMap = useMemo(() => {
+    const map = new Map();
+    favorites.forEach(fav => {
+      if (fav.connectionType === 'serial') {
+        map.set(`serial:${fav.serialPort}`, fav);
+      } else {
+        map.set(`ssh:${fav.host}:${fav.user}:${fav.port || '22'}`, fav);
+      }
+    });
+    return map;
+  }, [favorites]);
+
   // Dynamic window title change
   useEffect(() => {
     const updateWindowTitle = async () => {
@@ -1311,6 +1332,7 @@ function App() {
           groups={groups}
           favorites={favorites}
           connectionHistory={connectionHistory}
+          ungroupedSessions={ungroupedSessions}
           draggedSessionId={draggedSessionId}
           dragOverGroupId={dragOverGroupId}
           editingGroupId={editingGroupId}

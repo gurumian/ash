@@ -1,4 +1,8 @@
-import React, { memo } from 'react';
+import React, { memo, useMemo, useCallback } from 'react';
+import { SessionItem } from './SessionItem';
+import { FavoriteItem } from './FavoriteItem';
+import { ConnectionHistoryItem } from './ConnectionHistoryItem';
+import { GroupSessionItem } from './GroupSessionItem';
 
 /**
  * Session Manager component - Left sidebar for managing sessions, groups, and connections
@@ -11,6 +15,7 @@ export const SessionManager = memo(function SessionManager({
   groups,
   favorites,
   connectionHistory,
+  ungroupedSessions,
   draggedSessionId,
   dragOverGroupId,
   editingGroupId,
@@ -37,6 +42,25 @@ export const SessionManager = memo(function SessionManager({
   onCreateGroup,
   setGroups
 }) {
+  // Memoize group calculations
+  const groupCalculations = useMemo(() => {
+    return groups.map(group => {
+      const groupSessions = sessions.filter(s => group.sessionIds.includes(s.id));
+      const savedSessions = group.savedSessions || [];
+      const totalSessions = groupSessions.length + savedSessions.length;
+      const allConnected = totalSessions > 0 && 
+        groupSessions.every(s => s.isConnected) && 
+        savedSessions.length === 0;
+      
+      return {
+        group,
+        groupSessions,
+        savedSessions,
+        totalSessions,
+        allConnected
+      };
+    });
+  }, [groups, sessions]);
   return (
     <div 
       className={`session-manager ${!showSessionManager ? 'hidden' : ''}`}
@@ -66,43 +90,13 @@ export const SessionManager = memo(function SessionManager({
       {favorites.length > 0 && (
         <div className="section">
           <div className="section-header">Favorites</div>
-          {favorites.map((fav, index) => {
-            const isSerial = fav.connectionType === 'serial';
-            const tooltip = isSerial 
-              ? fav.serialPort 
-              : `${fav.user}@${fav.host}`;
-            return (
-              <div 
-                key={index}
-                className="session-item favorite"
-                onClick={async () => {
-                  try {
-                    await onCreateNewSessionWithData({
-                      connectionType: fav.connectionType || 'ssh',
-                      host: fav.host || '',
-                      port: fav.port || '22',
-                      user: fav.user || '',
-                      password: fav.password || '',
-                      sessionName: fav.sessionName || fav.name || '',
-                      savePassword: !!fav.password,
-                      serialPort: fav.serialPort || '',
-                      baudRate: fav.baudRate || '9600',
-                      dataBits: fav.dataBits || '8',
-                      stopBits: fav.stopBits || '1',
-                      parity: fav.parity || 'none',
-                      flowControl: fav.flowControl || 'none'
-                    }, true);
-                  } catch (error) {
-                    console.error('Failed to connect from favorite:', error);
-                    alert('Connection failed: ' + error.message);
-                  }
-                }}
-                title={tooltip}
-              >
-                <span className="session-name">⭐ {fav.name}</span>
-              </div>
-            );
-          })}
+          {favorites.map((fav, index) => (
+            <FavoriteItem
+              key={`fav-${index}-${fav.name || fav.host || fav.serialPort}`}
+              fav={fav}
+              onCreateNewSessionWithData={onCreateNewSessionWithData}
+            />
+          ))}
         </div>
       )}
 
@@ -110,53 +104,17 @@ export const SessionManager = memo(function SessionManager({
       {connectionHistory.length > 0 && (
         <div className="section">
           <div className="section-header">Session List</div>
-          {connectionHistory.map((conn, index) => {
-            const isSerial = conn.connectionType === 'serial';
-            const isFavorite = isSerial 
-              ? favorites.some(f => f.connectionType === 'serial' && f.serialPort === conn.serialPort)
-              : favorites.some(f => f.host === conn.host && f.user === conn.user);
-            const sessionId = isSerial 
-              ? `saved-serial-${conn.serialPort}-${index}`
-              : `saved-${conn.host}-${conn.user}-${conn.port || '22'}-${index}`;
-            const displayName = conn.sessionName || conn.name || (isSerial 
-              ? `Serial: ${conn.serialPort}`
-              : `${conn.user}@${conn.host}`);
-            const tooltip = isSerial
-              ? `${conn.serialPort} - Drag to group or click to connect`
-              : `${conn.user}@${conn.host} - Drag to group or click to connect`;
-            
-            return (
-              <div 
-                key={index}
-                className="session-item session-list-item"
-                draggable
-                onDragStart={(e) => {
-                  e.dataTransfer.setData('application/json', JSON.stringify({
-                    type: 'saved-session',
-                    connection: conn,
-                    sessionId: sessionId
-                  }));
-                  onDragStart(e, sessionId);
-                }}
-                onClick={() => onConnectFromHistory(conn)}
-                title={tooltip}
-              >
-                <span className="session-name">
-                  {displayName}
-                </span>
-                <button 
-                  className="favorite-btn"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onToggleFavorite(conn);
-                  }}
-                  title="Toggle Favorite"
-                >
-                  {isFavorite ? '★' : '☆'}
-                </button>
-              </div>
-            );
-          })}
+          {connectionHistory.map((conn, index) => (
+            <ConnectionHistoryItem
+              key={`conn-${index}-${conn.host || conn.serialPort}-${conn.user || ''}`}
+              conn={conn}
+              index={index}
+              favorites={favorites}
+              onConnectFromHistory={onConnectFromHistory}
+              onToggleFavorite={onToggleFavorite}
+              onDragStart={onDragStart}
+            />
+          ))}
         </div>
       )}
 
@@ -164,14 +122,7 @@ export const SessionManager = memo(function SessionManager({
       {groups.length > 0 && (
         <div className="section">
           <div className="section-header">Groups</div>
-          {groups.map(group => {
-            const groupSessions = sessions.filter(s => group.sessionIds.includes(s.id));
-            const savedSessions = group.savedSessions || [];
-            const totalSessions = groupSessions.length + savedSessions.length;
-            const allConnected = totalSessions > 0 && 
-              groupSessions.every(s => s.isConnected) && 
-              savedSessions.length === 0;
-            
+          {groupCalculations.map(({ group, groupSessions, savedSessions, totalSessions, allConnected }) => {
             return (
               <div key={group.id} className="group-container">
                 <div 
@@ -252,38 +203,17 @@ export const SessionManager = memo(function SessionManager({
                       if (!session) return null;
                       
                       return (
-                        <div
+                        <GroupSessionItem
                           key={`${sessionId}-${index}`}
-                          className={`session-item group-session-item ${activeSessionId === session.id ? 'active' : ''}`}
-                          draggable
-                          onDragStart={(e) => onDragStart(e, session.id)}
-                          onClick={() => onSwitchToSession(session.id)}
-                        >
-                          <span className="session-name">{session.name}</span>
-                          <span className={`connection-status ${session.isConnected ? 'connected' : 'disconnected'}`}>
-                            {session.isConnected ? '●' : '○'}
-                          </span>
-                          <button
-                            className="remove-from-group-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onRemoveSessionFromGroup(session.id, group.id, index);
-                            }}
-                            title="Remove from Group"
-                          >
-                            ⊗
-                          </button>
-                          <button
-                            className="close-session-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onDisconnectSession(session.id);
-                            }}
-                            title="Close Session"
-                          >
-                            ×
-                          </button>
-                        </div>
+                          session={session}
+                          isActive={activeSessionId === session.id}
+                          groupId={group.id}
+                          index={index}
+                          onSwitch={onSwitchToSession}
+                          onDisconnect={onDisconnectSession}
+                          onDragStart={onDragStart}
+                          onRemoveFromGroup={onRemoveSessionFromGroup}
+                        />
                       );
                     })}
                     {/* Saved sessions (not connected yet) */}
@@ -347,35 +277,19 @@ export const SessionManager = memo(function SessionManager({
       </div>
 
       {/* Active sessions (ungrouped) */}
-      {sessions.filter(s => !groups.some(g => g.sessionIds.includes(s.id))).length > 0 && (
+      {ungroupedSessions.length > 0 && (
         <div className="section">
           <div className="section-header">Active Sessions</div>
-          {sessions
-            .filter(s => !groups.some(g => g.sessionIds.includes(s.id)))
-            .map(session => (
-              <div 
-                key={session.id}
-                className={`session-item ${activeSessionId === session.id ? 'active' : ''}`}
-                draggable
-                onDragStart={(e) => onDragStart(e, session.id)}
-                onClick={() => onSwitchToSession(session.id)}
-              >
-                <span className="session-name">{session.name}</span>
-                <span className={`connection-status ${session.isConnected ? 'connected' : 'disconnected'}`}>
-                  {session.isConnected ? '●' : '○'}
-                </span>
-                <button 
-                  className="close-session-btn"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDisconnectSession(session.id);
-                  }}
-                  title="Close Session"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
+          {ungroupedSessions.map(session => (
+            <SessionItem
+              key={session.id}
+              session={session}
+              isActive={activeSessionId === session.id}
+              onSwitch={onSwitchToSession}
+              onDisconnect={onDisconnectSession}
+              onDragStart={onDragStart}
+            />
+          ))}
         </div>
       )}
 
@@ -384,24 +298,15 @@ export const SessionManager = memo(function SessionManager({
         <div className="section">
           <div className="section-header">Recent</div>
           {connectionHistory.slice(0, 10).map((conn, index) => (
-            <div 
-              key={index}
-              className="session-item history"
-              onClick={() => onConnectFromHistory(conn)}
-              title={`${conn.user}@${conn.host}`}
-            >
-              <span className="session-name">{conn.user}@{conn.host}</span>
-              <button 
-                className="favorite-btn"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onToggleFavorite(conn);
-                }}
-                title="Toggle Favorite"
-              >
-                {favorites.some(f => f.host === conn.host && f.user === conn.user) ? '★' : '☆'}
-              </button>
-            </div>
+            <ConnectionHistoryItem
+              key={`recent-${index}-${conn.host || conn.serialPort}-${conn.user || ''}`}
+              conn={conn}
+              index={index}
+              favorites={favorites}
+              onConnectFromHistory={onConnectFromHistory}
+              onToggleFavorite={onToggleFavorite}
+              onDragStart={onDragStart}
+            />
           ))}
         </div>
       )}
