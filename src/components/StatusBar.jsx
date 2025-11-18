@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { memo } from 'react';
 
 /**
  * Status Bar component - Bottom status bar showing connection info and session count
  */
-export function StatusBar({ activeSession, sessionsCount }) {
+export const StatusBar = memo(function StatusBar({ activeSession, sessionsCount }) {
   return (
     <div className="status-bar">
       <div className="status-left">
@@ -18,5 +18,5 @@ export function StatusBar({ activeSession, sessionsCount }) {
       </div>
     </div>
   );
-}
+});
 

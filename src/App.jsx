@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
 import './App.css';
@@ -123,13 +123,14 @@ function App() {
   // Connection history and favorites
   // Connection history and favorites are managed by useConnectionHistory hook
 
-  const handleInputChange = (e) => {
+  // Memoize input change handler
+  const handleInputChange = useCallback((e) => {
     const { name, value } = e.target;
     setConnectionForm(prev => ({
       ...prev,
       [name]: value
     }));
-  };
+  }, []);
 
   // Load available serial ports
   const loadSerialPorts = async () => {
@@ -444,10 +445,10 @@ function App() {
     });
   };
 
-  // Switch active session
-  const switchToSession = (sessionId) => {
+  // Switch active session - memoized to prevent unnecessary re-renders
+  const switchToSession = useCallback((sessionId) => {
     setActiveSessionId(sessionId);
-  };
+  }, []);
 
   // Expose sessions to window for main process access (update on sessions change)
   useEffect(() => {
@@ -641,21 +642,21 @@ function App() {
     }
   };
 
-  // Drag and drop handlers
-  const handleDragStart = (e, sessionId) => {
+  // Drag and drop handlers - memoized
+  const handleDragStart = useCallback((e, sessionId) => {
     setDraggedSessionId(sessionId);
     e.dataTransfer.effectAllowed = 'move';
-  };
+  }, []);
 
-  const handleDragOver = (e, groupId) => {
+  const handleDragOver = useCallback((e, groupId) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     setDragOverGroupId(groupId);
-  };
+  }, []);
 
-  const handleDragLeave = () => {
+  const handleDragLeave = useCallback(() => {
     setDragOverGroupId(null);
-  };
+  }, []);
 
   const handleDrop = async (e, groupId) => {
     e.preventDefault();
@@ -1107,7 +1108,11 @@ function App() {
     return () => window.removeEventListener('resize', debouncedResize);
   }, []); // Register once
 
-  const activeSession = sessions.find(s => s.id === activeSessionId);
+  // Memoize activeSession to avoid recalculation on every render
+  const activeSession = useMemo(() => 
+    sessions.find(s => s.id === activeSessionId),
+    [sessions, activeSessionId]
+  );
 
   // Dynamic window title change
   useEffect(() => {
@@ -1206,18 +1211,65 @@ function App() {
     };
   }, [isWindows]);
 
-  // Window control handlers
-  const handleMinimize = async () => {
+  // Window control handlers - memoized
+  const handleMinimize = useCallback(async () => {
     await window.electronAPI.windowMinimize();
-  };
+  }, []);
 
-  const handleMaximize = async () => {
+  const handleMaximize = useCallback(async () => {
     await window.electronAPI.windowMaximize();
-  };
+  }, []);
 
-  const handleClose = async () => {
+  const handleClose = useCallback(async () => {
     await window.electronAPI.windowClose();
-  };
+  }, []);
+
+  // Memoized handlers for modals
+  const handleShowSettings = useCallback(() => setShowSettings(true), []);
+  const handleShowConnectionForm = useCallback(() => {
+    setFormError('');
+    setShowConnectionForm(true);
+  }, []);
+  const handleCloseConnectionForm = useCallback(() => {
+    setShowConnectionForm(false);
+    setFormError('');
+  }, []);
+  const handleCloseSettings = useCallback(() => setShowSettings(false), []);
+  const handleConnectionFormSubmit = useCallback((e) => {
+    e.preventDefault();
+    setFormError('');
+    createNewSession();
+  }, []); // createNewSession is stable (uses connectionForm from closure)
+  const handleConnectionTypeChange = useCallback((type) => {
+    setConnectionForm(prev => ({ ...prev, connectionType: type }));
+  }, []);
+  const handleSavePasswordChange = useCallback((e) => {
+    setConnectionForm(prev => ({ ...prev, savePassword: e.target.checked }));
+  }, []);
+  const handleCloseGroupDialog = useCallback(() => {
+    setShowGroupNameDialog(false);
+    setNewGroupName('');
+    setPendingSessionForGroup(null);
+  }, []);
+  const handleGroupNameChange = useCallback((e) => {
+    setNewGroupName(e.target.value);
+  }, []);
+  const handleGroupDialogKeyDown = useCallback((e) => {
+    if (e.key === 'Enter') {
+      handleCreateGroupFromDialog();
+    } else if (e.key === 'Escape') {
+      setShowGroupNameDialog(false);
+      setNewGroupName('');
+      setPendingSessionForGroup(null);
+    }
+  }, []); // handleCreateGroupFromDialog is stable
+  const handleScrollbackChange = useCallback((e) => {
+    const value = parseInt(e.target.value, 10);
+    if (!isNaN(value) && value >= 100 && value <= 50000) {
+      setScrollbackLines(value);
+      localStorage.setItem('ash-scrollback', value.toString());
+    }
+  }, []);
 
   // Cleanup resize event listeners on unmount
   useEffect(() => {
@@ -1264,11 +1316,8 @@ function App() {
           editingGroupId={editingGroupId}
           editingGroupName={editingGroupName}
           setEditingGroupName={setEditingGroupName}
-          onShowSettings={() => setShowSettings(true)}
-          onShowConnectionForm={() => {
-            setFormError('');
-            setShowConnectionForm(true);
-          }}
+          onShowSettings={handleShowSettings}
+          onShowConnectionForm={handleShowConnectionForm}
           onCreateNewSessionWithData={createNewSessionWithData}
           onConnectFromHistory={connectFromHistory}
           onToggleFavorite={toggleFavorite}
@@ -1313,10 +1362,7 @@ function App() {
           onStopLogging={stopLogging}
           onSaveLog={saveLog}
           onClearLog={clearLog}
-          onShowConnectionForm={() => {
-            setFormError('');
-            setShowConnectionForm(true);
-          }}
+          onShowConnectionForm={handleShowConnectionForm}
           terminalInstances={terminalInstances}
         />
       </div>
@@ -1334,18 +1380,11 @@ function App() {
         formError={formError}
         isConnecting={isConnecting}
         availableSerialPorts={availableSerialPorts}
-        onClose={() => {
-          setShowConnectionForm(false);
-          setFormError('');
-        }}
-        onSubmit={(e) => {
-          e.preventDefault();
-          setFormError('');
-          createNewSession();
-        }}
+        onClose={handleCloseConnectionForm}
+        onSubmit={handleConnectionFormSubmit}
         onInputChange={handleInputChange}
-        onConnectionTypeChange={(type) => setConnectionForm(prev => ({ ...prev, connectionType: type }))}
-        onSavePasswordChange={(e) => setConnectionForm(prev => ({ ...prev, savePassword: e.target.checked }))}
+        onConnectionTypeChange={handleConnectionTypeChange}
+        onSavePasswordChange={handleSavePasswordChange}
         onLoadSerialPorts={loadSerialPorts}
       />
 
@@ -1354,22 +1393,10 @@ function App() {
         showGroupNameDialog={showGroupNameDialog}
         newGroupName={newGroupName}
         groups={groups}
-        onClose={() => {
-          setShowGroupNameDialog(false);
-          setNewGroupName('');
-          setPendingSessionForGroup(null);
-        }}
+        onClose={handleCloseGroupDialog}
         onCreate={handleCreateGroupFromDialog}
-        onNameChange={(e) => setNewGroupName(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            handleCreateGroupFromDialog();
-          } else if (e.key === 'Escape') {
-            setShowGroupNameDialog(false);
-            setNewGroupName('');
-            setPendingSessionForGroup(null);
-          }
-        }}
+        onNameChange={handleGroupNameChange}
+        onKeyDown={handleGroupDialogKeyDown}
       />
 
       {/* Settings window modal */}
@@ -1379,14 +1406,8 @@ function App() {
         themes={themes}
         scrollbackLines={scrollbackLines}
         onChangeTheme={changeTheme}
-        onChangeScrollbackLines={(e) => {
-          const value = parseInt(e.target.value, 10);
-          if (!isNaN(value) && value >= 100 && value <= 50000) {
-            setScrollbackLines(value);
-            localStorage.setItem('ash-scrollback', value.toString());
-          }
-        }}
-        onClose={() => setShowSettings(false)}
+        onChangeScrollbackLines={handleScrollbackChange}
+        onClose={handleCloseSettings}
       />
     </div>
   );

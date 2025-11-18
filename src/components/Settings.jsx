@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { memo } from 'react';
 
 /**
  * Settings component - Modal for application settings
  */
-export function Settings({
+export const Settings = memo(function Settings({
   showSettings,
   theme,
   themes,
@@ -129,5 +129,5 @@ export function Settings({
       </div>
     </div>
   );
-}
+});
 

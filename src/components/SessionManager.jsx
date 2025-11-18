@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { memo } from 'react';
 
 /**
  * Session Manager component - Left sidebar for managing sessions, groups, and connections
  */
-export function SessionManager({
+export const SessionManager = memo(function SessionManager({
   showSessionManager,
   sessionManagerWidth,
   sessions,
@@ -407,5 +407,5 @@ export function SessionManager({
       )}
     </div>
   );
-}
+});
 

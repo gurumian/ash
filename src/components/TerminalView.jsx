@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { memo } from 'react';
 
 /**
  * Terminal View component - Right side terminal area with tabs and terminal content
  */
-export function TerminalView({
+export const TerminalView = memo(function TerminalView({
   activeSession,
   sessions,
   activeSessionId,
@@ -134,5 +134,5 @@ export function TerminalView({
       )}
     </div>
   );
-}
+});
 

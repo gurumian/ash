@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { memo } from 'react';
 
 /**
  * Connection Form component - Modal for creating new SSH/Serial connections
  */
-export function ConnectionForm({
+export const ConnectionForm = memo(function ConnectionForm({
   showConnectionForm,
   connectionForm,
   formError,
@@ -290,5 +290,5 @@ export function ConnectionForm({
       </div>
     </div>
   );
-}
+});
 
