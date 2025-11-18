@@ -989,15 +989,19 @@ function App() {
 
     }
 
-    // Handle terminal input
-    terminal.onData(async (data) => {
-      // Log the input data if logging is enabled for this session
-      if (sessionLogs.current[sessionId] && sessionLogs.current[sessionId].isLogging) {
-        await appendToLog(sessionId, data);
-      }
-      
+    // Handle terminal input - optimize for responsiveness
+    terminal.onData((data) => {
+      // Send data immediately for better responsiveness
       if (sshConnections.current[sessionId]) {
         sshConnections.current[sessionId].write(data);
+      }
+      
+      // Log asynchronously without blocking input
+      if (sessionLogs.current[sessionId] && sessionLogs.current[sessionId].isLogging) {
+        // Fire and forget - don't await to avoid blocking input
+        appendToLog(sessionId, data).catch(err => {
+          console.error('Failed to append to log:', err);
+        });
       }
     });
   };
@@ -1633,13 +1637,17 @@ function App() {
   // Global event listeners - register once
   useEffect(() => {
 
-    const handleSerialData = async (event, receivedSessionId, data) => {
+    const handleSerialData = (event, receivedSessionId, data) => {
       if (terminalInstances.current[receivedSessionId]) {
+        // Write to terminal immediately for better responsiveness
         terminalInstances.current[receivedSessionId].write(data);
         
-        // Log the data if logging is enabled for this session
+        // Log asynchronously without blocking display
         if (sessionLogs.current[receivedSessionId] && sessionLogs.current[receivedSessionId].isLogging) {
-          await appendToLog(receivedSessionId, data);
+          // Fire and forget - don't await to avoid blocking display
+          appendToLog(receivedSessionId, data).catch(err => {
+            console.error('Failed to append to log:', err);
+          });
         }
       }
     };
