@@ -225,6 +225,10 @@ function App() {
   const [sessionManagerWidth, setSessionManagerWidth] = useState(250);
   
   // Theme-related state
+  // Window controls state (Windows/Linux only)
+  const [isMaximized, setIsMaximized] = useState(false);
+  const isWindows = window.electronAPI?.platform !== 'darwin';
+
   const [theme, setTheme] = useState(
     localStorage.getItem('ash-theme') || 'terminus'
   );
@@ -1784,6 +1788,42 @@ function App() {
     };
   }, [activeSessionId]);
 
+  // Window controls (Windows/Linux only)
+  useEffect(() => {
+    if (!isWindows) return;
+
+    // Check initial maximized state
+    window.electronAPI.windowIsMaximized().then((result) => {
+      setIsMaximized(result.isMaximized);
+    });
+
+    // Listen for maximize/unmaximize events
+    window.electronAPI.onWindowMaximized(() => {
+      setIsMaximized(true);
+    });
+    window.electronAPI.onWindowUnmaximized(() => {
+      setIsMaximized(false);
+    });
+
+    return () => {
+      window.electronAPI.removeAllListeners('window-maximized');
+      window.electronAPI.removeAllListeners('window-unmaximized');
+    };
+  }, [isWindows]);
+
+  // Window control handlers
+  const handleMinimize = async () => {
+    await window.electronAPI.windowMinimize();
+  };
+
+  const handleMaximize = async () => {
+    await window.electronAPI.windowMaximize();
+  };
+
+  const handleClose = async () => {
+    await window.electronAPI.windowClose();
+  };
+
   // Cleanup resize event listeners on unmount
   useEffect(() => {
     return () => {
@@ -1806,6 +1846,35 @@ function App() {
         '--theme-accent': currentTheme.accent
       }}
     >
+      {/* Windows/Linux custom title bar with window controls */}
+      {isWindows && (
+        <div className="custom-titlebar">
+          <div className="titlebar-title">ash</div>
+          <div className="titlebar-controls">
+            <button 
+              className="titlebar-button minimize-button"
+              onClick={handleMinimize}
+              title="Minimize"
+            >
+              <span>−</span>
+            </button>
+            <button 
+              className="titlebar-button maximize-button"
+              onClick={handleMaximize}
+              title={isMaximized ? "Restore" : "Maximize"}
+            >
+              <span>{isMaximized ? '❐' : '□'}</span>
+            </button>
+            <button 
+              className="titlebar-button close-button"
+              onClick={handleClose}
+              title="Close"
+            >
+              <span>×</span>
+            </button>
+          </div>
+        </div>
+      )}
       <div className="main-content">
         {/* Left session manager */}
         <div 

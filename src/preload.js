@@ -65,5 +65,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
       console.log('saveLogToFile failed:', error);
       return { success: false };
     }
-  }
+  },
+
+  // Window controls (for Windows frameless window)
+  windowMinimize: () => ipcRenderer.invoke('window-minimize'),
+  windowMaximize: () => ipcRenderer.invoke('window-maximize'),
+  windowClose: () => ipcRenderer.invoke('window-close'),
+  windowIsMaximized: () => ipcRenderer.invoke('window-is-maximized'),
+  onWindowMaximized: (callback) => ipcRenderer.on('window-maximized', callback),
+  onWindowUnmaximized: (callback) => ipcRenderer.on('window-unmaximized', callback),
+
+  // Platform info
+  platform: process.platform
 });

@@ -338,6 +338,46 @@ ipcMain.handle('set-window-title', async (event, title) => {
   return { success: false };
 });
 
+// Window controls IPC handlers (for Windows frameless window)
+ipcMain.handle('window-minimize', async (event) => {
+  const focusedWindow = BrowserWindow.getFocusedWindow();
+  if (focusedWindow) {
+    focusedWindow.minimize();
+    return { success: true };
+  }
+  return { success: false };
+});
+
+ipcMain.handle('window-maximize', async (event) => {
+  const focusedWindow = BrowserWindow.getFocusedWindow();
+  if (focusedWindow) {
+    if (focusedWindow.isMaximized()) {
+      focusedWindow.unmaximize();
+    } else {
+      focusedWindow.maximize();
+    }
+    return { success: true };
+  }
+  return { success: false };
+});
+
+ipcMain.handle('window-close', async (event) => {
+  const focusedWindow = BrowserWindow.getFocusedWindow();
+  if (focusedWindow) {
+    focusedWindow.close();
+    return { success: true };
+  }
+  return { success: false };
+});
+
+ipcMain.handle('window-is-maximized', async (event) => {
+  const focusedWindow = BrowserWindow.getFocusedWindow();
+  if (focusedWindow) {
+    return { isMaximized: focusedWindow.isMaximized() };
+  }
+  return { isMaximized: false };
+});
+
 const createWindow = () => {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
@@ -362,6 +402,16 @@ const createWindow = () => {
       preload: path.join(__dirname, 'preload.js'),
     },
   });
+
+  // Listen for window maximize/unmaximize events (Windows/Linux only)
+  if (process.platform !== 'darwin') {
+    mainWindow.on('maximize', () => {
+      mainWindow.webContents.send('window-maximized');
+    });
+    mainWindow.on('unmaximize', () => {
+      mainWindow.webContents.send('window-unmaximized');
+    });
+  }
 
   // and load the index.html of the app.
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
