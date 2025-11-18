@@ -18,6 +18,7 @@ import { Settings } from './components/Settings';
 import { GroupNameDialog } from './components/GroupNameDialog';
 import { StatusBar } from './components/StatusBar';
 import { AboutDialog } from './components/AboutDialog';
+import { TerminalContextMenu } from './components/TerminalContextMenu';
 
 function App() {
   // Session management state
@@ -30,6 +31,7 @@ function App() {
   const fitAddons = useRef({});
   const sshConnections = useRef({});
   const terminalInputHandlers = useRef({}); // Cache input handlers to avoid recreation
+  const terminalContextMenuHandlers = useRef({}); // Store context menu handlers for cleanup
   
   // Use custom hooks
   const {
@@ -114,6 +116,14 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showAboutDialog, setShowAboutDialog] = useState(false);
   const [appInfo, setAppInfo] = useState({ version: '1.0.4', author: { name: 'Bryce Ghim', email: 'gurumlab@gmail.com' } });
+  
+  // Terminal context menu state
+  const [contextMenu, setContextMenu] = useState({
+    visible: false,
+    x: 0,
+    y: 0,
+    sessionId: null,
+  });
   const [scrollbackLines, setScrollbackLines] = useState(() => {
     const saved = localStorage.getItem('ash-scrollback');
     return saved ? parseInt(saved, 10) : 5000;
@@ -378,6 +388,15 @@ function App() {
 
     // Clean up existing terminal if it exists
     if (terminalInstances.current[sessionId]) {
+      // Remove context menu handler
+      if (terminalContextMenuHandlers.current[sessionId]) {
+        const { handler, element } = terminalContextMenuHandlers.current[sessionId];
+        if (element) {
+          element.removeEventListener('contextmenu', handler);
+        }
+        delete terminalContextMenuHandlers.current[sessionId];
+      }
+      
       // Dispose terminal - this automatically removes all event listeners
       terminalInstances.current[sessionId].dispose();
       delete terminalInstances.current[sessionId];
@@ -441,6 +460,100 @@ function App() {
     
     terminalInstances.current[sessionId] = terminal;
     fitAddons.current[sessionId] = fitAddon;
+    
+    // Enable copy/paste functionality
+    // Handle copy: Ctrl+Shift+C (to avoid interfering with Ctrl+C for interrupt)
+    // Handle paste: Ctrl+V or Ctrl+Shift+V
+    terminal.attachCustomKeyEventHandler((event) => {
+      // Ctrl+Shift+C - copy selected text
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && (event.key === 'c' || event.key === 'C')) {
+        const selection = terminal.getSelection();
+        if (selection) {
+          // Use clipboard API to copy
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(selection).catch(err => {
+              console.error('Failed to copy:', err);
+            });
+          } else {
+            // Fallback for older browsers
+            const textArea = document.createElement('textarea');
+            textArea.value = selection;
+            textArea.style.position = 'fixed';
+            textArea.style.opacity = '0';
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+              document.execCommand('copy');
+            } catch (err) {
+              console.error('Failed to copy:', err);
+            }
+            document.body.removeChild(textArea);
+          }
+          event.preventDefault();
+          return false;
+        }
+      }
+      // Ctrl+V or Ctrl+Shift+V - paste (xterm.js default handles Ctrl+Shift+V, we add Ctrl+V)
+      if ((event.ctrlKey || event.metaKey) && !event.shiftKey && (event.key === 'v' || event.key === 'V')) {
+        if (navigator.clipboard && navigator.clipboard.readText) {
+          navigator.clipboard.readText().then(text => {
+            if (terminal && !terminal.isDisposed) {
+              terminal.paste(text);
+            }
+          }).catch(err => {
+            console.error('Failed to paste:', err);
+          });
+          event.preventDefault();
+          return false;
+        }
+      }
+      return true;
+    });
+    
+    // Also handle selection changes to enable automatic copy on selection (like xterm)
+    // Note: Some browsers support automatic copy on selection, but we'll handle it explicitly
+    let lastSelection = '';
+    terminal.onSelectionChange(() => {
+      const selection = terminal.getSelection();
+      if (selection && selection !== lastSelection) {
+        lastSelection = selection;
+        // Optionally auto-copy on selection (commented out to avoid clipboard spam)
+        // Uncomment if you want automatic copy on text selection
+        // if (navigator.clipboard && navigator.clipboard.writeText) {
+        //   navigator.clipboard.writeText(selection).catch(() => {});
+        // }
+      }
+    });
+    
+    // Add context menu (right-click) handler
+    const handleContextMenu = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      
+      // Check if click is inside terminal element or its children
+      const clickedElement = event.target;
+      if (terminalRef && (terminalRef.contains(clickedElement) || terminalRef === clickedElement)) {
+        setContextMenu({
+          visible: true,
+          x: event.clientX,
+          y: event.clientY,
+          sessionId: sessionId,
+        });
+      }
+    };
+    
+    // Add contextmenu event listener to terminal element
+    // Use setTimeout to ensure terminal is fully initialized
+    setTimeout(() => {
+      if (terminalRef) {
+        terminalRef.addEventListener('contextmenu', handleContextMenu);
+        
+        // Cleanup: Store handler reference for removal
+        if (!terminalContextMenuHandlers.current[sessionId]) {
+          terminalContextMenuHandlers.current[sessionId] = { handler: handleContextMenu, element: terminalRef };
+        }
+      }
+    }, 100);
     
     // Fit terminal after a short delay to ensure DOM is ready
     requestAnimationFrame(() => {
@@ -1631,6 +1744,58 @@ function App() {
           onClearLog={clearLog}
           onShowConnectionForm={handleShowConnectionForm}
           terminalInstances={terminalInstances}
+        />
+        
+        {/* Terminal Context Menu */}
+        <TerminalContextMenu
+          visible={contextMenu.visible}
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onCopy={async () => {
+            if (contextMenu.sessionId && terminalInstances.current[contextMenu.sessionId]) {
+              const terminal = terminalInstances.current[contextMenu.sessionId];
+              const selection = terminal.getSelection();
+              if (selection) {
+                try {
+                  if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(selection);
+                  } else {
+                    // Fallback
+                    const textArea = document.createElement('textarea');
+                    textArea.value = selection;
+                    textArea.style.position = 'fixed';
+                    textArea.style.opacity = '0';
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                  }
+                } catch (error) {
+                  console.error('Failed to copy:', error);
+                }
+              }
+            }
+          }}
+          onPaste={async () => {
+            if (contextMenu.sessionId && terminalInstances.current[contextMenu.sessionId]) {
+              const terminal = terminalInstances.current[contextMenu.sessionId];
+              try {
+                if (navigator.clipboard && navigator.clipboard.readText) {
+                  const text = await navigator.clipboard.readText();
+                  terminal.paste(text);
+                }
+              } catch (error) {
+                console.error('Failed to paste:', error);
+              }
+            }
+          }}
+          onSelectAll={() => {
+            if (contextMenu.sessionId && terminalInstances.current[contextMenu.sessionId]) {
+              const terminal = terminalInstances.current[contextMenu.sessionId];
+              terminal.selectAll();
+            }
+          }}
+          onClose={() => setContextMenu({ visible: false, x: 0, y: 0, sessionId: null })}
         />
       </div>
 
