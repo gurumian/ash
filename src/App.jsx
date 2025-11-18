@@ -1,16 +1,20 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo, startTransition } from 'react';
-import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
 import './App.css';
 
-import { FitAddon } from '@xterm/addon-fit';
-import { SearchAddon } from '@xterm/addon-search';
 import { SSHConnection } from './connections/SSHConnection';
 import { SerialConnection } from './connections/SerialConnection';
 import { useTheme } from './hooks/useTheme';
 import { useConnectionHistory } from './hooks/useConnectionHistory';
 import { useLogging } from './hooks/useLogging';
 import { useGroups } from './hooks/useGroups';
+import { useSerialPorts } from './hooks/useSerialPorts';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { useWindowControls } from './hooks/useWindowControls';
+import { useMenuHandlers } from './hooks/useMenuHandlers';
+import { useDragAndDrop } from './hooks/useDragAndDrop';
+import { useTerminalManagement } from './hooks/useTerminalManagement';
+import { useConnectionManagement } from './hooks/useConnectionManagement';
 import { CustomTitleBar } from './components/CustomTitleBar';
 import { SessionManager } from './components/SessionManager';
 import { TerminalView } from './components/TerminalView';
@@ -27,14 +31,8 @@ function App() {
   const [sessions, setSessions] = useState([]);
   const [activeSessionId, setActiveSessionId] = useState(null);
   
-  // Terminal-related refs
-  const terminalRefs = useRef({});
-  const terminalInstances = useRef({});
-  const fitAddons = useRef({});
-  const searchAddons = useRef({}); // Store search addons for each terminal
+  // Connection refs
   const sshConnections = useRef({});
-  const terminalInputHandlers = useRef({}); // Cache input handlers to avoid recreation
-  const terminalContextMenuHandlers = useRef({}); // Store context menu handlers for cleanup
   
   // Use custom hooks
   const {
@@ -67,8 +65,7 @@ function App() {
   useEffect(() => {
     cleanupOrphanedSessions(sessions);
   }, [sessions, cleanupOrphanedSessions]);
-  const [draggedSessionId, setDraggedSessionId] = useState(null);
-  const [dragOverGroupId, setDragOverGroupId] = useState(null);
+  
   const [showGroupNameDialog, setShowGroupNameDialog] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [pendingSessionForGroup, setPendingSessionForGroup] = useState(null);
@@ -101,20 +98,17 @@ function App() {
     parity: 'none',
     flowControl: 'none'
   });
-  const [availableSerialPorts, setAvailableSerialPorts] = useState([]);
   const [isConnecting, setIsConnecting] = useState(false);
   const [showConnectionForm, setShowConnectionForm] = useState(false);
   const [showSessionManager, setShowSessionManager] = useState(true);
   const [sessionManagerWidth, setSessionManagerWidth] = useState(250);
   
-  // Window controls state (Windows/Linux only)
-  const [isMaximized, setIsMaximized] = useState(false);
   const isWindows = window.electronAPI?.platform !== 'darwin';
 
   // Use custom hooks
-  const { theme, setTheme: changeTheme, currentTheme, themes } = useTheme(terminalInstances);
   const { connectionHistory, favorites, saveConnectionHistory, toggleFavorite } = useConnectionHistory();
   const { sessionLogs, logStates, appendToLog, startLogging, stopLogging, saveLog, clearLog, cleanupLog } = useLogging(sessions, groups);
+  const { availableSerialPorts, loadSerialPorts } = useSerialPorts();
   
   const [showSettings, setShowSettings] = useState(false);
   const [showAboutDialog, setShowAboutDialog] = useState(false);
@@ -152,6 +146,99 @@ function App() {
     const saved = localStorage.getItem('ash-scrollback');
     return saved ? parseInt(saved, 10) : 5000;
   });
+  
+  // Create a ref for terminalInstances that useTheme can use
+  const terminalInstancesRef = useRef({});
+  
+  // Theme hook - call first, but pass ref that will be updated
+  const { theme, setTheme: changeTheme, currentTheme, themes } = useTheme(terminalInstancesRef);
+  
+  // Terminal management hook - now can use theme and themes
+  const {
+    terminalRefs,
+    terminalInstances,
+    fitAddons,
+    searchAddons,
+    initializeTerminal,
+    resizeTerminal
+  } = useTerminalManagement({
+    theme,
+    themes,
+    scrollbackLines,
+    activeSessionId,
+    sessions,
+    sshConnections,
+    sessionLogs,
+    appendToLog,
+    setContextMenu,
+    setShowSearchBar
+  });
+  
+  // Update ref for useTheme after terminalInstances is available
+  useEffect(() => {
+    terminalInstancesRef.current = terminalInstances;
+  }, [terminalInstances]);
+  
+  // Window controls hook
+  const { isMaximized, handleMinimize, handleMaximize, handleClose } = useWindowControls(isWindows);
+  
+  // Keyboard shortcuts hook
+  useKeyboardShortcuts({
+    activeSessionId,
+    showSearchBar,
+    setShowSearchBar
+  });
+  
+  // Connection management hook
+  const {
+    createNewSessionWithData,
+    disconnectSession,
+    connectGroup,
+    handleDetachTab
+  } = useConnectionManagement({
+    sessions,
+    setSessions,
+    setActiveSessionId,
+    activeSessionId,
+    sshConnections,
+    terminalInstances,
+    fitAddons,
+    searchAddons,
+    connectionForm,
+    setConnectionForm,
+    setShowConnectionForm,
+    setFormError,
+    setIsConnecting,
+    saveConnectionHistory,
+    connectionHistory,
+    groups,
+    addSessionToGroup,
+    setPendingGroupAdditions,
+    initializeTerminal,
+    cleanupLog
+  });
+
+  // Drag and drop hook
+  const {
+    draggedSessionId,
+    dragOverGroupId,
+    handleDragStart,
+    handleDragOver,
+    handleDragLeave,
+    handleDrop,
+    handleDropOnNewGroup
+  } = useDragAndDrop({
+    sessions,
+    addSessionToGroup,
+    addSavedSessionToGroup,
+    createNewSessionWithData,
+    connectionForm,
+    setConnectionForm,
+    createGroup,
+    setShowGroupNameDialog,
+    setNewGroupName,
+    setPendingSessionForGroup
+  });
 
   // Resize handle refs
   const resizeHandleRef = useRef(null);
@@ -170,73 +257,6 @@ function App() {
     }));
   }, []);
 
-  // Load available serial ports
-  const loadSerialPorts = async () => {
-    try {
-      const ports = await window.electronAPI.serialListPorts();
-      setAvailableSerialPorts(ports);
-      
-      // Add some test ports for development
-      const testPorts = [
-        '/tmp/vserial0',
-        '/tmp/vserial1',
-        '/dev/tty.debug-console',
-        '/dev/cu.debug-console'
-      ];
-      
-      // Add test ports if they don't already exist
-      const allPorts = [...ports];
-      testPorts.forEach(testPort => {
-        if (!allPorts.find(p => p.path === testPort)) {
-          allPorts.push({ path: testPort, manufacturer: 'Test', serialNumber: 'TEST' });
-        }
-      });
-      
-      setAvailableSerialPorts(allPorts);
-    } catch (error) {
-      console.error('Failed to load serial ports:', error);
-      // Still add test ports even if real ports fail
-      setAvailableSerialPorts([
-        { path: '/tmp/vserial0', manufacturer: 'Test', serialNumber: 'TEST' },
-        { path: '/tmp/vserial1', manufacturer: 'Test', serialNumber: 'TEST' },
-        { path: '/dev/tty.debug-console', manufacturer: 'Test', serialNumber: 'TEST' },
-        { path: '/dev/cu.debug-console', manufacturer: 'Test', serialNumber: 'TEST' }
-      ]);
-    }
-  };
-
-  // Terminal resize utility function
-  // Use ref to track pending resize to avoid duplicate calls
-  const pendingResizeRef = useRef(null);
-  
-  const resizeTerminal = useCallback(() => {
-    // Cancel any pending resize to avoid duplicate work
-    if (pendingResizeRef.current !== null) {
-      cancelAnimationFrame(pendingResizeRef.current);
-    }
-    
-    // Schedule resize for next animation frame (only once per frame)
-    pendingResizeRef.current = requestAnimationFrame(() => {
-      pendingResizeRef.current = null;
-      
-      // Resize all active terminals, not just the active one
-      Object.keys(fitAddons.current).forEach(sessionId => {
-        const fitAddon = fitAddons.current[sessionId];
-        const terminal = terminalInstances.current[sessionId];
-        const terminalRef = terminalRefs.current[sessionId];
-        
-        if (fitAddon && terminal && terminalRef) {
-          try {
-            // Force a layout recalculation before fitting
-            terminalRef.offsetHeight;
-            fitAddon.fit();
-          } catch (error) {
-            console.error(`Error resizing terminal for session ${sessionId}:`, error);
-          }
-        }
-      });
-    });
-  }, []); // Empty deps - uses refs which don't change
 
   // Log management functions are provided by useLogging hook
 
@@ -264,390 +284,9 @@ function App() {
     document.removeEventListener('mouseup', handleMouseUp);
   };
 
-  // Create new session with provided data (returns sessionId if successful)
-  const createNewSessionWithData = async (formData, skipFormReset = false) => {
-    setFormError('');
-    
-    if (formData.connectionType === 'ssh') {
-      if (!formData.host || !formData.user) {
-        setFormError('Host and Username are required for SSH connections.');
-        return;
-      }
-    } else if (formData.connectionType === 'serial') {
-      if (!formData.serialPort) {
-        setFormError('Serial port is required for serial connections.');
-        return;
-      }
-    }
-
-    setIsConnecting(true);
-    
-    try {
-      const sessionId = Date.now().toString();
-      const sessionName = formData.connectionType === 'ssh' 
-        ? (formData.sessionName || `${formData.user}@${formData.host}`)
-        : (formData.sessionName || `Serial: ${formData.serialPort}`);
-      
-      // Create connection based on type
-      let connection;
-      let session;
-      
-      if (formData.connectionType === 'ssh') {
-        connection = new SSHConnection();
-        await connection.connect(
-          formData.host,
-          formData.port,
-          formData.user,
-          formData.password
-        );
-        
-        session = {
-          id: sessionId,
-          name: sessionName,
-          host: formData.host,
-          port: formData.port,
-          user: formData.user,
-          password: formData.password, // Include password for detach functionality
-          connectionType: 'ssh',
-          isConnected: true,
-          createdAt: new Date().toISOString()
-        };
-        
-        // Save connection history
-        saveConnectionHistory({
-          connectionType: 'ssh',
-          host: formData.host,
-          port: formData.port,
-          user: formData.user,
-          password: formData.password,
-          sessionName: sessionName,
-          savePassword: formData.savePassword
-        });
-      } else if (formData.connectionType === 'serial') {
-        connection = new SerialConnection();
-        await connection.connect(sessionId, {
-          path: formData.serialPort,
-          baudRate: parseInt(formData.baudRate),
-          dataBits: parseInt(formData.dataBits),
-          stopBits: parseInt(formData.stopBits),
-          parity: formData.parity,
-          flowControl: formData.flowControl
-        });
-        
-        session = {
-          id: sessionId,
-          name: sessionName,
-          serialPort: formData.serialPort,
-          baudRate: formData.baudRate,
-          dataBits: formData.dataBits,
-          stopBits: formData.stopBits,
-          parity: formData.parity,
-          flowControl: formData.flowControl,
-          connectionType: 'serial',
-          isConnected: true,
-          createdAt: new Date().toISOString()
-        };
-        
-        // Save connection history for Serial connections too
-        saveConnectionHistory({
-          connectionType: 'serial',
-          serialPort: formData.serialPort,
-          baudRate: formData.baudRate,
-          dataBits: formData.dataBits,
-          stopBits: formData.stopBits,
-          parity: formData.parity,
-          flowControl: formData.flowControl,
-          sessionName: sessionName,
-          savePassword: false // Serial connections don't have passwords
-        });
-      }
-      
-      // Common session setup
-      setSessions(prev => [...prev, session]);
-      setActiveSessionId(sessionId);
-      sshConnections.current[sessionId] = connection; // Store both SSH and Serial connections
-      
-      // Reset form (unless skipFormReset is true)
-      if (!skipFormReset) {
-        setConnectionForm({
-          connectionType: 'ssh',
-          host: '',
-          port: '22',
-          user: '',
-          password: '',
-          sessionName: '',
-          savePassword: false,
-          serialPort: '',
-          baudRate: '9600',
-          dataBits: '8',
-          stopBits: '1',
-          parity: 'none',
-          flowControl: 'none'
-        });
-        setShowConnectionForm(false);
-      }
-      setIsConnecting(false);
-      
-      return sessionId; // Return sessionId for use in drag-and-drop
-      
-    } catch (error) {
-      console.error('Connection failed:', error);
-      setIsConnecting(false);
-      if (!skipFormReset) {
-        alert('Connection failed: ' + error.message);
-      }
-      throw error; // Re-throw so caller can handle it
-    }
-  };
-
   // Create new session (returns sessionId if successful) - uses connectionForm state
   const createNewSession = async (skipFormReset = false) => {
     return createNewSessionWithData(connectionForm, skipFormReset);
-  };
-
-  // Initialize terminal
-  const initializeTerminal = async (sessionId, sessionInfo = null) => {
-    const terminalRef = terminalRefs.current[sessionId];
-    if (!terminalRef) return;
-
-    // Clean up existing terminal if it exists
-    if (terminalInstances.current[sessionId]) {
-      // Remove context menu handler
-      if (terminalContextMenuHandlers.current[sessionId]) {
-        const { handler, element } = terminalContextMenuHandlers.current[sessionId];
-        if (element) {
-          element.removeEventListener('contextmenu', handler);
-        }
-        delete terminalContextMenuHandlers.current[sessionId];
-      }
-      
-      // Dispose terminal - this automatically removes all event listeners
-      terminalInstances.current[sessionId].dispose();
-      delete terminalInstances.current[sessionId];
-      delete terminalInputHandlers.current[sessionId];
-    }
-
-    // Dynamically calculate terminal size using computed styles
-    const terminalElement = terminalRef;
-    
-    // Force a layout recalculation
-    terminalElement.offsetHeight;
-    
-    const computedStyle = window.getComputedStyle(terminalElement);
-    const fontSize = parseFloat(computedStyle.fontSize) || 13;
-    
-    // Calculate character dimensions more accurately
-    const charWidth = fontSize * 0.6; // Approximate width for monospace fonts
-    const charHeight = fontSize * 1.0; // Use line-height from CSS
-    
-    const cols = Math.floor(terminalElement.clientWidth / charWidth);
-    const rows = Math.floor(terminalElement.clientHeight / charHeight);
-
-    // Get the current theme configuration
-    const currentTheme = themes[theme].terminal;
-    
-    // Get scrollback limit from settings (stored in localStorage)
-    const scrollbackLimit = scrollbackLines;
-    
-    const terminal = new Terminal({
-      cols: Math.max(cols - 2, 80), // Account for rounding errors
-      rows: Math.max(rows - 2, 24), // Account for rounding errors
-      cursorBlink: true,
-      scrollback: scrollbackLimit, // Ring buffer: automatically discards old lines beyond this limit
-      theme: currentTheme,
-      fontSize: 13,
-      fontFamily: "'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace",
-      fontWeight: 'normal',
-      fontWeightBold: 'bold',
-      letterSpacing: 0,
-      lineHeight: 1.0,
-      // Performance optimizations
-      fastScrollModifier: 'shift', // Enable fast scroll with Shift key
-      macOptionIsMeta: false,
-      macOptionClickForcesSelection: false,
-      disableStdin: false, // Keep input enabled
-      cursorStyle: 'block',
-      // Reduce rendering overhead
-      allowProposedApi: false,
-      allowTransparency: false
-    });
-
-    const fitAddon = new FitAddon();
-    terminal.loadAddon(fitAddon);
-
-    const searchAddon = new SearchAddon();
-    terminal.loadAddon(searchAddon);
-
-    terminal.open(terminalRef);
-    
-    // Ensure theme is applied (in case it wasn't applied during construction)
-    if (terminal.options.theme !== currentTheme) {
-      terminal.options.theme = currentTheme;
-    }
-    
-    terminalInstances.current[sessionId] = terminal;
-    fitAddons.current[sessionId] = fitAddon;
-    searchAddons.current[sessionId] = searchAddon;
-    
-    // Enable copy/paste functionality
-    // Handle copy: Ctrl+Shift+C (to avoid interfering with Ctrl+C for interrupt)
-    // Handle paste: Ctrl+V or Ctrl+Shift+V
-    terminal.attachCustomKeyEventHandler((event) => {
-      // Ctrl+Shift+C - copy selected text
-      if ((event.ctrlKey || event.metaKey) && event.shiftKey && (event.key === 'c' || event.key === 'C')) {
-        const selection = terminal.getSelection();
-        if (selection) {
-          // Use clipboard API to copy
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(selection).catch(err => {
-              console.error('Failed to copy:', err);
-            });
-          } else {
-            // Fallback for older browsers
-            const textArea = document.createElement('textarea');
-            textArea.value = selection;
-            textArea.style.position = 'fixed';
-            textArea.style.opacity = '0';
-            document.body.appendChild(textArea);
-            textArea.select();
-            try {
-              document.execCommand('copy');
-            } catch (err) {
-              console.error('Failed to copy:', err);
-            }
-            document.body.removeChild(textArea);
-          }
-          event.preventDefault();
-          return false;
-        }
-      }
-      // Ctrl+V or Ctrl+Shift+V - paste (xterm.js default handles Ctrl+Shift+V, we add Ctrl+V)
-      if ((event.ctrlKey || event.metaKey) && !event.shiftKey && (event.key === 'v' || event.key === 'V')) {
-        if (navigator.clipboard && navigator.clipboard.readText) {
-          navigator.clipboard.readText().then(text => {
-            if (terminal && !terminal.isDisposed) {
-              terminal.paste(text);
-            }
-          }).catch(err => {
-            console.error('Failed to paste:', err);
-          });
-          event.preventDefault();
-          return false;
-        }
-      }
-      // Ctrl+F or Cmd+F - open search bar
-      if ((event.ctrlKey || event.metaKey) && (event.key === 'f' || event.key === 'F')) {
-        if (activeSessionId === sessionId) {
-          setShowSearchBar(true);
-          event.preventDefault();
-          return false;
-        }
-      }
-      return true;
-    });
-    
-    // Also handle selection changes to enable automatic copy on selection (like xterm)
-    // Note: Some browsers support automatic copy on selection, but we'll handle it explicitly
-    let lastSelection = '';
-    terminal.onSelectionChange(() => {
-      const selection = terminal.getSelection();
-      if (selection && selection !== lastSelection) {
-        lastSelection = selection;
-        // Optionally auto-copy on selection (commented out to avoid clipboard spam)
-        // Uncomment if you want automatic copy on text selection
-        // if (navigator.clipboard && navigator.clipboard.writeText) {
-        //   navigator.clipboard.writeText(selection).catch(() => {});
-        // }
-      }
-    });
-    
-    // Add context menu (right-click) handler
-    const handleContextMenu = (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      
-      // Check if click is inside terminal element or its children
-      const clickedElement = event.target;
-      if (terminalRef && (terminalRef.contains(clickedElement) || terminalRef === clickedElement)) {
-        setContextMenu({
-          visible: true,
-          x: event.clientX,
-          y: event.clientY,
-          sessionId: sessionId,
-        });
-      }
-    };
-    
-    // Add contextmenu event listener to terminal element
-    // Use setTimeout to ensure terminal is fully initialized
-    setTimeout(() => {
-      if (terminalRef) {
-        terminalRef.addEventListener('contextmenu', handleContextMenu);
-        
-        // Cleanup: Store handler reference for removal
-        if (!terminalContextMenuHandlers.current[sessionId]) {
-          terminalContextMenuHandlers.current[sessionId] = { handler: handleContextMenu, element: terminalRef };
-        }
-      }
-    }, 100);
-    
-    // Fit terminal after a short delay to ensure DOM is ready
-    requestAnimationFrame(() => {
-      try {
-        terminalRef.offsetHeight; // Force layout recalculation
-        fitAddon.fit();
-      } catch (error) {
-        console.error(`Error fitting terminal during initialization:`, error);
-      }
-    });
-
-    // Get session info to determine connection type
-    const session = sessionInfo || sessions.find(s => s.id === sessionId);
-    if (!session) return;
-
-    if (session.connectionType === 'ssh') {
-      // Start SSH shell
-      try {
-        await sshConnections.current[sessionId].startShell();
-        terminal.write('SSH shell started successfully\r\n');
-      } catch (error) {
-        console.error(`Failed to start SSH shell for session ${sessionId}:`, error);
-        terminal.write(`Failed to start shell: ${error.message}\r\n`);
-        return;
-      }
-
-    } else if (session.connectionType === 'serial') {
-      // Serial port connection
-      terminal.write(`Serial port ${session.serialPort} connected at ${session.baudRate} baud\r\n`);
-      terminal.write('Serial terminal ready\r\n');
-
-    }
-
-    // Handle terminal input - optimize for maximum responsiveness
-    // Cache handler to avoid recreation on every terminal init
-    if (!terminalInputHandlers.current[sessionId]) {
-      terminalInputHandlers.current[sessionId] = (data) => {
-        // CRITICAL: Send data immediately - highest priority, no blocking
-        // Use requestAnimationFrame to ensure input is processed in next frame
-        // but don't wait - send immediately for lowest latency
-        const connection = sshConnections.current[sessionId];
-        if (connection) {
-          // Direct write - works for both SSH and Serial connections
-          // SerialConnection.write() calls window.electronAPI.serialWrite() synchronously
-          connection.write(data);
-        }
-        
-        // Log synchronously but non-blocking - optimized append
-        // appendToLog is now synchronous and fast, flush happens asynchronously
-        // Use startTransition to mark logging as low priority
-        if (sessionLogs.current[sessionId]?.isLogging) {
-          startTransition(() => {
-            appendToLog(sessionId, data);
-          });
-        }
-      };
-    }
-    terminal.onData(terminalInputHandlers.current[sessionId]);
   };
 
   // Switch active session - memoized to prevent unnecessary re-renders
@@ -660,349 +299,8 @@ function App() {
     window.__sessions__ = sessions;
   }, [sessions]);
 
-  // Detach tab to new window
-  const handleDetachTab = async (sessionId) => {
-    try {
-      const result = await window.electronAPI.detachTab(sessionId);
-      if (result.success) {
-        // Session will be removed via IPC event
-        console.log(`Tab ${sessionId} detached to new window`);
-      } else {
-        alert('Failed to detach tab: ' + result.error);
-      }
-    } catch (error) {
-      console.error('Failed to detach tab:', error);
-      alert('Failed to detach tab: ' + error.message);
-    }
-  };
-
-  // Disconnect session
-  const disconnectSession = async (sessionId) => {
-    const session = sessions.find(s => s.id === sessionId);
-    
-    // Use polymorphic disconnect
-    if (session && sshConnections.current[sessionId]) {
-      sshConnections.current[sessionId].disconnect();
-      delete sshConnections.current[sessionId];
-    }
-    
-    if (terminalInstances.current[sessionId]) {
-      // Dispose terminal - this automatically removes all event listeners
-      terminalInstances.current[sessionId].dispose();
-      delete terminalInstances.current[sessionId];
-      delete terminalInputHandlers.current[sessionId];
-    }
-    
-    // Clean up fit addon
-    if (fitAddons.current[sessionId]) {
-      delete fitAddons.current[sessionId];
-    }
-    
-    // Clean up search addon
-    if (searchAddons.current[sessionId]) {
-      delete searchAddons.current[sessionId];
-    }
-    
-    // Clean up session logs
-    await cleanupLog(sessionId);
-    
-    setSessions(prev => prev.filter(s => s.id !== sessionId));
-    
-    if (activeSessionId === sessionId) {
-      const remainingSessions = sessions.filter(s => s.id !== sessionId);
-      setActiveSessionId(remainingSessions.length > 0 ? remainingSessions[0].id : null);
-    }
-  };
-
   // Group management functions are provided by useGroups hook
 
-  // Connect all sessions in a group
-  const connectGroup = async (groupId) => {
-    console.log('connectGroup called:', groupId);
-    const group = groups.find(g => g.id === groupId);
-    if (!group) {
-      console.log('Group not found:', groupId);
-      return;
-    }
-
-    console.log('Group found:', { id: group.id, name: group.name, savedSessions: group.savedSessions, sessionIds: group.sessionIds });
-
-    // First, connect saved sessions (unconnected)
-    const savedSessions = group.savedSessions || [];
-    console.log('Saved sessions to connect:', savedSessions.length);
-    for (const conn of savedSessions) {
-      try {
-        // Check if already connected
-        const existingSession = sessions.find(s => {
-          const connType = conn.connectionType || 'ssh';
-          if (connType === 'serial') {
-            return s.connectionType === 'serial' && s.serialPort === conn.serialPort;
-          } else {
-            return s.host === conn.host && 
-                   s.user === conn.user && 
-                   (s.port || '22') === (conn.port || '22') &&
-                   s.connectionType === 'ssh';
-          }
-        });
-        
-        if (existingSession && existingSession.isConnected) {
-          // Already connected, just add to sessionIds if not already there
-          if (!group.sessionIds.includes(existingSession.id)) {
-            addSessionToGroup(existingSession.id, groupId);
-          }
-          continue;
-        }
-        
-        // Create connection form from saved session
-        const oldForm = { ...connectionForm };
-        const connectionFormData = {
-          connectionType: conn.connectionType || 'ssh',
-          host: conn.host || '',
-          port: conn.port || '22',
-          user: conn.user || '',
-          password: conn.password || '',
-          sessionName: conn.sessionName || conn.name || '',
-          savePassword: !!conn.password,
-          serialPort: conn.serialPort || '',
-          baudRate: conn.baudRate || '9600',
-          dataBits: conn.dataBits || '8',
-          stopBits: conn.stopBits || '1',
-          parity: conn.parity || 'none',
-          flowControl: conn.flowControl || 'none'
-        };
-        
-        // Set form and wait a bit for state to update
-        setConnectionForm(connectionFormData);
-        
-        // Use the form data directly instead of relying on state
-        const sessionId = await createNewSessionWithData(connectionFormData, true);
-        
-        if (sessionId) {
-          // Add to group after connection
-          setPendingGroupAdditions(prev => [...prev, { sessionId, groupId }]);
-        }
-        
-        // Restore form
-        setConnectionForm(oldForm);
-      } catch (error) {
-        console.error(`Failed to connect saved session in group:`, error);
-      }
-    }
-    
-    // Then, reconnect disconnected active sessions
-    const groupSessions = sessions.filter(s => group.sessionIds.includes(s.id));
-    const unconnectedSessions = groupSessions.filter(s => !s.isConnected);
-
-    for (const session of unconnectedSessions) {
-      try {
-        // Recreate connection for each session
-        if (session.connectionType === 'ssh') {
-          // Try to get password from connection history
-          const historyEntry = connectionHistory.find(c => 
-            c.connectionType === 'ssh' &&
-            c.host === session.host && 
-            c.user === session.user && 
-            (c.port || '22') === (session.port || '22')
-          );
-          const password = session.password || historyEntry?.password || '';
-          
-          const connection = new SSHConnection();
-          await connection.connect(session.host, session.port, session.user, password);
-          await connection.startShell();
-          sshConnections.current[session.id] = connection;
-          
-          // Initialize terminal if not already initialized
-          if (!terminalInstances.current[session.id]) {
-            setTimeout(() => {
-              initializeTerminal(session.id, session);
-            }, 100);
-          }
-          
-          setSessions(prev => prev.map(s => 
-            s.id === session.id ? { ...s, isConnected: true } : s
-          ));
-        } else if (session.connectionType === 'serial') {
-          const connection = new SerialConnection();
-          await connection.connect(session.id, {
-            path: session.serialPort,
-            baudRate: parseInt(session.baudRate),
-            dataBits: parseInt(session.dataBits || '8'),
-            stopBits: parseInt(session.stopBits || '1'),
-            parity: session.parity || 'none',
-            flowControl: session.flowControl || 'none'
-          });
-          sshConnections.current[session.id] = connection;
-          
-          // Initialize terminal if not already initialized
-          if (!terminalInstances.current[session.id]) {
-            setTimeout(() => {
-              initializeTerminal(session.id, session);
-            }, 100);
-          }
-          
-          setSessions(prev => prev.map(s => 
-            s.id === session.id ? { ...s, isConnected: true } : s
-          ));
-        }
-      } catch (error) {
-        console.error(`Failed to connect session ${session.id}:`, error);
-        alert(`Failed to connect ${session.name}: ${error.message}`);
-      }
-    }
-  };
-
-  // Drag and drop handlers - memoized
-  const handleDragStart = useCallback((e, sessionId) => {
-    setDraggedSessionId(sessionId);
-    e.dataTransfer.effectAllowed = 'move';
-  }, []);
-
-  const handleDragOver = useCallback((e, groupId) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    setDragOverGroupId(groupId);
-  }, []);
-
-  const handleDragLeave = useCallback(() => {
-    setDragOverGroupId(null);
-  }, []);
-
-  const handleDrop = async (e, groupId) => {
-    e.preventDefault();
-    
-    // Check if it's a saved session from Session List
-    try {
-      const data = e.dataTransfer.getData('application/json');
-      if (data) {
-        const dragData = JSON.parse(data);
-        if (dragData.type === 'saved-session') {
-          // Add saved session to group without connecting
-          const conn = dragData.connection;
-          
-          // Check if session already exists (already connected)
-          const existingSession = sessions.find(s => {
-            const connType = conn.connectionType || 'ssh';
-            if (connType === 'serial') {
-              return s.connectionType === 'serial' && s.serialPort === conn.serialPort;
-            } else {
-              return s.host === conn.host && 
-                     s.user === conn.user && 
-                     (s.port || '22') === (conn.port || '22') &&
-                     s.connectionType === 'ssh';
-            }
-          });
-          
-          if (existingSession) {
-            // Session already exists and is connected, add sessionId to group
-            addSessionToGroup(existingSession.id, groupId);
-          } else {
-            // Session not connected yet, add connection info to group's savedSessions
-            addSavedSessionToGroup(conn, groupId);
-          }
-        } else if (draggedSessionId && groupId) {
-          // It's an active session
-          addSessionToGroup(draggedSessionId, groupId);
-        }
-      } else if (draggedSessionId && groupId) {
-        // Fallback for active sessions
-        addSessionToGroup(draggedSessionId, groupId);
-      }
-    } catch (error) {
-      console.error('Error handling drop:', error);
-      // Fallback
-      if (draggedSessionId && groupId) {
-        addSessionToGroup(draggedSessionId, groupId);
-      }
-    }
-    
-    setDraggedSessionId(null);
-    setDragOverGroupId(null);
-  };
-
-  const handleDropOnNewGroup = async (e) => {
-    e.preventDefault();
-    
-    // Check if it's a saved session from Session List
-    try {
-      const data = e.dataTransfer.getData('application/json');
-      if (data) {
-        const dragData = JSON.parse(data);
-        if (dragData.type === 'saved-session') {
-          // Connect the session first, then show dialog to create group
-          const conn = dragData.connection;
-          
-          // Check if session already exists
-          const existingSession = sessions.find(s => {
-            const connType = conn.connectionType || 'ssh';
-            if (connType === 'serial') {
-              return s.connectionType === 'serial' && s.serialPort === conn.serialPort;
-            } else {
-              return s.host === conn.host && 
-                     s.user === conn.user && 
-                     (s.port || '22') === (conn.port || '22') &&
-                     s.connectionType === 'ssh';
-            }
-          });
-          
-          if (existingSession) {
-            // Session already exists, show dialog to create group
-            setPendingSessionForGroup({ type: 'existing', sessionId: existingSession.id });
-            setShowGroupNameDialog(true);
-          } else {
-            // Create new session first
-            const oldForm = { ...connectionForm };
-            setConnectionForm({
-              connectionType: conn.connectionType || 'ssh',
-              host: conn.host || '',
-              port: conn.port || '22',
-              user: conn.user || '',
-              password: conn.password || '',
-              sessionName: conn.sessionName || conn.name || '',
-              savePassword: !!conn.password,
-              serialPort: conn.serialPort || '',
-              baudRate: conn.baudRate || '9600',
-              dataBits: conn.dataBits || '8',
-              stopBits: conn.stopBits || '1',
-              parity: conn.parity || 'none',
-              flowControl: conn.flowControl || 'none'
-            });
-            
-            try {
-              const sessionId = await createNewSession(true); // Don't reset form
-              // Show dialog to create group
-              if (sessionId) {
-                setPendingSessionForGroup({ type: 'new', sessionId: sessionId, connection: conn });
-                setShowGroupNameDialog(true);
-              }
-              // Restore form
-              setConnectionForm(oldForm);
-            } catch (error) {
-              console.error('Failed to create session from drop:', error);
-              setConnectionForm(oldForm);
-            }
-          }
-        } else if (draggedSessionId) {
-          // It's an active session, show dialog
-          setPendingSessionForGroup({ type: 'existing', sessionId: draggedSessionId });
-          setShowGroupNameDialog(true);
-        }
-      } else if (draggedSessionId) {
-        // Fallback for active sessions
-        setPendingSessionForGroup({ type: 'existing', sessionId: draggedSessionId });
-        setShowGroupNameDialog(true);
-      }
-    } catch (error) {
-      console.error('Error handling drop on new group:', error);
-      // Fallback
-      if (draggedSessionId) {
-        setPendingSessionForGroup({ type: 'existing', sessionId: draggedSessionId });
-        setShowGroupNameDialog(true);
-      }
-    }
-    
-    setDraggedSessionId(null);
-    setDragOverGroupId(null);
-  };
 
   const handleCreateGroupFromDialog = () => {
     if (pendingSessionForGroup) {
@@ -1042,244 +340,27 @@ function App() {
     setShowConnectionForm(true);
   };
 
-  // Create connectionId to sessionId mapping for O(1) lookup
-  const connectionIdMap = useRef(new Map());
+  // SSH/Serial data handling and detached session events are now in useTerminalManagement and useConnectionManagement hooks
 
-  // Update connectionId map when connections change
+
+
+
+
+  // Serial data handling is now in useTerminalManagement hook
+  // Handle serial close to update session state
   useEffect(() => {
-    const map = new Map();
-    Object.entries(sshConnections.current).forEach(([sessionId, conn]) => {
-      if (conn.connectionId) {
-        map.set(conn.connectionId, sessionId);
-      }
-    });
-    connectionIdMap.current = map;
-  }, [sessions]);
-
-  useEffect(() => {
-    const handleSshData = (event, { connectionId, data }) => {
-      // Fast O(1) lookup instead of O(n) find
-      const sessionId = connectionIdMap.current.get(connectionId);
-      
-      if (sessionId && terminalInstances.current[sessionId]) {
-        const terminal = terminalInstances.current[sessionId];
-        
-        // Write to terminal immediately using requestAnimationFrame for optimal rendering
-        // This ensures the write happens in the next frame but doesn't block
-        if (data.length < 1024) {
-          // Small data: write immediately for lowest latency
-          terminal.write(data);
-        } else {
-          // Large data: use requestAnimationFrame to avoid blocking
-          requestAnimationFrame(() => {
-            terminal.write(data);
-          });
-        }
-        
-        // Log asynchronously without blocking display - use startTransition
-        if (sessionLogs.current[sessionId] && sessionLogs.current[sessionId].isLogging) {
-          startTransition(() => {
-            appendToLog(sessionId, data);
-          });
-        }
-      }
-    };
-
-    const handleSshClose = (event, { connectionId }) => {
-      // Fast O(1) lookup
-      const sessionId = connectionIdMap.current.get(connectionId);
-      
-      if (sessionId && terminalInstances.current[sessionId]) {
-        terminalInstances.current[sessionId].write('\r\nSSH connection closed.\r\n');
-      }
-    };
-
-    window.electronAPI.onSSHData(handleSshData);
-    window.electronAPI.onSSHClose(handleSshClose);
-
-    return () => {
-      window.electronAPI.offSSHData(handleSshData);
-      window.electronAPI.offSSHClose(handleSshClose);
-    };
-  }, []); // Register once
-
-  // Handle detached session events
-  useEffect(() => {
-    // Listen for session to be removed (when detached)
-    const handleRemoveDetachedSession = (sessionId) => {
-      console.log('Removing detached session:', sessionId);
-      
-      // Use functional updates to avoid stale closure issues
-      setSessions(prev => {
-        const session = prev.find(s => s.id === sessionId);
-        
-        // Disconnect the connection in the original window
-        // (new window will reconnect automatically)
-        if (session && sshConnections.current[sessionId]) {
-          sshConnections.current[sessionId].disconnect();
-          delete sshConnections.current[sessionId];
-        }
-        
-        // Clean up local references
-        if (terminalInstances.current[sessionId]) {
-          terminalInstances.current[sessionId].dispose();
-          delete terminalInstances.current[sessionId];
-        }
-        if (fitAddons.current[sessionId]) {
-          delete fitAddons.current[sessionId];
-        }
-        if (sessionLogs.current[sessionId]) {
-          delete sessionLogs.current[sessionId];
-        }
-        if (logStates[sessionId]) {
-          setLogStates(prevStates => {
-            const newStates = { ...prevStates };
-            delete newStates[sessionId];
-            return newStates;
-          });
-        }
-        
-        // Remove from sessions list
-        const remainingSessions = prev.filter(s => s.id !== sessionId);
-        
-        // Update active session if needed
-        setActiveSessionId(currentActiveId => {
-          if (currentActiveId === sessionId) {
-            return remainingSessions.length > 0 ? remainingSessions[0].id : null;
-          }
-          return currentActiveId;
-        });
-        
-        return remainingSessions;
-      });
-    };
-
-    // Listen for detached session data (when receiving in new window)
-    const handleDetachedSession = async (sessionData) => {
-      try {
-        const session = JSON.parse(sessionData);
-        console.log('Received detached session:', session);
-        
-        // Mark as disconnected since connection objects can't be transferred
-        const newSession = { ...session, isConnected: false };
-        
-        // Add session to this window
-        setSessions(prev => [...prev, newSession]);
-        setActiveSessionId(newSession.id);
-        
-        // Try to reconnect automatically if it was connected
-        if (session.isConnected) {
-          // Small delay to ensure terminal is initialized
-          setTimeout(async () => {
-            try {
-              if (newSession.connectionType === 'ssh') {
-                // Get password from connection history if not in session
-                let password = newSession.password;
-                if (!password) {
-                  const historyEntry = connectionHistory.find(c => 
-                    c.connectionType === 'ssh' &&
-                    c.host === newSession.host && 
-                    c.user === newSession.user && 
-                    (c.port || '22') === (newSession.port || '22')
-                  );
-                  password = historyEntry?.password || '';
-                }
-                
-                if (!password) {
-                  console.warn('No password available for reconnection, marking as disconnected');
-                  setSessions(prev => prev.map(s => 
-                    s.id === newSession.id ? { ...s, isConnected: false } : s
-                  ));
-                  return;
-                }
-                
-                const connection = new SSHConnection();
-                await connection.connect(newSession.host, newSession.port, newSession.user, password);
-                sshConnections.current[newSession.id] = connection;
-                await connection.startShell();
-                
-                setSessions(prev => prev.map(s => 
-                  s.id === newSession.id ? { ...s, isConnected: true } : s
-                ));
-                
-                // Initialize terminal
-                setTimeout(() => {
-                  initializeTerminal(newSession.id, newSession);
-                }, 100);
-              } else if (newSession.connectionType === 'serial') {
-                // Serial reconnection would go here
-                setSessions(prev => prev.map(s => 
-                  s.id === newSession.id ? { ...s, isConnected: false } : s
-                ));
-              }
-            } catch (error) {
-              console.error('Failed to reconnect detached session:', error);
-              setSessions(prev => prev.map(s => 
-                s.id === newSession.id ? { ...s, isConnected: false } : s
-              ));
-            }
-          }, 500);
-        }
-      } catch (error) {
-        console.error('Failed to parse detached session:', error);
-      }
-    };
-
-    window.electronAPI.onRemoveDetachedSession(handleRemoveDetachedSession);
-    window.electronAPI.onDetachedSession(handleDetachedSession);
-
-    return () => {
-      window.electronAPI.offRemoveDetachedSession(handleRemoveDetachedSession);
-      window.electronAPI.offDetachedSession(handleDetachedSession);
-    };
-  }, []);
-
-
-
-
-
-  // Global event listeners - register once
-  useEffect(() => {
-
-    const handleSerialData = (event, receivedSessionId, data) => {
-      if (terminalInstances.current[receivedSessionId]) {
-        const terminal = terminalInstances.current[receivedSessionId];
-        
-        // Write to terminal immediately for better responsiveness
-        // Use same optimization as SSH data
-        if (data.length < 1024) {
-          terminal.write(data);
-        } else {
-          requestAnimationFrame(() => {
-            terminal.write(data);
-          });
-        }
-        
-        // Log asynchronously without blocking display - use startTransition
-        if (sessionLogs.current[receivedSessionId]?.isLogging) {
-          startTransition(() => {
-            appendToLog(receivedSessionId, data);
-          });
-        }
-      }
-    };
-
     const handleSerialClose = (event, receivedSessionId) => {
-      if (terminalInstances.current[receivedSessionId]) {
-        terminalInstances.current[receivedSessionId].write('\r\nSerial connection closed.\r\n');
-        setSessions(prev => prev.map(s => 
-          s.id === receivedSessionId ? { ...s, isConnected: false } : s
-        ));
-      }
+      setSessions(prev => prev.map(s => 
+        s.id === receivedSessionId ? { ...s, isConnected: false } : s
+      ));
     };
 
-    window.electronAPI.onSerialData(handleSerialData);
     window.electronAPI.onSerialClose(handleSerialClose);
 
     return () => {
-      // Cleanup happens automatically on component unmount
+      window.electronAPI.offSerialClose(handleSerialClose);
     };
-  }, []); // Register once
+  }, []);
 
   // Process pending group additions when sessions are available
   useEffect(() => {
@@ -1321,95 +402,7 @@ function App() {
     }
   }, [activeSessionId, sessions]);
 
-  // Adjust terminal size on window resize and container size changes
-  useEffect(() => {
-    let resizeObserver;
-    
-    // Debounce function for window resize (throttle to reduce frequency)
-    function throttle(func, wait) {
-      let timeout;
-      let lastCall = 0;
-      return function executedFunction(...args) {
-        const now = Date.now();
-        const timeSinceLastCall = now - lastCall;
-        
-        if (timeSinceLastCall >= wait) {
-          lastCall = now;
-          func(...args);
-        } else {
-          clearTimeout(timeout);
-          timeout = setTimeout(() => {
-            lastCall = Date.now();
-            func(...args);
-          }, wait - timeSinceLastCall);
-        }
-      };
-    }
-
-    // Window resize handler with throttle (100ms)
-    // resizeTerminal already uses requestAnimationFrame internally, so no need to wrap again
-    const throttledResize = throttle(() => {
-      resizeTerminal();
-    }, 100);
-
-    // Use ResizeObserver to detect terminal container size changes
-    // ResizeObserver is already efficient and fires at optimal times
-    const terminalContainer = document.querySelector('.terminal-content-container');
-    if (terminalContainer) {
-      resizeObserver = new ResizeObserver((entries) => {
-        // ResizeObserver already batches changes, so we can call resizeTerminal directly
-        // resizeTerminal internally uses requestAnimationFrame for batching
-        resizeTerminal();
-      });
-      
-      resizeObserver.observe(terminalContainer);
-      
-      // Also observe the terminal area for layout changes
-      const terminalArea = document.querySelector('.terminal-area');
-      if (terminalArea) {
-        resizeObserver.observe(terminalArea);
-      }
-    }
-
-    // Listen to window resize events (throttled)
-    window.addEventListener('resize', throttledResize);
-    
-    return () => {
-      window.removeEventListener('resize', throttledResize);
-      if (resizeObserver) {
-        resizeObserver.disconnect();
-      }
-      // Cancel pending resize animation frame
-      if (pendingResizeRef.current !== null) {
-        cancelAnimationFrame(pendingResizeRef.current);
-        pendingResizeRef.current = null;
-      }
-    };
-  }, [activeSessionId, resizeTerminal]); // Re-register when active session changes
-
-  // Global keyboard shortcut for search (Ctrl+F / Cmd+F)
-  useEffect(() => {
-    const handleKeyDown = (event) => {
-      // Ctrl+F or Cmd+F - open search bar
-      if ((event.ctrlKey || event.metaKey) && (event.key === 'f' || event.key === 'F')) {
-        // Only open search if there's an active session and we're not in an input field
-        if (activeSessionId && !event.target.matches('input, textarea')) {
-          setShowSearchBar(true);
-          event.preventDefault();
-        }
-      }
-      // Escape - close search bar
-      if (event.key === 'Escape' && showSearchBar) {
-        setShowSearchBar(false);
-        event.preventDefault();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [activeSessionId, showSearchBar]);
+  // Terminal resize and keyboard shortcuts are now in useTerminalManagement and useKeyboardShortcuts hooks
 
   // Memoize activeSession to avoid recalculation on every render
   const activeSession = useMemo(() => 
@@ -1464,166 +457,21 @@ function App() {
     if (showConnectionForm && connectionForm.connectionType === 'serial') {
       loadSerialPorts();
     }
-  }, [showConnectionForm, connectionForm.connectionType]);
+  }, [showConnectionForm, connectionForm.connectionType, loadSerialPorts]);
 
-  // Handle system menu events
-  useEffect(() => {
-    // New session menu event
-    window.electronAPI.onMenuNewSession(() => {
-      setShowConnectionForm(true);
-    });
+  // Menu handlers hook
+  useMenuHandlers({
+    activeSessionId,
+    setShowConnectionForm,
+    setShowSettings,
+    setShowSessionManager,
+    setSessionManagerWidth,
+    setShowAboutDialog,
+    setAppInfo,
+    disconnectSession,
+    resizeTerminal
+  });
 
-    // Close session menu event
-    window.electronAPI.onMenuCloseSession(() => {
-      if (activeSessionId) {
-        disconnectSession(activeSessionId);
-      }
-    });
-
-    // Settings menu event
-    window.electronAPI.onMenuSettings(() => {
-      setShowSettings(true);
-    });
-
-    // Toggle session manager menu event
-    window.electronAPI.onMenuToggleSessionManager((event, checked) => {
-      setShowSessionManager(checked);
-      // Reset to default width when showing
-      if (checked && sessionManagerWidth === 0) {
-        setSessionManagerWidth(250);
-      }
-      
-      // Resize terminal after toggle
-      setTimeout(resizeTerminal, 350); // Wait for CSS transition to complete
-    });
-
-    // Update status log listener (for debugging)
-    window.electronAPI.onUpdateStatusLog?.((status) => {
-      console.log('[UPDATE STATUS]', status);
-    });
-
-    // Update available event
-    window.electronAPI.onUpdateAvailable?.((data) => {
-      console.log('[UPDATE] Update available:', data);
-      console.log('[UPDATE] Version:', data.version);
-      console.log('[UPDATE] Release date:', data.releaseDate);
-      console.log('[UPDATE] Download will start automatically...');
-      // TODO: Show notification to user
-    });
-
-    // Update download progress event
-    window.electronAPI.onUpdateDownloadProgress?.((data) => {
-      console.log('[UPDATE] Download progress:', Math.round(data.percent), '%');
-      console.log('[UPDATE] Transferred:', (data.transferred / 1024 / 1024).toFixed(2), 'MB');
-      console.log('[UPDATE] Total:', (data.total / 1024 / 1024).toFixed(2), 'MB');
-      console.log('[UPDATE] Speed:', (data.bytesPerSecond / 1024 / 1024).toFixed(2), 'MB/s');
-      // TODO: Show progress bar to user
-    });
-
-    // Update downloaded event
-    window.electronAPI.onUpdateDownloaded?.((data) => {
-      console.log('[UPDATE] Update downloaded successfully!');
-      console.log('[UPDATE] Version:', data.version);
-      console.log('[UPDATE] The update will be installed when you quit the app.');
-      console.log('[UPDATE] Or call window.electronAPI.quitAndInstall() to install now.');
-      // TODO: Show notification with install button
-    });
-
-    // Update error event
-    window.electronAPI.onUpdateError?.((data) => {
-      console.error('[UPDATE] Update error:', data);
-      console.error('[UPDATE] Error code:', data.code);
-      console.error('[UPDATE] Error message:', data.message);
-    });
-
-    // Check for Updates menu event
-    window.electronAPI.onMenuCheckUpdates(async () => {
-      try {
-        const result = await window.electronAPI.checkForUpdates();
-        if (result.success) {
-          if (result.updateInfo) {
-            console.log('Update available:', result.updateInfo.version);
-            // Update will be handled automatically by update-handler.js
-          } else {
-            console.log('No updates available');
-            // Could show a notification here
-          }
-        } else {
-          console.error('Update check failed:', result.error);
-        }
-      } catch (error) {
-        console.error('Failed to check for updates:', error);
-      }
-    });
-
-    // About menu event
-    window.electronAPI.onMenuAbout(async () => {
-      // Load app info if not already loaded
-      try {
-        const info = await window.electronAPI.getAppInfo();
-        if (info.success) {
-          setAppInfo({
-            version: info.version,
-            author: info.author,
-          });
-        }
-      } catch (error) {
-        console.error('Failed to get app info:', error);
-      }
-      setShowAboutDialog(true);
-    });
-
-    return () => {
-      // Clean up event listeners
-      window.electronAPI.removeAllListeners('menu-new-session');
-      window.electronAPI.removeAllListeners('menu-close-session');
-      window.electronAPI.removeAllListeners('menu-toggle-session-manager');
-      window.electronAPI.removeAllListeners('menu-settings');
-      window.electronAPI.removeAllListeners('menu-check-updates');
-      window.electronAPI.removeAllListeners('menu-about');
-      window.electronAPI.removeAllListeners('update-status-log');
-      window.electronAPI.removeAllListeners('update-available');
-      window.electronAPI.removeAllListeners('update-download-progress');
-      window.electronAPI.removeAllListeners('update-downloaded');
-      window.electronAPI.removeAllListeners('update-error');
-    };
-  }, [activeSessionId]);
-
-  // Window controls (Windows/Linux only)
-  useEffect(() => {
-    if (!isWindows) return;
-
-    // Check initial maximized state
-    window.electronAPI.windowIsMaximized().then((result) => {
-      setIsMaximized(result.isMaximized);
-    });
-
-    // Listen for maximize/unmaximize events
-    window.electronAPI.onWindowMaximized(() => {
-      setIsMaximized(true);
-    });
-    window.electronAPI.onWindowUnmaximized(() => {
-      setIsMaximized(false);
-    });
-
-    return () => {
-      window.electronAPI.removeAllListeners('window-maximized');
-      window.electronAPI.removeAllListeners('window-unmaximized');
-    };
-  }, [isWindows]);
-
-  // Window control handlers - memoized
-  const handleMinimize = useCallback(async () => {
-    await window.electronAPI.windowMinimize();
-  }, []);
-
-  const handleMaximize = useCallback(async () => {
-    await window.electronAPI.windowMaximize();
-  }, []);
-
-  const handleClose = useCallback(async () => {
-    await window.electronAPI.windowClose();
-  }, []);
 
   // Memoized handlers for modals
   const handleShowSettings = useCallback(() => setShowSettings(true), []);
