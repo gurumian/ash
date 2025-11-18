@@ -31,7 +31,7 @@ export const ConnectionForm = memo(function ConnectionForm({
           </button>
         </div>
         
-        <form onSubmit={onSubmit}>
+        <form onSubmit={onSubmit} noValidate>
           <div className="form-group">
             <label>Connection Type</label>
             <div className="connection-type-selector">

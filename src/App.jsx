@@ -319,7 +319,7 @@ function App() {
         });
       } else if (formData.connectionType === 'serial') {
         connection = new SerialConnection();
-        await connection.connect({
+        await connection.connect(sessionId, {
           path: formData.serialPort,
           baudRate: parseInt(formData.baudRate),
           dataBits: parseInt(formData.dataBits),
@@ -614,7 +614,8 @@ function App() {
         // but don't wait - send immediately for lowest latency
         const connection = sshConnections.current[sessionId];
         if (connection) {
-          // Direct write - no async, no promises, no React state updates
+          // Direct write - works for both SSH and Serial connections
+          // SerialConnection.write() calls window.electronAPI.serialWrite() synchronously
           connection.write(data);
         }
         
@@ -799,7 +800,7 @@ function App() {
           ));
         } else if (session.connectionType === 'serial') {
           const connection = new SerialConnection();
-          await connection.connect({
+          await connection.connect(session.id, {
             path: session.serialPort,
             baudRate: parseInt(session.baudRate),
             dataBits: parseInt(session.dataBits || '8'),
@@ -1591,8 +1592,9 @@ function App() {
   const handleConnectionFormSubmit = useCallback((e) => {
     e.preventDefault();
     setFormError('');
-    createNewSession();
-  }, []); // createNewSession is stable (uses connectionForm from closure)
+    // Use connectionForm directly to ensure we have the latest state
+    createNewSessionWithData(connectionForm);
+  }, [connectionForm]); // Include connectionForm in dependencies
   const handleConnectionTypeChange = useCallback((type) => {
     setConnectionForm(prev => ({ ...prev, connectionType: type }));
   }, []);

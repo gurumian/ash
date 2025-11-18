@@ -8,9 +8,9 @@ export class SerialConnection {
     this.sessionId = null;
   }
 
-  async connect(options) {
+  async connect(sessionId, options) {
     try {
-      this.sessionId = Date.now().toString();
+      this.sessionId = sessionId;
       const result = await window.electronAPI.serialConnect(this.sessionId, options);
       
       if (result.success) {
