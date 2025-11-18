@@ -1,7 +1,7 @@
 {
   "name": "ash",
   "productName": "ash",
-  "version": "1.0.13",
+  "version": "1.0.14",
   "description": "A modern SSH client built with Electron and React",
   "main": ".vite/build/main.js",
   "scripts": {
