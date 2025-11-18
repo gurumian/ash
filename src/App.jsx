@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo, startTransition } from 'react';
 import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
 import './App.css';
@@ -373,8 +373,6 @@ function App() {
     
     const cols = Math.floor(terminalElement.clientWidth / charWidth);
     const rows = Math.floor(terminalElement.clientHeight / charHeight);
-    
-    console.log(`Terminal init: ${cols}x${rows} (container: ${terminalElement.clientWidth}x${terminalElement.clientHeight}, font: ${fontSize}px, char: ${charWidth}x${charHeight}px)`);
 
     // Get the current theme configuration
     const currentTheme = themes[theme].terminal;
@@ -393,7 +391,16 @@ function App() {
       fontWeight: 'normal',
       fontWeightBold: 'bold',
       letterSpacing: 0,
-      lineHeight: 1.0
+      lineHeight: 1.0,
+      // Performance optimizations
+      fastScrollModifier: 'shift', // Enable fast scroll with Shift key
+      macOptionIsMeta: false,
+      macOptionClickForcesSelection: false,
+      disableStdin: false, // Keep input enabled
+      cursorStyle: 'block',
+      // Reduce rendering overhead
+      allowProposedApi: false,
+      allowTransparency: false
     });
 
     const fitAddon = new FitAddon();
@@ -437,15 +444,21 @@ function App() {
     if (!terminalInputHandlers.current[sessionId]) {
       terminalInputHandlers.current[sessionId] = (data) => {
         // CRITICAL: Send data immediately - highest priority, no blocking
+        // Use requestAnimationFrame to ensure input is processed in next frame
+        // but don't wait - send immediately for lowest latency
         const connection = sshConnections.current[sessionId];
         if (connection) {
+          // Direct write - no async, no promises, no React state updates
           connection.write(data);
         }
         
         // Log synchronously but non-blocking - optimized append
         // appendToLog is now synchronous and fast, flush happens asynchronously
+        // Use startTransition to mark logging as low priority
         if (sessionLogs.current[sessionId]?.isLogging) {
-          appendToLog(sessionId, data);
+          startTransition(() => {
+            appendToLog(sessionId, data);
+          });
         }
       };
     }
@@ -862,13 +875,25 @@ function App() {
       const sessionId = connectionIdMap.current.get(connectionId);
       
       if (sessionId && terminalInstances.current[sessionId]) {
-        // Write to terminal immediately - highest priority
-        terminalInstances.current[sessionId].write(data);
+        const terminal = terminalInstances.current[sessionId];
         
-        // Log asynchronously without blocking display
+        // Write to terminal immediately using requestAnimationFrame for optimal rendering
+        // This ensures the write happens in the next frame but doesn't block
+        if (data.length < 1024) {
+          // Small data: write immediately for lowest latency
+          terminal.write(data);
+        } else {
+          // Large data: use requestAnimationFrame to avoid blocking
+          requestAnimationFrame(() => {
+            terminal.write(data);
+          });
+        }
+        
+        // Log asynchronously without blocking display - use startTransition
         if (sessionLogs.current[sessionId] && sessionLogs.current[sessionId].isLogging) {
-          // Use optimized synchronous append
-          appendToLog(sessionId, data);
+          startTransition(() => {
+            appendToLog(sessionId, data);
+          });
         }
       }
     };
@@ -1031,12 +1056,23 @@ function App() {
 
     const handleSerialData = (event, receivedSessionId, data) => {
       if (terminalInstances.current[receivedSessionId]) {
-        // Write to terminal immediately for better responsiveness
-        terminalInstances.current[receivedSessionId].write(data);
+        const terminal = terminalInstances.current[receivedSessionId];
         
-        // Log synchronously but non-blocking - optimized append
+        // Write to terminal immediately for better responsiveness
+        // Use same optimization as SSH data
+        if (data.length < 1024) {
+          terminal.write(data);
+        } else {
+          requestAnimationFrame(() => {
+            terminal.write(data);
+          });
+        }
+        
+        // Log asynchronously without blocking display - use startTransition
         if (sessionLogs.current[receivedSessionId]?.isLogging) {
-          appendToLog(receivedSessionId, data);
+          startTransition(() => {
+            appendToLog(receivedSessionId, data);
+          });
         }
       }
     };

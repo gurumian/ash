@@ -508,11 +508,17 @@ button, a, input, select, textarea, [role="button"] {
   /* Performance optimizations */
   will-change: contents;
   transform: translateZ(0); /* Force GPU acceleration */
+  contain: layout style paint; /* CSS containment for better performance */
+  isolation: isolate; /* Create new stacking context */
 }
 
 .terminal-content .xterm-viewport {
   background-color: #000000 !important;
   height: 100% !important;
+  /* Performance optimizations */
+  transform: translateZ(0); /* Force GPU acceleration */
+  will-change: scroll-position;
+  contain: layout style paint;
 }
 
 /* Custom scrollbar styling - black theme */
@@ -545,6 +551,9 @@ button, a, input, select, textarea, [role="button"] {
 .terminal-content .xterm-screen {
   background-color: #000000 !important;
   height: 100% !important;
+  /* Performance optimizations */
+  transform: translateZ(0); /* Force GPU acceleration */
+  contain: layout style paint;
 }
 
 /* Ensure default text is green - let xterm theme handle other colors */
