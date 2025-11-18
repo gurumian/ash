@@ -375,10 +375,7 @@ function App() {
 
     // Clean up existing terminal if it exists
     if (terminalInstances.current[sessionId]) {
-      // Remove old input handler before disposal
-      if (terminalInputHandlers.current[sessionId]) {
-        terminalInstances.current[sessionId].off('data', terminalInputHandlers.current[sessionId]);
-      }
+      // Dispose terminal - this automatically removes all event listeners
       terminalInstances.current[sessionId].dispose();
       delete terminalInstances.current[sessionId];
       delete terminalInputHandlers.current[sessionId];
@@ -537,13 +534,10 @@ function App() {
     }
     
     if (terminalInstances.current[sessionId]) {
-      // Remove input handler before disposal
-      if (terminalInputHandlers.current[sessionId]) {
-        terminalInstances.current[sessionId].off('data', terminalInputHandlers.current[sessionId]);
-        delete terminalInputHandlers.current[sessionId];
-      }
+      // Dispose terminal - this automatically removes all event listeners
       terminalInstances.current[sessionId].dispose();
       delete terminalInstances.current[sessionId];
+      delete terminalInputHandlers.current[sessionId];
     }
     
     // Clean up fit addon
