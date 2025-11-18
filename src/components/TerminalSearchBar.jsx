@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, memo } from 'react';
+import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
 
 /**
  * Terminal Search Bar component - Search functionality for terminal content
@@ -16,6 +16,7 @@ export const TerminalSearchBar = memo(function TerminalSearchBar({
   const [wholeWord, setWholeWord] = useState(false);
   const [regex, setRegex] = useState(false);
   const inputRef = useRef(null);
+  const currentMatchRef = useRef(0);
 
   // Focus input when search bar becomes visible
   useEffect(() => {
@@ -71,11 +72,14 @@ export const TerminalSearchBar = memo(function TerminalSearchBar({
       }
 
       setMatchCount(count);
-      setCurrentMatch(count > 0 ? 1 : 0);
+      const initialMatch = count > 0 ? 1 : 0;
+      setCurrentMatch(initialMatch);
+      currentMatchRef.current = initialMatch;
     } catch (error) {
       console.error('Error updating match info:', error);
       setMatchCount(0);
       setCurrentMatch(0);
+      currentMatchRef.current = 0;
     }
     };
 
@@ -92,28 +96,41 @@ export const TerminalSearchBar = memo(function TerminalSearchBar({
       searchAddon.clearDecorations();
       setMatchCount(0);
       setCurrentMatch(0);
+      currentMatchRef.current = 0;
     }
   }, [searchTerm, caseSensitive, wholeWord, regex, searchAddon, terminal]);
 
-  const handleFindNext = () => {
-    if (!searchAddon || !searchTerm) return;
+  const handleFindNext = useCallback(() => {
+    if (!searchAddon || !searchTerm || matchCount === 0) return;
     const options = {
       caseSensitive,
       wholeWord,
       regex
     };
     searchAddon.findNext(searchTerm, options);
-  };
+    // Update current match index (circular: wrap to 1 if at end)
+    setCurrentMatch(prev => {
+      const next = prev >= matchCount ? 1 : prev + 1;
+      currentMatchRef.current = next;
+      return next;
+    });
+  }, [searchAddon, searchTerm, matchCount, caseSensitive, wholeWord, regex]);
 
-  const handleFindPrevious = () => {
-    if (!searchAddon || !searchTerm) return;
+  const handleFindPrevious = useCallback(() => {
+    if (!searchAddon || !searchTerm || matchCount === 0) return;
     const options = {
       caseSensitive,
       wholeWord,
       regex
     };
     searchAddon.findPrevious(searchTerm, options);
-  };
+    // Update current match index (circular: wrap to matchCount if at start)
+    setCurrentMatch(prev => {
+      const next = prev <= 1 ? matchCount : prev - 1;
+      currentMatchRef.current = next;
+      return next;
+    });
+  }, [searchAddon, searchTerm, matchCount, caseSensitive, wholeWord, regex]);
 
   const handleKeyDown = (e) => {
     if (e.key === 'Escape') {
