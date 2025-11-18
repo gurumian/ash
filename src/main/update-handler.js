@@ -1,5 +1,5 @@
 import { autoUpdater } from 'electron-updater';
-import { ipcMain, app } from 'electron';
+import { ipcMain, app, dialog, BrowserWindow } from 'electron';
 
 // Update server configuration
 const UPDATE_SERVER = 'https://cdn.toktoktalk.com';
@@ -16,8 +16,9 @@ autoUpdater.setFeedURL({
 });
 
 // Configure auto-updater behavior
-autoUpdater.autoDownload = true; // Automatically download updates
+autoUpdater.autoDownload = false; // Ask user before downloading (like FAC1)
 autoUpdater.autoInstallOnAppQuit = true; // Automatically install on app quit
+autoUpdater.logger = console; // Enable logging (like FAC1)
 
 // Only check for updates in production (not in development)
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
@@ -26,18 +27,80 @@ let checkOnStartupTimeout;
 
 // Check for updates 5 seconds after app is ready
 export function scheduleStartupCheck() {
+  console.log('scheduleStartupCheck called');
+  console.log('isDev:', isDev);
   if (isDev) {
     console.log('Auto-update is disabled in development mode');
+    console.log('To test updates, build the app with: npm run make');
     return;
   }
   
+  console.log('Scheduling update check in 5 seconds...');
   checkOnStartupTimeout = setTimeout(() => {
-    console.log('Checking for updates...');
+    const { BrowserWindow } = require('electron');
+    const status = {
+      message: 'Executing startup update check...',
+      timestamp: new Date().toISOString(),
+    };
+    
+    console.log('========================================');
+    console.log('Executing startup update check...');
+    console.log('========================================');
+    
+    // Send to renderer
+    BrowserWindow.getAllWindows().forEach(window => {
+      try {
+        if (!window.isDestroyed() && !window.webContents.isDestroyed()) {
+          window.webContents.send('update-status-log', status);
+        }
+      } catch (error) {
+        // Ignore errors
+      }
+    });
+    
     autoUpdater.checkForUpdatesAndNotify().catch(err => {
       console.error('Auto-update check failed:', err);
+      BrowserWindow.getAllWindows().forEach(window => {
+        try {
+          if (!window.isDestroyed() && !window.webContents.isDestroyed()) {
+            window.webContents.send('update-status-log', {
+              message: 'Update check failed',
+              error: err.message,
+              errorCode: err.code,
+            });
+          }
+        } catch (error) {
+          // Ignore errors
+        }
+      });
     });
   }, 5000);
 }
+
+// Variables for progress window (like FAC1)
+let progressWindow = null;
+let mainWindowRef = null;
+
+// Helper function to safely send messages to all windows
+const sendToAllWindows = (channel, data) => {
+  const { BrowserWindow } = require('electron');
+  BrowserWindow.getAllWindows().forEach(window => {
+    try {
+      // Check if window and webContents are still valid
+      if (!window.isDestroyed() && !window.webContents.isDestroyed()) {
+        window.webContents.send(channel, data);
+      }
+    } catch (error) {
+      // Silently ignore errors for destroyed windows
+      console.warn(`Failed to send ${channel} to window:`, error.message);
+    }
+  });
+};
+
+// Send update status to renderer for debugging
+const sendUpdateStatus = (status) => {
+  sendToAllWindows('update-status-log', status);
+};
 
 if (!isDev) {
   // Auto-check for updates every 4 hours
@@ -47,29 +110,201 @@ if (!isDev) {
     });
   }, 4 * 60 * 60 * 1000); // 4 hours
   
-  // Helper function to safely send messages to all windows
-  const sendToAllWindows = (channel, data) => {
-    const { BrowserWindow } = require('electron');
-    BrowserWindow.getAllWindows().forEach(window => {
-      try {
-        // Check if window and webContents are still valid
-        if (!window.isDestroyed() && !window.webContents.isDestroyed()) {
-          window.webContents.send(channel, data);
-        }
-      } catch (error) {
-        // Silently ignore errors for destroyed windows
-        console.warn(`Failed to send ${channel} to window:`, error.message);
-      }
-    });
-  };
-  
-  // Update available
+  // Update available - show dialog to user (like FAC1)
   autoUpdater.on('update-available', (info) => {
     console.log('Update available:', info.version);
+    
+    // Get main window reference
+    const { BrowserWindow } = require('electron');
+    mainWindowRef = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0];
+    
     sendToAllWindows('update-available', {
       version: info.version,
       releaseDate: info.releaseDate,
       releaseNotes: info.releaseNotes,
+    });
+
+    // Show dialog asking user if they want to download (like FAC1)
+    dialog.showMessageBox({
+      type: 'info',
+      title: 'Update Available',
+      message: `New version ${info.version} is available!`,
+      detail: `Current version: ${app.getVersion()}\nNew version: ${info.version}\n\nWould you like to download it now?`,
+      buttons: ['Download', 'Later'],
+      defaultId: 0,
+      cancelId: 1
+    }).then((result) => {
+      if (result.response === 0) {
+        console.log('User chose to download update');
+        
+        // Create progress window (like FAC1)
+        progressWindow = new BrowserWindow({
+          width: 450,
+          height: 200,
+          resizable: false,
+          minimizable: false,
+          maximizable: false,
+          fullscreenable: false,
+          title: 'Downloading Update',
+          parent: mainWindowRef,
+          modal: true,
+          show: false,
+          webPreferences: {
+            nodeIntegration: true,
+            contextIsolation: false
+          }
+        });
+
+        progressWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(`
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <style>
+              * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+              }
+              body {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+                padding: 0;
+                margin: 0;
+                background: #000000;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                height: 100vh;
+                width: 100vw;
+                overflow: hidden;
+              }
+              html {
+                overflow: hidden;
+              }
+              .container {
+                background: #1a1a1a;
+                padding: 30px 35px;
+                width: 100%;
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                border: 1px solid rgba(0, 255, 65, 0.2);
+              }
+              .header {
+                display: flex;
+                align-items: center;
+                margin-bottom: 20px;
+              }
+              .icon {
+                width: 40px;
+                height: 40px;
+                background: #00ff41;
+                border-radius: 10px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin-right: 15px;
+                flex-shrink: 0;
+              }
+              .icon::after {
+                content: '⬇';
+                color: #000000;
+                font-size: 24px;
+              }
+              h2 {
+                color: #00ff41;
+                font-size: 18px;
+                font-weight: 600;
+                margin: 0;
+              }
+              .progress-wrapper {
+                margin-bottom: 15px;
+              }
+              .progress-bar {
+                width: 100%;
+                height: 8px;
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 20px;
+                overflow: hidden;
+                position: relative;
+              }
+              .progress-fill {
+                height: 100%;
+                background: #00ff41;
+                border-radius: 20px;
+                transition: width 0.4s;
+              }
+              .stats {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-top: 12px;
+              }
+              .percent {
+                font-size: 24px;
+                font-weight: 700;
+                color: #00ff41;
+              }
+              .info {
+                display: flex;
+                gap: 20px;
+                color: #888;
+                font-size: 13px;
+              }
+              .info-item {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+              }
+              .speed {
+                color: #00ff41;
+                font-weight: 600;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <div class="icon"></div>
+                <h2>Downloading Update</h2>
+              </div>
+              <div class="progress-wrapper">
+                <div class="progress-bar">
+                  <div class="progress-fill" id="progress" style="width: 0%"></div>
+                </div>
+              </div>
+              <div class="stats">
+                <div class="percent" id="percent">0%</div>
+                <div class="info">
+                  <div class="info-item">
+                    <span id="downloaded">0 MB</span> / <span id="total">0 MB</span>
+                  </div>
+                  <div class="info-item speed" id="speed">0 MB/s</div>
+                </div>
+              </div>
+            </div>
+            <script>
+              const { ipcRenderer } = require('electron');
+              ipcRenderer.on('download-progress', (event, data) => {
+                document.getElementById('progress').style.width = data.percent + '%';
+                document.getElementById('percent').textContent = data.percent + '%';
+                document.getElementById('downloaded').textContent = data.downloaded + ' MB';
+                document.getElementById('total').textContent = data.total + ' MB';
+                document.getElementById('speed').textContent = data.speed + ' MB/s';
+              });
+            </script>
+          </body>
+          </html>
+        `)}`);
+
+        progressWindow.once('ready-to-show', () => {
+          progressWindow.show();
+        });
+
+        autoUpdater.downloadUpdate();
+      } else {
+        console.log('User postponed update');
+      }
     });
   });
   
@@ -81,6 +316,30 @@ if (!isDev) {
   
   // Update download progress
   autoUpdater.on('download-progress', (progressObj) => {
+    const percent = Math.round(progressObj.percent);
+    const speed = (progressObj.bytesPerSecond / 1024 / 1024).toFixed(2);
+    const downloaded = (progressObj.transferred / 1024 / 1024).toFixed(2);
+    const total = (progressObj.total / 1024 / 1024).toFixed(2);
+    
+    const message = `Downloading... ${percent}%`;
+    console.log(message);
+    console.log(`Speed: ${speed} MB/s - ${downloaded}MB / ${total}MB`);
+    
+    // Send progress to progress window (like FAC1)
+    if (progressWindow && !progressWindow.isDestroyed()) {
+      progressWindow.webContents.send('download-progress', {
+        percent,
+        speed,
+        downloaded,
+        total
+      });
+    }
+    
+    // Update taskbar progress
+    if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+      mainWindowRef.setProgressBar(progressObj.percent / 100);
+    }
+    
     sendToAllWindows('update-download-progress', {
       percent: progressObj.percent,
       transferred: progressObj.transferred,
@@ -92,23 +351,71 @@ if (!isDev) {
   // Update downloaded and ready to install
   autoUpdater.on('update-downloaded', (info) => {
     console.log('Update downloaded:', info.version);
+    
+    // Close progress window (like FAC1)
+    if (progressWindow && !progressWindow.isDestroyed()) {
+      progressWindow.close();
+      progressWindow = null;
+    }
+    
+    // Clear progress bar
+    if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+      mainWindowRef.setProgressBar(-1);
+    }
+    
     sendToAllWindows('update-downloaded', {
       version: info.version,
       releaseDate: info.releaseDate,
       releaseNotes: info.releaseNotes,
     });
+
+    // Show dialog asking user if they want to install now (like FAC1)
+    dialog.showMessageBox({
+      type: 'info',
+      title: 'Update Ready',
+      message: 'Update has been downloaded successfully!',
+      detail: `Version ${info.version} is ready to install.\n\nThe application will restart to complete the installation.`,
+      buttons: ['Restart Now', 'Restart Later'],
+      defaultId: 0,
+      cancelId: 1
+    }).then((result) => {
+      if (result.response === 0) {
+        console.log('User chose to restart and install');
+        autoUpdater.quitAndInstall();
+      } else {
+        console.log('User postponed restart - will install on next app start');
+      }
+    });
   });
   
   // Update error
-  autoUpdater.on('error', (error) => {
-    console.error('Auto-updater error:', error);
-    console.error('Error code:', error.code);
-    console.error('Error message:', error.message);
-    console.error('Error stack:', error.stack);
+  autoUpdater.on('error', (err) => {
+    console.error('Auto-updater error:', err);
+    
+    // Close progress window if open (like FAC1)
+    if (progressWindow && !progressWindow.isDestroyed()) {
+      progressWindow.close();
+      progressWindow = null;
+    }
+    
+    // Clear progress bar
+    if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+      mainWindowRef.setProgressBar(-1);
+    }
+    
     sendToAllWindows('update-error', {
-      message: error.message,
-      stack: error.stack,
-      code: error.code,
+      message: err.message,
+      stack: err.stack,
+      code: err.code,
+    });
+
+    // Show error dialog to user (like FAC1)
+    dialog.showMessageBox({
+      type: 'error',
+      title: 'Update Error',
+      message: 'Failed to check for updates',
+      detail: `Error: ${err.message || err}\n\nPlease try again later or download the update manually from our website.`,
+      buttons: ['OK']
     });
   });
   
@@ -126,6 +433,34 @@ if (!isDev) {
  * @param {Function} scheduleCheck - Function to call to schedule startup check
  */
 export function initializeUpdateHandlers(scheduleCheck) {
+  const { BrowserWindow } = require('electron');
+  
+  const status = {
+    message: 'Initializing update handlers...',
+    isDev,
+    isPackaged: app.isPackaged,
+    nodeEnv: process.env.NODE_ENV,
+    currentVersion: app.getVersion(),
+    updateUrl: `${UPDATE_SERVER}/update/${APP_NAME}`,
+  };
+  
+  console.log('Initializing update handlers...');
+  console.log('isDev:', isDev);
+  console.log('app.isPackaged:', app.isPackaged);
+  console.log('NODE_ENV:', process.env.NODE_ENV);
+  console.log('Current app version:', app.getVersion());
+  
+  // Send status to renderer for debugging
+  BrowserWindow.getAllWindows().forEach(window => {
+    try {
+      if (!window.isDestroyed() && !window.webContents.isDestroyed()) {
+        window.webContents.send('update-status-log', status);
+      }
+    } catch (error) {
+      // Ignore errors
+    }
+  });
+  
   // IPC handlers for manual update check (available in both dev and production)
   ipcMain.handle('check-for-updates', async () => {
     if (isDev) {
@@ -182,11 +517,15 @@ export function initializeUpdateHandlers(scheduleCheck) {
   
   // Schedule startup check (only in production)
   if (!isDev) {
+    console.log('Scheduling startup update check...');
     if (scheduleCheck) {
+      console.log('Calling scheduleStartupCheck function...');
       scheduleCheck();
     } else {
+      console.log('No scheduleCheck function provided, using default timeout...');
       // Default: check after 5 seconds
       setTimeout(() => {
+        console.log('Executing default startup update check...');
         autoUpdater.checkForUpdatesAndNotify().catch(err => {
           console.error('Auto-update check failed:', err);
         });
@@ -194,6 +533,7 @@ export function initializeUpdateHandlers(scheduleCheck) {
     }
   } else {
     console.log('Auto-update is disabled in development mode');
+    console.log('Note: Update checks will only work in production builds (app.isPackaged = true)');
   }
 }
 

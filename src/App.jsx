@@ -1318,6 +1318,45 @@ function App() {
       setTimeout(resizeTerminal, 350); // Wait for CSS transition to complete
     });
 
+    // Update status log listener (for debugging)
+    window.electronAPI.onUpdateStatusLog?.((status) => {
+      console.log('[UPDATE STATUS]', status);
+    });
+
+    // Update available event
+    window.electronAPI.onUpdateAvailable?.((data) => {
+      console.log('[UPDATE] Update available:', data);
+      console.log('[UPDATE] Version:', data.version);
+      console.log('[UPDATE] Release date:', data.releaseDate);
+      console.log('[UPDATE] Download will start automatically...');
+      // TODO: Show notification to user
+    });
+
+    // Update download progress event
+    window.electronAPI.onUpdateDownloadProgress?.((data) => {
+      console.log('[UPDATE] Download progress:', Math.round(data.percent), '%');
+      console.log('[UPDATE] Transferred:', (data.transferred / 1024 / 1024).toFixed(2), 'MB');
+      console.log('[UPDATE] Total:', (data.total / 1024 / 1024).toFixed(2), 'MB');
+      console.log('[UPDATE] Speed:', (data.bytesPerSecond / 1024 / 1024).toFixed(2), 'MB/s');
+      // TODO: Show progress bar to user
+    });
+
+    // Update downloaded event
+    window.electronAPI.onUpdateDownloaded?.((data) => {
+      console.log('[UPDATE] Update downloaded successfully!');
+      console.log('[UPDATE] Version:', data.version);
+      console.log('[UPDATE] The update will be installed when you quit the app.');
+      console.log('[UPDATE] Or call window.electronAPI.quitAndInstall() to install now.');
+      // TODO: Show notification with install button
+    });
+
+    // Update error event
+    window.electronAPI.onUpdateError?.((data) => {
+      console.error('[UPDATE] Update error:', data);
+      console.error('[UPDATE] Error code:', data.code);
+      console.error('[UPDATE] Error message:', data.message);
+    });
+
     // Check for Updates menu event
     window.electronAPI.onMenuCheckUpdates(async () => {
       try {
@@ -1363,6 +1402,11 @@ function App() {
       window.electronAPI.removeAllListeners('menu-settings');
       window.electronAPI.removeAllListeners('menu-check-updates');
       window.electronAPI.removeAllListeners('menu-about');
+      window.electronAPI.removeAllListeners('update-status-log');
+      window.electronAPI.removeAllListeners('update-available');
+      window.electronAPI.removeAllListeners('update-download-progress');
+      window.electronAPI.removeAllListeners('update-downloaded');
+      window.electronAPI.removeAllListeners('update-error');
     };
   }, [activeSessionId]);
 
