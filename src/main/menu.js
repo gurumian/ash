@@ -173,7 +173,12 @@ export function createMenu() {
       submenu: [
         {
           label: 'About ' + app.getName(),
-          role: 'about'
+          click: () => {
+            const focusedWindow = BrowserWindow.getFocusedWindow();
+            if (focusedWindow) {
+              focusedWindow.webContents.send('menu-about');
+            }
+          }
         },
         { type: 'separator' },
         {

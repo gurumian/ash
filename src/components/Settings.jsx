@@ -10,7 +10,8 @@ export const Settings = memo(function Settings({
   scrollbackLines,
   onChangeTheme,
   onChangeScrollbackLines,
-  onClose
+  onClose,
+  onShowAbout
 }) {
   if (!showSettings) return null;
 
@@ -111,9 +112,33 @@ export const Settings = memo(function Settings({
           <div className="settings-section">
             <h4>About</h4>
             <div className="about-info">
-              <p><strong>ash SSH Client</strong></p>
-              <p>Version 1.0.0</p>
-              <p>A modern SSH client built with Electron and React</p>
+              <p><strong>ash</strong></p>
+              <p>A modern SSH and Serial terminal client</p>
+              {onShowAbout && (
+                <button 
+                  className="about-button"
+                  onClick={() => {
+                    onClose();
+                    setTimeout(() => onShowAbout(), 100);
+                  }}
+                  style={{
+                    marginTop: '12px',
+                    padding: '8px 16px',
+                    backgroundColor: '#00ff41',
+                    color: '#000',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    transition: 'background-color 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.target.style.backgroundColor = '#00cc35'}
+                  onMouseLeave={(e) => e.target.style.backgroundColor = '#00ff41'}
+                >
+                  Show About
+                </button>
+              )}
             </div>
           </div>
         </div>

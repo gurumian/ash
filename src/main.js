@@ -5,7 +5,7 @@ import { createWindow } from './main/window.js';
 import { initializeSSHHandlers, cleanupSSHConnections } from './main/ssh-handler.js';
 import { initializeSerialHandlers, cleanupSerialConnections } from './main/serial-handler.js';
 import { initializeWindowHandlers } from './main/window-handler.js';
-import { initializeUpdateHandlers, cleanupUpdateHandlers } from './main/update-handler.js';
+import { initializeUpdateHandlers, cleanupUpdateHandlers, scheduleStartupCheck } from './main/update-handler.js';
 
 // Set app name
 app.setName('ash');
@@ -19,7 +19,6 @@ if (started) {
 initializeSSHHandlers();
 initializeSerialHandlers();
 initializeWindowHandlers();
-initializeUpdateHandlers();
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
@@ -27,6 +26,9 @@ initializeUpdateHandlers();
 app.whenReady().then(() => {
   createMenu(); // Create system menu
   createWindow();
+
+  // Initialize update handlers after app is ready
+  initializeUpdateHandlers(scheduleStartupCheck);
 
   // On OS X it's common to re-create a window in the app when the
   // dock icon is clicked and there are no other windows open.

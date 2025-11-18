@@ -75,85 +75,13 @@ html, body {
   pointer-events: auto;
 }
 
+
 /* Buttons and interactive elements should not be draggable */
 button, a, input, select, textarea, [role="button"] {
   -webkit-app-region: no-drag;
 }
 
-/* Custom titlebar for Windows/Linux (frameless window) */
-.custom-titlebar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 28px;
-  background: #000000;
-  border-bottom: 1px solid #1a1a1a;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 8px;
-  z-index: 2000;
-  -webkit-app-region: drag;
-  user-select: none;
-}
-
-.titlebar-title {
-  font-size: 12px;
-  color: #00ff41;
-  font-weight: 600;
-  opacity: 0.8;
-  -webkit-app-region: drag;
-}
-
-.titlebar-controls {
-  display: flex;
-  gap: 0;
-  -webkit-app-region: no-drag;
-}
-
-.titlebar-button {
-  width: 32px;
-  height: 28px;
-  background: transparent;
-  border: none;
-  color: #00ff41;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  transition: background 0.2s;
-  padding: 0;
-  line-height: 1;
-}
-
-.titlebar-button:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.titlebar-button.minimize-button:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.titlebar-button.maximize-button:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.titlebar-button.close-button:hover {
-  background: #ff4444;
-  color: #ffffff;
-}
-
-.titlebar-button span {
-  display: block;
-  width: 100%;
-  height: 100%;
-  line-height: 28px;
-  text-align: center;
-}
-
-/* UI menu bar removed due to system menu usage */
+/* Custom titlebar styles moved to CustomTitleBar.css */
 
 /* Main content area */
 .main-content {
@@ -247,6 +175,26 @@ button, a, input, select, textarea, [role="button"] {
 .new-session-btn:hover {
   background: var(--theme-accent, #00ff41);
   opacity: 0.8;
+}
+
+.about-btn {
+  background: var(--theme-border, #1a1a1a);
+  color: var(--theme-text, #00ff41);
+  border: 1px solid var(--theme-border, #1a1a1a);
+  border-radius: 3px;
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.about-btn:hover {
+  background: var(--theme-accent, #00ff41);
+  color: var(--theme-bg, #000000);
+  border-color: var(--theme-accent, #00ff41);
 }
 
 .settings-btn {

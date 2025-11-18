@@ -24,17 +24,22 @@ const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 
 let checkOnStartupTimeout;
 
-if (!isDev) {
-  
-  // Check for updates 5 seconds after app is ready
-  function scheduleStartupCheck() {
-    checkOnStartupTimeout = setTimeout(() => {
-      autoUpdater.checkForUpdatesAndNotify().catch(err => {
-        console.error('Auto-update check failed:', err);
-      });
-    }, 5000);
+// Check for updates 5 seconds after app is ready
+export function scheduleStartupCheck() {
+  if (isDev) {
+    console.log('Auto-update is disabled in development mode');
+    return;
   }
   
+  checkOnStartupTimeout = setTimeout(() => {
+    console.log('Checking for updates...');
+    autoUpdater.checkForUpdatesAndNotify().catch(err => {
+      console.error('Auto-update check failed:', err);
+    });
+  }, 5000);
+}
+
+if (!isDev) {
   // Auto-check for updates every 4 hours
   setInterval(() => {
     autoUpdater.checkForUpdatesAndNotify().catch(err => {

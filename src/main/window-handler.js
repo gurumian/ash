@@ -151,5 +151,47 @@ export function initializeWindowHandlers() {
       return { success: false, error: error.message };
     }
   });
+
+  // Get app info (version, author, etc.)
+  ipcMain.handle('get-app-info', async () => {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const app = require('electron').app;
+      
+      // Try multiple paths for package.json
+      let packageJsonPath;
+      if (app.isPackaged) {
+        // In production, package.json should be in the app's resources directory
+        packageJsonPath = path.join(process.resourcesPath, 'app', 'package.json');
+      } else {
+        // In development, it's in the project root
+        packageJsonPath = path.join(__dirname, '../../../package.json');
+      }
+      
+      // Fallback: try project root
+      if (!fs.existsSync(packageJsonPath)) {
+        packageJsonPath = path.join(process.cwd(), 'package.json');
+      }
+      
+      const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+      
+      return {
+        success: true,
+        version: packageJson.version || app.getVersion() || '1.0.0',
+        author: packageJson.author || { name: 'Bryce Ghim', email: 'gurumlab@gmail.com' },
+        description: packageJson.description || 'A modern SSH client built with Electron and React',
+      };
+    } catch (error) {
+      console.error('Get app info error:', error);
+      const app = require('electron').app;
+      return {
+        success: false,
+        error: error.message,
+        version: app.getVersion() || '1.0.4',
+        author: { name: 'Bryce Ghim', email: 'gurumlab@gmail.com' },
+      };
+    }
+  });
 }
 

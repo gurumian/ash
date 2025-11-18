@@ -17,6 +17,7 @@ import { ConnectionForm } from './components/ConnectionForm';
 import { Settings } from './components/Settings';
 import { GroupNameDialog } from './components/GroupNameDialog';
 import { StatusBar } from './components/StatusBar';
+import { AboutDialog } from './components/AboutDialog';
 
 function App() {
   // Session management state
@@ -111,6 +112,8 @@ function App() {
   const { sessionLogs, logStates, appendToLog, startLogging, stopLogging, saveLog, clearLog, cleanupLog } = useLogging(sessions, groups);
   
   const [showSettings, setShowSettings] = useState(false);
+  const [showAboutDialog, setShowAboutDialog] = useState(false);
+  const [appInfo, setAppInfo] = useState({ version: '1.0.4', author: { name: 'Bryce Ghim', email: 'gurumlab@gmail.com' } });
   const [scrollbackLines, setScrollbackLines] = useState(() => {
     const saved = localStorage.getItem('ash-scrollback');
     return saved ? parseInt(saved, 10) : 5000;
@@ -1316,8 +1319,20 @@ function App() {
     });
 
     // About menu event
-    window.electronAPI.onMenuAbout(() => {
-      alert('ash SSH Client\nVersion 1.0.0\nA modern SSH client built with Electron and React');
+    window.electronAPI.onMenuAbout(async () => {
+      // Load app info if not already loaded
+      try {
+        const info = await window.electronAPI.getAppInfo();
+        if (info.success) {
+          setAppInfo({
+            version: info.version,
+            author: info.author,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to get app info:', error);
+      }
+      setShowAboutDialog(true);
     });
 
     return () => {
@@ -1434,13 +1449,34 @@ function App() {
         '--theme-accent': currentTheme.accent
       }}
     >
-      {/* Windows/Linux custom title bar with window controls */}
+      {/* Windows/Linux custom title bar with window controls and menu */}
       {isWindows && (
         <CustomTitleBar
           isMaximized={isMaximized}
           onMinimize={handleMinimize}
           onMaximize={handleMaximize}
           onClose={handleClose}
+          onNewSession={handleShowConnectionForm}
+          onCloseSession={() => {
+            if (activeSessionId) {
+              disconnectSession(activeSessionId);
+            }
+          }}
+          onSettings={handleShowSettings}
+          onAbout={async () => {
+            try {
+              const info = await window.electronAPI.getAppInfo();
+              if (info.success) {
+                setAppInfo({
+                  version: info.version,
+                  author: info.author,
+                });
+              }
+            } catch (error) {
+              console.error('Failed to get app info:', error);
+            }
+            setShowAboutDialog(true);
+          }}
         />
       )}
       <div className="main-content">
@@ -1551,6 +1587,28 @@ function App() {
         onChangeTheme={changeTheme}
         onChangeScrollbackLines={handleScrollbackChange}
         onClose={handleCloseSettings}
+        onShowAbout={async () => {
+          try {
+            const info = await window.electronAPI.getAppInfo();
+            if (info.success) {
+              setAppInfo({
+                version: info.version,
+                author: info.author,
+              });
+            }
+          } catch (error) {
+            console.error('Failed to get app info:', error);
+          }
+          setShowAboutDialog(true);
+        }}
+      />
+
+      {/* About dialog */}
+      <AboutDialog
+        isOpen={showAboutDialog}
+        onClose={() => setShowAboutDialog(false)}
+        appVersion={appInfo.version}
+        author={appInfo.author}
       />
     </div>
   );

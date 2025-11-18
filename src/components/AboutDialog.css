@@ -1,0 +1,156 @@
+.about-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+.about-dialog {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  color: #fff;
+}
+
+.about-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #333;
+}
+
+.about-dialog-header h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: #00ff41;
+}
+
+.about-dialog-close {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 28px;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.about-dialog-close:hover {
+  background: #333;
+}
+
+.about-dialog-content {
+  padding: 24px;
+  flex: 1;
+}
+
+.about-app-info {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.about-version {
+  font-size: 16px;
+  color: #00ff41;
+  margin: 0 0 12px 0;
+  font-weight: 500;
+}
+
+.about-description {
+  font-size: 14px;
+  color: #ccc;
+  margin: 0;
+  line-height: 1.6;
+}
+
+.about-separator {
+  height: 1px;
+  background: #333;
+  margin: 20px 0;
+}
+
+.about-developer {
+  margin-bottom: 20px;
+}
+
+.about-label {
+  font-size: 12px;
+  color: #888;
+  margin: 0 0 8px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.about-value {
+  font-size: 15px;
+  color: #fff;
+  margin: 0 0 4px 0;
+  font-weight: 500;
+}
+
+.about-email {
+  font-size: 13px;
+  color: #00ff41;
+  margin: 0;
+}
+
+.about-copyright {
+  text-align: center;
+  font-size: 12px;
+  color: #888;
+}
+
+.about-copyright p {
+  margin: 4px 0;
+}
+
+.about-license {
+  color: #666;
+}
+
+.about-dialog-actions {
+  padding: 16px 24px;
+  border-top: 1px solid #333;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.about-ok-button {
+  background: #00ff41;
+  color: #000;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s, opacity 0.2s;
+}
+
+.about-ok-button:hover {
+  background: #00cc35;
+}
+
+.about-ok-button:active {
+  opacity: 0.8;
+}
+
