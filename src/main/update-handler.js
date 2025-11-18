@@ -114,13 +114,16 @@ if (!isDev) {
  * @param {Function} scheduleCheck - Function to call to schedule startup check
  */
 export function initializeUpdateHandlers(scheduleCheck) {
-  if (isDev) {
-    console.log('Auto-update is disabled in development mode');
-    return;
-  }
-  
-  // IPC handlers for manual update check
+  // IPC handlers for manual update check (available in both dev and production)
   ipcMain.handle('check-for-updates', async () => {
+    if (isDev) {
+      console.log('Update check is disabled in development mode');
+      return {
+        success: false,
+        error: 'Update check is disabled in development mode',
+      };
+    }
+    
     try {
       const result = await autoUpdater.checkForUpdates();
       return {
@@ -137,19 +140,27 @@ export function initializeUpdateHandlers(scheduleCheck) {
   });
   
   ipcMain.handle('quit-and-install', () => {
+    if (isDev) {
+      console.log('Quit and install is disabled in development mode');
+      return;
+    }
     autoUpdater.quitAndInstall(false, true);
   });
   
-  // Schedule startup check
-  if (scheduleCheck) {
-    scheduleCheck();
+  // Schedule startup check (only in production)
+  if (!isDev) {
+    if (scheduleCheck) {
+      scheduleCheck();
+    } else {
+      // Default: check after 5 seconds
+      setTimeout(() => {
+        autoUpdater.checkForUpdatesAndNotify().catch(err => {
+          console.error('Auto-update check failed:', err);
+        });
+      }, 5000);
+    }
   } else {
-    // Default: check after 5 seconds
-    setTimeout(() => {
-      autoUpdater.checkForUpdatesAndNotify().catch(err => {
-        console.error('Auto-update check failed:', err);
-      });
-    }, 5000);
+    console.log('Auto-update is disabled in development mode');
   }
 }
 
