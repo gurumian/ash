@@ -149,9 +149,9 @@ export function useGroups() {
     setEditingGroupName('');
   };
 
-  const addSessionToGroup = (sessionId, groupId, session) => {
+  const addSessionToGroup = (sessionId, groupId, session, skipSavedSessions = false) => {
     // Allow duplicate sessions in the same group - just add to target group
-    console.log('Adding session to group:', { sessionId, groupId });
+    console.log('Adding session to group:', { sessionId, groupId, skipSavedSessions });
     
     setGroups(prevGroups => {
       const finalGroups = prevGroups.map(g => {
@@ -179,8 +179,9 @@ export function useGroups() {
           }
           
           // Update savedSessions: ensure connection info is stored (for persistence)
+          // Skip if skipSavedSessions is true (e.g., when moving from savedSessions to sessionIds)
           let updatedSavedSessions = [...(g.savedSessions || [])];
-          if (connectionInfo) {
+          if (connectionInfo && !skipSavedSessions) {
             // Check if this connection already exists in savedSessions
             const exists = updatedSavedSessions.some(saved => {
               if (session.connectionType === 'serial') {
@@ -198,7 +199,10 @@ export function useGroups() {
           }
           
           // Add to sessionIds only if session exists (for active tracking)
-          const updatedSessionIds = session ? [...g.sessionIds, sessionId] : g.sessionIds;
+          // Also check if already in sessionIds to avoid duplicates
+          const updatedSessionIds = session && !g.sessionIds.includes(sessionId) 
+            ? [...g.sessionIds, sessionId] 
+            : g.sessionIds;
           
           return { 
             ...g, 

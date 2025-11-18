@@ -56,9 +56,9 @@ function App() {
   } = useGroups();
   
   // Wrapper for addSessionToGroup to find session
-  const addSessionToGroup = (sessionId, groupId) => {
+  const addSessionToGroup = (sessionId, groupId, skipSavedSessions = false) => {
     const session = sessions.find(s => s.id === sessionId);
-    addSessionToGroupHook(sessionId, groupId, session);
+    addSessionToGroupHook(sessionId, groupId, session, skipSavedSessions);
   };
   
   // Clean up orphaned sessionIds when sessions change
@@ -369,24 +369,72 @@ function App() {
       const processed = [];
       const remaining = [];
       
-      toProcess.forEach(({ sessionId, groupId }) => {
-        // Check if session exists in state
-        const sessionExists = sessions.some(s => s.id === sessionId);
+      // Group by groupId to process all changes for each group in a single state update
+      const byGroup = {};
+      toProcess.forEach(item => {
+        const sessionExists = sessions.some(s => s.id === item.sessionId);
         if (sessionExists) {
-          console.log('Processing pending group addition:', { sessionId, groupId });
-          addSessionToGroup(sessionId, groupId);
-          processed.push({ sessionId, groupId });
+          if (!byGroup[item.groupId]) {
+            byGroup[item.groupId] = [];
+          }
+          byGroup[item.groupId].push(item);
+          processed.push(item);
         } else {
-          remaining.push({ sessionId, groupId });
+          remaining.push(item);
         }
       });
+      
+      // Process all groups' changes in a single state update to avoid race conditions
+      if (Object.keys(byGroup).length > 0) {
+        setGroups(prevGroups => {
+          return prevGroups.map(g => {
+            const items = byGroup[g.id];
+            if (items && items.length > 0) {
+              let updatedSavedSessions = [...(g.savedSessions || [])];
+              let updatedSessionIds = [...g.sessionIds];
+              
+              items.forEach(({ sessionId, removeFromSavedSessions, savedSessionConnection }) => {
+                console.log('Processing pending group addition:', { sessionId, groupId: g.id, removeFromSavedSessions });
+                
+                // Remove from savedSessions if this was connected from savedSessions
+                if (removeFromSavedSessions && savedSessionConnection) {
+                  const indexToRemove = updatedSavedSessions.findIndex(saved => {
+                    const connType = savedSessionConnection.connectionType || 'ssh';
+                    if (connType === 'serial') {
+                      return saved.connectionType === 'serial' && 
+                             saved.serialPort === savedSessionConnection.serialPort;
+                    } else {
+                      return saved.host === savedSessionConnection.host && 
+                             saved.user === savedSessionConnection.user && 
+                             (saved.port || '22') === (savedSessionConnection.port || '22');
+                    }
+                  });
+                  
+                  if (indexToRemove !== -1) {
+                    updatedSavedSessions.splice(indexToRemove, 1);
+                    console.log('Removed saved session from group after connection:', savedSessionConnection);
+                  }
+                }
+                
+                // Add to sessionIds if not already there
+                if (!updatedSessionIds.includes(sessionId)) {
+                  updatedSessionIds.push(sessionId);
+                }
+              });
+              
+              return { ...g, sessionIds: updatedSessionIds, savedSessions: updatedSavedSessions };
+            }
+            return g;
+          });
+        });
+      }
       
       // Only update if we processed something
       if (processed.length > 0) {
         setPendingGroupAdditions(remaining);
       }
     }
-  }, [sessions, pendingGroupAdditions]);
+  }, [sessions, pendingGroupAdditions, setGroups]);
 
   // Terminal initialization effect - only for existing sessions when switching
   useEffect(() => {

@@ -232,11 +232,16 @@ export function useConnectionManagement({
     console.log('Group found:', { id: group.id, name: group.name, savedSessions: group.savedSessions, sessionIds: group.sessionIds });
 
     // First, connect saved sessions (unconnected)
+    // But skip if they're already in group.sessionIds (already active sessions)
     const savedSessions = group.savedSessions || [];
+    const activeSessionIds = new Set(group.sessionIds || []);
+    
     console.log('Saved sessions to connect:', savedSessions.length);
+    console.log('Active session IDs in group:', Array.from(activeSessionIds));
+    
     for (const conn of savedSessions) {
       try {
-        // Check if already connected
+        // Check if already connected and in group
         const existingSession = sessions.find(s => {
           const connType = conn.connectionType || 'ssh';
           if (connType === 'serial') {
@@ -249,11 +254,37 @@ export function useConnectionManagement({
           }
         });
         
-        if (existingSession && existingSession.isConnected) {
-          // Already connected, just add to sessionIds if not already there
-          if (!group.sessionIds.includes(existingSession.id)) {
-            addSessionToGroup(existingSession.id, groupId);
+        if (existingSession) {
+          // Session already exists
+          if (existingSession.isConnected) {
+            // Already connected, just add to sessionIds if not already there
+            if (!activeSessionIds.has(existingSession.id)) {
+              addSessionToGroup(existingSession.id, groupId);
+            }
           }
+          // If not connected, it will be handled in the reconnect section below
+          continue;
+        }
+        
+        // Check if this saved session corresponds to an active session in group.sessionIds
+        // by matching connection details
+        const matchingActiveSession = sessions.find(s => {
+          if (!activeSessionIds.has(s.id)) return false;
+          const connType = conn.connectionType || 'ssh';
+          if (connType === 'serial') {
+            return s.connectionType === 'serial' && s.serialPort === conn.serialPort;
+          } else {
+            return s.host === conn.host && 
+                   s.user === conn.user && 
+                   (s.port || '22') === (conn.port || '22') &&
+                   s.connectionType === 'ssh';
+          }
+        });
+        
+        if (matchingActiveSession) {
+          // This saved session already has a corresponding active session in the group
+          // Skip creating a new connection - it will be handled in reconnect section
+          console.log('Skipping saved session - already has active session:', matchingActiveSession.id);
           continue;
         }
         
@@ -278,8 +309,14 @@ export function useConnectionManagement({
         const sessionId = await createNewSessionWithData(connectionFormData, true);
         
         if (sessionId) {
-          // Add to group after connection
-          setPendingGroupAdditions(prev => [...prev, { sessionId, groupId }]);
+          // Add to group after connection and remove from savedSessions
+          // We need to match the connection info to remove it from savedSessions
+          setPendingGroupAdditions(prev => [...prev, { 
+            sessionId, 
+            groupId, 
+            removeFromSavedSessions: true, 
+            savedSessionConnection: conn // Store connection info to match and remove
+          }]);
         }
       } catch (error) {
         console.error(`Failed to connect saved session in group:`, error);
@@ -287,7 +324,7 @@ export function useConnectionManagement({
     }
     
     // Then, reconnect disconnected active sessions
-    const groupSessions = sessions.filter(s => group.sessionIds.includes(s.id));
+    const groupSessions = sessions.filter(s => activeSessionIds.has(s.id));
     const unconnectedSessions = groupSessions.filter(s => !s.isConnected);
 
     for (const session of unconnectedSessions) {
