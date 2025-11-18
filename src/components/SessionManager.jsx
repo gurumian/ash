@@ -21,7 +21,6 @@ export const SessionManager = memo(function SessionManager({
   editingGroupId,
   editingGroupName,
   setEditingGroupName,
-  onShowSettings,
   onShowConnectionForm,
   onCreateNewSessionWithData,
   onConnectFromHistory,
@@ -69,13 +68,6 @@ export const SessionManager = memo(function SessionManager({
       <div className="session-manager-header">
         <h3>Sessions</h3>
         <div className="header-buttons">
-          <button 
-            className="settings-btn"
-            onClick={onShowSettings}
-            title="Settings"
-          >
-            ⚙️
-          </button>
           <button 
             className="new-session-btn"
             onClick={onShowConnectionForm}

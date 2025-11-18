@@ -79,6 +79,9 @@ html, body {
 /* Buttons and interactive elements should not be draggable */
 button, a, input, select, textarea, [role="button"] {
   -webkit-app-region: no-drag;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
 }
 
 /* Custom titlebar styles moved to CustomTitleBar.css */
@@ -155,13 +158,13 @@ button, a, input, select, textarea, [role="button"] {
 .session-manager-header h3 {
   font-size: 13px;
   font-weight: 600;
-  color: var(--theme-text, #00ff41);
+  color: #00ff41 !important;
 }
 
 .new-session-btn {
-  background: var(--theme-accent, #00ff41);
-  color: var(--theme-bg, #000000);
-  border: none;
+  background: #00ff41 !important;
+  color: #000000 !important;
+  border: none !important;
   border-radius: 3px;
   width: 20px;
   height: 20px;
@@ -170,11 +173,17 @@ button, a, input, select, textarea, [role="button"] {
   display: flex;
   align-items: center;
   justify-content: center;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  box-shadow: none !important;
+  outline: none !important;
 }
 
 .new-session-btn:hover {
-  background: var(--theme-accent, #00ff41);
+  background: #00ff41 !important;
   opacity: 0.8;
+  box-shadow: none !important;
 }
 
 .about-btn {
@@ -298,7 +307,7 @@ button, a, input, select, textarea, [role="button"] {
   font-size: 12px;
   margin-left: 4px;
   opacity: 0.7;
-  color: var(--theme-text, #00ff41);
+  color: #00ff41 !important;
 }
 
 .close-session-btn:hover, .favorite-btn:hover {
@@ -523,37 +532,44 @@ button, a, input, select, textarea, [role="button"] {
   align-items: center;
   justify-content: center;
   background: #000000 !important; /* Force black background (fixes macOS green background issue) */
-  color: var(--theme-text, #00ff41);
+  color: #00ff41 !important;
   text-align: center;
 }
 
 .welcome-screen h2 {
   font-size: 24px;
   margin-bottom: 16px;
-  color: var(--theme-text, #00ff41);
+  color: #00ff41 !important;
 }
 
 .welcome-screen p {
   font-size: 16px;
   margin-bottom: 24px;
   opacity: 0.8;
+  color: #00ff41 !important;
 }
 
 .welcome-connect-btn {
-  background: var(--theme-accent, #00ff41);
-  color: var(--theme-bg, #000000);
-  border: 2px solid var(--theme-accent, #00ff41);
+  background: #00ff41 !important;
+  color: #000000 !important;
+  border: 2px solid #00ff41 !important;
   padding: 12px 24px;
   border-radius: 6px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  box-shadow: none !important;
+  outline: none !important;
 }
 
 .welcome-connect-btn:hover {
-  background: rgba(0, 255, 65, 0.2);
-  color: var(--theme-accent, #00ff41);
+  background: rgba(0, 255, 65, 0.2) !important;
+  color: #00ff41 !important;
+  box-shadow: none !important;
 }
 
 /* Bottom status bar */
@@ -565,7 +581,7 @@ button, a, input, select, textarea, [role="button"] {
   justify-content: space-between;
   align-items: center;
   font-size: 11px;
-  color: var(--theme-text, #00ff41);
+  color: #00ff41 !important;
   height: 22px;
   flex-shrink: 0;
   opacity: 0.7;
@@ -575,6 +591,7 @@ button, a, input, select, textarea, [role="button"] {
   display: flex;
   align-items: center;
   gap: 16px;
+  color: #00ff41 !important;
 }
 
 /* Modal */

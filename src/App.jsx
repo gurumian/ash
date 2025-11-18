@@ -1763,7 +1763,6 @@ function App() {
           editingGroupId={editingGroupId}
           editingGroupName={editingGroupName}
           setEditingGroupName={setEditingGroupName}
-          onShowSettings={handleShowSettings}
           onShowConnectionForm={handleShowConnectionForm}
           onCreateNewSessionWithData={createNewSessionWithData}
           onConnectFromHistory={connectFromHistory}
