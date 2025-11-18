@@ -1484,6 +1484,11 @@ function App() {
             }
           }}
           onSettings={handleShowSettings}
+          onToggleDevTools={() => {
+            if (window.electronAPI) {
+              window.electronAPI.toggleDevTools();
+            }
+          }}
           onCheckForUpdates={async () => {
             try {
               const result = await window.electronAPI.checkForUpdates();

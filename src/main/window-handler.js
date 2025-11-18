@@ -5,6 +5,14 @@ import path from 'node:path';
  * Initialize window-related IPC handlers
  */
 export function initializeWindowHandlers() {
+  // Toggle Developer Tools
+  ipcMain.handle('toggle-dev-tools', () => {
+    const focusedWindow = BrowserWindow.getFocusedWindow();
+    if (focusedWindow && !focusedWindow.isDestroyed()) {
+      focusedWindow.webContents.toggleDevTools();
+    }
+  });
+
   // Window title change IPC handler
   ipcMain.handle('set-window-title', async (event, title) => {
     const focusedWindow = BrowserWindow.getFocusedWindow();

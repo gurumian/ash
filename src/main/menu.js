@@ -86,6 +86,16 @@ export function createMenu() {
       label: 'View',
       submenu: [
         {
+          label: 'Toggle Developer Tools',
+          accelerator: process.platform === 'darwin' ? 'Alt+Cmd+I' : 'Ctrl+Shift+I',
+          click: (item, focusedWindow) => {
+            if (focusedWindow) {
+              focusedWindow.webContents.toggleDevTools();
+            }
+          }
+        },
+        { type: 'separator' },
+        {
           label: 'Toggle Session Manager',
           type: 'checkbox',
           checked: true,

@@ -94,6 +94,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
   quitAndInstall: () => ipcRenderer.invoke('quit-and-install'),
   
+  // Developer Tools
+  toggleDevTools: () => ipcRenderer.invoke('toggle-dev-tools'),
+  
   // App info
   getAppInfo: () => ipcRenderer.invoke('get-app-info'),
   

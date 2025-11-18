@@ -102,11 +102,23 @@ if (!isDev) {
   // Update error
   autoUpdater.on('error', (error) => {
     console.error('Auto-updater error:', error);
+    console.error('Error code:', error.code);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
     sendToAllWindows('update-error', {
       message: error.message,
       stack: error.stack,
+      code: error.code,
     });
   });
+  
+  // Log update check events for debugging
+  autoUpdater.logger = {
+    info: (message) => console.log('[electron-updater]', message),
+    warn: (message) => console.warn('[electron-updater]', message),
+    error: (message) => console.error('[electron-updater]', message),
+    debug: (message) => console.log('[electron-updater] DEBUG', message),
+  };
 }
 
 /**
@@ -125,16 +137,37 @@ export function initializeUpdateHandlers(scheduleCheck) {
     }
     
     try {
+      console.log('Checking for updates...');
+      console.log('Current version:', app.getVersion());
+      console.log('Update feed URL:', `${UPDATE_SERVER}/update/${APP_NAME}`);
       const result = await autoUpdater.checkForUpdates();
+      console.log('Update check result:', result);
+      console.log('Update info:', result?.updateInfo);
+      console.log('CancellationToken:', result?.cancellationToken);
+      
+      if (result?.updateInfo) {
+        console.log('Update available:', result.updateInfo.version);
+        console.log('Release date:', result.updateInfo.releaseDate);
+        console.log('Release notes:', result.updateInfo.releaseNotes);
+      } else {
+        console.log('No update info returned');
+      }
+      
       return {
         success: true,
         updateInfo: result?.updateInfo || null,
       };
     } catch (error) {
       console.error('Manual update check failed:', error);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        code: error.code,
+      });
       return {
         success: false,
         error: error.message,
+        details: error.stack,
       };
     }
   });

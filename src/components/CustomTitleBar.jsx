@@ -14,6 +14,7 @@ export function CustomTitleBar({
   onSettings,
   onAbout,
   onCheckForUpdates,
+  onToggleDevTools,
 }) {
   const [activeMenu, setActiveMenu] = useState(null);
   const menuRef = useRef(null);
@@ -61,6 +62,8 @@ export function CustomTitleBar({
     {
       name: 'View',
       items: [
+        { label: 'Toggle Developer Tools', shortcut: 'Ctrl+Shift+I', onClick: onToggleDevTools },
+        { type: 'separator' },
         { label: 'Settings', shortcut: 'Ctrl+,', onClick: onSettings },
       ],
     },
