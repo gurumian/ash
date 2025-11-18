@@ -55,10 +55,21 @@ module.exports = {
     // - macOS: icon.icns (preferred) or icon.png
     // - Linux: icon.png
     // If platform-specific files don't exist, it will fall back to icon.png
-    // Minimal ignore - Electron Forge Vite plugin handles most ignores automatically
-    // Only ignore things that are definitely not needed in the packaged app
+    // Let Vite plugin handle ignore patterns automatically
+    // Only exclude specific problematic packages
     ignore: [
-      // Documentation and development files only
+      // Exclude development dependencies that are not needed in production
+      /^\/node_modules\/@electron-forge/,
+      /^\/node_modules\/@electron\/fuses/,
+      /^\/node_modules\/@felixrieseberg/,
+      /^\/node_modules\/@vitejs/,
+      /^\/node_modules\/vite/,
+      /^\/node_modules\/electron/,
+      
+      // Exclude non-Windows platform binaries
+      /^\/node_modules\/.*\/prebuilds\/(?!win32)/,
+      
+      // Documentation and development files
       /^\/\.git/,
       /^\/\.gitignore/,
       /^\/\.cursorignore/,
