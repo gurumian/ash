@@ -721,9 +721,14 @@ button, a, input, select, textarea, [role="button"] {
 }
 
 .checkbox-label input[type="checkbox"] {
-  width: auto;
+  width: 16px;
+  height: 16px;
   margin-right: 8px;
   cursor: pointer;
+  appearance: auto;
+  -webkit-appearance: checkbox;
+  -moz-appearance: checkbox;
+  accent-color: #00ff41;
 }
 
 .checkbox-text {
