@@ -117,6 +117,24 @@ function App() {
   const [showAboutDialog, setShowAboutDialog] = useState(false);
   const [appInfo, setAppInfo] = useState({ version: '', author: { name: 'Bryce Ghim', email: 'gurumlab@gmail.com' } });
   
+  // Load app info on mount
+  useEffect(() => {
+    const loadAppInfo = async () => {
+      try {
+        const info = await window.electronAPI.getAppInfo();
+        if (info.success) {
+          setAppInfo({
+            version: info.version,
+            author: info.author,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to load app info:', error);
+      }
+    };
+    loadAppInfo();
+  }, []);
+  
   // Terminal context menu state
   const [contextMenu, setContextMenu] = useState({
     visible: false,

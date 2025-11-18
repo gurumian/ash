@@ -174,44 +174,98 @@ export function initializeWindowHandlers() {
 
   // Get app info (version, author, etc.)
   ipcMain.handle('get-app-info', async () => {
+    const app = require('electron').app;
+    const fs = require('fs');
+    const path = require('path');
+    
+    // Use app.getVersion() - it reads from Info.plist (macOS) or version resource (Windows)
+    // This is the most reliable method for packaged apps (same as FAC1)
+    // Electron Forge automatically sets this from package.json during build
+    let version = app.getVersion();
+    
+    // Fallback: if app.getVersion() returns empty or undefined, try to read from package.json
+    if (!version || version.trim() === '') {
+      console.warn('app.getVersion() returned empty, trying to read from package.json');
+      try {
+        let packageJsonPath;
+        if (app.isPackaged) {
+          // In production, package.json is inside app.asar
+          // Try to read it using require (works even inside asar)
+          try {
+            // In packaged app, we can try to require package.json if it's accessible
+            // But app.asar might not expose it directly, so we use app.getVersion() as primary
+            packageJsonPath = path.join(process.resourcesPath, 'app', 'package.json');
+            if (!fs.existsSync(packageJsonPath)) {
+              packageJsonPath = path.join(__dirname, '../../package.json');
+            }
+          } catch (e) {
+            // Ignore
+          }
+        } else {
+          // In development, it's in the project root
+          packageJsonPath = path.join(__dirname, '../../../package.json');
+        }
+        
+        if (packageJsonPath && fs.existsSync(packageJsonPath)) {
+          const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+          version = packageJson.version || '1.0.0';
+        }
+      } catch (error) {
+        console.error('Failed to read version from package.json:', error);
+        version = '1.0.0'; // Final fallback
+      }
+    }
+    
+    // Try to get author and description from package.json, but don't fail if not found
+    let author = { name: 'Bryce Ghim', email: 'gurumlab@gmail.com' };
+    let description = 'A modern SSH client built with Electron and React';
+    
     try {
-      const fs = require('fs');
-      const path = require('path');
-      const app = require('electron').app;
-      
-      // Try multiple paths for package.json
       let packageJsonPath;
       if (app.isPackaged) {
-        // In production, package.json should be in the app's resources directory
-        packageJsonPath = path.join(process.resourcesPath, 'app', 'package.json');
+        // In production, try multiple possible locations
+        const possiblePaths = [
+          path.join(process.resourcesPath, 'app', 'package.json'),
+          path.join(__dirname, '../../package.json'),
+          path.join(__dirname, '../../../package.json'),
+        ];
+        
+        for (const possiblePath of possiblePaths) {
+          if (fs.existsSync(possiblePath)) {
+            packageJsonPath = possiblePath;
+            break;
+          }
+        }
       } else {
         // In development, it's in the project root
         packageJsonPath = path.join(__dirname, '../../../package.json');
       }
       
       // Fallback: try project root
-      if (!fs.existsSync(packageJsonPath)) {
+      if (!packageJsonPath || !fs.existsSync(packageJsonPath)) {
         packageJsonPath = path.join(process.cwd(), 'package.json');
       }
       
-      const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
-      
-      return {
-        success: true,
-        version: packageJson.version || app.getVersion() || '1.0.0',
-        author: packageJson.author || { name: 'Bryce Ghim', email: 'gurumlab@gmail.com' },
-        description: packageJson.description || 'A modern SSH client built with Electron and React',
-      };
+      if (packageJsonPath && fs.existsSync(packageJsonPath)) {
+        const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+        if (packageJson.author) {
+          author = packageJson.author;
+        }
+        if (packageJson.description) {
+          description = packageJson.description;
+        }
+      }
     } catch (error) {
-      console.error('Get app info error:', error);
-      const app = require('electron').app;
-      return {
-        success: false,
-        error: error.message,
-        version: app.getVersion() || '1.0.0',
-        author: { name: 'Bryce Ghim', email: 'gurumlab@gmail.com' },
-      };
+      // Non-fatal error - we already have version from app.getVersion()
+      console.warn('Could not read package.json for author/description:', error.message);
     }
+    
+    return {
+      success: true,
+      version: version,
+      author: author,
+      description: description,
+    };
   });
 }
 
