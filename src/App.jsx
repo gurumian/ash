@@ -10,6 +10,13 @@ import { useTheme } from './hooks/useTheme';
 import { useConnectionHistory } from './hooks/useConnectionHistory';
 import { useLogging } from './hooks/useLogging';
 import { useGroups } from './hooks/useGroups';
+import { CustomTitleBar } from './components/CustomTitleBar';
+import { SessionManager } from './components/SessionManager';
+import { TerminalView } from './components/TerminalView';
+import { ConnectionForm } from './components/ConnectionForm';
+import { Settings } from './components/Settings';
+import { GroupNameDialog } from './components/GroupNameDialog';
+import { StatusBar } from './components/StatusBar';
 
 function App() {
   // Session management state
@@ -1235,414 +1242,52 @@ function App() {
     >
       {/* Windows/Linux custom title bar with window controls */}
       {isWindows && (
-        <div className="custom-titlebar">
-          <div className="titlebar-title">ash</div>
-          <div className="titlebar-controls">
-            <button 
-              className="titlebar-button minimize-button"
-              onClick={handleMinimize}
-              title="Minimize"
-            >
-              <span>−</span>
-            </button>
-            <button 
-              className="titlebar-button maximize-button"
-              onClick={handleMaximize}
-              title={isMaximized ? "Restore" : "Maximize"}
-            >
-              <span>{isMaximized ? '❐' : '□'}</span>
-            </button>
-            <button 
-              className="titlebar-button close-button"
-              onClick={handleClose}
-              title="Close"
-            >
-              <span>×</span>
-            </button>
-          </div>
-        </div>
+        <CustomTitleBar
+          isMaximized={isMaximized}
+          onMinimize={handleMinimize}
+          onMaximize={handleMaximize}
+          onClose={handleClose}
+        />
       )}
       <div className="main-content">
         {/* Left session manager */}
-        <div 
-          className={`session-manager ${!showSessionManager ? 'hidden' : ''}`}
-          style={{ width: showSessionManager ? `${sessionManagerWidth}px` : '0' }}
-        >
-          <div className="session-manager-header">
-            <h3>Sessions</h3>
-            <div className="header-buttons">
-              <button 
-                className="settings-btn"
-                onClick={() => setShowSettings(true)}
-                title="Settings"
-              >
-                ⚙️
-              </button>
-              <button 
-                className="new-session-btn"
-                onClick={() => {
-                  setFormError('');
-                  setShowConnectionForm(true);
-                }}
-                title="New Session"
-              >
-                +
-              </button>
-            </div>
-          </div>
-          
-          {/* Favorites */}
-          {favorites.length > 0 && (
-            <div className="section">
-              <div className="section-header">Favorites</div>
-              {favorites.map((fav, index) => {
-                const isSerial = fav.connectionType === 'serial';
-                const tooltip = isSerial 
-                  ? fav.serialPort 
-                  : `${fav.user}@${fav.host}`;
-                return (
-                  <div 
-                    key={index}
-                    className="session-item favorite"
-                    onClick={async () => {
-                      try {
-                        // Directly connect without showing dialog
-                        await createNewSessionWithData({
-                          connectionType: fav.connectionType || 'ssh',
-                          host: fav.host || '',
-                          port: fav.port || '22',
-                          user: fav.user || '',
-                          password: fav.password || '',
-                          sessionName: fav.sessionName || fav.name || '',
-                          savePassword: !!fav.password,
-                          serialPort: fav.serialPort || '',
-                          baudRate: fav.baudRate || '9600',
-                          dataBits: fav.dataBits || '8',
-                          stopBits: fav.stopBits || '1',
-                          parity: fav.parity || 'none',
-                          flowControl: fav.flowControl || 'none'
-                        }, true); // skipFormReset = true
-                      } catch (error) {
-                        console.error('Failed to connect from favorite:', error);
-                        alert('Connection failed: ' + error.message);
-                      }
-                    }}
-                    title={tooltip}
-                  >
-                    <span className="session-name">⭐ {fav.name}</span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Session List - All saved sessions */}
-          {connectionHistory.length > 0 && (
-            <div className="section">
-              <div className="section-header">Session List</div>
-              {connectionHistory.map((conn, index) => {
-                const isSerial = conn.connectionType === 'serial';
-                const isFavorite = isSerial 
-                  ? favorites.some(f => f.connectionType === 'serial' && f.serialPort === conn.serialPort)
-                  : favorites.some(f => f.host === conn.host && f.user === conn.user);
-                const sessionId = isSerial 
-                  ? `saved-serial-${conn.serialPort}-${index}`
-                  : `saved-${conn.host}-${conn.user}-${conn.port || '22'}-${index}`;
-                const displayName = conn.sessionName || conn.name || (isSerial 
-                  ? `Serial: ${conn.serialPort}`
-                  : `${conn.user}@${conn.host}`);
-                const tooltip = isSerial
-                  ? `${conn.serialPort} - Drag to group or click to connect`
-                  : `${conn.user}@${conn.host} - Drag to group or click to connect`;
-                
-                return (
-                  <div 
-                    key={index}
-                    className="session-item session-list-item"
-                    draggable
-                    onDragStart={(e) => {
-                      // Store connection info in dataTransfer for later use
-                      e.dataTransfer.setData('application/json', JSON.stringify({
-                        type: 'saved-session',
-                        connection: conn,
-                        sessionId: sessionId
-                      }));
-                      setDraggedSessionId(sessionId);
-                    }}
-                    onClick={() => connectFromHistory(conn)}
-                    title={tooltip}
-                  >
-                    <span className="session-name">
-                      {displayName}
-                    </span>
-                    <button 
-                      className="favorite-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleFavorite(conn);
-                      }}
-                      title="Toggle Favorite"
-                    >
-                      {isFavorite ? '★' : '☆'}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Groups */}
-          {groups.length > 0 && (
-            <div className="section">
-              <div className="section-header">Groups</div>
-              {groups.map(group => {
-                const groupSessions = sessions.filter(s => group.sessionIds.includes(s.id));
-                const savedSessions = group.savedSessions || [];
-                const totalSessions = groupSessions.length + savedSessions.length;
-                const allConnected = totalSessions > 0 && 
-                  groupSessions.every(s => s.isConnected) && 
-                  savedSessions.length === 0; // All saved sessions are now connected
-                
-                return (
-                  <div key={group.id} className="group-container">
-                    <div 
-                      className={`group-header ${dragOverGroupId === group.id ? 'drag-over' : ''} ${allConnected ? 'all-connected' : ''}`}
-                      onDragOver={(e) => handleDragOver(e, group.id)}
-                      onDragLeave={handleDragLeave}
-                      onDrop={(e) => handleDrop(e, group.id)}
-                      onClick={() => {
-                        // Click on group header to connect all sessions in group
-                        if (!allConnected && totalSessions > 0) {
-                          console.log('Group header clicked for group:', group.id);
-                          connectGroup(group.id);
-                        }
-                      }}
-                      style={{ cursor: (allConnected || totalSessions === 0) ? 'default' : 'pointer' }}
-                    >
-                      <button
-                        className="group-toggle"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleGroupExpanded(group.id);
-                        }}
-                        title={group.isExpanded ? 'Collapse' : 'Expand'}
-                      >
-                        {group.isExpanded ? '▼' : '▶'}
-                      </button>
-                      {editingGroupId === group.id ? (
-                        <input
-                          type="text"
-                          className="group-name-input"
-                          value={editingGroupName}
-                          onChange={(e) => setEditingGroupName(e.target.value)}
-                          onBlur={() => saveGroupName(group.id)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              saveGroupName(group.id);
-                            } else if (e.key === 'Escape') {
-                              cancelEditingGroupName();
-                            }
-                          }}
-                          autoFocus
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      ) : (
-                        <span 
-                          className="group-name"
-                          onDoubleClick={() => startEditingGroupName(group.id)}
-                          title="Double-click to rename"
-                        >
-                          {group.name}
-                        </span>
-                      )}
-                      <span className="group-count">({totalSessions})</span>
-                      <button
-                        className="group-connect-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          console.log('Play button clicked for group:', group.id);
-                          connectGroup(group.id);
-                        }}
-                        title="Connect All Sessions in Group"
-                        disabled={allConnected || totalSessions === 0}
-                      >
-                        ▶
-                      </button>
-                      <button
-                        className="group-delete-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteGroup(group.id);
-                        }}
-                        title="Delete Group"
-                      >
-                        ×
-                      </button>
-                    </div>
-                    {group.isExpanded && (
-                      <div className="group-sessions">
-                        {group.sessionIds.map((sessionId, index) => {
-                          const session = sessions.find(s => s.id === sessionId);
-                          if (!session) return null; // Session might not exist yet
-                          
-                          return (
-                            <div
-                              key={`${sessionId}-${index}`}
-                              className={`session-item group-session-item ${activeSessionId === session.id ? 'active' : ''}`}
-                              draggable
-                              onDragStart={(e) => handleDragStart(e, session.id)}
-                              onClick={() => switchToSession(session.id)}
-                            >
-                              <span className="session-name">{session.name}</span>
-                              <span className={`connection-status ${session.isConnected ? 'connected' : 'disconnected'}`}>
-                                {session.isConnected ? '●' : '○'}
-                              </span>
-                              <button
-                                className="remove-from-group-btn"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  removeSessionFromGroup(session.id, group.id, index);
-                                }}
-                                title="Remove from Group"
-                              >
-                                ⊗
-                              </button>
-                              <button
-                                className="close-session-btn"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  disconnectSession(session.id);
-                                }}
-                                title="Close Session"
-                              >
-                                ×
-                              </button>
-                            </div>
-                          );
-                        })}
-                        {/* Saved sessions (not connected yet) */}
-                        {savedSessions.map((conn, index) => {
-                          const displayName = conn.sessionName || conn.name || (conn.connectionType === 'serial'
-                            ? `Serial: ${conn.serialPort}`
-                            : `${conn.user}@${conn.host}`);
-                          return (
-                            <div
-                              key={`saved-${index}`}
-                              className="session-item group-session-item saved-session"
-                            >
-                              <span className="session-name">{displayName} (not connected)</span>
-                              <span className="connection-status disconnected">○</span>
-                              <button
-                                className="remove-from-group-btn"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  // Remove from savedSessions
-                                  setGroups(prevGroups => {
-                                    const updated = prevGroups.map(g => {
-                                      if (g.id === group.id) {
-                                        const newSavedSessions = [...(g.savedSessions || [])];
-                                        newSavedSessions.splice(index, 1);
-                                        return { ...g, savedSessions: newSavedSessions };
-                                      }
-                                      return g;
-                                    });
-                                    // localStorage will be updated by useEffect
-                                    return updated;
-                                  });
-                                }}
-                                title="Remove from Group"
-                              >
-                                ⊗
-                              </button>
-                            </div>
-                          );
-                        })}
-                        {group.sessionIds.length === 0 && savedSessions.length === 0 && (
-                          <div className="group-empty">Drag sessions here</div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Create New Group Button */}
-          <div className="section">
-            <button
-              className="new-group-btn"
-              onClick={() => {
-                const groupName = `Group ${groups.length + 1}`;
-                createGroup(groupName);
-              }}
-              title="Create a new empty group"
-            >
-              + Create New Group
-            </button>
-          </div>
-
-          {/* Active sessions (ungrouped) */}
-          {sessions.filter(s => !groups.some(g => g.sessionIds.includes(s.id))).length > 0 && (
-            <div className="section">
-              <div className="section-header">Active Sessions</div>
-              {sessions
-                .filter(s => !groups.some(g => g.sessionIds.includes(s.id)))
-                .map(session => (
-                  <div 
-                    key={session.id}
-                    className={`session-item ${activeSessionId === session.id ? 'active' : ''}`}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, session.id)}
-                    onClick={() => switchToSession(session.id)}
-                  >
-                    <span className="session-name">{session.name}</span>
-                    <span className={`connection-status ${session.isConnected ? 'connected' : 'disconnected'}`}>
-                      {session.isConnected ? '●' : '○'}
-                    </span>
-                    <button 
-                      className="close-session-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        disconnectSession(session.id);
-                      }}
-                      title="Close Session"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-            </div>
-          )}
-
-          {/* Connection history */}
-          {connectionHistory.length > 0 && (
-            <div className="section">
-              <div className="section-header">Recent</div>
-              {connectionHistory.slice(0, 10).map((conn, index) => (
-                <div 
-                  key={index}
-                  className="session-item history"
-                  onClick={() => connectFromHistory(conn)}
-                  title={`${conn.user}@${conn.host}`}
-                >
-                  <span className="session-name">{conn.user}@{conn.host}</span>
-                  <button 
-                    className="favorite-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleFavorite(conn);
-                    }}
-                    title="Toggle Favorite"
-                  >
-                    {favorites.some(f => f.host === conn.host && f.user === conn.user) ? '★' : '☆'}
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-        </div>
+        <SessionManager
+          showSessionManager={showSessionManager}
+          sessionManagerWidth={sessionManagerWidth}
+          sessions={sessions}
+          activeSessionId={activeSessionId}
+          groups={groups}
+          favorites={favorites}
+          connectionHistory={connectionHistory}
+          draggedSessionId={draggedSessionId}
+          dragOverGroupId={dragOverGroupId}
+          editingGroupId={editingGroupId}
+          editingGroupName={editingGroupName}
+          setEditingGroupName={setEditingGroupName}
+          onShowSettings={() => setShowSettings(true)}
+          onShowConnectionForm={() => {
+            setFormError('');
+            setShowConnectionForm(true);
+          }}
+          onCreateNewSessionWithData={createNewSessionWithData}
+          onConnectFromHistory={connectFromHistory}
+          onToggleFavorite={toggleFavorite}
+          onSwitchToSession={switchToSession}
+          onDisconnectSession={disconnectSession}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          onConnectGroup={connectGroup}
+          onToggleGroupExpanded={toggleGroupExpanded}
+          onStartEditingGroupName={startEditingGroupName}
+          onSaveGroupName={saveGroupName}
+          onCancelEditingGroupName={cancelEditingGroupName}
+          onRemoveSessionFromGroup={removeSessionFromGroup}
+          onDeleteGroup={deleteGroup}
+          onCreateGroup={createGroup}
+          setGroups={setGroups}
+        />
         
         {/* Resize handle */}
         {showSessionManager && (
@@ -1654,612 +1299,95 @@ function App() {
         )}
 
         {/* Right terminal area */}
-        <div className="terminal-area">
-          {activeSession ? (
-            <div className="terminal-container">
-              <div className="terminal-header">
-                <div className="tab-bar">
-                  {sessions.map(session => (
-                    <div 
-                      key={session.id}
-                      className={`tab ${activeSessionId === session.id ? 'active' : ''}`}
-                      draggable
-                      onDragStart={(e) => {
-                        e.dataTransfer.setData('text/plain', session.id);
-                        e.dataTransfer.effectAllowed = 'move';
-                        // Add visual feedback
-                        e.currentTarget.style.opacity = '0.5';
-                      }}
-                      onDragEnd={(e) => {
-                        e.currentTarget.style.opacity = '';
-                        // Check if dragged outside the window
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        const x = e.clientX;
-                        const y = e.clientY;
-                        
-                        // If dragged outside window bounds, detach
-                        if (x < 0 || y < 0 || x > window.innerWidth || y > window.innerHeight) {
-                          handleDetachTab(session.id);
-                        }
-                      }}
-                      onClick={() => switchToSession(session.id)}
-                    >
-                      <span className="tab-name">{session.name}</span>
-                      <span className={`tab-status ${session.isConnected ? 'connected' : 'disconnected'}`}>
-                        {session.isConnected ? '●' : '○'}
-                      </span>
-                      <button 
-                        className="tab-close"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          disconnectSession(session.id);
-                        }}
-                        title="Close"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                {activeSessionId && (
-                  <div className="log-controls">
-                    <button 
-                      className={`log-btn ${logStates[activeSessionId]?.isLogging ? 'logging' : 'not-logging'}`}
-                      onClick={async () => {
-                        if (logStates[activeSessionId]?.isLogging) {
-                          const logEntry = await stopLogging(activeSessionId);
-                          if (logEntry && terminalInstances.current[activeSessionId]) {
-                            terminalInstances.current[activeSessionId].write(logEntry);
-                          }
-                        } else {
-                          startLogging(activeSessionId);
-                        }
-                      }}
-                      title={logStates[activeSessionId]?.isLogging ? 'Stop Logging' : 'Start Logging'}
-                    >
-                      {logStates[activeSessionId]?.isLogging ? '⏹' : '⏺'}
-                    </button>
-                    <button 
-                      className="log-btn save-log"
-                      onClick={() => saveLog(activeSessionId)}
-                      disabled={!sessionLogs.current[activeSessionId]?.content}
-                      title="Save Log"
-                    >
-                      💾
-                    </button>
-                    <button 
-                      className="log-btn clear-log"
-                      onClick={() => clearLog(activeSessionId)}
-                      disabled={!sessionLogs.current[activeSessionId]?.content}
-                      title="Clear Log"
-                    >
-                      🗑
-                    </button>
-                    <span className="log-status">
-                      {logStates[activeSessionId]?.isLogging ? 'Recording' : 'Not Recording'}
-                    </span>
-                  </div>
-                )}
-              </div>
-              <div className="terminal-content-container">
-                {sessions.map(session => (
-                  <div
-                    key={session.id}
-                    style={{ display: activeSessionId === session.id ? 'block' : 'none', height: '100%', width: '100%', position: 'absolute' }}
-                  >
-                    <div
-                      ref={el => terminalRefs.current[session.id] = el}
-                      className="terminal-content"
-                      style={{ height: '100%' }}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="welcome-screen">
-              <h2>Welcome to ash SSH Client</h2>
-              <p>Create a new session to get started</p>
-              <button 
-                className="welcome-connect-btn"
-                onClick={() => {
-                  setFormError('');
-                  setShowConnectionForm(true);
-                }}
-              >
-                New Session
-              </button>
-            </div>
-          )}
-        </div>
+        <TerminalView
+          activeSession={activeSession}
+          sessions={sessions}
+          activeSessionId={activeSessionId}
+          terminalRefs={terminalRefs}
+          logStates={logStates}
+          sessionLogs={sessionLogs}
+          onSwitchToSession={switchToSession}
+          onDisconnectSession={disconnectSession}
+          onDetachTab={handleDetachTab}
+          onStartLogging={startLogging}
+          onStopLogging={stopLogging}
+          onSaveLog={saveLog}
+          onClearLog={clearLog}
+          onShowConnectionForm={() => {
+            setFormError('');
+            setShowConnectionForm(true);
+          }}
+          terminalInstances={terminalInstances}
+        />
       </div>
 
       {/* Bottom status bar */}
-      <div className="status-bar">
-        <div className="status-left">
-          {activeSession ? (
-            <span>Connected to {activeSession.user}@{activeSession.host}:{activeSession.port}</span>
-          ) : (
-            <span>Ready</span>
-          )}
-        </div>
-        <div className="status-right">
-          <span>Sessions: {sessions.length}</span>
-        </div>
-      </div>
+      <StatusBar 
+        activeSession={activeSession}
+        sessionsCount={sessions.length}
+      />
 
       {/* Connection form modal */}
-      {showConnectionForm && (
-        <div className="modal-overlay">
-          <div className="connection-modal">
-            <div className="modal-header">
-              <h3>New Connection</h3>
-              <button 
-                className="modal-close"
-                onClick={() => {
-                  setShowConnectionForm(false);
-                  setFormError('');
-                }}
-              >
-                ×
-              </button>
-            </div>
-            
-            <form onSubmit={(e) => { 
-              e.preventDefault(); 
-              setFormError('');
-              createNewSession(); 
-            }}>
-              <div className="form-group">
-                <label>Connection Type</label>
-                <div className="connection-type-selector">
-                  <button
-                    type="button"
-                    className={`type-btn ${connectionForm.connectionType === 'ssh' ? 'active' : ''}`}
-                    onClick={() => setConnectionForm(prev => ({ ...prev, connectionType: 'ssh' }))}
-                  >
-                    SSH
-                  </button>
-                  <button
-                    type="button"
-                    className={`type-btn ${connectionForm.connectionType === 'serial' ? 'active' : ''}`}
-                    onClick={() => setConnectionForm(prev => ({ ...prev, connectionType: 'serial' }))}
-                  >
-                    Serial
-                  </button>
-                </div>
-              </div>
-
-              {formError && (
-                <div className="form-error" style={{ 
-                  color: '#ff4444', 
-                  backgroundColor: 'rgba(255, 68, 68, 0.1)', 
-                  padding: '8px 12px', 
-                  borderRadius: '4px', 
-                  marginBottom: '16px',
-                  border: '1px solid rgba(255, 68, 68, 0.3)',
-                  fontSize: '12px'
-                }}>
-                  {formError}
-                </div>
-              )}
-
-              <div className="form-group">
-                <label htmlFor="sessionName">Session Name</label>
-                <input
-                  type="text"
-                  id="sessionName"
-                  name="sessionName"
-                  value={connectionForm.sessionName}
-                  onChange={handleInputChange}
-                  placeholder={connectionForm.connectionType === 'ssh' ? "My Server" : "My Serial Device"}
-                />
-              </div>
-
-              {connectionForm.connectionType === 'ssh' && (
-                <>
-                  <div className="form-group">
-                    <label htmlFor="host">Host</label>
-                    <input
-                      type="text"
-                      id="host"
-                      name="host"
-                      value={connectionForm.host}
-                      onChange={handleInputChange}
-                      placeholder="192.168.1.100 or server.example.com"
-                      required
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label htmlFor="port">Port</label>
-                    <input
-                      type="number"
-                      id="port"
-                      name="port"
-                      value={connectionForm.port}
-                      onChange={handleInputChange}
-                      placeholder="22"
-                      min="1"
-                      max="65535"
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label htmlFor="user">Username</label>
-                    <input
-                      type="text"
-                      id="user"
-                      name="user"
-                      value={connectionForm.user}
-                      onChange={handleInputChange}
-                      placeholder="root, admin, ubuntu"
-                      required
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label htmlFor="password">Password</label>
-                    <input
-                      type="password"
-                      id="password"
-                      name="password"
-                      value={connectionForm.password}
-                      onChange={handleInputChange}
-                      placeholder="Password"
-                    />
-                  </div>
-                </>
-              )}
-
-              {connectionForm.connectionType === 'serial' && (
-                <>
-                  <div className="form-group">
-                    <label htmlFor="serialPort">Serial Port</label>
-                    <div className="serial-port-selector">
-                      <select
-                        id="serialPort"
-                        name="serialPort"
-                        value={connectionForm.serialPort}
-                        onChange={handleInputChange}
-                        required
-                      >
-                        <option value="">Select a port</option>
-                        {availableSerialPorts.map((port, index) => (
-                          <option key={index} value={port.path}>
-                            {port.path} {port.manufacturer ? `(${port.manufacturer})` : ''}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        type="button"
-                        className="refresh-ports-btn"
-                        onClick={loadSerialPorts}
-                        title="Refresh ports"
-                      >
-                        🔄
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label htmlFor="baudRate">Baud Rate</label>
-                      <select
-                        id="baudRate"
-                        name="baudRate"
-                        value={connectionForm.baudRate}
-                        onChange={handleInputChange}
-                      >
-                        <option value="300">300</option>
-                        <option value="600">600</option>
-                        <option value="1200">1200</option>
-                        <option value="2400">2400</option>
-                        <option value="4800">4800</option>
-                        <option value="9600">9600</option>
-                        <option value="14400">14400</option>
-                        <option value="19200">19200</option>
-                        <option value="28800">28800</option>
-                        <option value="38400">38400</option>
-                        <option value="57600">57600</option>
-                        <option value="76800">76800</option>
-                        <option value="115200">115200</option>
-                        <option value="230400">230400</option>
-                        <option value="460800">460800</option>
-                        <option value="921600">921600</option>
-                        <option value="1000000">1000000</option>
-                        <option value="2000000">2000000</option>
-                      </select>
-                    </div>
-
-                    <div className="form-group">
-                      <label htmlFor="dataBits">Data Bits</label>
-                      <select
-                        id="dataBits"
-                        name="dataBits"
-                        value={connectionForm.dataBits}
-                        onChange={handleInputChange}
-                      >
-                        <option value="7">7</option>
-                        <option value="8">8</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label htmlFor="stopBits">Stop Bits</label>
-                      <select
-                        id="stopBits"
-                        name="stopBits"
-                        value={connectionForm.stopBits}
-                        onChange={handleInputChange}
-                      >
-                        <option value="1">1</option>
-                        <option value="2">2</option>
-                      </select>
-                    </div>
-
-                    <div className="form-group">
-                      <label htmlFor="parity">Parity</label>
-                      <select
-                        id="parity"
-                        name="parity"
-                        value={connectionForm.parity}
-                        onChange={handleInputChange}
-                      >
-                        <option value="none">None</option>
-                        <option value="even">Even</option>
-                        <option value="odd">Odd</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="form-group">
-                    <label htmlFor="flowControl">Flow Control</label>
-                    <select
-                      id="flowControl"
-                      name="flowControl"
-                      value={connectionForm.flowControl}
-                      onChange={handleInputChange}
-                    >
-                      <option value="none">None</option>
-                      <option value="xon">XON/XOFF</option>
-                      <option value="rts">RTS/CTS</option>
-                    </select>
-                  </div>
-                </>
-              )}
-
-              {connectionForm.connectionType === 'ssh' && (
-                <div className="form-group checkbox-group">
-                  <label className="checkbox-label">
-                    <input
-                      type="checkbox"
-                      name="savePassword"
-                      checked={connectionForm.savePassword}
-                      onChange={(e) => {
-                        setConnectionForm(prev => ({
-                          ...prev,
-                          savePassword: e.target.checked
-                        }));
-                      }}
-                    />
-                    <span className="checkbox-text">Save password</span>
-                  </label>
-                  <div className="checkbox-help">
-                    ⚠️ Passwords are stored locally and not encrypted
-                  </div>
-                </div>
-              )}
-
-              <div className="modal-actions">
-                <button 
-                  type="button"
-                  className="cancel-btn"
-                  onClick={() => setShowConnectionForm(false)}
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit" 
-                  className="connect-btn"
-                  disabled={isConnecting}
-                >
-                  {isConnecting ? 'Connecting...' : 'Connect'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <ConnectionForm
+        showConnectionForm={showConnectionForm}
+        connectionForm={connectionForm}
+        formError={formError}
+        isConnecting={isConnecting}
+        availableSerialPorts={availableSerialPorts}
+        onClose={() => {
+          setShowConnectionForm(false);
+          setFormError('');
+        }}
+        onSubmit={(e) => {
+          e.preventDefault();
+          setFormError('');
+          createNewSession();
+        }}
+        onInputChange={handleInputChange}
+        onConnectionTypeChange={(type) => setConnectionForm(prev => ({ ...prev, connectionType: type }))}
+        onSavePasswordChange={(e) => setConnectionForm(prev => ({ ...prev, savePassword: e.target.checked }))}
+        onLoadSerialPorts={loadSerialPorts}
+      />
 
       {/* Group Name Dialog */}
-      {showGroupNameDialog && (
-        <div className="modal-overlay" onClick={() => {
+      <GroupNameDialog
+        showGroupNameDialog={showGroupNameDialog}
+        newGroupName={newGroupName}
+        groups={groups}
+        onClose={() => {
           setShowGroupNameDialog(false);
           setNewGroupName('');
           setPendingSessionForGroup(null);
-        }}>
-          <div className="connection-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Create New Group</h3>
-              <button 
-                className="modal-close"
-                onClick={() => {
-                  setShowGroupNameDialog(false);
-                  setNewGroupName('');
-                  setPendingSessionForGroup(null);
-                }}
-              >
-                ×
-              </button>
-            </div>
-            <div className="modal-body">
-              <div className="form-group">
-                <label>Group Name</label>
-                <input
-                  type="text"
-                  value={newGroupName}
-                  onChange={(e) => setNewGroupName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handleCreateGroupFromDialog();
-                    } else if (e.key === 'Escape') {
-                      setShowGroupNameDialog(false);
-                      setNewGroupName('');
-                      setPendingSessionForGroup(null);
-                    }
-                  }}
-                  placeholder={`Group ${groups.length + 1}`}
-                  autoFocus
-                />
-              </div>
-            </div>
-            <div className="modal-actions">
-              <button 
-                className="cancel-btn"
-                onClick={() => {
-                  setShowGroupNameDialog(false);
-                  setNewGroupName('');
-                  setPendingSessionForGroup(null);
-                }}
-              >
-                Cancel
-              </button>
-              <button 
-                className="connect-btn"
-                onClick={handleCreateGroupFromDialog}
-              >
-                Create Group
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+        }}
+        onCreate={handleCreateGroupFromDialog}
+        onNameChange={(e) => setNewGroupName(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            handleCreateGroupFromDialog();
+          } else if (e.key === 'Escape') {
+            setShowGroupNameDialog(false);
+            setNewGroupName('');
+            setPendingSessionForGroup(null);
+          }
+        }}
+      />
 
       {/* Settings window modal */}
-      {showSettings && (
-        <div className="modal-overlay">
-          <div className="settings-modal">
-            <div className="modal-header">
-              <h3>Settings</h3>
-              <button 
-                className="modal-close"
-                onClick={() => setShowSettings(false)}
-              >
-                ×
-              </button>
-            </div>
-            
-            <div className="settings-content">
-              <div className="settings-section">
-                <h4>Appearance</h4>
-                
-                <div className="setting-group">
-                  <label>Theme</label>
-                  <div className="theme-options">
-                    {Object.entries(themes).map(([key, themeData]) => (
-                      <button
-                        key={key}
-                        className={`theme-option ${theme === key ? 'active' : ''}`}
-                        onClick={() => changeTheme(key)}
-                      >
-                        <div 
-                          className="theme-preview"
-                          style={{ backgroundColor: themeData.background }}
-                        />
-                        {themeData.name}
-                      </button>
-                    ))}
-                  </div>
-                  <p className="setting-description">
-                    Changes both UI and terminal appearance
-                  </p>
-                </div>
-              </div>
-
-              <div className="settings-section">
-                <h4>Terminal</h4>
-                
-                <div className="setting-group">
-                  <label>Scrollback Lines</label>
-                  <input
-                    type="number"
-                    min="100"
-                    max="50000"
-                    step="100"
-                    value={scrollbackLines}
-                    onChange={(e) => {
-                      const value = parseInt(e.target.value, 10);
-                      if (!isNaN(value) && value >= 100 && value <= 50000) {
-                        setScrollbackLines(value);
-                        localStorage.setItem('ash-scrollback', value.toString());
-                      }
-                    }}
-                    style={{ width: '150px' }}
-                  />
-                  <p className="setting-description">
-                    Number of lines to keep in terminal buffer (ring buffer). 
-                    Higher values use more memory. Recommended: 2000-10000 for multiple concurrent sessions.
-                    Current: ~{Math.round(scrollbackLines * 80 * 10 / 1024 / 1024 * 10) / 10}MB per session
-                  </p>
-                </div>
-              </div>
-
-              <div className="settings-section">
-                <h4>Connection</h4>
-                
-                <div className="setting-group">
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={true}
-                      readOnly
-                    />
-                    Save connection history
-                  </label>
-                  <p className="setting-description">
-                    Automatically save recent connections for quick access
-                  </p>
-                </div>
-
-                <div className="setting-group">
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={true}
-                      readOnly
-                    />
-                    Enable favorites
-                  </label>
-                  <p className="setting-description">
-                    Allow marking connections as favorites
-                  </p>
-                </div>
-              </div>
-
-              <div className="settings-section">
-                <h4>About</h4>
-                <div className="about-info">
-                  <p><strong>ash SSH Client</strong></p>
-                  <p>Version 1.0.0</p>
-                  <p>A modern SSH client built with Electron and React</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="modal-actions">
-              <button 
-                className="close-btn"
-                onClick={() => setShowSettings(false)}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Settings
+        showSettings={showSettings}
+        theme={theme}
+        themes={themes}
+        scrollbackLines={scrollbackLines}
+        onChangeTheme={changeTheme}
+        onChangeScrollbackLines={(e) => {
+          const value = parseInt(e.target.value, 10);
+          if (!isNaN(value) && value >= 100 && value <= 50000) {
+            setScrollbackLines(value);
+            localStorage.setItem('ash-scrollback', value.toString());
+          }
+        }}
+        onClose={() => setShowSettings(false)}
+      />
     </div>
   );
 }
