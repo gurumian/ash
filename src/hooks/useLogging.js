@@ -2,24 +2,62 @@ import { useState, useRef } from 'react';
 
 /**
  * Custom hook for session logging management
+ * Optimized for minimal input latency
  */
 export function useLogging(sessions, groups) {
   const sessionLogs = useRef({});
   const [logStates, setLogStates] = useState({});
+  const flushTimeouts = useRef({});
+  const flushPending = useRef({});
 
-  const appendToLog = async (sessionId, data) => {
+  // Fast synchronous append - no blocking operations
+  const appendToLog = (sessionId, data) => {
     if (!sessionLogs.current[sessionId]) return;
     
     const logSession = sessionLogs.current[sessionId];
+    
+    // Fast string append - synchronous, no blocking
     logSession.content += data;
     logSession.bufferSize += data.length;
-    logSession.lineCount += (data.match(/\n/g) || []).length;
     
-    // Check if we need to flush to file
-    const shouldFlush = logSession.lineCount >= 100 || logSession.bufferSize >= 10240; // 10KB
+    // Optimized line count - only count if we're close to flush threshold
+    if (logSession.bufferSize > 8000) { // Only count when approaching 10KB
+      logSession.lineCount = (logSession.content.match(/\n/g) || []).length;
+    } else {
+      // Fast increment for small data
+      for (let i = 0; i < data.length; i++) {
+        if (data[i] === '\n') logSession.lineCount++;
+      }
+    }
     
-    if (shouldFlush && logSession.isLogging) {
-      await flushLogToFile(sessionId);
+    // Schedule flush asynchronously - don't block input
+    if (logSession.isLogging && (logSession.lineCount >= 100 || logSession.bufferSize >= 10240)) {
+      // Cancel previous flush timeout
+      if (flushTimeouts.current[sessionId]) {
+        clearTimeout(flushTimeouts.current[sessionId]);
+      }
+      
+      // Schedule flush in next idle period or after short delay
+      flushPending.current[sessionId] = true;
+      flushTimeouts.current[sessionId] = setTimeout(() => {
+        if (flushPending.current[sessionId]) {
+          flushPending.current[sessionId] = false;
+          // Use requestIdleCallback if available, otherwise setTimeout
+          if (window.requestIdleCallback) {
+            window.requestIdleCallback(() => {
+              flushLogToFile(sessionId).catch(err => {
+                console.error('Failed to flush log:', err);
+              });
+            }, { timeout: 1000 });
+          } else {
+            setTimeout(() => {
+              flushLogToFile(sessionId).catch(err => {
+                console.error('Failed to flush log:', err);
+              });
+            }, 0);
+          }
+        }
+      }, 0);
     }
   };
 
@@ -124,6 +162,13 @@ export function useLogging(sessions, groups) {
   };
 
   const cleanupLog = async (sessionId) => {
+    // Clear flush timeout
+    if (flushTimeouts.current[sessionId]) {
+      clearTimeout(flushTimeouts.current[sessionId]);
+      delete flushTimeouts.current[sessionId];
+    }
+    delete flushPending.current[sessionId];
+    
     if (sessionLogs.current[sessionId]) {
       // Flush any remaining data before cleanup
       if (sessionLogs.current[sessionId].isLogging) {

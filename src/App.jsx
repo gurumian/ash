@@ -28,6 +28,7 @@ function App() {
   const terminalInstances = useRef({});
   const fitAddons = useRef({});
   const sshConnections = useRef({});
+  const terminalInputHandlers = useRef({}); // Cache input handlers to avoid recreation
   
   // Use custom hooks
   const {
@@ -348,8 +349,13 @@ function App() {
 
     // Clean up existing terminal if it exists
     if (terminalInstances.current[sessionId]) {
+      // Remove old input handler before disposal
+      if (terminalInputHandlers.current[sessionId]) {
+        terminalInstances.current[sessionId].off('data', terminalInputHandlers.current[sessionId]);
+      }
       terminalInstances.current[sessionId].dispose();
       delete terminalInstances.current[sessionId];
+      delete terminalInputHandlers.current[sessionId];
     }
 
     // Dynamically calculate terminal size using computed styles
@@ -411,9 +417,7 @@ function App() {
     if (session.connectionType === 'ssh') {
       // Start SSH shell
       try {
-        console.log(`Starting SSH shell for session ${sessionId}`);
         await sshConnections.current[sessionId].startShell();
-        console.log(`SSH shell started successfully for session ${sessionId}`);
         terminal.write('SSH shell started successfully\r\n');
       } catch (error) {
         console.error(`Failed to start SSH shell for session ${sessionId}:`, error);
@@ -428,21 +432,24 @@ function App() {
 
     }
 
-    // Handle terminal input - optimize for responsiveness
-    terminal.onData((data) => {
-      // Send data immediately for better responsiveness
-      if (sshConnections.current[sessionId]) {
-        sshConnections.current[sessionId].write(data);
-      }
-      
-      // Log asynchronously without blocking input
-      if (sessionLogs.current[sessionId] && sessionLogs.current[sessionId].isLogging) {
-        // Fire and forget - don't await to avoid blocking input
-        appendToLog(sessionId, data).catch(err => {
-          console.error('Failed to append to log:', err);
-        });
-      }
-    });
+    // Handle terminal input - optimize for maximum responsiveness
+    // Cache handler to avoid recreation on every terminal init
+    if (!terminalInputHandlers.current[sessionId]) {
+      terminalInputHandlers.current[sessionId] = (data) => {
+        // CRITICAL: Send data immediately - highest priority, no blocking
+        const connection = sshConnections.current[sessionId];
+        if (connection) {
+          connection.write(data);
+        }
+        
+        // Log synchronously but non-blocking - optimized append
+        // appendToLog is now synchronous and fast, flush happens asynchronously
+        if (sessionLogs.current[sessionId]?.isLogging) {
+          appendToLog(sessionId, data);
+        }
+      };
+    }
+    terminal.onData(terminalInputHandlers.current[sessionId]);
   };
 
   // Switch active session - memoized to prevent unnecessary re-renders
@@ -482,6 +489,11 @@ function App() {
     }
     
     if (terminalInstances.current[sessionId]) {
+      // Remove input handler before disposal
+      if (terminalInputHandlers.current[sessionId]) {
+        terminalInstances.current[sessionId].off('data', terminalInputHandlers.current[sessionId]);
+        delete terminalInputHandlers.current[sessionId];
+      }
       terminalInstances.current[sessionId].dispose();
       delete terminalInstances.current[sessionId];
     }
@@ -563,9 +575,7 @@ function App() {
         setConnectionForm(connectionFormData);
         
         // Use the form data directly instead of relying on state
-        console.log('Connecting saved session:', connectionFormData);
         const sessionId = await createNewSessionWithData(connectionFormData, true);
-        console.log('Created session ID:', sessionId);
         
         if (sessionId) {
           // Add to group after connection
@@ -582,7 +592,6 @@ function App() {
     // Then, reconnect disconnected active sessions
     const groupSessions = sessions.filter(s => group.sessionIds.includes(s.id));
     const unconnectedSessions = groupSessions.filter(s => !s.isConnected);
-    console.log('Unconnected active sessions:', unconnectedSessions.length);
 
     for (const session of unconnectedSessions) {
       try {
@@ -833,37 +842,43 @@ function App() {
     setShowConnectionForm(true);
   };
 
+  // Create connectionId to sessionId mapping for O(1) lookup
+  const connectionIdMap = useRef(new Map());
+
+  // Update connectionId map when connections change
+  useEffect(() => {
+    const map = new Map();
+    Object.entries(sshConnections.current).forEach(([sessionId, conn]) => {
+      if (conn.connectionId) {
+        map.set(conn.connectionId, sessionId);
+      }
+    });
+    connectionIdMap.current = map;
+  }, [sessions]);
+
   useEffect(() => {
     const handleSshData = (event, { connectionId, data }) => {
-      // Find the session that this data belongs to
-      const sessionEntry = Object.entries(sshConnections.current).find(
-        ([sessionId, conn]) => conn.connectionId === connectionId
-      );
-
-      if (sessionEntry) {
-        const [sessionId, connection] = sessionEntry;
-        if (terminalInstances.current[sessionId]) {
-          terminalInstances.current[sessionId].write(data);
-          
-          // Log the data if logging is enabled for this session
-          if (sessionLogs.current[sessionId] && sessionLogs.current[sessionId].isLogging) {
-            sessionLogs.current[sessionId].content += data;
-          }
+      // Fast O(1) lookup instead of O(n) find
+      const sessionId = connectionIdMap.current.get(connectionId);
+      
+      if (sessionId && terminalInstances.current[sessionId]) {
+        // Write to terminal immediately - highest priority
+        terminalInstances.current[sessionId].write(data);
+        
+        // Log asynchronously without blocking display
+        if (sessionLogs.current[sessionId] && sessionLogs.current[sessionId].isLogging) {
+          // Use optimized synchronous append
+          appendToLog(sessionId, data);
         }
       }
     };
 
     const handleSshClose = (event, { connectionId }) => {
-      // Find the session that this event belongs to
-      const sessionEntry = Object.entries(sshConnections.current).find(
-        ([sessionId, conn]) => conn.connectionId === connectionId
-      );
-
-      if (sessionEntry) {
-        const [sessionId, connection] = sessionEntry;
-        if (terminalInstances.current[sessionId]) {
-          terminalInstances.current[sessionId].write('\r\nSSH connection closed.\r\n');
-        }
+      // Fast O(1) lookup
+      const sessionId = connectionIdMap.current.get(connectionId);
+      
+      if (sessionId && terminalInstances.current[sessionId]) {
+        terminalInstances.current[sessionId].write('\r\nSSH connection closed.\r\n');
       }
     };
 
@@ -1019,12 +1034,9 @@ function App() {
         // Write to terminal immediately for better responsiveness
         terminalInstances.current[receivedSessionId].write(data);
         
-        // Log asynchronously without blocking display
-        if (sessionLogs.current[receivedSessionId] && sessionLogs.current[receivedSessionId].isLogging) {
-          // Fire and forget - don't await to avoid blocking display
-          appendToLog(receivedSessionId, data).catch(err => {
-            console.error('Failed to append to log:', err);
-          });
+        // Log synchronously but non-blocking - optimized append
+        if (sessionLogs.current[receivedSessionId]?.isLogging) {
+          appendToLog(receivedSessionId, data);
         }
       }
     };

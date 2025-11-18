@@ -491,6 +491,10 @@ button, a, input, select, textarea, [role="button"] {
   overflow: hidden;
   height: 100%;
   width: 100%;
+  /* Performance optimizations */
+  will-change: contents;
+  transform: translateZ(0); /* Force GPU acceleration */
+  backface-visibility: hidden;
   min-height: 0; /* Important for flex children */
   display: flex;
   flex-direction: column;
@@ -501,6 +505,9 @@ button, a, input, select, textarea, [role="button"] {
   background-color: #000000 !important;
   height: 100% !important;
   width: 100% !important;
+  /* Performance optimizations */
+  will-change: contents;
+  transform: translateZ(0); /* Force GPU acceleration */
 }
 
 .terminal-content .xterm-viewport {
