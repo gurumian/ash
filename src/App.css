@@ -10,6 +10,33 @@ html, body {
   overflow: hidden;
 }
 
+/* Global scrollbar styling - black theme */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: #000000;
+  border-left: 1px solid #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2a2a2a;
+  border: 1px solid #3a3a3a;
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3a3a3a;
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #2a2a2a #000000;
+}
+
 #root {
   height: 100vh;
   width: 100vw;
@@ -396,6 +423,33 @@ button, a, input, select, textarea, [role="button"] {
 .terminal-content .xterm-viewport {
   background-color: #000000 !important;
   height: 100% !important;
+}
+
+/* Custom scrollbar styling - black theme */
+.terminal-content .xterm-viewport::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.terminal-content .xterm-viewport::-webkit-scrollbar-track {
+  background: #000000;
+  border-left: 1px solid #1a1a1a;
+}
+
+.terminal-content .xterm-viewport::-webkit-scrollbar-thumb {
+  background: #2a2a2a;
+  border: 1px solid #3a3a3a;
+  border-radius: 2px;
+}
+
+.terminal-content .xterm-viewport::-webkit-scrollbar-thumb:hover {
+  background: #3a3a3a;
+}
+
+/* Firefox scrollbar */
+.terminal-content .xterm-viewport {
+  scrollbar-width: thin;
+  scrollbar-color: #2a2a2a #000000;
 }
 
 .terminal-content .xterm-screen {
