@@ -385,10 +385,17 @@ const createWindow = () => {
     height: 600,
     title: 'ash',
     backgroundColor: '#000000',
-    // macOS: hiddenInset for native look with traffic lights
+    // macOS: hidden title bar with black overlay for traffic lights area
     // Windows/Linux: frame false for fully custom titlebar (like macOS)
     ...(process.platform === 'darwin' 
-      ? { titleBarStyle: 'hiddenInset' }
+      ? { 
+          titleBarStyle: 'hidden',
+          titleBarOverlay: {
+            color: '#000000',
+            symbolColor: '#00ff41',
+            height: 28
+          }
+        }
       : { 
           frame: false,
           titleBarOverlay: {

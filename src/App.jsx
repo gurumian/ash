@@ -233,6 +233,10 @@ function App() {
     localStorage.getItem('ash-theme') || 'terminus'
   );
   const [showSettings, setShowSettings] = useState(false);
+  const [scrollbackLines, setScrollbackLines] = useState(() => {
+    const saved = localStorage.getItem('ash-scrollback');
+    return saved ? parseInt(saved, 10) : 5000;
+  });
   
   // Unified theme definitions
   const themes = {
@@ -930,11 +934,14 @@ function App() {
     // Get the current theme configuration
     const currentTheme = themes[theme].terminal;
     
+    // Get scrollback limit from settings (stored in localStorage)
+    const scrollbackLimit = scrollbackLines;
+    
     const terminal = new Terminal({
       cols: Math.max(cols - 2, 80), // Account for rounding errors
       rows: Math.max(rows - 2, 24), // Account for rounding errors
       cursorBlink: true,
-      scrollback: 1000,
+      scrollback: scrollbackLimit, // Ring buffer: automatically discards old lines beyond this limit
       theme: currentTheme,
       fontSize: 13,
       fontFamily: "'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace",
@@ -2769,6 +2776,34 @@ function App() {
                   </div>
                   <p className="setting-description">
                     Changes both UI and terminal appearance
+                  </p>
+                </div>
+              </div>
+
+              <div className="settings-section">
+                <h4>Terminal</h4>
+                
+                <div className="setting-group">
+                  <label>Scrollback Lines</label>
+                  <input
+                    type="number"
+                    min="100"
+                    max="50000"
+                    step="100"
+                    value={scrollbackLines}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value, 10);
+                      if (!isNaN(value) && value >= 100 && value <= 50000) {
+                        setScrollbackLines(value);
+                        localStorage.setItem('ash-scrollback', value.toString());
+                      }
+                    }}
+                    style={{ width: '150px' }}
+                  />
+                  <p className="setting-description">
+                    Number of lines to keep in terminal buffer (ring buffer). 
+                    Higher values use more memory. Recommended: 2000-10000 for multiple concurrent sessions.
+                    Current: ~{Math.round(scrollbackLines * 80 * 10 / 1024 / 1024 * 10) / 10}MB per session
                   </p>
                 </div>
               </div>

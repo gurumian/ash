@@ -69,6 +69,7 @@ html, body {
   left: 0;
   right: 0;
   height: 28px;
+  background: #000000 !important; /* Force black background for macOS title bar area */
   -webkit-app-region: drag;
   z-index: 1000;
   pointer-events: auto;
@@ -579,7 +580,7 @@ button, a, input, select, textarea, [role="button"] {
 
 /* Bottom status bar */
 .status-bar {
-  background: var(--theme-surface, #000000);
+  background: #000000 !important; /* Force black background */
   border-top: 1px solid var(--theme-border, #1a1a1a);
   padding: 4px 12px;
   display: flex;
