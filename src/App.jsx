@@ -61,6 +61,32 @@ function App() {
     addSessionToGroupHook(sessionId, groupId, session, skipSavedSessions);
   };
   
+  // Disconnect all sessions in a group (but keep the group and savedSessions)
+  const handleDisconnectGroup = (groupId) => {
+    const group = groups.find(g => g.id === groupId);
+    if (!group) return;
+    
+    // Find all active sessions that belong to this group
+    const savedSessions = group.savedSessions || [];
+    const groupSessions = sessions.filter(session => {
+      return savedSessions.some(savedSession => 
+        matchSavedSessionWithActiveSession(savedSession, session)
+      );
+    });
+    
+    // Disconnect all sessions in the group
+    groupSessions.forEach(session => {
+      if (session.isConnected) {
+        disconnectSession(session.id);
+      }
+    });
+  };
+  
+  // Delete group completely (remove group and savedSessions from localStorage)
+  const handleDeleteGroup = (groupId) => {
+    deleteGroup(groupId);
+  };
+  
   const [showGroupNameDialog, setShowGroupNameDialog] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [pendingSessionForGroup, setPendingSessionForGroup] = useState(null);
@@ -596,12 +622,13 @@ function App() {
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           onConnectGroup={connectGroup}
+          onDisconnectGroup={handleDisconnectGroup}
           onToggleGroupExpanded={toggleGroupExpanded}
           onStartEditingGroupName={startEditingGroupName}
           onSaveGroupName={saveGroupName}
           onCancelEditingGroupName={cancelEditingGroupName}
           onRemoveSessionFromGroup={removeSessionFromGroup}
-          onDeleteGroup={deleteGroup}
+          onDeleteGroup={handleDeleteGroup}
           onCreateGroup={createGroup}
           setGroups={setGroups}
         />

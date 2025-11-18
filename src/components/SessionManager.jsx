@@ -33,6 +33,7 @@ export const SessionManager = memo(function SessionManager({
   onDragLeave,
   onDrop,
   onConnectGroup,
+  onDisconnectGroup,
   onToggleGroupExpanded,
   onStartEditingGroupName,
   onSaveGroupName,
@@ -68,13 +69,15 @@ export const SessionManager = memo(function SessionManager({
       const allConnected = totalSessions > 0 && 
         groupSessions.length === totalSessions &&
         groupSessions.every(s => s.isConnected);
+      const hasConnectedSessions = groupSessions.some(s => s.isConnected);
       
       return {
         group,
         groupSessions,
         savedSessions,
         totalSessions,
-        allConnected
+        allConnected,
+        hasConnectedSessions
       };
     });
   }, [groups, sessions]);
@@ -133,7 +136,7 @@ export const SessionManager = memo(function SessionManager({
       {groups.length > 0 && (
         <div className="section">
           <div className="section-header">Groups</div>
-          {groupCalculations.map(({ group, groupSessions, savedSessions, totalSessions, allConnected }) => {
+          {groupCalculations.map(({ group, groupSessions, savedSessions, totalSessions, allConnected, hasConnectedSessions }) => {
             return (
               <div key={group.id} className="group-container">
                 <div 
@@ -186,15 +189,19 @@ export const SessionManager = memo(function SessionManager({
                   )}
                   <span className="group-count">({totalSessions})</span>
                   <button
-                    className="group-connect-btn"
+                    className={allConnected ? "group-disconnect-btn" : "group-connect-btn"}
                     onClick={(e) => {
                       e.stopPropagation();
-                      onConnectGroup(group.id);
+                      if (allConnected) {
+                        onDisconnectGroup(group.id);
+                      } else {
+                        onConnectGroup(group.id);
+                      }
                     }}
-                    title="Connect All Sessions in Group"
-                    disabled={allConnected || totalSessions === 0}
+                    title={allConnected ? "Disconnect All Sessions in Group" : "Connect All Sessions in Group"}
+                    disabled={totalSessions === 0}
                   >
-                    ▶
+                    {allConnected ? "⏹" : "▶"}
                   </button>
                   <button
                     className="group-delete-btn"
@@ -204,7 +211,7 @@ export const SessionManager = memo(function SessionManager({
                     }}
                     title="Delete Group"
                   >
-                    ×
+                    🗑
                   </button>
                 </div>
                 {group.isExpanded && (
