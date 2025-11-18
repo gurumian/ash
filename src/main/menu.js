@@ -170,6 +170,20 @@ export function createMenu() {
       label: 'Help',
       submenu: [
         {
+          label: 'Check for Updates',
+          click: () => {
+            const focusedWindow = BrowserWindow.getFocusedWindow();
+            try {
+              if (focusedWindow && !focusedWindow.isDestroyed() && !focusedWindow.webContents.isDestroyed()) {
+                focusedWindow.webContents.send('menu-check-updates');
+              }
+            } catch (error) {
+              console.error('Failed to send menu-check-updates:', error);
+            }
+          }
+        },
+        { type: 'separator' },
+        {
           label: 'About ash',
           click: () => {
             const focusedWindow = BrowserWindow.getFocusedWindow();
@@ -201,6 +215,19 @@ export function createMenu() {
               }
             } catch (error) {
               console.error('Failed to send menu-about:', error);
+            }
+          }
+        },
+        {
+          label: 'Check for Updates',
+          click: () => {
+            const focusedWindow = BrowserWindow.getFocusedWindow();
+            try {
+              if (focusedWindow && !focusedWindow.isDestroyed() && !focusedWindow.webContents.isDestroyed()) {
+                focusedWindow.webContents.send('menu-check-updates');
+              }
+            } catch (error) {
+              console.error('Failed to send menu-check-updates:', error);
             }
           }
         },

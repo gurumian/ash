@@ -1318,6 +1318,26 @@ function App() {
       setTimeout(resizeTerminal, 350); // Wait for CSS transition to complete
     });
 
+    // Check for Updates menu event
+    window.electronAPI.onMenuCheckUpdates(async () => {
+      try {
+        const result = await window.electronAPI.checkForUpdates();
+        if (result.success) {
+          if (result.updateInfo) {
+            console.log('Update available:', result.updateInfo.version);
+            // Update will be handled automatically by update-handler.js
+          } else {
+            console.log('No updates available');
+            // Could show a notification here
+          }
+        } else {
+          console.error('Update check failed:', result.error);
+        }
+      } catch (error) {
+        console.error('Failed to check for updates:', error);
+      }
+    });
+
     // About menu event
     window.electronAPI.onMenuAbout(async () => {
       // Load app info if not already loaded
@@ -1341,6 +1361,7 @@ function App() {
       window.electronAPI.removeAllListeners('menu-close-session');
       window.electronAPI.removeAllListeners('menu-toggle-session-manager');
       window.electronAPI.removeAllListeners('menu-settings');
+      window.electronAPI.removeAllListeners('menu-check-updates');
       window.electronAPI.removeAllListeners('menu-about');
     };
   }, [activeSessionId]);
@@ -1463,6 +1484,24 @@ function App() {
             }
           }}
           onSettings={handleShowSettings}
+          onCheckForUpdates={async () => {
+            try {
+              const result = await window.electronAPI.checkForUpdates();
+              if (result.success) {
+                if (result.updateInfo) {
+                  console.log('Update available:', result.updateInfo.version);
+                  // Update will be handled automatically by update-handler.js
+                } else {
+                  console.log('No updates available');
+                  // Could show a notification here
+                }
+              } else {
+                console.error('Update check failed:', result.error);
+              }
+            } catch (error) {
+              console.error('Failed to check for updates:', error);
+            }
+          }}
           onAbout={async () => {
             try {
               const info = await window.electronAPI.getAppInfo();

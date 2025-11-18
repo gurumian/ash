@@ -13,6 +13,7 @@ export function CustomTitleBar({
   onCloseSession,
   onSettings,
   onAbout,
+  onCheckForUpdates,
 }) {
   const [activeMenu, setActiveMenu] = useState(null);
   const menuRef = useRef(null);
@@ -66,6 +67,8 @@ export function CustomTitleBar({
     {
       name: 'Help',
       items: [
+        { label: 'Check for Updates', onClick: onCheckForUpdates },
+        { type: 'separator' },
         { label: 'About ash', onClick: onAbout },
       ],
     },

@@ -45,6 +45,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onMenuCloseSession: (callback) => ipcRenderer.on('menu-close-session', callback),
   onMenuToggleSessionManager: (callback) => ipcRenderer.on('menu-toggle-session-manager', callback),
   onMenuSettings: (callback) => ipcRenderer.on('menu-settings', callback),
+  onMenuCheckUpdates: (callback) => ipcRenderer.on('menu-check-updates', callback),
   onMenuAbout: (callback) => ipcRenderer.on('menu-about', callback),
   
   // Change window title
