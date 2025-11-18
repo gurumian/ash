@@ -2240,7 +2240,7 @@ function App() {
                   </div>
                 )}
               </div>
-              <div className="terminal-content-container" style={{ flex: 1, position: 'relative' }}>
+              <div className="terminal-content-container">
                 {sessions.map(session => (
                   <div
                     key={session.id}

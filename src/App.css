@@ -361,6 +361,15 @@ button, a, input, select, textarea, [role="button"] {
   opacity: 1;
 }
 
+.terminal-content-container {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* Important for flex children to shrink */
+  overflow: hidden;
+}
+
 .terminal-content {
   flex: 1;
   background: var(--theme-bg, #000000);
@@ -369,22 +378,29 @@ button, a, input, select, textarea, [role="button"] {
   font-size: 13px;
   line-height: 1.4;
   padding: 0;
-  overflow: auto;
+  overflow: hidden;
   height: 100%;
   width: 100%;
+  min-height: 0; /* Important for flex children */
+  display: flex;
+  flex-direction: column;
 }
 
-/* Ensure xterm.js terminal uses black background */
+/* Ensure xterm.js terminal uses black background and fills container */
 .terminal-content .xterm {
   background-color: #000000 !important;
-}
-
-.terminal-content .xterm-screen {
-  background-color: #000000 !important;
+  height: 100% !important;
+  width: 100% !important;
 }
 
 .terminal-content .xterm-viewport {
   background-color: #000000 !important;
+  height: 100% !important;
+}
+
+.terminal-content .xterm-screen {
+  background-color: #000000 !important;
+  height: 100% !important;
 }
 
 /* Ensure default text is green - let xterm theme handle other colors */
