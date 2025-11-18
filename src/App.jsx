@@ -6,92 +6,69 @@ import './App.css';
 import { FitAddon } from '@xterm/addon-fit';
 import { SSHConnection } from './connections/SSHConnection';
 import { SerialConnection } from './connections/SerialConnection';
-import { themes } from './themes/themes';
+import { useTheme } from './hooks/useTheme';
+import { useConnectionHistory } from './hooks/useConnectionHistory';
+import { useLogging } from './hooks/useLogging';
+import { useGroups } from './hooks/useGroups';
 
 function App() {
   // Session management state
   const [sessions, setSessions] = useState([]);
   const [activeSessionId, setActiveSessionId] = useState(null);
-  const [groups, setGroups] = useState(() => {
-    const saved = localStorage.getItem('ash-groups');
-    console.log('Loading groups from localStorage:', saved);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        console.log('Parsed groups:', parsed);
-        // Ensure all groups have savedSessions field for backward compatibility
-        const groupsWithSavedSessions = parsed.map(g => ({
-          ...g,
-          savedSessions: g.savedSessions || []
-        }));
-        console.log('Groups with savedSessions:', groupsWithSavedSessions);
-        return groupsWithSavedSessions;
-      } catch (e) {
-        console.error('Failed to parse groups from localStorage:', e);
-        return [];
-      }
-    }
-    console.log('No saved groups found in localStorage');
-    return [];
-  });
   
-  // Clean up orphaned sessionIds: when sessions are disconnected, keep them in savedSessions
-  // This runs when sessions change to ensure groups reflect current session state
+  // Terminal-related refs
+  const terminalRefs = useRef({});
+  const terminalInstances = useRef({});
+  const fitAddons = useRef({});
+  const sshConnections = useRef({});
+  
+  // Use custom hooks
+  const {
+    groups,
+    setGroups,
+    saveGroups,
+    cleanupOrphanedSessions,
+    editingGroupId,
+    editingGroupName,
+    setEditingGroupName,
+    createGroup,
+    createGroupWithName,
+    deleteGroup,
+    toggleGroupExpanded,
+    startEditingGroupName,
+    saveGroupName,
+    cancelEditingGroupName,
+    addSessionToGroup: addSessionToGroupHook,
+    addSavedSessionToGroup,
+    removeSessionFromGroup
+  } = useGroups();
+  
+  // Wrapper for addSessionToGroup to find session
+  const addSessionToGroup = (sessionId, groupId) => {
+    const session = sessions.find(s => s.id === sessionId);
+    addSessionToGroupHook(sessionId, groupId, session);
+  };
+  
+  // Clean up orphaned sessionIds when sessions change
   useEffect(() => {
-    if (sessions.length === 0) {
-      // No active sessions, but we don't want to modify groups on initial load
-      return;
-    }
-    
-    const connectionHistory = JSON.parse(localStorage.getItem('ssh-connections') || '[]');
-    
-    setGroups(prevGroups => {
-      let hasChanges = false;
-      const updatedGroups = prevGroups.map(group => {
-        // Find sessionIds that don't exist in current sessions
-        const orphanedSessionIds = group.sessionIds.filter(sessionId => 
-          !sessions.some(s => s.id === sessionId)
-        );
-        
-        if (orphanedSessionIds.length === 0) {
-          return group; // No orphaned sessions
-        }
-        
-        // For each orphaned session, try to find its connection info from current sessions or history
-        // Since we can't match by sessionId alone, we'll just remove them from sessionIds
-        // They should have been in savedSessions if they weren't connected
-        const newSessionIds = group.sessionIds.filter(sessionId => 
-          sessions.some(s => s.id === sessionId)
-        );
-        
-        // Only update if there are changes
-        if (newSessionIds.length !== group.sessionIds.length) {
-          hasChanges = true;
-          console.log(`Removing ${orphanedSessionIds.length} orphaned sessionIds from group ${group.name}`);
-          return {
-            ...group,
-            sessionIds: newSessionIds
-          };
-        }
-        
-        return group;
-      });
-      
-      if (hasChanges) {
-        console.log('Cleaned up orphaned sessionIds from groups:', updatedGroups);
-        return updatedGroups;
-      }
-      
-      return prevGroups;
-    });
-  }, [sessions]); // Run when sessions change
+    cleanupOrphanedSessions(sessions);
+  }, [sessions, cleanupOrphanedSessions]);
   const [draggedSessionId, setDraggedSessionId] = useState(null);
   const [dragOverGroupId, setDragOverGroupId] = useState(null);
-  const [editingGroupId, setEditingGroupId] = useState(null);
-  const [editingGroupName, setEditingGroupName] = useState('');
   const [showGroupNameDialog, setShowGroupNameDialog] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [pendingSessionForGroup, setPendingSessionForGroup] = useState(null);
+  
+  // Wrapper for createGroupWithName to handle sessionId
+  const createGroupWithSession = (name, sessionId = null) => {
+    const newGroupId = createGroupWithName(name);
+    if (sessionId) {
+      setTimeout(() => {
+        addSessionToGroup(sessionId, newGroupId);
+      }, 100);
+    }
+    return newGroupId;
+  };
   const [formError, setFormError] = useState('');
   const [pendingGroupAdditions, setPendingGroupAdditions] = useState([]); // [{ sessionId, groupId }]
   const [connectionForm, setConnectionForm] = useState({
@@ -116,45 +93,20 @@ function App() {
   const [showSessionManager, setShowSessionManager] = useState(true);
   const [sessionManagerWidth, setSessionManagerWidth] = useState(250);
   
-  // Theme-related state
   // Window controls state (Windows/Linux only)
   const [isMaximized, setIsMaximized] = useState(false);
   const isWindows = window.electronAPI?.platform !== 'darwin';
 
-  const [theme, setTheme] = useState(
-    localStorage.getItem('ash-theme') || 'terminus'
-  );
+  // Use custom hooks
+  const { theme, setTheme: changeTheme, currentTheme, themes } = useTheme(terminalInstances);
+  const { connectionHistory, favorites, saveConnectionHistory, toggleFavorite } = useConnectionHistory();
+  const { sessionLogs, logStates, appendToLog, startLogging, stopLogging, saveLog, clearLog, cleanupLog } = useLogging(sessions, groups);
+  
   const [showSettings, setShowSettings] = useState(false);
   const [scrollbackLines, setScrollbackLines] = useState(() => {
     const saved = localStorage.getItem('ash-scrollback');
     return saved ? parseInt(saved, 10) : 5000;
   });
-  
-  // Themes are imported from themes/themes.js
-
-  // Theme change function
-  const changeTheme = (themeKey) => {
-    setTheme(themeKey);
-    localStorage.setItem('ash-theme', themeKey);
-    
-    // Update theme for all existing terminals
-    Object.keys(terminalInstances.current).forEach(sessionId => {
-      const terminal = terminalInstances.current[sessionId];
-      if (terminal) {
-        terminal.options.theme = themes[themeKey].terminal;
-        // Force a refresh by writing a zero-width space and clearing it
-        terminal.refresh(0, terminal.rows - 1);
-      }
-    });
-  };
-  
-  // Terminal-related refs
-  const terminalRefs = useRef({});
-  const terminalInstances = useRef({});
-  const fitAddons = useRef({});
-  const sshConnections = useRef({});
-  const sessionLogs = useRef({}); // Store logs for each session
-  const [logStates, setLogStates] = useState({}); // Track logging state for UI updates
 
   // Resize handle refs
   const resizeHandleRef = useRef(null);
@@ -162,57 +114,7 @@ function App() {
   const isInitialGroupsLoad = useRef(true);
 
   // Connection history and favorites
-  const [connectionHistory, setConnectionHistory] = useState(
-    JSON.parse(localStorage.getItem('ssh-connections') || '[]')
-  );
-  const [favorites, setFavorites] = useState(
-    JSON.parse(localStorage.getItem('ssh-favorites') || '[]')
-  );
-
-  // Save connection history
-  const saveConnectionHistory = (connection) => {
-    // Remove password if save password option is not checked
-    const connectionToSave = {
-      ...connection,
-      password: connection.savePassword ? connection.password : ''
-    };
-    
-    // For SSH connections, check by host/user/port
-    // For Serial connections, check by serialPort
-    const newHistory = [connectionToSave, ...connectionHistory.filter(c => {
-      if (connection.connectionType === 'serial') {
-        return !(c.connectionType === 'serial' && c.serialPort === connection.serialPort);
-      } else {
-        return !(c.host === connection.host && c.user === connection.user && (c.port || '22') === (connection.port || '22'));
-      }
-    })].slice(0, 20); // Store maximum 20 items
-    
-    setConnectionHistory(newHistory);
-    localStorage.setItem('ssh-connections', JSON.stringify(newHistory));
-  };
-
-  // Toggle favorite
-  const toggleFavorite = (connection) => {
-    const isSerial = connection.connectionType === 'serial';
-    const isFavorite = isSerial
-      ? favorites.some(f => f.connectionType === 'serial' && f.serialPort === connection.serialPort)
-      : favorites.some(f => f.host === connection.host && f.user === connection.user);
-    
-    if (isFavorite) {
-      const newFavorites = isSerial
-        ? favorites.filter(f => !(f.connectionType === 'serial' && f.serialPort === connection.serialPort))
-        : favorites.filter(f => !(f.host === connection.host && f.user === connection.user));
-      setFavorites(newFavorites);
-      localStorage.setItem('ssh-favorites', JSON.stringify(newFavorites));
-    } else {
-      const name = connection.sessionName || connection.name || (isSerial
-        ? `Serial: ${connection.serialPort}`
-        : `${connection.user}@${connection.host}`);
-      const newFavorites = [...favorites, { ...connection, name }];
-      setFavorites(newFavorites);
-      localStorage.setItem('ssh-favorites', JSON.stringify(newFavorites));
-    }
-  };
+  // Connection history and favorites are managed by useConnectionHistory hook
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -264,124 +166,7 @@ function App() {
     }
   };
 
-  // Log management functions
-  const appendToLog = async (sessionId, data) => {
-    if (!sessionLogs.current[sessionId]) return;
-    
-    const logSession = sessionLogs.current[sessionId];
-    logSession.content += data;
-    logSession.bufferSize += data.length;
-    logSession.lineCount += (data.match(/\n/g) || []).length;
-    
-    // Check if we need to flush to file
-    const shouldFlush = logSession.lineCount >= 100 || logSession.bufferSize >= 10240; // 10KB
-    
-    if (shouldFlush && logSession.isLogging) {
-      await flushLogToFile(sessionId);
-    }
-  };
-
-  const flushLogToFile = async (sessionId) => {
-    const logSession = sessionLogs.current[sessionId];
-    if (!logSession || !logSession.content) return;
-    
-    try {
-      const session = sessions.find(s => s.id === sessionId);
-      const sessionName = session ? session.name.replace(/[^a-zA-Z0-9]/g, '_') : `session_${sessionId}`;
-      
-      // Find group for this session
-      const group = groups.find(g => g.sessionIds.includes(sessionId));
-      const groupName = group ? group.name.replace(/[^a-zA-Z0-9]/g, '_') : 'default';
-      
-      const result = await window.electronAPI.saveLogToFile(sessionId, logSession.content, sessionName, groupName);
-      
-      if (result.success) {
-        logSession.filePath = result.filePath;
-        console.log(`Log flushed to file: ${result.filePath}`);
-        
-        // Reset buffer
-        logSession.content = '';
-        logSession.bufferSize = 0;
-        logSession.lineCount = 0;
-      }
-    } catch (error) {
-      console.error('Failed to flush log to file:', error);
-    }
-  };
-
-  const startLogging = (sessionId) => {
-    if (!sessionLogs.current[sessionId]) {
-      sessionLogs.current[sessionId] = {
-        content: '',
-        startTime: new Date().toISOString(),
-        isLogging: true,
-        bufferSize: 0,
-        lineCount: 0,
-        filePath: null
-      };
-    } else {
-      sessionLogs.current[sessionId].isLogging = true;
-    }
-    
-    // Update UI state
-    setLogStates(prev => ({
-      ...prev,
-      [sessionId]: { isLogging: true }
-    }));
-    
-    // Add log entry when starting
-    const logEntry = `\r\n[${new Date().toLocaleTimeString()}] Logging started\r\n`;
-    appendToLog(sessionId, logEntry);
-  };
-
-  const stopLogging = async (sessionId) => {
-    if (sessionLogs.current[sessionId]) {
-      sessionLogs.current[sessionId].isLogging = false;
-    }
-    
-    // Update UI state
-    setLogStates(prev => ({
-      ...prev,
-      [sessionId]: { isLogging: false }
-    }));
-    
-    // Add log entry when stopping
-    const logEntry = `\r\n[${new Date().toLocaleTimeString()}] Logging stopped\r\n`;
-    await appendToLog(sessionId, logEntry);
-    
-    // Flush any remaining data to file
-    await flushLogToFile(sessionId);
-    
-    if (terminalInstances.current[sessionId]) {
-      terminalInstances.current[sessionId].write(logEntry);
-    }
-  };
-
-  const saveLog = async (sessionId) => {
-    if (sessionLogs.current[sessionId]) {
-      // Flush current buffer to file first
-      await flushLogToFile(sessionId);
-      
-      const logSession = sessionLogs.current[sessionId];
-      if (logSession.filePath) {
-        // Show success message with file path
-        console.log(`Log saved to: ${logSession.filePath}`);
-        alert(`Log saved to: ${logSession.filePath}`);
-      } else {
-        alert('No log data to save');
-      }
-    }
-  };
-
-  const clearLog = (sessionId) => {
-    if (sessionLogs.current[sessionId]) {
-      sessionLogs.current[sessionId].content = '';
-      sessionLogs.current[sessionId].bufferSize = 0;
-      sessionLogs.current[sessionId].lineCount = 0;
-      sessionLogs.current[sessionId].filePath = null;
-      console.log(`Log cleared for session ${sessionId}`);
-    }
-  };
+  // Log management functions are provided by useLogging hook
 
   // Resize handlers
   const handleMouseDown = (e) => {
@@ -699,20 +484,7 @@ function App() {
     }
     
     // Clean up session logs
-    if (sessionLogs.current[sessionId]) {
-      // Flush any remaining data before cleanup
-      if (sessionLogs.current[sessionId].isLogging) {
-        await flushLogToFile(sessionId);
-      }
-      delete sessionLogs.current[sessionId];
-    }
-    
-    // Clean up log states
-    setLogStates(prev => {
-      const newStates = { ...prev };
-      delete newStates[sessionId];
-      return newStates;
-    });
+    await cleanupLog(sessionId);
     
     setSessions(prev => prev.filter(s => s.id !== sessionId));
     
@@ -722,208 +494,7 @@ function App() {
     }
   };
 
-  // Save groups to localStorage
-  const saveGroups = (newGroups) => {
-    setGroups(newGroups);
-    localStorage.setItem('ash-groups', JSON.stringify(newGroups));
-    console.log('Groups saved to localStorage:', newGroups);
-  };
-  
-  // Sync groups to localStorage whenever groups state changes (skip initial mount)
-  useEffect(() => {
-    if (isInitialGroupsLoad.current) {
-      isInitialGroupsLoad.current = false;
-      console.log('Initial groups load, skipping sync:', groups);
-      return; // Skip on initial mount
-    }
-    const serialized = JSON.stringify(groups);
-    localStorage.setItem('ash-groups', serialized);
-    console.log('Groups synced to localStorage:', groups);
-    console.log('Serialized data:', serialized);
-    
-    // Verify it was saved correctly
-    const verify = localStorage.getItem('ash-groups');
-    console.log('Verification - localStorage contains:', verify);
-  }, [groups]);
-
-  // Group management functions
-  const createGroup = (name) => {
-    const newGroup = {
-      id: Date.now().toString(),
-      name: name || `Group ${groups.length + 1}`,
-      sessionIds: [], // Active session IDs
-      savedSessions: [], // Connection info for unconnected sessions
-      isExpanded: true
-    };
-    saveGroups([...groups, newGroup]);
-    return newGroup.id;
-  };
-
-  const createGroupWithName = (name, sessionId = null) => {
-    const newGroupId = createGroup(name);
-    if (sessionId) {
-      setTimeout(() => {
-        addSessionToGroup(sessionId, newGroupId);
-      }, 100);
-    }
-    return newGroupId;
-  };
-
-  const deleteGroup = (groupId) => {
-    saveGroups(groups.filter(g => g.id !== groupId));
-  };
-
-  const toggleGroupExpanded = (groupId) => {
-    saveGroups(groups.map(g => 
-      g.id === groupId ? { ...g, isExpanded: !g.isExpanded } : g
-    ));
-  };
-
-  const startEditingGroupName = (groupId) => {
-    const group = groups.find(g => g.id === groupId);
-    if (group) {
-      setEditingGroupId(groupId);
-      setEditingGroupName(group.name);
-    }
-  };
-
-  const saveGroupName = (groupId) => {
-    saveGroups(groups.map(g => 
-      g.id === groupId ? { ...g, name: editingGroupName } : g
-    ));
-    setEditingGroupId(null);
-    setEditingGroupName('');
-  };
-
-  const cancelEditingGroupName = () => {
-    setEditingGroupId(null);
-    setEditingGroupName('');
-  };
-
-  const addSessionToGroup = (sessionId, groupId) => {
-    // Allow duplicate sessions in the same group - just add to target group
-    console.log('Adding session to group:', { sessionId, groupId });
-    const session = sessions.find(s => s.id === sessionId);
-    
-    setGroups(prevGroups => {
-      const finalGroups = prevGroups.map(g => {
-        if (g.id === groupId) {
-          // Build connection info from session
-          let connectionInfo = null;
-          if (session) {
-            connectionInfo = session.connectionType === 'serial' ? {
-              connectionType: 'serial',
-              serialPort: session.serialPort,
-              baudRate: session.baudRate,
-              dataBits: session.dataBits,
-              stopBits: session.stopBits,
-              parity: session.parity,
-              flowControl: session.flowControl,
-              sessionName: session.name
-            } : {
-              connectionType: 'ssh',
-              host: session.host,
-              port: session.port,
-              user: session.user,
-              password: session.password || '',
-              sessionName: session.name
-            };
-          }
-          
-          // Update savedSessions: ensure connection info is stored (for persistence)
-          let updatedSavedSessions = [...(g.savedSessions || [])];
-          if (connectionInfo) {
-            // Check if this connection already exists in savedSessions
-            const exists = updatedSavedSessions.some(saved => {
-              if (session.connectionType === 'serial') {
-                return saved.connectionType === 'serial' && saved.serialPort === session.serialPort;
-              } else {
-                return saved.host === session.host && 
-                       saved.user === session.user && 
-                       (saved.port || '22') === (session.port || '22');
-              }
-            });
-            
-            if (!exists) {
-              updatedSavedSessions.push(connectionInfo);
-            }
-          }
-          
-          // Add to sessionIds only if session exists (for active tracking)
-          const updatedSessionIds = session ? [...g.sessionIds, sessionId] : g.sessionIds;
-          
-          return { 
-            ...g, 
-            sessionIds: updatedSessionIds,
-            savedSessions: updatedSavedSessions
-          };
-        }
-        return g;
-      });
-      console.log('Updated groups:', finalGroups);
-      // localStorage will be updated by useEffect
-      return finalGroups;
-    });
-  };
-
-  const addSavedSessionToGroup = (connection, groupId) => {
-    // Add unconnected session info to group
-    console.log('Adding saved session to group:', { connection, groupId });
-    setGroups(prevGroups => {
-      const finalGroups = prevGroups.map(g => {
-        if (g.id === groupId) {
-          // Check if already exists in savedSessions
-          const exists = (g.savedSessions || []).some(saved => {
-            const connType = connection.connectionType || 'ssh';
-            if (connType === 'serial') {
-              return saved.connectionType === 'serial' && saved.serialPort === connection.serialPort;
-            } else {
-              return saved.host === connection.host && 
-                     saved.user === connection.user && 
-                     (saved.port || '22') === (connection.port || '22');
-            }
-          });
-          
-          if (!exists) {
-            return { 
-              ...g, 
-              savedSessions: [...(g.savedSessions || []), connection]
-            };
-          } else {
-            // Already exists, return group as is
-            return g;
-          }
-        }
-        return g;
-      });
-      console.log('Updated groups with saved session:', finalGroups);
-      console.log('Group after adding saved session:', finalGroups.find(g => g.id === groupId));
-      // localStorage will be updated by useEffect
-      return finalGroups;
-    });
-  };
-
-  const removeSessionFromGroup = (sessionId, groupId, index = null) => {
-    saveGroups(groups.map(g => {
-      if (g.id === groupId) {
-        if (index !== null) {
-          // Remove specific index (for duplicate sessions)
-          const newSessionIds = [...g.sessionIds];
-          newSessionIds.splice(index, 1);
-          return { ...g, sessionIds: newSessionIds };
-        } else {
-          // Remove first occurrence (backward compatibility)
-          const newSessionIds = [...g.sessionIds];
-          const firstIndex = newSessionIds.indexOf(sessionId);
-          if (firstIndex !== -1) {
-            newSessionIds.splice(firstIndex, 1);
-          }
-          return { ...g, sessionIds: newSessionIds };
-        }
-      }
-      return g;
-    }));
-  };
+  // Group management functions are provided by useGroups hook
 
   // Connect all sessions in a group
   const connectGroup = async (groupId) => {
@@ -1649,8 +1220,7 @@ function App() {
     };
   }, []);
 
-  // Apply theme with CSS variables
-  const currentTheme = themes[theme];
+  // Apply theme with CSS variables (currentTheme is from useTheme hook)
   
   return (
     <div 
@@ -2135,9 +1705,12 @@ function App() {
                   <div className="log-controls">
                     <button 
                       className={`log-btn ${logStates[activeSessionId]?.isLogging ? 'logging' : 'not-logging'}`}
-                      onClick={() => {
+                      onClick={async () => {
                         if (logStates[activeSessionId]?.isLogging) {
-                          stopLogging(activeSessionId);
+                          const logEntry = await stopLogging(activeSessionId);
+                          if (logEntry && terminalInstances.current[activeSessionId]) {
+                            terminalInstances.current[activeSessionId].write(logEntry);
+                          }
                         } else {
                           startLogging(activeSessionId);
                         }
