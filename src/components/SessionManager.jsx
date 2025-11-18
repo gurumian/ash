@@ -25,6 +25,7 @@ export const SessionManager = memo(function SessionManager({
   onCreateNewSessionWithData,
   onConnectFromHistory,
   onToggleFavorite,
+  onRemoveConnection,
   onSwitchToSession,
   onDisconnectSession,
   onDragStart,
@@ -104,6 +105,7 @@ export const SessionManager = memo(function SessionManager({
               favorites={favorites}
               onConnectFromHistory={onConnectFromHistory}
               onToggleFavorite={onToggleFavorite}
+              onRemoveConnection={onRemoveConnection}
               onDragStart={onDragStart}
             />
           ))}
@@ -297,6 +299,7 @@ export const SessionManager = memo(function SessionManager({
               favorites={favorites}
               onConnectFromHistory={onConnectFromHistory}
               onToggleFavorite={onToggleFavorite}
+              onRemoveConnection={onRemoveConnection}
               onDragStart={onDragStart}
             />
           ))}

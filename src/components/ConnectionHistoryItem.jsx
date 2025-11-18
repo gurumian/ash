@@ -9,6 +9,7 @@ export const ConnectionHistoryItem = memo(function ConnectionHistoryItem({
   favorites,
   onConnectFromHistory,
   onToggleFavorite,
+  onRemoveConnection,
   onDragStart
 }) {
   const isSerial = conn.connectionType === 'serial';
@@ -60,6 +61,13 @@ export const ConnectionHistoryItem = memo(function ConnectionHistoryItem({
     onToggleFavorite(conn);
   }, [conn, onToggleFavorite]);
 
+  const handleRemove = useCallback((e) => {
+    e.stopPropagation();
+    if (onRemoveConnection) {
+      onRemoveConnection(conn);
+    }
+  }, [conn, onRemoveConnection]);
+
   return (
     <div 
       className="session-item session-list-item"
@@ -78,6 +86,15 @@ export const ConnectionHistoryItem = memo(function ConnectionHistoryItem({
       >
         {isFavorite ? '★' : '☆'}
       </button>
+      {onRemoveConnection && (
+        <button 
+          className="remove-from-group-btn"
+          onClick={handleRemove}
+          title="Remove from Session List"
+        >
+          ⊗
+        </button>
+      )}
     </div>
   );
 });

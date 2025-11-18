@@ -106,7 +106,7 @@ function App() {
   const isWindows = window.electronAPI?.platform !== 'darwin';
 
   // Use custom hooks
-  const { connectionHistory, favorites, saveConnectionHistory, toggleFavorite } = useConnectionHistory();
+  const { connectionHistory, favorites, saveConnectionHistory, toggleFavorite, removeConnection } = useConnectionHistory();
   const { sessionLogs, logStates, appendToLog, startLogging, stopLogging, saveLog, clearLog, cleanupLog } = useLogging(sessions, groups);
   const { availableSerialPorts, loadSerialPorts } = useSerialPorts();
   
@@ -663,6 +663,7 @@ function App() {
           onCreateNewSessionWithData={createNewSessionWithData}
           onConnectFromHistory={connectFromHistory}
           onToggleFavorite={toggleFavorite}
+          onRemoveConnection={removeConnection}
           onSwitchToSession={switchToSession}
           onDisconnectSession={disconnectSession}
           onDragStart={handleDragStart}

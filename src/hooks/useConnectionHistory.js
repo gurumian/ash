@@ -56,11 +56,36 @@ export function useConnectionHistory() {
     }
   };
 
+  // Remove connection from history
+  const removeConnection = (connection) => {
+    const isSerial = connection.connectionType === 'serial';
+    const newHistory = isSerial
+      ? connectionHistory.filter(c => !(c.connectionType === 'serial' && c.serialPort === connection.serialPort))
+      : connectionHistory.filter(c => !(c.host === connection.host && c.user === connection.user && (c.port || '22') === (connection.port || '22')));
+    
+    setConnectionHistory(newHistory);
+    localStorage.setItem('ssh-connections', JSON.stringify(newHistory));
+    
+    // Also remove from favorites if it's favorited
+    const isFavorite = isSerial
+      ? favorites.some(f => f.connectionType === 'serial' && f.serialPort === connection.serialPort)
+      : favorites.some(f => f.host === connection.host && f.user === connection.user);
+    
+    if (isFavorite) {
+      const newFavorites = isSerial
+        ? favorites.filter(f => !(f.connectionType === 'serial' && f.serialPort === connection.serialPort))
+        : favorites.filter(f => !(f.host === connection.host && f.user === connection.user));
+      setFavorites(newFavorites);
+      localStorage.setItem('ssh-favorites', JSON.stringify(newFavorites));
+    }
+  };
+
   return {
     connectionHistory,
     favorites,
     saveConnectionHistory,
-    toggleFavorite
+    toggleFavorite,
+    removeConnection
   };
 }
 
