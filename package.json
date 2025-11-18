@@ -9,6 +9,7 @@
     "package": "electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",
+    "upload": "node scripts/upload-build.js",
     "lint": "echo \"No linting configured\"",
     "build-icons": "electron-icon-builder --input=./assets/icons/icon.png --output=./assets/icons --flatten"
   },
@@ -31,6 +32,7 @@
     "@electron/fuses": "^1.8.0",
     "@felixrieseberg/electron-forge-maker-nsis": "^7.2.0",
     "electron": "^39.0.0",
+    "form-data": "^4.0.4",
     "vite": "^5.4.20"
   },
   "dependencies": {
