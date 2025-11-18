@@ -169,11 +169,27 @@ function App() {
   };
 
   // Terminal resize utility function
-  const resizeTerminal = () => {
-    if (activeSessionId && fitAddons.current[activeSessionId]) {
-      fitAddons.current[activeSessionId].fit();
-    }
-  };
+  const resizeTerminal = useCallback(() => {
+    // Use requestAnimationFrame to ensure DOM has updated
+    requestAnimationFrame(() => {
+      // Resize all active terminals, not just the active one
+      Object.keys(fitAddons.current).forEach(sessionId => {
+        const fitAddon = fitAddons.current[sessionId];
+        const terminal = terminalInstances.current[sessionId];
+        const terminalRef = terminalRefs.current[sessionId];
+        
+        if (fitAddon && terminal && terminalRef) {
+          try {
+            // Force a layout recalculation before fitting
+            terminalRef.offsetHeight;
+            fitAddon.fit();
+          } catch (error) {
+            console.error(`Error resizing terminal for session ${sessionId}:`, error);
+          }
+        }
+      });
+    });
+  }, []); // Empty deps - uses refs which don't change
 
   // Log management functions are provided by useLogging hook
 
@@ -407,7 +423,6 @@ function App() {
     terminal.loadAddon(fitAddon);
 
     terminal.open(terminalRef);
-    fitAddon.fit();
     
     // Ensure theme is applied (in case it wasn't applied during construction)
     if (terminal.options.theme !== currentTheme) {
@@ -416,6 +431,16 @@ function App() {
     
     terminalInstances.current[sessionId] = terminal;
     fitAddons.current[sessionId] = fitAddon;
+    
+    // Fit terminal after a short delay to ensure DOM is ready
+    requestAnimationFrame(() => {
+      try {
+        terminalRef.offsetHeight; // Force layout recalculation
+        fitAddon.fit();
+      } catch (error) {
+        console.error(`Error fitting terminal during initialization:`, error);
+      }
+    });
 
     // Get session info to determine connection type
     const session = sessionInfo || sessions.find(s => s.id === sessionId);
@@ -1134,8 +1159,12 @@ function App() {
     }
   }, [activeSessionId, sessions]);
 
-  // Adjust terminal size on window resize
+  // Adjust terminal size on window resize and container size changes
   useEffect(() => {
+    let resizeObserver;
+    let animationFrameId;
+    
+    // Debounce function for window resize
     function debounce(func, wait) {
       let timeout;
       return function executedFunction(...args) {
@@ -1148,13 +1177,46 @@ function App() {
       };
     }
 
+    // Window resize handler with debounce
     const debouncedResize = debounce(() => {
-      setTimeout(resizeTerminal, 10);
-    }, 250);
+      cancelAnimationFrame(animationFrameId);
+      animationFrameId = requestAnimationFrame(() => {
+        resizeTerminal();
+      });
+    }, 100);
 
+    // Use ResizeObserver to detect terminal container size changes
+    const terminalContainer = document.querySelector('.terminal-content-container');
+    if (terminalContainer) {
+      resizeObserver = new ResizeObserver((entries) => {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = requestAnimationFrame(() => {
+          resizeTerminal();
+        });
+      });
+      
+      resizeObserver.observe(terminalContainer);
+      
+      // Also observe the terminal area for layout changes
+      const terminalArea = document.querySelector('.terminal-area');
+      if (terminalArea) {
+        resizeObserver.observe(terminalArea);
+      }
+    }
+
+    // Also listen to window resize events
     window.addEventListener('resize', debouncedResize);
-    return () => window.removeEventListener('resize', debouncedResize);
-  }, []); // Register once
+    
+    return () => {
+      window.removeEventListener('resize', debouncedResize);
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+    };
+  }, [activeSessionId, resizeTerminal]); // Re-register when active session changes
 
   // Memoize activeSession to avoid recalculation on every render
   const activeSession = useMemo(() => 
