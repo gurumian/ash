@@ -62,20 +62,33 @@ export function initializeSSHHandlers() {
           return;
         }
         
-        // Save stream
-        sshStreams.set(connectionId, stream);
+        // Save stream with webContents reference
+        const webContents = event.sender;
+        sshStreams.set(connectionId, { stream, webContents });
         
         resolve({ success: true, streamId: stream.id });
         
         // Send terminal data to renderer
         stream.on('data', (data) => {
           console.log(`SSH data for connectionId ${connectionId}`);
-          event.sender.send('ssh-data', { connectionId: connectionId, data: data.toString() });
+          try {
+            if (!webContents.isDestroyed()) {
+              webContents.send('ssh-data', { connectionId: connectionId, data: data.toString() });
+            }
+          } catch (error) {
+            console.warn('Failed to send SSH data:', error.message);
+          }
         });
         
         stream.on('close', () => {
           console.log(`SSH connection closed: ${connectionId}`);
-          event.sender.send('ssh-closed', { connectionId: connectionId });
+          try {
+            if (!webContents.isDestroyed()) {
+              webContents.send('ssh-closed', { connectionId: connectionId });
+            }
+          } catch (error) {
+            console.warn('Failed to send SSH closed event:', error.message);
+          }
           sshStreams.delete(connectionId);
         });
       });
@@ -84,21 +97,21 @@ export function initializeSSHHandlers() {
 
   // Send data to SSH terminal
   ipcMain.handle('ssh-write', async (event, { connectionId, data }) => {
-    const stream = sshStreams.get(connectionId);
-    if (!stream) {
+    const streamInfo = sshStreams.get(connectionId);
+    if (!streamInfo || !streamInfo.stream) {
       throw new Error('SSH stream not found');
     }
     
     console.log(`SSH write to connectionId ${connectionId}: ${data.length} bytes`);
-    stream.write(data);
+    streamInfo.stream.write(data);
     return { success: true };
   });
-
+  
   // Disconnect SSH connection
   ipcMain.handle('ssh-disconnect', async (event, connectionId) => {
-    const stream = sshStreams.get(connectionId);
-    if (stream) {
-      stream.end();
+    const streamInfo = sshStreams.get(connectionId);
+    if (streamInfo && streamInfo.stream) {
+      streamInfo.stream.end();
       sshStreams.delete(connectionId);
     }
     
@@ -116,7 +129,11 @@ export function initializeSSHHandlers() {
  * Cleanup SSH connections
  */
 export function cleanupSSHConnections() {
-  sshStreams.forEach((stream) => stream.end());
+  sshStreams.forEach((streamInfo) => {
+    if (streamInfo.stream) {
+      streamInfo.stream.end();
+    }
+  });
   sshConnections.forEach((conn) => conn.end());
   sshStreams.clear();
   sshConnections.clear();

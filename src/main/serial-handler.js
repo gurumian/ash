@@ -57,20 +57,39 @@ export function initializeSerialHandlers() {
         flowControl: options.flowControl || 'none'
       });
 
-      serialConnections.set(sessionId, port);
+      const webContents = event.sender;
+      serialConnections.set(sessionId, { port, webContents });
 
       port.on('data', (data) => {
-        event.sender.send('serial-data', sessionId, data.toString());
+        try {
+          if (!webContents.isDestroyed()) {
+            webContents.send('serial-data', sessionId, data.toString());
+          }
+        } catch (error) {
+          console.warn('Failed to send serial data:', error.message);
+        }
       });
 
       port.on('close', () => {
-        event.sender.send('serial-close', sessionId);
+        try {
+          if (!webContents.isDestroyed()) {
+            webContents.send('serial-close', sessionId);
+          }
+        } catch (error) {
+          console.warn('Failed to send serial close event:', error.message);
+        }
         serialConnections.delete(sessionId);
       });
 
       port.on('error', (error) => {
         console.error('Serial port error:', error);
-        event.sender.send('serial-error', sessionId, error.message);
+        try {
+          if (!webContents.isDestroyed()) {
+            webContents.send('serial-error', sessionId, error.message);
+          }
+        } catch (sendError) {
+          console.warn('Failed to send serial error event:', sendError.message);
+        }
       });
 
       return { success: true };
@@ -83,25 +102,25 @@ export function initializeSerialHandlers() {
   // Write to serial port
   ipcMain.handle('serial-write', async (event, sessionId, data) => {
     try {
-      const port = serialConnections.get(sessionId);
-      if (!port) {
+      const connInfo = serialConnections.get(sessionId);
+      if (!connInfo || !connInfo.port) {
         throw new Error('Serial port not connected');
       }
 
-      port.write(data);
+      connInfo.port.write(data);
       return { success: true };
     } catch (error) {
       console.error('Serial write error:', error);
       return { success: false, error: error.message };
     }
   });
-
+  
   // Disconnect serial port
   ipcMain.handle('serial-disconnect', async (event, sessionId) => {
     try {
-      const port = serialConnections.get(sessionId);
-      if (port) {
-        port.close();
+      const connInfo = serialConnections.get(sessionId);
+      if (connInfo && connInfo.port) {
+        connInfo.port.close();
         serialConnections.delete(sessionId);
       }
       return { success: true };
@@ -116,7 +135,11 @@ export function initializeSerialHandlers() {
  * Cleanup serial connections
  */
 export function cleanupSerialConnections() {
-  serialConnections.forEach((port) => port.close());
+  serialConnections.forEach((connInfo) => {
+    if (connInfo.port) {
+      connInfo.port.close();
+    }
+  });
   serialConnections.clear();
 }
 
