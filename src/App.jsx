@@ -115,7 +115,7 @@ function App() {
   
   const [showSettings, setShowSettings] = useState(false);
   const [showAboutDialog, setShowAboutDialog] = useState(false);
-  const [appInfo, setAppInfo] = useState({ version: '1.0.4', author: { name: 'Bryce Ghim', email: 'gurumlab@gmail.com' } });
+  const [appInfo, setAppInfo] = useState({ version: '', author: { name: 'Bryce Ghim', email: 'gurumlab@gmail.com' } });
   
   // Terminal context menu state
   const [contextMenu, setContextMenu] = useState({

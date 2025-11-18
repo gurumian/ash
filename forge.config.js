@@ -30,7 +30,10 @@ const makers = [
   {
     name: '@electron-forge/maker-dmg',
     platforms: ['darwin'],
-    config: {},
+    config: {
+      name: 'ash',
+      // DMG will use version from package.json automatically
+    },
   },
   {
     name: '@electron-forge/maker-deb',

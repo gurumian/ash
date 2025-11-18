@@ -208,7 +208,7 @@ export function initializeWindowHandlers() {
       return {
         success: false,
         error: error.message,
-        version: app.getVersion() || '1.0.4',
+        version: app.getVersion() || '1.0.0',
         author: { name: 'Bryce Ghim', email: 'gurumlab@gmail.com' },
       };
     }
