@@ -169,9 +169,19 @@ function App() {
   };
 
   // Terminal resize utility function
+  // Use ref to track pending resize to avoid duplicate calls
+  const pendingResizeRef = useRef(null);
+  
   const resizeTerminal = useCallback(() => {
-    // Use requestAnimationFrame to ensure DOM has updated
-    requestAnimationFrame(() => {
+    // Cancel any pending resize to avoid duplicate work
+    if (pendingResizeRef.current !== null) {
+      cancelAnimationFrame(pendingResizeRef.current);
+    }
+    
+    // Schedule resize for next animation frame (only once per frame)
+    pendingResizeRef.current = requestAnimationFrame(() => {
+      pendingResizeRef.current = null;
+      
       // Resize all active terminals, not just the active one
       Object.keys(fitAddons.current).forEach(sessionId => {
         const fitAddon = fitAddons.current[sessionId];
@@ -1162,37 +1172,42 @@ function App() {
   // Adjust terminal size on window resize and container size changes
   useEffect(() => {
     let resizeObserver;
-    let animationFrameId;
     
-    // Debounce function for window resize
-    function debounce(func, wait) {
+    // Debounce function for window resize (throttle to reduce frequency)
+    function throttle(func, wait) {
       let timeout;
+      let lastCall = 0;
       return function executedFunction(...args) {
-        const later = () => {
-          clearTimeout(timeout);
+        const now = Date.now();
+        const timeSinceLastCall = now - lastCall;
+        
+        if (timeSinceLastCall >= wait) {
+          lastCall = now;
           func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
+        } else {
+          clearTimeout(timeout);
+          timeout = setTimeout(() => {
+            lastCall = Date.now();
+            func(...args);
+          }, wait - timeSinceLastCall);
+        }
       };
     }
 
-    // Window resize handler with debounce
-    const debouncedResize = debounce(() => {
-      cancelAnimationFrame(animationFrameId);
-      animationFrameId = requestAnimationFrame(() => {
-        resizeTerminal();
-      });
+    // Window resize handler with throttle (100ms)
+    // resizeTerminal already uses requestAnimationFrame internally, so no need to wrap again
+    const throttledResize = throttle(() => {
+      resizeTerminal();
     }, 100);
 
     // Use ResizeObserver to detect terminal container size changes
+    // ResizeObserver is already efficient and fires at optimal times
     const terminalContainer = document.querySelector('.terminal-content-container');
     if (terminalContainer) {
       resizeObserver = new ResizeObserver((entries) => {
-        cancelAnimationFrame(animationFrameId);
-        animationFrameId = requestAnimationFrame(() => {
-          resizeTerminal();
-        });
+        // ResizeObserver already batches changes, so we can call resizeTerminal directly
+        // resizeTerminal internally uses requestAnimationFrame for batching
+        resizeTerminal();
       });
       
       resizeObserver.observe(terminalContainer);
@@ -1204,16 +1219,18 @@ function App() {
       }
     }
 
-    // Also listen to window resize events
-    window.addEventListener('resize', debouncedResize);
+    // Listen to window resize events (throttled)
+    window.addEventListener('resize', throttledResize);
     
     return () => {
-      window.removeEventListener('resize', debouncedResize);
+      window.removeEventListener('resize', throttledResize);
       if (resizeObserver) {
         resizeObserver.disconnect();
       }
-      if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
+      // Cancel pending resize animation frame
+      if (pendingResizeRef.current !== null) {
+        cancelAnimationFrame(pendingResizeRef.current);
+        pendingResizeRef.current = null;
       }
     };
   }, [activeSessionId, resizeTerminal]); // Re-register when active session changes
