@@ -561,6 +561,72 @@ ipcMain.handle('serial-disconnect', async (event, sessionId) => {
   }
 });
 
+// Detach tab to new window
+ipcMain.handle('detach-tab', async (event, sessionId) => {
+  try {
+    // Get session data from renderer
+    const sessionData = await event.sender.executeJavaScript(`
+      (() => {
+        const session = window.__sessions__?.find(s => s.id === '${sessionId}');
+        return session ? JSON.stringify(session) : null;
+      })()
+    `);
+    
+    if (!sessionData) {
+      return { success: false, error: 'Session not found' };
+    }
+    
+    // Create new window
+    const newWindow = new BrowserWindow({
+      width: 800,
+      height: 600,
+      title: 'ash',
+      backgroundColor: '#000000',
+      ...(process.platform === 'darwin' 
+        ? { 
+            titleBarStyle: 'hidden',
+            titleBarOverlay: {
+              color: '#000000',
+              symbolColor: '#00ff41',
+              height: 28
+            }
+          }
+        : { 
+            frame: false,
+            titleBarOverlay: {
+              color: '#000000',
+              symbolColor: '#00ff41',
+              height: 30
+            }
+          }
+      ),
+      webPreferences: {
+        preload: path.join(__dirname, 'preload.js'),
+      },
+    });
+    
+    // Load the app
+    if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+      newWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
+    } else {
+      newWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
+    }
+    
+    // Wait for window to be ready, then send session data
+    newWindow.webContents.once('did-finish-load', () => {
+      newWindow.webContents.send('detached-session', sessionData);
+    });
+    
+    // Remove session from original window
+    event.sender.send('remove-detached-session', sessionId);
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Detach tab error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
 // Save log to file
 ipcMain.handle('save-log-to-file', async (event, { sessionId, logContent, sessionName, groupName = 'default' }) => {
   try {

@@ -445,6 +445,14 @@ button, a, input, select, textarea, [role="button"] {
   color: #ff4444;
 }
 
+.tab {
+  cursor: grab;
+}
+
+.tab:active {
+  cursor: grabbing;
+}
+
 .tab-close {
   background: none;
   border: none;

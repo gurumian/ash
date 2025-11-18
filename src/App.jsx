@@ -805,6 +805,7 @@ function App() {
           host: formData.host,
           port: formData.port,
           user: formData.user,
+          password: formData.password, // Include password for detach functionality
           connectionType: 'ssh',
           isConnected: true,
           createdAt: new Date().toISOString()
@@ -1009,6 +1010,27 @@ function App() {
   // Switch active session
   const switchToSession = (sessionId) => {
     setActiveSessionId(sessionId);
+  };
+
+  // Expose sessions to window for main process access (update on sessions change)
+  useEffect(() => {
+    window.__sessions__ = sessions;
+  }, [sessions]);
+
+  // Detach tab to new window
+  const handleDetachTab = async (sessionId) => {
+    try {
+      const result = await window.electronAPI.detachTab(sessionId);
+      if (result.success) {
+        // Session will be removed via IPC event
+        console.log(`Tab ${sessionId} detached to new window`);
+      } else {
+        alert('Failed to detach tab: ' + result.error);
+      }
+    } catch (error) {
+      console.error('Failed to detach tab:', error);
+      alert('Failed to detach tab: ' + error.message);
+    }
   };
 
   // Disconnect session
@@ -1629,6 +1651,137 @@ function App() {
       window.electronAPI.offSSHClose(handleSshClose);
     };
   }, []); // Register once
+
+  // Handle detached session events
+  useEffect(() => {
+    // Listen for session to be removed (when detached)
+    const handleRemoveDetachedSession = (sessionId) => {
+      console.log('Removing detached session:', sessionId);
+      
+      // Use functional updates to avoid stale closure issues
+      setSessions(prev => {
+        const session = prev.find(s => s.id === sessionId);
+        
+        // Disconnect the connection in the original window
+        // (new window will reconnect automatically)
+        if (session && sshConnections.current[sessionId]) {
+          sshConnections.current[sessionId].disconnect();
+          delete sshConnections.current[sessionId];
+        }
+        
+        // Clean up local references
+        if (terminalInstances.current[sessionId]) {
+          terminalInstances.current[sessionId].dispose();
+          delete terminalInstances.current[sessionId];
+        }
+        if (fitAddons.current[sessionId]) {
+          delete fitAddons.current[sessionId];
+        }
+        if (sessionLogs.current[sessionId]) {
+          delete sessionLogs.current[sessionId];
+        }
+        if (logStates[sessionId]) {
+          setLogStates(prevStates => {
+            const newStates = { ...prevStates };
+            delete newStates[sessionId];
+            return newStates;
+          });
+        }
+        
+        // Remove from sessions list
+        const remainingSessions = prev.filter(s => s.id !== sessionId);
+        
+        // Update active session if needed
+        setActiveSessionId(currentActiveId => {
+          if (currentActiveId === sessionId) {
+            return remainingSessions.length > 0 ? remainingSessions[0].id : null;
+          }
+          return currentActiveId;
+        });
+        
+        return remainingSessions;
+      });
+    };
+
+    // Listen for detached session data (when receiving in new window)
+    const handleDetachedSession = async (sessionData) => {
+      try {
+        const session = JSON.parse(sessionData);
+        console.log('Received detached session:', session);
+        
+        // Mark as disconnected since connection objects can't be transferred
+        const newSession = { ...session, isConnected: false };
+        
+        // Add session to this window
+        setSessions(prev => [...prev, newSession]);
+        setActiveSessionId(newSession.id);
+        
+        // Try to reconnect automatically if it was connected
+        if (session.isConnected) {
+          // Small delay to ensure terminal is initialized
+          setTimeout(async () => {
+            try {
+              if (newSession.connectionType === 'ssh') {
+                // Get password from connection history if not in session
+                let password = newSession.password;
+                if (!password) {
+                  const historyEntry = connectionHistory.find(c => 
+                    c.connectionType === 'ssh' &&
+                    c.host === newSession.host && 
+                    c.user === newSession.user && 
+                    (c.port || '22') === (newSession.port || '22')
+                  );
+                  password = historyEntry?.password || '';
+                }
+                
+                if (!password) {
+                  console.warn('No password available for reconnection, marking as disconnected');
+                  setSessions(prev => prev.map(s => 
+                    s.id === newSession.id ? { ...s, isConnected: false } : s
+                  ));
+                  return;
+                }
+                
+                const connection = new SSHConnection();
+                await connection.connect(newSession.host, newSession.port, newSession.user, password);
+                sshConnections.current[newSession.id] = connection;
+                await connection.startShell();
+                
+                setSessions(prev => prev.map(s => 
+                  s.id === newSession.id ? { ...s, isConnected: true } : s
+                ));
+                
+                // Initialize terminal
+                setTimeout(() => {
+                  initializeTerminal(newSession.id, newSession);
+                }, 100);
+              } else if (newSession.connectionType === 'serial') {
+                // Serial reconnection would go here
+                setSessions(prev => prev.map(s => 
+                  s.id === newSession.id ? { ...s, isConnected: false } : s
+                ));
+              }
+            } catch (error) {
+              console.error('Failed to reconnect detached session:', error);
+              setSessions(prev => prev.map(s => 
+                s.id === newSession.id ? { ...s, isConnected: false } : s
+              ));
+            }
+          }, 500);
+        }
+      } catch (error) {
+        console.error('Failed to parse detached session:', error);
+      }
+    };
+
+    window.electronAPI.onRemoveDetachedSession(handleRemoveDetachedSession);
+    window.electronAPI.onDetachedSession(handleDetachedSession);
+
+    return () => {
+      window.electronAPI.offRemoveDetachedSession(handleRemoveDetachedSession);
+      window.electronAPI.offDetachedSession(handleDetachedSession);
+    };
+  }, []);
 
 
 
@@ -2295,6 +2448,25 @@ function App() {
                     <div 
                       key={session.id}
                       className={`tab ${activeSessionId === session.id ? 'active' : ''}`}
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData('text/plain', session.id);
+                        e.dataTransfer.effectAllowed = 'move';
+                        // Add visual feedback
+                        e.currentTarget.style.opacity = '0.5';
+                      }}
+                      onDragEnd={(e) => {
+                        e.currentTarget.style.opacity = '';
+                        // Check if dragged outside the window
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const x = e.clientX;
+                        const y = e.clientY;
+                        
+                        // If dragged outside window bounds, detach
+                        if (x < 0 || y < 0 || x > window.innerWidth || y > window.innerHeight) {
+                          handleDetachTab(session.id);
+                        }
+                      }}
                       onClick={() => switchToSession(session.id)}
                     >
                       <span className="tab-name">{session.name}</span>
@@ -2307,6 +2479,7 @@ function App() {
                           e.stopPropagation();
                           disconnectSession(session.id);
                         }}
+                        title="Close"
                       >
                         ×
                       </button>

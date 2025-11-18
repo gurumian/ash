@@ -76,5 +76,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onWindowUnmaximized: (callback) => ipcRenderer.on('window-unmaximized', callback),
 
   // Platform info
-  platform: process.platform
+  platform: process.platform,
+
+  // Detach tab to new window
+  detachTab: (sessionId) => ipcRenderer.invoke('detach-tab', sessionId),
+  
+  // Listen for detached session
+  onDetachedSession: (callback) => ipcRenderer.on('detached-session', (event, data) => callback(data)),
+  offDetachedSession: (callback) => ipcRenderer.off('detached-session', callback),
+  
+  // Listen for remove detached session
+  onRemoveDetachedSession: (callback) => ipcRenderer.on('remove-detached-session', (event, sessionId) => callback(sessionId)),
+  offRemoveDetachedSession: (callback) => ipcRenderer.off('remove-detached-session', callback)
 });
