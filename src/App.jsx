@@ -4,6 +4,7 @@ import '@xterm/xterm/css/xterm.css';
 import './App.css';
 
 import { FitAddon } from '@xterm/addon-fit';
+import { SearchAddon } from '@xterm/addon-search';
 import { SSHConnection } from './connections/SSHConnection';
 import { SerialConnection } from './connections/SerialConnection';
 import { useTheme } from './hooks/useTheme';
@@ -19,6 +20,7 @@ import { GroupNameDialog } from './components/GroupNameDialog';
 import { StatusBar } from './components/StatusBar';
 import { AboutDialog } from './components/AboutDialog';
 import { TerminalContextMenu } from './components/TerminalContextMenu';
+import { TerminalSearchBar } from './components/TerminalSearchBar';
 
 function App() {
   // Session management state
@@ -29,6 +31,7 @@ function App() {
   const terminalRefs = useRef({});
   const terminalInstances = useRef({});
   const fitAddons = useRef({});
+  const searchAddons = useRef({}); // Store search addons for each terminal
   const sshConnections = useRef({});
   const terminalInputHandlers = useRef({}); // Cache input handlers to avoid recreation
   const terminalContextMenuHandlers = useRef({}); // Store context menu handlers for cleanup
@@ -142,6 +145,9 @@ function App() {
     y: 0,
     sessionId: null,
   });
+  
+  // Terminal search state
+  const [showSearchBar, setShowSearchBar] = useState(false);
   const [scrollbackLines, setScrollbackLines] = useState(() => {
     const saved = localStorage.getItem('ash-scrollback');
     return saved ? parseInt(saved, 10) : 5000;
@@ -469,6 +475,9 @@ function App() {
     const fitAddon = new FitAddon();
     terminal.loadAddon(fitAddon);
 
+    const searchAddon = new SearchAddon();
+    terminal.loadAddon(searchAddon);
+
     terminal.open(terminalRef);
     
     // Ensure theme is applied (in case it wasn't applied during construction)
@@ -478,6 +487,7 @@ function App() {
     
     terminalInstances.current[sessionId] = terminal;
     fitAddons.current[sessionId] = fitAddon;
+    searchAddons.current[sessionId] = searchAddon;
     
     // Enable copy/paste functionality
     // Handle copy: Ctrl+Shift+C (to avoid interfering with Ctrl+C for interrupt)
@@ -521,6 +531,14 @@ function App() {
           }).catch(err => {
             console.error('Failed to paste:', err);
           });
+          event.preventDefault();
+          return false;
+        }
+      }
+      // Ctrl+F or Cmd+F - open search bar
+      if ((event.ctrlKey || event.metaKey) && (event.key === 'f' || event.key === 'F')) {
+        if (activeSessionId === sessionId) {
+          setShowSearchBar(true);
           event.preventDefault();
           return false;
         }
@@ -678,6 +696,11 @@ function App() {
     // Clean up fit addon
     if (fitAddons.current[sessionId]) {
       delete fitAddons.current[sessionId];
+    }
+    
+    // Clean up search addon
+    if (searchAddons.current[sessionId]) {
+      delete searchAddons.current[sessionId];
     }
     
     // Clean up session logs
@@ -1364,6 +1387,30 @@ function App() {
     };
   }, [activeSessionId, resizeTerminal]); // Re-register when active session changes
 
+  // Global keyboard shortcut for search (Ctrl+F / Cmd+F)
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      // Ctrl+F or Cmd+F - open search bar
+      if ((event.ctrlKey || event.metaKey) && (event.key === 'f' || event.key === 'F')) {
+        // Only open search if there's an active session and we're not in an input field
+        if (activeSessionId && !event.target.matches('input, textarea')) {
+          setShowSearchBar(true);
+          event.preventDefault();
+        }
+      }
+      // Escape - close search bar
+      if (event.key === 'Escape' && showSearchBar) {
+        setShowSearchBar(false);
+        event.preventDefault();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [activeSessionId, showSearchBar]);
+
   // Memoize activeSession to avoid recalculation on every render
   const activeSession = useMemo(() => 
     sessions.find(s => s.id === activeSessionId),
@@ -1764,6 +1811,9 @@ function App() {
           onClearLog={clearLog}
           onShowConnectionForm={handleShowConnectionForm}
           terminalInstances={terminalInstances}
+          searchAddons={searchAddons}
+          showSearchBar={showSearchBar}
+          onCloseSearchBar={() => setShowSearchBar(false)}
         />
         
         {/* Terminal Context Menu */}

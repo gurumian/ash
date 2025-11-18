@@ -1,0 +1,210 @@
+import React, { useState, useEffect, useRef, memo } from 'react';
+
+/**
+ * Terminal Search Bar component - Search functionality for terminal content
+ */
+export const TerminalSearchBar = memo(function TerminalSearchBar({
+  terminal,
+  searchAddon,
+  isVisible,
+  onClose
+}) {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [matchCount, setMatchCount] = useState(0);
+  const [currentMatch, setCurrentMatch] = useState(0);
+  const [caseSensitive, setCaseSensitive] = useState(false);
+  const [wholeWord, setWholeWord] = useState(false);
+  const [regex, setRegex] = useState(false);
+  const inputRef = useRef(null);
+
+  // Focus input when search bar becomes visible
+  useEffect(() => {
+    if (isVisible && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isVisible]);
+
+  // Update search when term or options change
+  useEffect(() => {
+    if (!searchAddon || !terminal) return;
+
+    const updateMatchInfo = () => {
+    // xterm.js SearchAddon doesn't provide match count directly
+    // We'll count matches in the terminal buffer
+    if (!searchTerm || !terminal) {
+      setMatchCount(0);
+      setCurrentMatch(0);
+      return;
+    }
+
+    try {
+      const buffer = terminal.buffer.active;
+      let count = 0;
+      
+      // Build regex pattern
+      let pattern;
+      if (regex) {
+        try {
+          pattern = new RegExp(searchTerm, caseSensitive ? 'g' : 'gi');
+        } catch (e) {
+          // Invalid regex, skip counting
+          setMatchCount(0);
+          setCurrentMatch(0);
+          return;
+        }
+      } else {
+        const escaped = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        pattern = new RegExp(escaped, caseSensitive ? 'g' : 'gi');
+      }
+
+      // Count matches in buffer
+      for (let i = 0; i < buffer.length; i++) {
+        const line = buffer.getLine(i);
+        if (line) {
+          const lineStr = line.translateToString(true);
+          const matches = lineStr.match(pattern);
+          if (matches) {
+            count += matches.length;
+          }
+        }
+      }
+
+      setMatchCount(count);
+      setCurrentMatch(count > 0 ? 1 : 0);
+    } catch (error) {
+      console.error('Error updating match info:', error);
+      setMatchCount(0);
+      setCurrentMatch(0);
+    }
+    };
+
+    if (searchTerm) {
+      const options = {
+        caseSensitive,
+        wholeWord,
+        regex
+      };
+      
+      searchAddon.findNext(searchTerm, options);
+      updateMatchInfo();
+    } else {
+      searchAddon.clearDecorations();
+      setMatchCount(0);
+      setCurrentMatch(0);
+    }
+  }, [searchTerm, caseSensitive, wholeWord, regex, searchAddon, terminal]);
+
+  const handleFindNext = () => {
+    if (!searchAddon || !searchTerm) return;
+    const options = {
+      caseSensitive,
+      wholeWord,
+      regex
+    };
+    searchAddon.findNext(searchTerm, options);
+  };
+
+  const handleFindPrevious = () => {
+    if (!searchAddon || !searchTerm) return;
+    const options = {
+      caseSensitive,
+      wholeWord,
+      regex
+    };
+    searchAddon.findPrevious(searchTerm, options);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      onClose();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (e.shiftKey) {
+        handleFindPrevious();
+      } else {
+        handleFindNext();
+      }
+    } else if (e.key === 'F3') {
+      e.preventDefault();
+      if (e.shiftKey) {
+        handleFindPrevious();
+      } else {
+        handleFindNext();
+      }
+    }
+  };
+
+  if (!isVisible) return null;
+
+  return (
+    <div className="terminal-search-bar">
+      <div className="search-input-group">
+        <input
+          ref={inputRef}
+          type="text"
+          className="search-input"
+          placeholder="Search..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          onKeyDown={handleKeyDown}
+        />
+        <div className="search-options">
+          <button
+            className={`search-option-btn ${caseSensitive ? 'active' : ''}`}
+            onClick={() => setCaseSensitive(!caseSensitive)}
+            title="Match case (Aa)"
+          >
+            Aa
+          </button>
+          <button
+            className={`search-option-btn ${wholeWord ? 'active' : ''}`}
+            onClick={() => setWholeWord(!wholeWord)}
+            title="Match whole word"
+          >
+            W
+          </button>
+          <button
+            className={`search-option-btn ${regex ? 'active' : ''}`}
+            onClick={() => setRegex(!regex)}
+            title="Regular expression"
+          >
+            .*
+          </button>
+        </div>
+        <div className="search-navigation">
+          <button
+            className="search-nav-btn"
+            onClick={handleFindPrevious}
+            disabled={!searchTerm}
+            title="Previous (Shift+Enter)"
+          >
+            ↑
+          </button>
+          <button
+            className="search-nav-btn"
+            onClick={handleFindNext}
+            disabled={!searchTerm}
+            title="Next (Enter)"
+          >
+            ↓
+          </button>
+        </div>
+        {searchTerm && matchCount > 0 && (
+          <div className="search-match-info">
+            {currentMatch} / {matchCount}
+          </div>
+        )}
+        <button
+          className="search-close-btn"
+          onClick={onClose}
+          title="Close (Esc)"
+        >
+          ×
+        </button>
+      </div>
+    </div>
+  );
+});
+

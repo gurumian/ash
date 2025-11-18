@@ -1,5 +1,6 @@
 import React, { memo } from 'react';
 import { TabItem } from './TabItem';
+import { TerminalSearchBar } from './TerminalSearchBar';
 
 /**
  * Terminal View component - Right side terminal area with tabs and terminal content
@@ -19,7 +20,10 @@ export const TerminalView = memo(function TerminalView({
   onSaveLog,
   onClearLog,
   onShowConnectionForm,
-  terminalInstances
+  terminalInstances,
+  searchAddons,
+  showSearchBar,
+  onCloseSearchBar
 }) {
   return (
     <div className="terminal-area">
@@ -91,6 +95,14 @@ export const TerminalView = memo(function TerminalView({
                 />
               </div>
             ))}
+            {activeSessionId && (
+              <TerminalSearchBar
+                terminal={terminalInstances.current[activeSessionId]}
+                searchAddon={searchAddons?.current[activeSessionId]}
+                isVisible={showSearchBar}
+                onClose={onCloseSearchBar}
+              />
+            )}
           </div>
         </div>
       ) : (
