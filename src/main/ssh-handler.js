@@ -49,14 +49,19 @@ export function initializeSSHHandlers() {
   });
 
   // Start SSH terminal session
-  ipcMain.handle('ssh-start-shell', async (event, connectionId) => {
+  ipcMain.handle('ssh-start-shell', async (event, connectionId, cols = 80, rows = 24) => {
     const conn = sshConnections.get(connectionId);
     if (!conn) {
       throw new Error('SSH connection not found');
     }
     
     return new Promise((resolve, reject) => {
-      conn.shell((err, stream) => {
+      conn.shell({
+        cols: cols,
+        rows: rows,
+        width: cols * 8, // Approximate pixel width (8 pixels per character)
+        height: rows * 16 // Approximate pixel height (16 pixels per character)
+      }, (err, stream) => {
         if (err) {
           reject(new Error(`Failed to start shell: ${err.message}`));
           return;
@@ -107,6 +112,22 @@ export function initializeSSHHandlers() {
     return { success: true };
   });
   
+  // Resize SSH terminal
+  ipcMain.handle('ssh-resize', async (event, connectionId, cols, rows) => {
+    const streamInfo = sshStreams.get(connectionId);
+    if (!streamInfo || !streamInfo.stream) {
+      return { success: false, error: 'SSH stream not found' };
+    }
+    
+    try {
+      streamInfo.stream.setWindow(rows, cols, 0, 0);
+      return { success: true };
+    } catch (error) {
+      console.error(`Failed to resize SSH terminal for connectionId ${connectionId}:`, error);
+      return { success: false, error: error.message };
+    }
+  });
+
   // Disconnect SSH connection
   ipcMain.handle('ssh-disconnect', async (event, connectionId) => {
     const streamInfo = sshStreams.get(connectionId);

@@ -50,13 +50,21 @@ export function useTerminalManagement({
             // Force a layout recalculation before fitting
             terminalRef.offsetHeight;
             fitAddon.fit();
+            
+            // Notify SSH server of terminal size change
+            const session = sessions.find(s => s.id === sessionId);
+            if (session && session.connectionType === 'ssh' && sshConnections.current[sessionId]) {
+              const cols = terminal.cols;
+              const rows = terminal.rows;
+              sshConnections.current[sessionId].resize(cols, rows);
+            }
           } catch (error) {
             console.error(`Error resizing terminal for session ${sessionId}:`, error);
           }
         }
       });
     });
-  }, []);
+  }, [sessions, sshConnections]);
 
   // Initialize terminal
   const initializeTerminal = useCallback(async (sessionId, sessionInfo = null) => {
@@ -80,31 +88,16 @@ export function useTerminalManagement({
       delete terminalInputHandlers.current[sessionId];
     }
 
-    // Dynamically calculate terminal size using computed styles
-    const terminalElement = terminalRef;
-    
-    // Force a layout recalculation
-    terminalElement.offsetHeight;
-    
-    const computedStyle = window.getComputedStyle(terminalElement);
-    const fontSize = parseFloat(computedStyle.fontSize) || 13;
-    
-    // Calculate character dimensions more accurately
-    const charWidth = fontSize * 0.6; // Approximate width for monospace fonts
-    const charHeight = fontSize * 1.0; // Use line-height from CSS
-    
-    const cols = Math.floor(terminalElement.clientWidth / charWidth);
-    const rows = Math.floor(terminalElement.clientHeight / charHeight);
-
     // Get the current theme configuration
     const currentTheme = themes[theme].terminal;
     
     // Get scrollback limit from settings (stored in localStorage)
     const scrollbackLimit = scrollbackLines;
     
+    // Create terminal with default size - FitAddon will adjust it accurately
     const terminal = new Terminal({
-      cols: Math.max(cols - 2, 80), // Account for rounding errors
-      rows: Math.max(rows - 2, 24), // Account for rounding errors
+      cols: 80, // Default, will be adjusted by FitAddon
+      rows: 24, // Default, will be adjusted by FitAddon
       cursorBlink: true,
       scrollback: scrollbackLimit, // Ring buffer: automatically discards old lines beyond this limit
       theme: currentTheme,
@@ -235,35 +228,46 @@ export function useTerminalManagement({
       }
     }, 100);
     
-    // Fit terminal after a short delay to ensure DOM is ready
-    requestAnimationFrame(() => {
-      try {
-        terminalRef.offsetHeight; // Force layout recalculation
-        fitAddon.fit();
-      } catch (error) {
-        console.error(`Error fitting terminal during initialization:`, error);
-      }
-    });
-
     // Get session info to determine connection type
     const session = sessionInfo || sessions.find(s => s.id === sessionId);
     if (!session) return;
 
-    if (session.connectionType === 'ssh') {
-      // Start SSH shell
-      try {
-        await sshConnections.current[sessionId].startShell();
-        terminal.write('SSH shell started successfully\r\n');
-      } catch (error) {
-        console.error(`Failed to start SSH shell for session ${sessionId}:`, error);
-        terminal.write(`Failed to start shell: ${error.message}\r\n`);
-        return;
-      }
-    } else if (session.connectionType === 'serial') {
-      // Serial port connection
-      terminal.write(`Serial port ${session.serialPort} connected at ${session.baudRate} baud\r\n`);
-      terminal.write('Serial terminal ready\r\n');
-    }
+    // Fit terminal after DOM is ready and then start SSH shell with accurate size
+    // Use double requestAnimationFrame to ensure layout is complete
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        try {
+          const terminalElement = terminalRef;
+          terminalElement.offsetHeight; // Force layout recalculation
+          fitAddon.fit();
+          
+          // Start SSH shell after terminal is properly fitted
+          if (session.connectionType === 'ssh') {
+            // Use a small delay to ensure fit() has taken effect
+            setTimeout(async () => {
+              try {
+                const cols = terminal.cols;
+                const rows = terminal.rows;
+                if (sshConnections.current[sessionId]) {
+                  await sshConnections.current[sessionId].startShell(cols, rows);
+                  // Don't write message here - let SSH server's initial prompt come first
+                  // The server will send its own prompt after shell starts
+                }
+              } catch (error) {
+                console.error(`Failed to start SSH shell for session ${sessionId}:`, error);
+                terminal.write(`Failed to start shell: ${error.message}\r\n`);
+              }
+            }, 50);
+          } else if (session.connectionType === 'serial') {
+            // Serial port connection
+            terminal.write(`Serial port ${session.serialPort} connected at ${session.baudRate} baud\r\n`);
+            terminal.write('Serial terminal ready\r\n');
+          }
+        } catch (error) {
+          console.error(`Error fitting terminal during initialization:`, error);
+        }
+      });
+    });
 
     // Handle terminal input - optimize for maximum responsiveness
     // Cache handler to avoid recreation on every terminal init
@@ -373,16 +377,9 @@ export function useTerminalManagement({
       if (sessionId && terminalInstances.current[sessionId]) {
         const terminal = terminalInstances.current[sessionId];
         
-        // Write to terminal immediately using requestAnimationFrame for optimal rendering
-        if (data.length < 1024) {
-          // Small data: write immediately for lowest latency
-          terminal.write(data);
-        } else {
-          // Large data: use requestAnimationFrame to avoid blocking
-          requestAnimationFrame(() => {
-            terminal.write(data);
-          });
-        }
+        // Write to terminal immediately to preserve output order
+        // Always write synchronously to maintain correct sequence with server output
+        terminal.write(data);
         
         // Log asynchronously without blocking display - use ref to get latest function
         if (sessionLogs.current[sessionId] && sessionLogs.current[sessionId].isLogging) {

@@ -34,17 +34,25 @@ export class SSHConnection {
     }
   }
 
-  async startShell() {
+  async startShell(cols = 80, rows = 24) {
     if (!this.isConnected) {
       throw new Error('Not connected to SSH server');
     }
 
     try {
-      const result = await window.electronAPI.sshStartShell(this.connectionId);
+      const result = await window.electronAPI.sshStartShell(this.connectionId, cols, rows);
       return result;
     } catch (error) {
       throw new Error(`Failed to start shell: ${error.message}`);
     }
+  }
+
+  resize(cols, rows) {
+    if (!this.isConnected) {
+      return;
+    }
+    
+    window.electronAPI.sshResize(this.connectionId, cols, rows);
   }
 
   write(data) {

@@ -282,7 +282,6 @@ export function useConnectionManagement({
                 
                 const connection = new SSHConnection();
                 await connection.connect(existingSession.host, existingSession.port, existingSession.user, password);
-                await connection.startShell();
                 sshConnections.current[existingSession.id] = connection;
                 
                 // Initialize terminal if not already initialized
@@ -290,6 +289,10 @@ export function useConnectionManagement({
                   setTimeout(() => {
                     initializeTerminal(existingSession.id, existingSession);
                   }, 100);
+                } else {
+                  // Terminal already exists, start shell with current terminal size
+                  const terminal = terminalInstances.current[existingSession.id];
+                  await connection.startShell(terminal.cols, terminal.rows);
                 }
                 
                 setSessions(prev => prev.map(s => 
@@ -366,13 +369,16 @@ export function useConnectionManagement({
                   
                   const connection = new SSHConnection();
                   await connection.connect(matchingSession.host, matchingSession.port, matchingSession.user, password);
-                  await connection.startShell();
                   sshConnections.current[matchingSession.id] = connection;
                   
                   if (!terminalInstances.current[matchingSession.id]) {
                     setTimeout(() => {
                       initializeTerminal(matchingSession.id, matchingSession);
                     }, 100);
+                  } else {
+                    // Terminal already exists, start shell with current terminal size
+                    const terminal = terminalInstances.current[matchingSession.id];
+                    await connection.startShell(terminal.cols, terminal.rows);
                   }
                   
                   setSessions(prev => prev.map(s => 
@@ -545,13 +551,13 @@ export function useConnectionManagement({
                 const connection = new SSHConnection();
                 await connection.connect(newSession.host, newSession.port, newSession.user, password);
                 sshConnections.current[newSession.id] = connection;
-                await connection.startShell();
                 
                 setSessions(prev => prev.map(s => 
                   s.id === newSession.id ? { ...s, isConnected: true } : s
                 ));
                 
                 // Initialize terminal - use ref to get latest function
+                // Terminal initialization will start the SSH shell with correct size
                 setTimeout(() => {
                   initializeTerminalRef.current(newSession.id, newSession);
                 }, 100);

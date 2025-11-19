@@ -9,7 +9,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   sshConnect: (connectionInfo) => ipcRenderer.invoke('ssh-connect', connectionInfo),
   
   // Start SSH terminal session
-  sshStartShell: (connectionId) => ipcRenderer.invoke('ssh-start-shell', connectionId),
+  sshStartShell: (connectionId, cols, rows) => ipcRenderer.invoke('ssh-start-shell', connectionId, cols, rows),
+  
+  // Resize SSH terminal
+  sshResize: (connectionId, cols, rows) => ipcRenderer.invoke('ssh-resize', connectionId, cols, rows),
   
   // Send data to SSH terminal
   sshWrite: (connectionId, data) => ipcRenderer.invoke('ssh-write', { connectionId, data }),
