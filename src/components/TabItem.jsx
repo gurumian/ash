@@ -8,7 +8,10 @@ export const TabItem = memo(function TabItem({
   isActive,
   onSwitch,
   onDisconnect,
-  onDetachTab
+  onDetachTab,
+  onDragOver,
+  onDrop,
+  index
 }) {
   const handleDragStart = useCallback((e) => {
     e.dataTransfer.setData('text/plain', session.id);
@@ -27,6 +30,22 @@ export const TabItem = memo(function TabItem({
     }
   }, [session.id, onDetachTab]);
 
+  const handleDragOver = useCallback((e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (onDragOver) {
+      onDragOver(e, index);
+    }
+  }, [index, onDragOver]);
+
+  const handleDrop = useCallback((e) => {
+    e.preventDefault();
+    const draggedSessionId = e.dataTransfer.getData('text/plain');
+    if (draggedSessionId && draggedSessionId !== session.id && onDrop) {
+      onDrop(draggedSessionId, index);
+    }
+  }, [session.id, index, onDrop]);
+
   const handleClick = useCallback(() => {
     onSwitch(session.id);
   }, [session.id, onSwitch]);
@@ -42,6 +61,8 @@ export const TabItem = memo(function TabItem({
       draggable
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
       onClick={handleClick}
     >
       <span className="tab-name">{session.name}</span>

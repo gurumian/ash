@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import React, { memo, useCallback } from 'react';
 import { TabItem } from './TabItem';
 import { TerminalSearchBar } from './TerminalSearchBar';
 
@@ -15,6 +15,7 @@ export const TerminalView = memo(function TerminalView({
   onSwitchToSession,
   onDisconnectSession,
   onDetachTab,
+  onReorderTabs,
   onStartLogging,
   onStopLogging,
   onSaveLog,
@@ -25,20 +26,32 @@ export const TerminalView = memo(function TerminalView({
   showSearchBar,
   onCloseSearchBar
 }) {
+  const handleTabDragOver = useCallback((e, index) => {
+    // Visual feedback can be added here if needed
+  }, []);
+
+  const handleTabDrop = useCallback((draggedSessionId, targetIndex) => {
+    if (onReorderTabs) {
+      onReorderTabs(draggedSessionId, targetIndex);
+    }
+  }, [onReorderTabs]);
   return (
     <div className="terminal-area">
       {activeSession ? (
         <div className="terminal-container">
           <div className="terminal-header">
             <div className="tab-bar">
-              {sessions.map(session => (
+              {sessions.map((session, index) => (
                 <TabItem
                   key={session.id}
                   session={session}
                   isActive={activeSessionId === session.id}
+                  index={index}
                   onSwitch={onSwitchToSession}
                   onDisconnect={onDisconnectSession}
                   onDetachTab={onDetachTab}
+                  onDragOver={handleTabDragOver}
+                  onDrop={handleTabDrop}
                 />
               ))}
             </div>

@@ -323,6 +323,26 @@ function App() {
     setActiveSessionId(sessionId);
   }, []);
 
+  // Reorder tabs by dragging
+  const handleReorderTabs = useCallback((draggedSessionId, targetIndex) => {
+    setSessions(prev => {
+      const newSessions = [...prev];
+      const draggedIndex = newSessions.findIndex(s => s.id === draggedSessionId);
+      
+      if (draggedIndex === -1 || draggedIndex === targetIndex) {
+        return prev; // No change needed
+      }
+      
+      // Remove dragged item
+      const [draggedSession] = newSessions.splice(draggedIndex, 1);
+      
+      // Insert at target position
+      newSessions.splice(targetIndex, 0, draggedSession);
+      
+      return newSessions;
+    });
+  }, []);
+
   // Expose sessions to window for main process access (update on sessions change)
   useEffect(() => {
     window.__sessions__ = sessions;
@@ -695,6 +715,7 @@ function App() {
           onSwitchToSession={switchToSession}
           onDisconnectSession={disconnectSession}
           onDetachTab={handleDetachTab}
+          onReorderTabs={handleReorderTabs}
           onStartLogging={startLogging}
           onStopLogging={stopLogging}
           onSaveLog={saveLog}
