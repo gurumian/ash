@@ -1091,6 +1091,12 @@ button, a, input, select, textarea, [role="button"] {
   line-height: 1;
 }
 
+.log-btn svg {
+  width: 16px;
+  height: 16px;
+  stroke: #00ff41;
+}
+
 .log-btn:hover:not(:disabled) {
   background: rgba(0, 255, 65, 0.1);
   border-color: var(--theme-accent, #00ff41);
@@ -1140,10 +1146,18 @@ button, a, input, select, textarea, [role="button"] {
   color: #0a0a0a;
 }
 
+.log-btn.save-log:hover:not(:disabled) svg {
+  stroke: #0a0a0a;
+}
+
 .log-btn.clear-log:hover:not(:disabled) {
   background: #ff9800;
   border-color: #ff9800;
   color: white;
+}
+
+.log-btn.clear-log:hover:not(:disabled) svg {
+  stroke: white;
 }
 
 .log-status {
