@@ -69,9 +69,28 @@ export function useLogging(sessions, groups) {
       const session = sessions.find(s => s.id === sessionId);
       const sessionName = session ? session.name.replace(/[^a-zA-Z0-9]/g, '_') : `session_${sessionId}`;
       
-      // Find group for this session
-      const group = groups.find(g => g.sessionIds.includes(sessionId));
-      const groupName = group ? group.name.replace(/[^a-zA-Z0-9]/g, '_') : 'default';
+      // Find group for this session by matching connection info with savedSessions
+      let groupName = 'default';
+      if (session) {
+        const group = groups.find(g => {
+          if (!g.savedSessions || !Array.isArray(g.savedSessions)) return false;
+          return g.savedSessions.some(savedSession => {
+            const connType = savedSession.connectionType || 'ssh';
+            if (connType === 'serial') {
+              return session.connectionType === 'serial' && 
+                     session.serialPort === savedSession.serialPort;
+            } else {
+              return session.connectionType === 'ssh' &&
+                     session.host === savedSession.host && 
+                     session.user === savedSession.user && 
+                     (session.port || '22') === (savedSession.port || '22');
+            }
+          });
+        });
+        if (group) {
+          groupName = group.name.replace(/[^a-zA-Z0-9]/g, '_');
+        }
+      }
       
       const result = await window.electronAPI.saveLogToFile(sessionId, logSession.content, sessionName, groupName);
       
