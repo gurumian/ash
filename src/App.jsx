@@ -166,6 +166,14 @@ function App() {
     const saved = localStorage.getItem('ash-scrollback');
     return saved ? parseInt(saved, 10) : 5000;
   });
+  const [terminalFontSize, setTerminalFontSize] = useState(() => {
+    const saved = localStorage.getItem('ash-terminal-font-size');
+    return saved ? parseInt(saved, 10) : 13;
+  });
+  const [terminalFontFamily, setTerminalFontFamily] = useState(() => {
+    const saved = localStorage.getItem('ash-terminal-font-family');
+    return saved || "'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace";
+  });
   
   // Create a ref for terminalInstances that useTheme can use
   const terminalInstancesRef = useRef({});
@@ -185,6 +193,8 @@ function App() {
     theme,
     themes,
     scrollbackLines,
+    terminalFontSize,
+    terminalFontFamily,
     activeSessionId,
     sessions,
     sshConnections,
@@ -519,6 +529,38 @@ function App() {
       localStorage.setItem('ash-scrollback', value.toString());
     }
   }, []);
+  const handleTerminalFontSizeChange = useCallback((e) => {
+    const value = parseInt(e.target.value, 10);
+    if (!isNaN(value) && value >= 8 && value <= 32) {
+      setTerminalFontSize(value);
+      localStorage.setItem('ash-terminal-font-size', value.toString());
+      // Update existing terminals
+      setTimeout(() => {
+        Object.keys(terminalInstances.current).forEach(sessionId => {
+          const terminal = terminalInstances.current[sessionId];
+          if (terminal) {
+            terminal.options.fontSize = value;
+            resizeTerminal();
+          }
+        });
+      }, 0);
+    }
+  }, [terminalInstances, resizeTerminal]);
+  const handleTerminalFontFamilyChange = useCallback((e) => {
+    const value = e.target.value;
+    setTerminalFontFamily(value);
+    localStorage.setItem('ash-terminal-font-family', value);
+    // Update existing terminals
+    setTimeout(() => {
+      Object.keys(terminalInstances.current).forEach(sessionId => {
+        const terminal = terminalInstances.current[sessionId];
+        if (terminal) {
+          terminal.options.fontFamily = value;
+          resizeTerminal();
+        }
+      });
+    }, 0);
+  }, [terminalInstances, resizeTerminal]);
 
   // Cleanup resize event listeners on unmount
   useEffect(() => {
@@ -755,8 +797,12 @@ function App() {
         theme={theme}
         themes={themes}
         scrollbackLines={scrollbackLines}
+        terminalFontSize={terminalFontSize}
+        terminalFontFamily={terminalFontFamily}
         onChangeTheme={changeTheme}
         onChangeScrollbackLines={handleScrollbackChange}
+        onChangeTerminalFontSize={handleTerminalFontSizeChange}
+        onChangeTerminalFontFamily={handleTerminalFontFamilyChange}
         onClose={handleCloseSettings}
         onShowAbout={async () => {
           try {
