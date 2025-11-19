@@ -58,7 +58,7 @@ export const TerminalView = memo(function TerminalView({
                   }}
                   title={logStates[activeSessionId]?.isLogging ? 'Stop Logging' : 'Start Logging'}
                 >
-                  {logStates[activeSessionId]?.isLogging ? '⏹' : '⏺'}
+                  ●
                 </button>
                 <button 
                   className="log-btn save-log"

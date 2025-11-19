@@ -1065,7 +1065,7 @@ button, a, input, select, textarea, [role="button"] {
   border: 1px solid var(--theme-border, #2a2a2a);
   color: var(--theme-text, #00ff41);
   cursor: pointer;
-  font-size: 14px;
+  font-size: 16px;
   padding: 4px 8px;
   border-radius: 3px;
   transition: all 0.2s ease;
@@ -1075,6 +1075,7 @@ button, a, input, select, textarea, [role="button"] {
   min-width: 28px;
   height: 28px;
   opacity: 0.7;
+  line-height: 1;
 }
 
 .log-btn:hover:not(:disabled) {
@@ -1089,14 +1090,35 @@ button, a, input, select, textarea, [role="button"] {
 }
 
 .log-btn.logging {
-  background: #ff4444;
-  border-color: #ff4444;
-  color: white;
+  background: none;
+  border-color: var(--theme-border, #2a2a2a);
+  color: #ff4444;
   opacity: 1;
+  box-shadow: 0 0 10px rgba(255, 68, 68, 0.6),
+              0 0 20px rgba(255, 68, 68, 0.4),
+              0 0 30px rgba(255, 68, 68, 0.2);
+  animation: recording-glow 2s ease-in-out infinite;
 }
 
 .log-btn.logging:hover {
-  background: #ff6666;
+  background: rgba(255, 68, 68, 0.1);
+  border-color: #ff4444;
+  box-shadow: 0 0 15px rgba(255, 68, 68, 0.8),
+              0 0 30px rgba(255, 68, 68, 0.5),
+              0 0 45px rgba(255, 68, 68, 0.3);
+}
+
+@keyframes recording-glow {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(255, 68, 68, 0.6),
+                0 0 20px rgba(255, 68, 68, 0.4),
+                0 0 30px rgba(255, 68, 68, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 15px rgba(255, 68, 68, 0.9),
+                0 0 30px rgba(255, 68, 68, 0.6),
+                0 0 45px rgba(255, 68, 68, 0.3);
+  }
 }
 
 .log-btn.save-log:hover:not(:disabled) {
