@@ -1031,11 +1031,24 @@ button, a, input, select, textarea, [role="button"] {
   font-size: 14px;
   transition: all 0.2s;
   color: #00ff41;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.refresh-ports-btn svg {
+  width: 16px;
+  height: 16px;
+  stroke: #00ff41;
 }
 
 .refresh-ports-btn:hover {
   background: rgba(0, 255, 65, 0.1);
   border-color: #00ff41;
+}
+
+.refresh-ports-btn:hover svg {
+  stroke: #00ff41;
 }
 
 /* Form rows for side-by-side inputs */
