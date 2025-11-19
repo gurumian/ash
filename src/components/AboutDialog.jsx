@@ -16,7 +16,7 @@ export const AboutDialog = ({ isOpen, onClose, appVersion, author }) => {
           <div className="about-app-info">
             <p className="about-version">Version {appVersion}</p>
             <p className="about-description">
-              A modern SSH and Serial terminal client built with Electron and React
+              A modern SSH and Serial terminal client
             </p>
           </div>
           

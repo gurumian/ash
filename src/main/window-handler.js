@@ -217,8 +217,8 @@ export function initializeWindowHandlers() {
     }
     
     // Try to get author and description from package.json, but don't fail if not found
-    let author = { name: 'Bryce Ghim', email: 'gurumlab@gmail.com' };
-    let description = 'A modern SSH client built with Electron and React';
+    let author = { name: 'Bryce Ghim', email: 'admin@toktoktalk.com' };
+    let description = 'A modern SSH and Serial terminal client';
     
     try {
       let packageJsonPath;

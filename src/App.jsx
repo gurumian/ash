@@ -132,7 +132,7 @@ function App() {
   
   const [showSettings, setShowSettings] = useState(false);
   const [showAboutDialog, setShowAboutDialog] = useState(false);
-  const [appInfo, setAppInfo] = useState({ version: '', author: { name: 'Bryce Ghim', email: 'gurumlab@gmail.com' } });
+  const [appInfo, setAppInfo] = useState({ version: '', author: { name: 'Bryce Ghim', email: 'admin@toktoktalk.com' } });
   
   // Load app info on mount
   useEffect(() => {
