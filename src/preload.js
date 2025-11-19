@@ -103,6 +103,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // App info
   getAppInfo: () => ipcRenderer.invoke('get-app-info'),
   
+  // Settings
+  getSettings: () => ipcRenderer.invoke('get-settings'),
+  saveSettings: (settings) => ipcRenderer.invoke('save-settings', settings),
+  
   // Update events
   onUpdateAvailable: (callback) => ipcRenderer.on('update-available', (event, data) => callback(data)),
   onUpdateNotAvailable: (callback) => ipcRenderer.on('update-not-available', callback),

@@ -1,5 +1,6 @@
-import { ipcMain, BrowserWindow } from 'electron';
+import { ipcMain, BrowserWindow, app } from 'electron';
 import path from 'node:path';
+import fs from 'fs';
 
 /**
  * Initialize window-related IPC handlers
@@ -266,6 +267,62 @@ export function initializeWindowHandlers() {
       author: author,
       description: description,
     };
+  });
+
+  // Get settings file path
+  const getSettingsPath = () => {
+    const userDataPath = app.getPath('userData');
+    return path.join(userDataPath, 'settings.json');
+  };
+
+  // Load settings from file
+  ipcMain.handle('get-settings', async () => {
+    try {
+      const settingsPath = getSettingsPath();
+      if (fs.existsSync(settingsPath)) {
+        const data = fs.readFileSync(settingsPath, 'utf8');
+        const settings = JSON.parse(data);
+        return { success: true, settings };
+      }
+      return { success: true, settings: {} };
+    } catch (error) {
+      console.error('Failed to load settings:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Save settings to file
+  ipcMain.handle('save-settings', async (event, settings) => {
+    try {
+      const settingsPath = getSettingsPath();
+      const userDataPath = app.getPath('userData');
+      
+      // Ensure userData directory exists
+      if (!fs.existsSync(userDataPath)) {
+        fs.mkdirSync(userDataPath, { recursive: true });
+      }
+      
+      // Read existing settings if file exists
+      let existingSettings = {};
+      if (fs.existsSync(settingsPath)) {
+        try {
+          const data = fs.readFileSync(settingsPath, 'utf8');
+          existingSettings = JSON.parse(data);
+        } catch (e) {
+          console.warn('Failed to read existing settings, creating new file');
+        }
+      }
+      
+      // Merge with new settings
+      const mergedSettings = { ...existingSettings, ...settings };
+      
+      // Write to file
+      fs.writeFileSync(settingsPath, JSON.stringify(mergedSettings, null, 2), 'utf8');
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+      return { success: false, error: error.message };
+    }
   });
 }
 

@@ -179,6 +179,7 @@ function App() {
     return saved || "'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace";
   });
   
+  
   // Create a ref for terminalInstances that useTheme can use
   const terminalInstancesRef = useRef({});
   
@@ -589,12 +590,13 @@ function App() {
   const handleUiFontFamilyChange = useCallback((e) => {
     const value = e.target.value;
     setUiFontFamily(value);
+    // Save to localStorage directly (same as other settings)
     localStorage.setItem('ash-ui-font-family', value);
-    // Apply to root element via CSS variable
+    // Apply to root element via CSS variable immediately
     document.documentElement.style.setProperty('--ui-font-family', value);
   }, []);
 
-  // Apply UI font family on mount and when it changes
+  // Apply UI font family CSS variable on mount (useEffect handles state changes)
   useEffect(() => {
     document.documentElement.style.setProperty('--ui-font-family', uiFontFamily);
   }, [uiFontFamily]);
