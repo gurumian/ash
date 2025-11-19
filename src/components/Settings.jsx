@@ -10,10 +10,12 @@ export const Settings = memo(function Settings({
   scrollbackLines,
   terminalFontSize,
   terminalFontFamily,
+  uiFontFamily,
   onChangeTheme,
   onChangeScrollbackLines,
   onChangeTerminalFontSize,
   onChangeTerminalFontFamily,
+  onChangeUiFontFamily,
   onClose,
   onShowAbout
 }) {
@@ -97,7 +99,7 @@ export const Settings = memo(function Settings({
             </div>
 
             <div className="setting-group">
-              <label>Font Family</label>
+              <label>Terminal Font Family</label>
               <select
                 value={terminalFontFamily}
                 onChange={onChangeTerminalFontFamily}
@@ -110,10 +112,39 @@ export const Settings = memo(function Settings({
                 <option value="'Fira Code', 'Courier New', monospace">Fira Code</option>
                 <option value="'JetBrains Mono', 'Courier New', monospace">JetBrains Mono</option>
                 <option value="'Source Code Pro', 'Courier New', monospace">Source Code Pro</option>
+                <option value="'Arial', monospace">Arial</option>
                 <option value="monospace">System Monospace</option>
               </select>
               <p className="setting-description">
                 Terminal font family. Changes apply to all terminals. Requires page refresh for some fonts.
+              </p>
+            </div>
+
+            <div className="setting-group">
+              <label>UI Font Family</label>
+              <select
+                value={uiFontFamily}
+                onChange={onChangeUiFontFamily}
+                style={{ width: '300px', padding: '8px 12px', background: '#1a1a1a', border: '1px solid #1a1a1a', borderRadius: '4px', color: '#00ff41', fontSize: '13px' }}
+              >
+                <option value="'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace">Monaco / Menlo (Default)</option>
+                <option value="'Courier New', monospace">Courier New</option>
+                <option value="'Consolas', 'Courier New', monospace">Consolas</option>
+                <option value="'Ubuntu Mono', monospace">Ubuntu Mono</option>
+                <option value="'Fira Code', 'Courier New', monospace">Fira Code</option>
+                <option value="'JetBrains Mono', 'Courier New', monospace">JetBrains Mono</option>
+                <option value="'Source Code Pro', 'Courier New', monospace">Source Code Pro</option>
+                <option value="'Arial', sans-serif">Arial</option>
+                <option value="'Helvetica', 'Arial', sans-serif">Helvetica</option>
+                <option value="'Times New Roman', serif">Times New Roman</option>
+                <option value="'Georgia', serif">Georgia</option>
+                <option value="'Verdana', sans-serif">Verdana</option>
+                <option value="sans-serif">System Sans-serif</option>
+                <option value="serif">System Serif</option>
+                <option value="monospace">System Monospace</option>
+              </select>
+              <p className="setting-description">
+                UI font family for menus, buttons, and other interface elements. Changes apply immediately.
               </p>
             </div>
           </div>

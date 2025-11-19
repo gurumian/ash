@@ -174,6 +174,10 @@ function App() {
     const saved = localStorage.getItem('ash-terminal-font-family');
     return saved || "'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace";
   });
+  const [uiFontFamily, setUiFontFamily] = useState(() => {
+    const saved = localStorage.getItem('ash-ui-font-family');
+    return saved || "'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace";
+  });
   
   // Create a ref for terminalInstances that useTheme can use
   const terminalInstancesRef = useRef({});
@@ -581,6 +585,19 @@ function App() {
       });
     }, 0);
   }, [terminalInstances, resizeTerminal]);
+  
+  const handleUiFontFamilyChange = useCallback((e) => {
+    const value = e.target.value;
+    setUiFontFamily(value);
+    localStorage.setItem('ash-ui-font-family', value);
+    // Apply to root element via CSS variable
+    document.documentElement.style.setProperty('--ui-font-family', value);
+  }, []);
+
+  // Apply UI font family on mount and when it changes
+  useEffect(() => {
+    document.documentElement.style.setProperty('--ui-font-family', uiFontFamily);
+  }, [uiFontFamily]);
 
   // Cleanup resize event listeners on unmount
   useEffect(() => {
@@ -820,10 +837,12 @@ function App() {
         scrollbackLines={scrollbackLines}
         terminalFontSize={terminalFontSize}
         terminalFontFamily={terminalFontFamily}
+        uiFontFamily={uiFontFamily}
         onChangeTheme={changeTheme}
         onChangeScrollbackLines={handleScrollbackChange}
         onChangeTerminalFontSize={handleTerminalFontSizeChange}
         onChangeTerminalFontFamily={handleTerminalFontFamilyChange}
+        onChangeUiFontFamily={handleUiFontFamilyChange}
         onClose={handleCloseSettings}
         onShowAbout={async () => {
           try {
