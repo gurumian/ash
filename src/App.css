@@ -240,6 +240,28 @@ button, a, input, select, textarea, [role="button"] {
   opacity: 0.7;
 }
 
+.section-header-clickable {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.section-toggle {
+  background: none;
+  border: none;
+  color: #00ff41;
+  cursor: pointer;
+  font-size: 10px;
+  padding: 0;
+  width: 12px;
+  height: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-app-region: no-drag;
+  opacity: 0.8;
+}
+
 /* Session item */
 .session-item {
   padding: 6px 12px;
@@ -252,6 +274,18 @@ button, a, input, select, textarea, [role="button"] {
   color: #00ff41 !important;
 }
 
+/* Indent items under section headers (Session List, Active Sessions) - same as group-session-item */
+.section > .session-item:not(.group-session-item),
+.section > .session-list-item {
+  padding-left: 24px;
+  font-size: 11px;
+}
+
+.section > .session-item:not(.group-session-item) .session-name,
+.section > .session-list-item .session-name {
+  font-size: 11px;
+}
+
 .session-item:hover {
   background: var(--theme-border, #1a1a1a);
 }
@@ -260,7 +294,12 @@ button, a, input, select, textarea, [role="button"] {
   background: #1a1a1a;
   color: #00ff41;
   border-left: 3px solid #00ff41;
-  padding-left: 9px; /* Adjust padding to account for border */
+}
+
+/* Adjust active padding for indented items */
+.section > .session-item.active:not(.group-session-item),
+.section > .session-list-item.active {
+  padding-left: 21px; /* 24px - 3px border */
 }
 
 .session-item.active:hover {

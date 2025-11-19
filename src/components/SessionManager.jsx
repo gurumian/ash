@@ -1,4 +1,4 @@
-import React, { memo, useMemo, useCallback } from 'react';
+import React, { memo, useMemo, useCallback, useState } from 'react';
 import { SessionItem } from './SessionItem';
 import { FavoriteItem } from './FavoriteItem';
 import { ConnectionHistoryItem } from './ConnectionHistoryItem';
@@ -81,6 +81,13 @@ export const SessionManager = memo(function SessionManager({
       };
     });
   }, [groups, sessions]);
+
+  // Section expansion state
+  const [isFavoritesExpanded, setIsFavoritesExpanded] = useState(true);
+  const [isSessionListExpanded, setIsSessionListExpanded] = useState(true);
+  const [isActiveSessionsExpanded, setIsActiveSessionsExpanded] = useState(true);
+  const [isRecentExpanded, setIsRecentExpanded] = useState(true);
+
   return (
     <div 
       className={`session-manager ${!showSessionManager ? 'hidden' : ''}`}
@@ -102,8 +109,24 @@ export const SessionManager = memo(function SessionManager({
       {/* Favorites */}
       {favorites.length > 0 && (
         <div className="section">
-          <div className="section-header">Favorites</div>
-          {favorites.map((fav, index) => (
+          <div 
+            className="section-header section-header-clickable"
+            onClick={() => setIsFavoritesExpanded(!isFavoritesExpanded)}
+            style={{ cursor: 'pointer' }}
+          >
+            <button
+              className="section-toggle"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsFavoritesExpanded(!isFavoritesExpanded);
+              }}
+              title={isFavoritesExpanded ? 'Collapse' : 'Expand'}
+            >
+              {isFavoritesExpanded ? '▼' : '▶'}
+            </button>
+            Favorites
+          </div>
+          {isFavoritesExpanded && favorites.map((fav, index) => (
             <FavoriteItem
               key={`fav-${index}-${fav.name || fav.host || fav.serialPort}`}
               fav={fav}
@@ -116,8 +139,24 @@ export const SessionManager = memo(function SessionManager({
       {/* Session List - All saved sessions */}
       {connectionHistory.length > 0 && (
         <div className="section">
-          <div className="section-header">Session List</div>
-          {connectionHistory.map((conn, index) => (
+          <div 
+            className="section-header section-header-clickable"
+            onClick={() => setIsSessionListExpanded(!isSessionListExpanded)}
+            style={{ cursor: 'pointer' }}
+          >
+            <button
+              className="section-toggle"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsSessionListExpanded(!isSessionListExpanded);
+              }}
+              title={isSessionListExpanded ? 'Collapse' : 'Expand'}
+            >
+              {isSessionListExpanded ? '▼' : '▶'}
+            </button>
+            Session List
+          </div>
+          {isSessionListExpanded && connectionHistory.map((conn, index) => (
             <ConnectionHistoryItem
               key={`conn-${index}-${conn.host || conn.serialPort}-${conn.user || ''}`}
               conn={conn}
@@ -320,8 +359,24 @@ export const SessionManager = memo(function SessionManager({
       {/* Active sessions (ungrouped) */}
       {ungroupedSessions.length > 0 && (
         <div className="section">
-          <div className="section-header">Active Sessions</div>
-          {ungroupedSessions.map(session => (
+          <div 
+            className="section-header section-header-clickable"
+            onClick={() => setIsActiveSessionsExpanded(!isActiveSessionsExpanded)}
+            style={{ cursor: 'pointer' }}
+          >
+            <button
+              className="section-toggle"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsActiveSessionsExpanded(!isActiveSessionsExpanded);
+              }}
+              title={isActiveSessionsExpanded ? 'Collapse' : 'Expand'}
+            >
+              {isActiveSessionsExpanded ? '▼' : '▶'}
+            </button>
+            Active Sessions
+          </div>
+          {isActiveSessionsExpanded && ungroupedSessions.map(session => (
             <SessionItem
               key={session.id}
               session={session}
@@ -337,8 +392,24 @@ export const SessionManager = memo(function SessionManager({
       {/* Connection history */}
       {connectionHistory.length > 0 && (
         <div className="section">
-          <div className="section-header">Recent</div>
-          {connectionHistory.slice(0, 10).map((conn, index) => (
+          <div 
+            className="section-header section-header-clickable"
+            onClick={() => setIsRecentExpanded(!isRecentExpanded)}
+            style={{ cursor: 'pointer' }}
+          >
+            <button
+              className="section-toggle"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsRecentExpanded(!isRecentExpanded);
+              }}
+              title={isRecentExpanded ? 'Collapse' : 'Expand'}
+            >
+              {isRecentExpanded ? '▼' : '▶'}
+            </button>
+            Recent
+          </div>
+          {isRecentExpanded && connectionHistory.slice(0, 10).map((conn, index) => (
             <ConnectionHistoryItem
               key={`recent-${index}-${conn.host || conn.serialPort}-${conn.user || ''}`}
               conn={conn}
