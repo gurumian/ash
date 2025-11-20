@@ -41,7 +41,8 @@ export const SessionManager = memo(function SessionManager({
   onRemoveSessionFromGroup,
   onDeleteGroup,
   onCreateGroup,
-  setGroups
+  setGroups,
+  onOpenSessionSettings
 }) {
   // Memoize group calculations
   // Match savedSessions with active sessions at runtime
@@ -282,6 +283,7 @@ export const SessionManager = memo(function SessionManager({
                           onDisconnect={onDisconnectSession}
                           onDragStart={onDragStart}
                           onRemoveFromGroup={onRemoveSessionFromGroup}
+                          onOpenSettings={onOpenSessionSettings}
                         />
                       );
                     })}
@@ -384,6 +386,7 @@ export const SessionManager = memo(function SessionManager({
               onSwitch={onSwitchToSession}
               onDisconnect={onDisconnectSession}
               onDragStart={onDragStart}
+              onOpenSettings={onOpenSessionSettings}
             />
           ))}
         </div>

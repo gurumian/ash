@@ -335,7 +335,7 @@ button, a, input, select, textarea, [role="button"] {
   color: #ff4444;
 }
 
-.close-session-btn, .favorite-btn {
+.close-session-btn, .favorite-btn, .session-settings-btn {
   background: none;
   border: none;
   cursor: pointer;
@@ -345,15 +345,19 @@ button, a, input, select, textarea, [role="button"] {
   margin-left: 4px;
   opacity: 0.7;
   color: #00ff41 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.close-session-btn:hover, .favorite-btn:hover {
+.close-session-btn:hover, .favorite-btn:hover, .session-settings-btn:hover {
   opacity: 1;
   background: rgba(0, 255, 65, 0.1);
 }
 
 .session-item.active .close-session-btn:hover,
-.session-item.active .favorite-btn:hover {
+.session-item.active .favorite-btn:hover,
+.session-item.active .session-settings-btn:hover {
   background: rgba(0, 0, 0, 0.2);
 }
 

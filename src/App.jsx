@@ -25,6 +25,7 @@ import { StatusBar } from './components/StatusBar';
 import { AboutDialog } from './components/AboutDialog';
 import { TerminalContextMenu } from './components/TerminalContextMenu';
 import { TerminalSearchBar } from './components/TerminalSearchBar';
+import { SessionDialog } from './components/SessionDialog';
 
 function App() {
   // Session management state
@@ -116,7 +117,10 @@ function App() {
     dataBits: '8',
     stopBits: '1',
     parity: 'none',
-    flowControl: 'none'
+    flowControl: 'none',
+    // Post-processing
+    postProcessing: [],
+    postProcessingEnabled: true
   });
   const [isConnecting, setIsConnecting] = useState(false);
   const [showConnectionForm, setShowConnectionForm] = useState(false);
@@ -162,6 +166,8 @@ function App() {
   
   // Terminal search state
   const [showSearchBar, setShowSearchBar] = useState(false);
+  const [showSessionDialog, setShowSessionDialog] = useState(false);
+  const [selectedSession, setSelectedSession] = useState(null);
   const [scrollbackLines, setScrollbackLines] = useState(() => {
     const saved = localStorage.getItem('ash-scrollback');
     return saved ? parseInt(saved, 10) : 5000;
@@ -393,7 +399,9 @@ function App() {
       dataBits: connection.dataBits || '8',
       stopBits: connection.stopBits || '1',
       parity: connection.parity || 'none',
-      flowControl: connection.flowControl || 'none'
+      flowControl: connection.flowControl || 'none',
+      postProcessing: connection.postProcessing || [],
+      postProcessingEnabled: connection.postProcessingEnabled !== false
     });
     setShowConnectionForm(true);
   };
@@ -721,6 +729,10 @@ function App() {
           onDeleteGroup={handleDeleteGroup}
           onCreateGroup={createGroup}
           setGroups={setGroups}
+          onOpenSessionSettings={(session) => {
+            setSelectedSession(session);
+            setShowSessionDialog(true);
+          }}
         />
         
         {/* Resize handle */}
@@ -827,6 +839,13 @@ function App() {
         onConnectionTypeChange={handleConnectionTypeChange}
         onSavePasswordChange={handleSavePasswordChange}
         onLoadSerialPorts={loadSerialPorts}
+        onPostProcessingChange={(postProcessing, enabled) => {
+          setConnectionForm(prev => ({
+            ...prev,
+            postProcessing,
+            postProcessingEnabled: enabled
+          }));
+        }}
       />
 
       {/* Group Name Dialog */}
@@ -877,6 +896,53 @@ function App() {
         onClose={() => setShowAboutDialog(false)}
         appVersion={appInfo.version}
         author={appInfo.author}
+      />
+
+      {/* Session Dialog */}
+      <SessionDialog
+        showDialog={showSessionDialog}
+        session={selectedSession}
+        onClose={() => {
+          setShowSessionDialog(false);
+          setSelectedSession(null);
+        }}
+        onSave={(sessionId, postProcessing, enabled) => {
+          // Update session
+          setSessions(prev => prev.map(s => 
+            s.id === sessionId 
+              ? { ...s, postProcessing, postProcessingEnabled: enabled }
+              : s
+          ));
+          
+          // Update connection history
+          const session = sessions.find(s => s.id === sessionId);
+          if (session) {
+            const historyEntry = connectionHistory.find(c => {
+              if (session.connectionType === 'serial') {
+                return c.connectionType === 'serial' && 
+                       c.serialPort === session.serialPort &&
+                       (c.sessionName || c.name || '') === (session.name || '');
+              } else {
+                return c.connectionType === 'ssh' &&
+                       c.host === session.host && 
+                       c.user === session.user && 
+                       (c.port || '22') === (session.port || '22') &&
+                       (c.sessionName || c.name || '') === (session.name || '');
+              }
+            });
+            
+            if (historyEntry) {
+              // Update localStorage
+              const updatedHistory = connectionHistory.map(c => {
+                if (c === historyEntry) {
+                  return { ...c, postProcessing, postProcessingEnabled: enabled };
+                }
+                return c;
+              });
+              localStorage.setItem('ssh-connections', JSON.stringify(updatedHistory));
+            }
+          }
+        }}
       />
     </div>
   );

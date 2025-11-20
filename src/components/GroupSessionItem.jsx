@@ -11,7 +11,8 @@ export const GroupSessionItem = memo(function GroupSessionItem({
   onSwitch,
   onDisconnect,
   onDragStart,
-  onRemoveFromGroup
+  onRemoveFromGroup,
+  onOpenSettings
 }) {
   const handleRemove = useCallback((e) => {
     e.stopPropagation();
@@ -33,6 +34,13 @@ export const GroupSessionItem = memo(function GroupSessionItem({
     onDragStart(e, session.id);
   }, [session.id, onDragStart]);
 
+  const handleSettings = useCallback((e) => {
+    e.stopPropagation();
+    if (onOpenSettings) {
+      onOpenSettings(session);
+    }
+  }, [session, onOpenSettings]);
+
   return (
     <div
       className={`session-item group-session-item ${isActive ? 'active' : ''}`}
@@ -41,23 +49,34 @@ export const GroupSessionItem = memo(function GroupSessionItem({
       onClick={handleSwitch}
     >
       <span className="session-name">{session.name}</span>
-      <span className={`connection-status ${session.isConnected ? 'connected' : 'disconnected'}`}>
-        {session.isConnected ? '●' : '○'}
-      </span>
-      <button
-        className="remove-from-group-btn"
-        onClick={handleRemove}
-        title="Remove from Group"
-      >
-        ⊗
-      </button>
-      <button
-        className="close-session-btn"
-        onClick={handleDisconnect}
-        title="Close Session"
-      >
-        ×
-      </button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <span className={`connection-status ${session.isConnected ? 'connected' : 'disconnected'}`}>
+          {session.isConnected ? '●' : '○'}
+        </span>
+        {onOpenSettings && (
+          <button 
+            className="session-settings-btn"
+            onClick={handleSettings}
+            title="Session Settings"
+          >
+            ⚙
+          </button>
+        )}
+        <button
+          className="remove-from-group-btn"
+          onClick={handleRemove}
+          title="Remove from Group"
+        >
+          ⊗
+        </button>
+        <button
+          className="close-session-btn"
+          onClick={handleDisconnect}
+          title="Close Session"
+        >
+          ×
+        </button>
+      </div>
     </div>
   );
 });

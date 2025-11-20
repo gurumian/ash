@@ -8,7 +8,8 @@ export const SessionItem = memo(function SessionItem({
   isActive,
   onSwitch,
   onDisconnect,
-  onDragStart
+  onDragStart,
+  onOpenSettings
 }) {
   const handleDragStart = useCallback((e) => {
     onDragStart(e, session.id);
@@ -23,6 +24,13 @@ export const SessionItem = memo(function SessionItem({
     onDisconnect(session.id);
   }, [session.id, onDisconnect]);
 
+  const handleSettings = useCallback((e) => {
+    e.stopPropagation();
+    if (onOpenSettings) {
+      onOpenSettings(session);
+    }
+  }, [session, onOpenSettings]);
+
   return (
     <div 
       className={`session-item ${isActive ? 'active' : ''}`}
@@ -31,16 +39,27 @@ export const SessionItem = memo(function SessionItem({
       onClick={handleClick}
     >
       <span className="session-name">{session.name}</span>
-      <span className={`connection-status ${session.isConnected ? 'connected' : 'disconnected'}`}>
-        {session.isConnected ? '●' : '○'}
-      </span>
-      <button 
-        className="close-session-btn"
-        onClick={handleDisconnect}
-        title="Close Session"
-      >
-        ×
-      </button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <span className={`connection-status ${session.isConnected ? 'connected' : 'disconnected'}`}>
+          {session.isConnected ? '●' : '○'}
+        </span>
+        {onOpenSettings && (
+          <button 
+            className="session-settings-btn"
+            onClick={handleSettings}
+            title="Session Settings"
+          >
+            ⚙
+          </button>
+        )}
+        <button 
+          className="close-session-btn"
+          onClick={handleDisconnect}
+          title="Close Session"
+        >
+          ×
+        </button>
+      </div>
     </div>
   );
 });

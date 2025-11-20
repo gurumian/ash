@@ -28,6 +28,32 @@ export function useTerminalManagement({
   const terminalContextMenuHandlers = useRef({});
   const pendingResizeRef = useRef(null);
 
+  // Execute post-processing commands
+  const executePostProcessing = useCallback((sessionId, session, connection) => {
+    if (!session || !connection) return;
+    
+    // Check if post-processing is enabled
+    if (session.postProcessingEnabled === false) return;
+    
+    const commands = session.postProcessing || [];
+    if (commands.length === 0) return;
+    
+    // Execute commands sequentially with delay between them
+    commands.forEach((cmd, index) => {
+      setTimeout(() => {
+        if (connection && connection.isConnected) {
+          // Convert old format (string) to new format if needed
+          const command = typeof cmd === 'string' ? cmd : cmd.command;
+          const enabled = typeof cmd === 'string' ? true : (cmd.enabled !== false);
+          
+          if (enabled && command) {
+            connection.write(command + '\r\n');
+          }
+        }
+      }, index * 200); // 200ms delay between commands
+    });
+  }, []);
+
   // Terminal resize utility function
   const resizeTerminal = useCallback(() => {
     // Cancel any pending resize to avoid duplicate work
@@ -288,6 +314,9 @@ export function useTerminalManagement({
                   await sshConnections.current[sessionId].startShell(cols, rows);
                   // Don't write message here - let SSH server's initial prompt come first
                   // The server will send its own prompt after shell starts
+                  
+                  // Execute post-processing commands after shell is ready
+                  executePostProcessing(sessionId, session, sshConnections.current[sessionId]);
                 }
               } catch (error) {
                 console.error(`Failed to start SSH shell for session ${sessionId}:`, error);
@@ -298,6 +327,11 @@ export function useTerminalManagement({
             // Serial port connection
             terminal.write(`Serial port ${session.serialPort} connected at ${session.baudRate} baud\r\n`);
             terminal.write('Serial terminal ready\r\n');
+            
+            // Execute post-processing commands after serial connection is ready
+            setTimeout(() => {
+              executePostProcessing(sessionId, session, sshConnections.current[sessionId]);
+            }, 200);
           }
         } catch (error) {
           console.error(`Error fitting terminal during initialization:`, error);

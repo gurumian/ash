@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import React, { memo, useState, useEffect } from 'react';
 
 /**
  * Connection Form component - Modal for creating new SSH/Serial connections
@@ -14,15 +14,81 @@ export const ConnectionForm = memo(function ConnectionForm({
   onInputChange,
   onConnectionTypeChange,
   onSavePasswordChange,
-  onLoadSerialPorts
+  onLoadSerialPorts,
+  onPostProcessingChange
 }) {
+  const [postProcessing, setPostProcessing] = useState([]);
+  const [postProcessingEnabled, setPostProcessingEnabled] = useState(true);
+  const [newCommand, setNewCommand] = useState('');
+
+  useEffect(() => {
+    if (showConnectionForm) {
+      setPostProcessing(connectionForm.postProcessing || []);
+      setPostProcessingEnabled(connectionForm.postProcessingEnabled !== false);
+      setNewCommand('');
+    }
+  }, [showConnectionForm, connectionForm.postProcessing, connectionForm.postProcessingEnabled]);
+
+  // Update parent form when post-processing changes
+  const updateParentForm = (newPostProcessing, newEnabled) => {
+    if (onPostProcessingChange) {
+      onPostProcessingChange(newPostProcessing, newEnabled);
+    }
+  };
+
+  const handleAddCommand = () => {
+    if (newCommand.trim()) {
+      const newCommands = [...postProcessing, newCommand.trim()];
+      setPostProcessing(newCommands);
+      setNewCommand('');
+      updateParentForm(newCommands, postProcessingEnabled);
+    }
+  };
+
+  const handleRemoveCommand = (index) => {
+    const newCommands = postProcessing.filter((_, i) => i !== index);
+    setPostProcessing(newCommands);
+    updateParentForm(newCommands, postProcessingEnabled);
+  };
+
+  const handleMoveUp = (index) => {
+    if (index > 0) {
+      const newCommands = [...postProcessing];
+      [newCommands[index - 1], newCommands[index]] = [newCommands[index], newCommands[index - 1]];
+      setPostProcessing(newCommands);
+      updateParentForm(newCommands, postProcessingEnabled);
+    }
+  };
+
+  const handleMoveDown = (index) => {
+    if (index < postProcessing.length - 1) {
+      const newCommands = [...postProcessing];
+      [newCommands[index], newCommands[index + 1]] = [newCommands[index + 1], newCommands[index]];
+      setPostProcessing(newCommands);
+      updateParentForm(newCommands, postProcessingEnabled);
+    }
+  };
+
+  const handleToggleEnabled = () => {
+    const newEnabled = !postProcessingEnabled;
+    setPostProcessingEnabled(newEnabled);
+    updateParentForm(postProcessing, newEnabled);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleAddCommand();
+    }
+  };
+
   if (!showConnectionForm) return null;
 
   return (
     <div className="modal-overlay">
       <div className="connection-modal">
         <div className="modal-header">
-          <h3>New Connection</h3>
+          <h3>{connectionForm.sessionName || connectionForm.host || connectionForm.serialPort ? 'Edit Session' : 'New Session'}</h3>
           <button 
             className="modal-close"
             onClick={onClose}
@@ -283,6 +349,189 @@ export const ConnectionForm = memo(function ConnectionForm({
               </div>
             </div>
           )}
+
+          {/* Post-Processing Commands */}
+          <div className="form-group">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <label style={{ margin: 0 }}>Post-Processing Commands</label>
+              <button
+                type="button"
+                onClick={handleToggleEnabled}
+                style={{
+                  padding: '4px 8px',
+                  fontSize: '11px',
+                  backgroundColor: postProcessingEnabled ? '#00ff41' : '#1a1a1a',
+                  border: `1px solid ${postProcessingEnabled ? '#00ff41' : '#1a1a1a'}`,
+                  color: postProcessingEnabled ? '#000000' : '#00ff41',
+                  cursor: 'pointer',
+                  borderRadius: '3px',
+                  fontWeight: 'bold'
+                }}
+                title={postProcessingEnabled ? 'Disable all post-processing' : 'Enable all post-processing'}
+              >
+                {postProcessingEnabled ? '● Enabled' : '○ Disabled'}
+              </button>
+            </div>
+            <p style={{ 
+              fontSize: '11px', 
+              color: '#00ff41', 
+              opacity: 0.7, 
+              marginBottom: '8px',
+              marginTop: '4px'
+            }}>
+              Commands will be executed automatically after connection is established.
+            </p>
+            
+            {/* Command list */}
+            <div style={{ 
+              marginBottom: '8px',
+              maxHeight: '150px',
+              overflowY: 'auto',
+              border: '1px solid #1a1a1a',
+              borderRadius: '4px',
+              padding: '6px',
+              backgroundColor: '#000000'
+            }}>
+              {postProcessing.length === 0 ? (
+                <div style={{ 
+                  textAlign: 'center', 
+                  padding: '12px', 
+                  color: '#00ff41', 
+                  opacity: 0.5,
+                  fontSize: '11px'
+                }}>
+                  No commands added yet
+                </div>
+              ) : (
+                postProcessing.map((cmd, index) => (
+                  <div 
+                    key={index}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '6px',
+                      marginBottom: '4px',
+                      backgroundColor: '#1a1a1a',
+                      borderRadius: '3px',
+                      border: '1px solid #1a1a1a',
+                      opacity: postProcessingEnabled ? 1 : 0.5
+                    }}
+                  >
+                    <span style={{ 
+                      color: '#00ff41', 
+                      fontSize: '11px',
+                      minWidth: '18px',
+                      textAlign: 'center'
+                    }}>
+                      {index + 1}.
+                    </span>
+                    <span style={{ 
+                      flex: 1, 
+                      fontFamily: 'monospace', 
+                      fontSize: '11px',
+                      color: '#00ff41',
+                      wordBreak: 'break-all',
+                      textDecoration: postProcessingEnabled ? 'none' : 'line-through'
+                    }}>
+                      {cmd}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleMoveUp(index)}
+                      disabled={index === 0}
+                      style={{
+                        padding: '2px 6px',
+                        fontSize: '11px',
+                        backgroundColor: '#000000',
+                        border: '1px solid #1a1a1a',
+                        color: '#00ff41',
+                        cursor: index === 0 ? 'not-allowed' : 'pointer',
+                        opacity: index === 0 ? 0.5 : 1,
+                        borderRadius: '3px'
+                      }}
+                      title="Move up"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleMoveDown(index)}
+                      disabled={index === postProcessing.length - 1}
+                      style={{
+                        padding: '2px 6px',
+                        fontSize: '11px',
+                        backgroundColor: '#000000',
+                        border: '1px solid #1a1a1a',
+                        color: '#00ff41',
+                        cursor: index === postProcessing.length - 1 ? 'not-allowed' : 'pointer',
+                        opacity: index === postProcessing.length - 1 ? 0.5 : 1,
+                        borderRadius: '3px'
+                      }}
+                      title="Move down"
+                    >
+                      ↓
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveCommand(index)}
+                      style={{
+                        padding: '2px 6px',
+                        fontSize: '11px',
+                        backgroundColor: 'rgba(255, 68, 68, 0.1)',
+                        border: '1px solid rgba(255, 68, 68, 0.3)',
+                        color: '#ff4444',
+                        cursor: 'pointer',
+                        borderRadius: '3px'
+                      }}
+                      title="Remove"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Add new command */}
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <input
+                type="text"
+                value={newCommand}
+                onChange={(e) => setNewCommand(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Enter command (e.g., logread -f)"
+                style={{
+                  flex: 1,
+                  padding: '6px 10px',
+                  backgroundColor: '#000000',
+                  border: '1px solid #1a1a1a',
+                  borderRadius: '4px',
+                  color: '#00ff41',
+                  fontSize: '12px',
+                  fontFamily: 'monospace'
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleAddCommand}
+                disabled={!newCommand.trim()}
+                style={{
+                  padding: '6px 12px',
+                  backgroundColor: '#00ff41',
+                  border: 'none',
+                  borderRadius: '4px',
+                  color: '#000000',
+                  cursor: newCommand.trim() ? 'pointer' : 'not-allowed',
+                  opacity: newCommand.trim() ? 1 : 0.5,
+                  fontWeight: 'bold',
+                  fontSize: '12px'
+                }}
+              >
+                +
+              </button>
+            </div>
+          </div>
 
           <div className="modal-actions">
             <button 

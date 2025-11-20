@@ -73,7 +73,9 @@ export function useConnectionManagement({
           password: formData.password, // Include password for detach functionality
           connectionType: 'ssh',
           isConnected: true,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          postProcessing: formData.postProcessing || [],
+          postProcessingEnabled: formData.postProcessingEnabled !== false
         };
         
         // Save connection history
@@ -84,7 +86,9 @@ export function useConnectionManagement({
           user: formData.user,
           password: formData.password,
           sessionName: sessionName,
-          savePassword: formData.savePassword
+          savePassword: formData.savePassword,
+          postProcessing: formData.postProcessing || [],
+          postProcessingEnabled: formData.postProcessingEnabled !== false
         });
       } else if (formData.connectionType === 'serial') {
         connection = new SerialConnection();
@@ -108,7 +112,9 @@ export function useConnectionManagement({
           flowControl: formData.flowControl,
           connectionType: 'serial',
           isConnected: true,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          postProcessing: formData.postProcessing || [],
+          postProcessingEnabled: formData.postProcessingEnabled !== false
         };
         
         // Save connection history for Serial connections too
@@ -121,7 +127,9 @@ export function useConnectionManagement({
           parity: formData.parity,
           flowControl: formData.flowControl,
           sessionName: sessionName,
-          savePassword: false // Serial connections don't have passwords
+          savePassword: false, // Serial connections don't have passwords
+          postProcessing: formData.postProcessing || [],
+          postProcessingEnabled: formData.postProcessingEnabled !== false
         });
       }
       
@@ -145,7 +153,9 @@ export function useConnectionManagement({
           dataBits: '8',
           stopBits: '1',
           parity: 'none',
-          flowControl: 'none'
+          flowControl: 'none',
+          postProcessing: [],
+          postProcessingEnabled: true
         });
         setShowConnectionForm(false);
       }
@@ -293,6 +303,25 @@ export function useConnectionManagement({
                   // Terminal already exists, start shell with current terminal size
                   const terminal = terminalInstances.current[existingSession.id];
                   await connection.startShell(terminal.cols, terminal.rows);
+                  
+                  // Execute post-processing commands after shell is ready
+                  setTimeout(() => {
+                    const updatedSession = sessionsRef.current.find(s => s.id === existingSession.id);
+                    if (updatedSession && updatedSession.postProcessingEnabled !== false) {
+                      const commands = updatedSession.postProcessing || [];
+                      commands.forEach((cmd, index) => {
+                        setTimeout(() => {
+                          if (connection && connection.isConnected) {
+                            const command = typeof cmd === 'string' ? cmd : cmd.command;
+                            const enabled = typeof cmd === 'string' ? true : (cmd.enabled !== false);
+                            if (enabled && command) {
+                              connection.write(command + '\r\n');
+                            }
+                          }
+                        }, index * 200);
+                      });
+                    }
+                  }, 500);
                 }
                 
                 setSessions(prev => prev.map(s => 
@@ -315,6 +344,25 @@ export function useConnectionManagement({
                   setTimeout(() => {
                     initializeTerminal(existingSession.id, existingSession);
                   }, 100);
+                } else {
+                  // Terminal already exists, execute post-processing after connection
+                  setTimeout(() => {
+                    const updatedSession = sessionsRef.current.find(s => s.id === existingSession.id);
+                    if (updatedSession && updatedSession.postProcessingEnabled !== false) {
+                      const commands = updatedSession.postProcessing || [];
+                      commands.forEach((cmd, index) => {
+                        setTimeout(() => {
+                          if (connection && connection.isConnected) {
+                            const command = typeof cmd === 'string' ? cmd : cmd.command;
+                            const enabled = typeof cmd === 'string' ? true : (cmd.enabled !== false);
+                            if (enabled && command) {
+                              connection.write(command + '\r\n');
+                            }
+                          }
+                        }, index * 200);
+                      });
+                    }
+                  }, 300);
                 }
                 
                 setSessions(prev => prev.map(s => 
