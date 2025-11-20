@@ -12,6 +12,7 @@ export function SessionDialog({
   const [postProcessing, setPostProcessing] = useState([]);
   const [newCommand, setNewCommand] = useState('');
   const [enabled, setEnabled] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {
     if (showDialog && session) {
@@ -38,20 +39,34 @@ export function SessionDialog({
     setPostProcessing(postProcessing.filter((_, i) => i !== index));
   };
 
-  const handleMoveUp = (index) => {
-    if (index > 0) {
-      const newCommands = [...postProcessing];
-      [newCommands[index - 1], newCommands[index]] = [newCommands[index], newCommands[index - 1]];
-      setPostProcessing(newCommands);
-    }
+  const handleDragStart = (e, index) => {
+    e.dataTransfer.setData('text/plain', index.toString());
+    e.dataTransfer.effectAllowed = 'move';
+    e.currentTarget.style.opacity = '0.5';
   };
 
-  const handleMoveDown = (index) => {
-    if (index < postProcessing.length - 1) {
-      const newCommands = [...postProcessing];
-      [newCommands[index], newCommands[index + 1]] = [newCommands[index + 1], newCommands[index]];
-      setPostProcessing(newCommands);
+  const handleDragEnd = (e) => {
+    e.currentTarget.style.opacity = '';
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e, targetIndex) => {
+    e.preventDefault();
+    const draggedIndex = parseInt(e.dataTransfer.getData('text/plain'), 10);
+    
+    if (isNaN(draggedIndex) || draggedIndex === targetIndex) {
+      return;
     }
+    
+    const newCommands = [...postProcessing];
+    const [draggedItem] = newCommands.splice(draggedIndex, 1);
+    newCommands.splice(targetIndex, 0, draggedItem);
+    
+    setPostProcessing(newCommands);
   };
 
   const handleSave = () => {
@@ -82,16 +97,24 @@ export function SessionDialog({
         <div style={{ padding: '20px' }}>
           <div className="form-group">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <label style={{ margin: 0 }}>Post-Processing Commands</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }} onClick={() => setIsExpanded(!isExpanded)}>
+                <span style={{ fontSize: '12px', color: '#00ff41', userSelect: 'none' }}>
+                  {isExpanded ? '▼' : '▶'}
+                </span>
+                <label style={{ margin: 0, cursor: 'pointer' }}>Post-Processing Commands</label>
+              </div>
               <button
                 type="button"
-                onClick={() => setEnabled(!enabled)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEnabled(!enabled);
+                }}
                 style={{
                   padding: '6px 12px',
                   fontSize: '12px',
-                  backgroundColor: enabled ? 'var(--theme-accent)' : 'var(--theme-surface)',
-                  border: `1px solid ${enabled ? 'var(--theme-accent)' : 'var(--theme-border)'}`,
-                  color: enabled ? '#000' : 'var(--theme-text)',
+                  backgroundColor: enabled ? '#00ff41' : '#1a1a1a',
+                  border: `1px solid ${enabled ? '#00ff41' : '#1a1a1a'}`,
+                  color: enabled ? '#000000' : '#00ff41',
                   cursor: 'pointer',
                   borderRadius: '4px',
                   fontWeight: 'bold'
@@ -101,30 +124,33 @@ export function SessionDialog({
                 {enabled ? '● Enabled' : '○ Disabled'}
               </button>
             </div>
-            <p style={{ 
-              fontSize: '12px', 
-              color: 'var(--theme-text)', 
-              opacity: 0.7, 
-              marginBottom: '12px',
-              marginTop: '4px'
-            }}>
-              Commands will be executed automatically after connection is established, in the order listed below.
-            </p>
-            
-            {/* Command list */}
-            <div style={{ 
+            {isExpanded && (
+              <>
+                <p style={{ 
+                  fontSize: '12px', 
+                  color: '#00ff41', 
+                  opacity: 0.7, 
+                  marginBottom: '12px',
+                  marginTop: '4px'
+                }}>
+                  Commands will be executed automatically after connection is established, in the order listed below.
+                </p>
+                
+                {/* Command list */}
+                <div style={{ 
               marginBottom: '12px',
               maxHeight: '300px',
               overflowY: 'auto',
-              border: '1px solid var(--theme-border)',
+              border: '1px solid #1a1a1a',
               borderRadius: '4px',
-              padding: '8px'
+              padding: '8px',
+              backgroundColor: '#000000'
             }}>
               {postProcessing.length === 0 ? (
                 <div style={{ 
                   textAlign: 'center', 
                   padding: '20px', 
-                  color: 'var(--theme-text)', 
+                  color: '#00ff41', 
                   opacity: 0.5 
                 }}>
                   No commands added yet
@@ -135,70 +161,42 @@ export function SessionDialog({
                   return (
                   <div 
                     key={index}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, index)}
+                    onDragEnd={handleDragEnd}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, index)}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       gap: '8px',
                       padding: '8px',
                       marginBottom: '4px',
-                      backgroundColor: 'var(--theme-surface)',
+                      backgroundColor: '#1a1a1a',
                       borderRadius: '4px',
-                      border: '1px solid var(--theme-border)',
-                      opacity: enabled ? 1 : 0.5
+                      border: '1px solid #1a1a1a',
+                      opacity: enabled ? 1 : 0.5,
+                      cursor: 'move'
                     }}
                   >
                     <span style={{ 
-                      color: 'var(--theme-accent)', 
+                      color: '#00ff41', 
                       fontSize: '12px',
-                      minWidth: '20px',
-                      textAlign: 'center'
+                      opacity: 0.5,
+                      userSelect: 'none'
                     }}>
-                      {index + 1}.
+                      ⋮⋮
                     </span>
                     <span style={{ 
                       flex: 1, 
                       fontFamily: 'monospace', 
                       fontSize: '13px',
-                      color: 'var(--theme-text)',
+                      color: '#00ff41',
                       wordBreak: 'break-all',
                       textDecoration: enabled ? 'none' : 'line-through'
                     }}>
                       {cmdText}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => handleMoveUp(index)}
-                      disabled={index === 0}
-                      style={{
-                        padding: '4px 8px',
-                        fontSize: '12px',
-                        backgroundColor: 'var(--theme-surface)',
-                        border: '1px solid var(--theme-border)',
-                        color: 'var(--theme-text)',
-                        cursor: index === 0 ? 'not-allowed' : 'pointer',
-                        opacity: index === 0 ? 0.5 : 1
-                      }}
-                      title="Move up"
-                    >
-                      ↑
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleMoveDown(index)}
-                      disabled={index === postProcessing.length - 1}
-                      style={{
-                        padding: '4px 8px',
-                        fontSize: '12px',
-                        backgroundColor: 'var(--theme-surface)',
-                        border: '1px solid var(--theme-border)',
-                        color: 'var(--theme-text)',
-                        cursor: index === postProcessing.length - 1 ? 'not-allowed' : 'pointer',
-                        opacity: index === postProcessing.length - 1 ? 0.5 : 1
-                      }}
-                      title="Move down"
-                    >
-                      ↓
-                    </button>
                     <button
                       type="button"
                       onClick={() => handleRemoveCommand(index)}
@@ -231,10 +229,10 @@ export function SessionDialog({
                 style={{
                   flex: 1,
                   padding: '8px 12px',
-                  backgroundColor: 'var(--theme-surface)',
-                  border: '1px solid var(--theme-border)',
+                  backgroundColor: '#000000',
+                  border: '1px solid #1a1a1a',
                   borderRadius: '4px',
-                  color: 'var(--theme-text)',
+                  color: '#00ff41',
                   fontSize: '13px',
                   fontFamily: 'monospace'
                 }}
@@ -245,10 +243,10 @@ export function SessionDialog({
                 disabled={!newCommand.trim()}
                 style={{
                   padding: '8px 16px',
-                  backgroundColor: 'var(--theme-accent)',
+                  backgroundColor: '#00ff41',
                   border: 'none',
                   borderRadius: '4px',
-                  color: '#000',
+                  color: '#000000',
                   cursor: newCommand.trim() ? 'pointer' : 'not-allowed',
                   opacity: newCommand.trim() ? 1 : 0.5,
                   fontWeight: 'bold'
@@ -257,6 +255,8 @@ export function SessionDialog({
                 +
               </button>
             </div>
+              </>
+            )}
           </div>
         </div>
 

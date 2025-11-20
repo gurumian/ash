@@ -20,6 +20,7 @@ export const ConnectionForm = memo(function ConnectionForm({
   const [postProcessing, setPostProcessing] = useState([]);
   const [postProcessingEnabled, setPostProcessingEnabled] = useState(true);
   const [newCommand, setNewCommand] = useState('');
+  const [isPostProcessingExpanded, setIsPostProcessingExpanded] = useState(false);
 
   useEffect(() => {
     if (showConnectionForm) {
@@ -51,22 +52,35 @@ export const ConnectionForm = memo(function ConnectionForm({
     updateParentForm(newCommands, postProcessingEnabled);
   };
 
-  const handleMoveUp = (index) => {
-    if (index > 0) {
-      const newCommands = [...postProcessing];
-      [newCommands[index - 1], newCommands[index]] = [newCommands[index], newCommands[index - 1]];
-      setPostProcessing(newCommands);
-      updateParentForm(newCommands, postProcessingEnabled);
-    }
+  const handleDragStart = (e, index) => {
+    e.dataTransfer.setData('text/plain', index.toString());
+    e.dataTransfer.effectAllowed = 'move';
+    e.currentTarget.style.opacity = '0.5';
   };
 
-  const handleMoveDown = (index) => {
-    if (index < postProcessing.length - 1) {
-      const newCommands = [...postProcessing];
-      [newCommands[index], newCommands[index + 1]] = [newCommands[index + 1], newCommands[index]];
-      setPostProcessing(newCommands);
-      updateParentForm(newCommands, postProcessingEnabled);
+  const handleDragEnd = (e) => {
+    e.currentTarget.style.opacity = '';
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e, targetIndex) => {
+    e.preventDefault();
+    const draggedIndex = parseInt(e.dataTransfer.getData('text/plain'), 10);
+    
+    if (isNaN(draggedIndex) || draggedIndex === targetIndex) {
+      return;
     }
+    
+    const newCommands = [...postProcessing];
+    const [draggedItem] = newCommands.splice(draggedIndex, 1);
+    newCommands.splice(targetIndex, 0, draggedItem);
+    
+    setPostProcessing(newCommands);
+    updateParentForm(newCommands, postProcessingEnabled);
   };
 
   const handleToggleEnabled = () => {
@@ -353,10 +367,18 @@ export const ConnectionForm = memo(function ConnectionForm({
           {/* Post-Processing Commands */}
           <div className="form-group">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <label style={{ margin: 0 }}>Post-Processing Commands</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }} onClick={() => setIsPostProcessingExpanded(!isPostProcessingExpanded)}>
+                <span style={{ fontSize: '12px', color: '#00ff41', userSelect: 'none' }}>
+                  {isPostProcessingExpanded ? '▼' : '▶'}
+                </span>
+                <label style={{ margin: 0, cursor: 'pointer' }}>Post-Processing Commands</label>
+              </div>
               <button
                 type="button"
-                onClick={handleToggleEnabled}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleToggleEnabled();
+                }}
                 style={{
                   padding: '4px 8px',
                   fontSize: '11px',
@@ -372,17 +394,19 @@ export const ConnectionForm = memo(function ConnectionForm({
                 {postProcessingEnabled ? '● Enabled' : '○ Disabled'}
               </button>
             </div>
-            <p style={{ 
-              fontSize: '11px', 
-              color: '#00ff41', 
-              opacity: 0.7, 
-              marginBottom: '8px',
-              marginTop: '4px'
-            }}>
-              Commands will be executed automatically after connection is established.
-            </p>
-            
-            {/* Command list */}
+            {isPostProcessingExpanded && (
+              <>
+                <p style={{ 
+                  fontSize: '11px', 
+                  color: '#00ff41', 
+                  opacity: 0.7, 
+                  marginBottom: '8px',
+                  marginTop: '4px'
+                }}>
+                  Commands will be executed automatically after connection is established.
+                </p>
+                
+                {/* Command list */}
             <div style={{ 
               marginBottom: '8px',
               maxHeight: '150px',
@@ -406,6 +430,11 @@ export const ConnectionForm = memo(function ConnectionForm({
                 postProcessing.map((cmd, index) => (
                   <div 
                     key={index}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, index)}
+                    onDragEnd={handleDragEnd}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, index)}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -415,16 +444,17 @@ export const ConnectionForm = memo(function ConnectionForm({
                       backgroundColor: '#1a1a1a',
                       borderRadius: '3px',
                       border: '1px solid #1a1a1a',
-                      opacity: postProcessingEnabled ? 1 : 0.5
+                      opacity: postProcessingEnabled ? 1 : 0.5,
+                      cursor: 'move'
                     }}
                   >
                     <span style={{ 
                       color: '#00ff41', 
                       fontSize: '11px',
-                      minWidth: '18px',
-                      textAlign: 'center'
+                      opacity: 0.5,
+                      userSelect: 'none'
                     }}>
-                      {index + 1}.
+                      ⋮⋮
                     </span>
                     <span style={{ 
                       flex: 1, 
@@ -436,42 +466,6 @@ export const ConnectionForm = memo(function ConnectionForm({
                     }}>
                       {cmd}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => handleMoveUp(index)}
-                      disabled={index === 0}
-                      style={{
-                        padding: '2px 6px',
-                        fontSize: '11px',
-                        backgroundColor: '#000000',
-                        border: '1px solid #1a1a1a',
-                        color: '#00ff41',
-                        cursor: index === 0 ? 'not-allowed' : 'pointer',
-                        opacity: index === 0 ? 0.5 : 1,
-                        borderRadius: '3px'
-                      }}
-                      title="Move up"
-                    >
-                      ↑
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleMoveDown(index)}
-                      disabled={index === postProcessing.length - 1}
-                      style={{
-                        padding: '2px 6px',
-                        fontSize: '11px',
-                        backgroundColor: '#000000',
-                        border: '1px solid #1a1a1a',
-                        color: '#00ff41',
-                        cursor: index === postProcessing.length - 1 ? 'not-allowed' : 'pointer',
-                        opacity: index === postProcessing.length - 1 ? 0.5 : 1,
-                        borderRadius: '3px'
-                      }}
-                      title="Move down"
-                    >
-                      ↓
-                    </button>
                     <button
                       type="button"
                       onClick={() => handleRemoveCommand(index)}
@@ -531,6 +525,8 @@ export const ConnectionForm = memo(function ConnectionForm({
                 +
               </button>
             </div>
+              </>
+            )}
           </div>
 
           <div className="modal-actions">
