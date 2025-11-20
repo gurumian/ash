@@ -221,7 +221,11 @@ function App() {
   useKeyboardShortcuts({
     activeSessionId,
     showSearchBar,
-    setShowSearchBar
+    setShowSearchBar,
+    terminalInstances,
+    terminalFontSize,
+    setTerminalFontSize,
+    resizeTerminal
   });
   
   // Connection management hook
