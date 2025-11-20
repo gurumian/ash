@@ -39,24 +39,60 @@ export function useTerminalManagement({
     pendingResizeRef.current = requestAnimationFrame(() => {
       pendingResizeRef.current = null;
       
-      // Resize all active terminals, not just the active one
+      // Resize all active terminals, prioritizing the active one
+      // First, resize the active terminal
+      if (activeSessionId && fitAddons.current[activeSessionId]) {
+        const fitAddon = fitAddons.current[activeSessionId];
+        const terminal = terminalInstances.current[activeSessionId];
+        const terminalRef = terminalRefs.current[activeSessionId];
+        
+        if (fitAddon && terminal && terminalRef) {
+          try {
+            // Check if terminal is visible (not display: none)
+            const computedStyle = window.getComputedStyle(terminalRef.parentElement || terminalRef);
+            if (computedStyle.display !== 'none') {
+              // Force a layout recalculation before fitting
+              terminalRef.offsetHeight;
+              fitAddon.fit();
+              
+              // Notify SSH server of terminal size change
+              const session = sessions.find(s => s.id === activeSessionId);
+              if (session && session.connectionType === 'ssh' && sshConnections.current[activeSessionId]) {
+                const cols = terminal.cols;
+                const rows = terminal.rows;
+                sshConnections.current[activeSessionId].resize(cols, rows);
+              }
+            }
+          } catch (error) {
+            console.error(`Error resizing terminal for session ${activeSessionId}:`, error);
+          }
+        }
+      }
+      
+      // Then resize other terminals (if needed)
       Object.keys(fitAddons.current).forEach(sessionId => {
+        if (sessionId === activeSessionId) return; // Already handled above
+        
         const fitAddon = fitAddons.current[sessionId];
         const terminal = terminalInstances.current[sessionId];
         const terminalRef = terminalRefs.current[sessionId];
         
         if (fitAddon && terminal && terminalRef) {
           try {
-            // Force a layout recalculation before fitting
-            terminalRef.offsetHeight;
-            fitAddon.fit();
-            
-            // Notify SSH server of terminal size change
-            const session = sessions.find(s => s.id === sessionId);
-            if (session && session.connectionType === 'ssh' && sshConnections.current[sessionId]) {
-              const cols = terminal.cols;
-              const rows = terminal.rows;
-              sshConnections.current[sessionId].resize(cols, rows);
+            // Check if terminal is visible (not display: none)
+            const computedStyle = window.getComputedStyle(terminalRef.parentElement || terminalRef);
+            if (computedStyle.display !== 'none') {
+              // Force a layout recalculation before fitting
+              terminalRef.offsetHeight;
+              fitAddon.fit();
+              
+              // Notify SSH server of terminal size change
+              const session = sessions.find(s => s.id === sessionId);
+              if (session && session.connectionType === 'ssh' && sshConnections.current[sessionId]) {
+                const cols = terminal.cols;
+                const rows = terminal.rows;
+                sshConnections.current[sessionId].resize(cols, rows);
+              }
             }
           } catch (error) {
             console.error(`Error resizing terminal for session ${sessionId}:`, error);
@@ -64,7 +100,7 @@ export function useTerminalManagement({
         }
       });
     });
-  }, [sessions, sshConnections]);
+  }, [sessions, sshConnections, activeSessionId]);
 
   // Initialize terminal
   const initializeTerminal = useCallback(async (sessionId, sessionInfo = null) => {
@@ -291,6 +327,19 @@ export function useTerminalManagement({
     }
     terminal.onData(terminalInputHandlers.current[sessionId]);
   }, [theme, themes, scrollbackLines, activeSessionId, sessions, sshConnections, sessionLogs, appendToLog, setContextMenu, setShowSearchBar]);
+
+  // Resize terminal when active session changes (tab switch)
+  useEffect(() => {
+    if (activeSessionId) {
+      // Wait for DOM to update (display: none -> block transition)
+      // Use double requestAnimationFrame to ensure layout is complete
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          resizeTerminal();
+        });
+      });
+    }
+  }, [activeSessionId, resizeTerminal]);
 
   // Adjust terminal size on window resize and container size changes
   useEffect(() => {
