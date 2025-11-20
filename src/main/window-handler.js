@@ -143,7 +143,7 @@ export function initializeWindowHandlers() {
   });
 
   // Save log to file
-  ipcMain.handle('save-log-to-file', async (event, { sessionId, logContent, sessionName, groupName = 'default' }) => {
+  ipcMain.handle('save-log-to-file', async (event, { sessionId, logContent, sessionName, groupName = 'default', isNewFile = false }) => {
     try {
       const fs = require('fs');
       const path = require('path');
@@ -162,13 +162,37 @@ export function initializeWindowHandlers() {
       const filename = `${groupName}-${sessionName}-${date}-${time}.log`;
       const filePath = path.join(documentsDir, filename);
       
-      // Write log content to file
-      fs.writeFileSync(filePath, logContent, 'utf8');
+      // Write or append log content to file
+      if (isNewFile || !fs.existsSync(filePath)) {
+        fs.writeFileSync(filePath, logContent, 'utf8');
+      } else {
+        fs.appendFileSync(filePath, logContent, 'utf8');
+      }
       
       console.log(`Log saved to: ${filePath}`);
       return { success: true, filePath };
     } catch (error) {
       console.error('Save log error:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Append log to existing file
+  ipcMain.handle('append-log-to-file', async (event, { sessionId, logContent, filePath }) => {
+    try {
+      const fs = require('fs');
+      
+      if (!filePath || !fs.existsSync(filePath)) {
+        return { success: false, error: 'File path not found' };
+      }
+      
+      // Append log content to existing file
+      fs.appendFileSync(filePath, logContent, 'utf8');
+      
+      console.log(`Log appended to: ${filePath}`);
+      return { success: true, filePath };
+    } catch (error) {
+      console.error('Append log error:', error);
       return { success: false, error: error.message };
     }
   });

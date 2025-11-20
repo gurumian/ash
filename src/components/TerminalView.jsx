@@ -69,7 +69,9 @@ export const TerminalView = memo(function TerminalView({
                       onStartLogging(activeSessionId);
                     }
                   }}
-                  title={logStates[activeSessionId]?.isLogging ? 'Stop Logging' : 'Start Logging'}
+                  title={logStates[activeSessionId]?.isLogging 
+                    ? 'Recording - Automatically saving logs to file. Click to stop.' 
+                    : 'Start Recording - Begin automatically saving logs to file'}
                 >
                   ●
                 </button>
@@ -77,7 +79,7 @@ export const TerminalView = memo(function TerminalView({
                   className="log-btn save-log"
                   onClick={() => onSaveLog(activeSessionId)}
                   disabled={!sessionLogs.current[activeSessionId]?.content}
-                  title="Save Log"
+                  title="Save Log - Save current buffer to file (appends to existing file)"
                 >
                   <svg 
                     width="16" 
@@ -98,7 +100,7 @@ export const TerminalView = memo(function TerminalView({
                   className="log-btn clear-log"
                   onClick={() => onClearLog(activeSessionId)}
                   disabled={!sessionLogs.current[activeSessionId]?.content}
-                  title="Clear Log"
+                  title="Clear Log - Clear current buffer (saved logs remain in file)"
                 >
                   <svg 
                     width="16" 

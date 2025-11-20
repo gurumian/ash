@@ -66,10 +66,70 @@ export function useLogging(sessions, groups) {
     if (!logSession || !logSession.content) return;
     
     try {
+      // If filePath exists, append to existing file; otherwise create new one
+      if (logSession.filePath) {
+        // Append to existing file
+        const result = await window.electronAPI.appendLogToFile(sessionId, logSession.content, logSession.filePath);
+        
+        if (result.success) {
+          console.log(`Log flushed to file: ${logSession.filePath}`);
+          
+          // Reset buffer
+          logSession.content = '';
+          logSession.bufferSize = 0;
+          logSession.lineCount = 0;
+        }
+      } else {
+        // Fallback: create new file (shouldn't happen if startLogging worked)
+        const session = sessions.find(s => s.id === sessionId);
+        const sessionName = session ? session.name.replace(/[^a-zA-Z0-9]/g, '_') : `session_${sessionId}`;
+        
+        let groupName = 'default';
+        if (session) {
+          const group = groups.find(g => {
+            if (!g.savedSessions || !Array.isArray(g.savedSessions)) return false;
+            return g.savedSessions.some(savedSession => {
+              const connType = savedSession.connectionType || 'ssh';
+              if (connType === 'serial') {
+                return session.connectionType === 'serial' && 
+                       session.serialPort === savedSession.serialPort;
+              } else {
+                return session.connectionType === 'ssh' &&
+                       session.host === savedSession.host && 
+                       session.user === savedSession.user && 
+                       (session.port || '22') === (savedSession.port || '22');
+              }
+            });
+          });
+          if (group) {
+            groupName = group.name.replace(/[^a-zA-Z0-9]/g, '_');
+          }
+        }
+        
+        const result = await window.electronAPI.saveLogToFile(sessionId, logSession.content, sessionName, groupName, true);
+        
+        if (result.success) {
+          logSession.filePath = result.filePath;
+          console.log(`Log flushed to file: ${result.filePath}`);
+          
+          // Reset buffer
+          logSession.content = '';
+          logSession.bufferSize = 0;
+          logSession.lineCount = 0;
+        }
+      }
+    } catch (error) {
+      console.error('Failed to flush log to file:', error);
+    }
+  };
+
+  const startLogging = async (sessionId) => {
+    if (!sessionLogs.current[sessionId]) {
+      // Initialize log session and create a single log file for this session
       const session = sessions.find(s => s.id === sessionId);
       const sessionName = session ? session.name.replace(/[^a-zA-Z0-9]/g, '_') : `session_${sessionId}`;
       
-      // Find group for this session by matching connection info with savedSessions
+      // Find group for this session
       let groupName = 'default';
       if (session) {
         const group = groups.find(g => {
@@ -92,34 +152,58 @@ export function useLogging(sessions, groups) {
         }
       }
       
-      const result = await window.electronAPI.saveLogToFile(sessionId, logSession.content, sessionName, groupName);
+      // Create initial log file
+      const startTime = new Date().toISOString();
+      const initialContent = `[${new Date().toLocaleString()}] Logging started\r\n`;
+      const result = await window.electronAPI.saveLogToFile(sessionId, initialContent, sessionName, groupName, true);
       
-      if (result.success) {
-        logSession.filePath = result.filePath;
-        console.log(`Log flushed to file: ${result.filePath}`);
-        
-        // Reset buffer
-        logSession.content = '';
-        logSession.bufferSize = 0;
-        logSession.lineCount = 0;
-      }
-    } catch (error) {
-      console.error('Failed to flush log to file:', error);
-    }
-  };
-
-  const startLogging = (sessionId) => {
-    if (!sessionLogs.current[sessionId]) {
       sessionLogs.current[sessionId] = {
         content: '',
-        startTime: new Date().toISOString(),
+        startTime: startTime,
         isLogging: true,
         bufferSize: 0,
         lineCount: 0,
-        filePath: null
+        filePath: result.success ? result.filePath : null
       };
     } else {
+      // Start new recording session - create a new file
+      const session = sessions.find(s => s.id === sessionId);
+      const sessionName = session ? session.name.replace(/[^a-zA-Z0-9]/g, '_') : `session_${sessionId}`;
+      
+      // Find group for this session
+      let groupName = 'default';
+      if (session) {
+        const group = groups.find(g => {
+          if (!g.savedSessions || !Array.isArray(g.savedSessions)) return false;
+          return g.savedSessions.some(savedSession => {
+            const connType = savedSession.connectionType || 'ssh';
+            if (connType === 'serial') {
+              return session.connectionType === 'serial' && 
+                     session.serialPort === savedSession.serialPort;
+            } else {
+              return session.connectionType === 'ssh' &&
+                     session.host === savedSession.host && 
+                     session.user === savedSession.user && 
+                     (session.port || '22') === (savedSession.port || '22');
+            }
+          });
+        });
+        if (group) {
+          groupName = group.name.replace(/[^a-zA-Z0-9]/g, '_');
+        }
+      }
+      
+      // Create new log file for this recording session
+      const startTime = new Date().toISOString();
+      const initialContent = `[${new Date().toLocaleString()}] Logging started\r\n`;
+      const result = await window.electronAPI.saveLogToFile(sessionId, initialContent, sessionName, groupName, true);
+      
       sessionLogs.current[sessionId].isLogging = true;
+      sessionLogs.current[sessionId].startTime = startTime;
+      sessionLogs.current[sessionId].content = '';
+      sessionLogs.current[sessionId].bufferSize = 0;
+      sessionLogs.current[sessionId].lineCount = 0;
+      sessionLogs.current[sessionId].filePath = result.success ? result.filePath : null;
     }
     
     // Update UI state
@@ -127,10 +211,6 @@ export function useLogging(sessions, groups) {
       ...prev,
       [sessionId]: { isLogging: true }
     }));
-    
-    // Add log entry when starting
-    const logEntry = `\r\n[${new Date().toLocaleTimeString()}] Logging started\r\n`;
-    appendToLog(sessionId, logEntry);
   };
 
   const stopLogging = async (sessionId) => {
@@ -151,15 +231,21 @@ export function useLogging(sessions, groups) {
     // Flush any remaining data to file
     await flushLogToFile(sessionId);
     
+    // Clear filePath so next recording session creates a new file
+    if (sessionLogs.current[sessionId]) {
+      sessionLogs.current[sessionId].filePath = null;
+    }
+    
     return logEntry;
   };
 
   const saveLog = async (sessionId) => {
     if (sessionLogs.current[sessionId]) {
-      // Flush current buffer to file first
+      const logSession = sessionLogs.current[sessionId];
+      
+      // Flush current buffer to file (append mode)
       await flushLogToFile(sessionId);
       
-      const logSession = sessionLogs.current[sessionId];
       if (logSession.filePath) {
         // Show success message with file path
         console.log(`Log saved to: ${logSession.filePath}`);
