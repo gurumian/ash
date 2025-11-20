@@ -470,7 +470,12 @@ function App() {
     const updateWindowTitle = async () => {
       try {
         if (activeSession) {
-          const title = `${activeSession.user}@${activeSession.host}:${activeSession.port} - ash`;
+          let title;
+          if (activeSession.connectionType === 'serial') {
+            title = `Serial: ${activeSession.serialPort} - ash`;
+          } else {
+            title = `${activeSession.user}@${activeSession.host}:${activeSession.port} - ash`;
+          }
           await window.electronAPI.setWindowTitle(title);
         } else {
           await window.electronAPI.setWindowTitle('ash');
