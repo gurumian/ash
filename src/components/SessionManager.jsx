@@ -115,6 +115,7 @@ export const SessionManager = memo(function SessionManager({
         </div>
       </div>
       
+      <div className="session-manager-content">
       {/* Favorites */}
       {favorites.length > 0 && (
         <div className="section">
@@ -489,6 +490,7 @@ export const SessionManager = memo(function SessionManager({
             </button>
           </>
         )}
+      </div>
       </div>
     </div>
   );

@@ -97,12 +97,21 @@ button, a, input, select, textarea, [role="button"] {
 /* Left session manager */
 .session-manager {
   width: 250px;
+  height: 100%;
   background: #000000 !important;
   border-right: 1px solid #1a1a1a;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
   transition: width 0.3s ease, opacity 0.3s ease;
+  overflow: hidden;
+}
+
+.session-manager-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
 }
 
 .session-manager.hidden {
