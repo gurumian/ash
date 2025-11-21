@@ -775,6 +775,7 @@ function App() {
           }}
           libraries={libraries}
           sshConnections={sshConnections}
+          terminalFontFamily={terminalFontFamily}
           onEditLibrary={(library) => {
             setSelectedLibrary(library);
             setShowLibraryDialog(true);
@@ -1003,6 +1004,7 @@ function App() {
       <LibraryDialog
         showDialog={showLibraryDialog}
         library={selectedLibrary}
+        terminalFontFamily={terminalFontFamily}
         onClose={() => {
           setShowLibraryDialog(false);
           setSelectedLibrary(null);

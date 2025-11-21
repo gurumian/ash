@@ -46,6 +46,7 @@ export const SessionManager = memo(function SessionManager({
   onOpenSessionSettings,
   libraries,
   sshConnections,
+  terminalFontFamily,
   onEditLibrary,
   onDeleteLibrary,
   onToggleLibraryExpanded,
@@ -465,6 +466,7 @@ export const SessionManager = memo(function SessionManager({
                   activeSessionId={activeSessionId}
                   sessions={sessions}
                   sshConnections={sshConnections}
+                  terminalFontFamily={terminalFontFamily}
                   onEdit={onEditLibrary}
                   onDelete={onDeleteLibrary}
                   onToggleExpanded={onToggleLibraryExpanded}

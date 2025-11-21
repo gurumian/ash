@@ -8,6 +8,7 @@ export const LibraryItem = memo(function LibraryItem({
   activeSessionId,
   sessions,
   sshConnections,
+  terminalFontFamily,
   onEdit,
   onDelete,
   onToggleExpanded
@@ -162,7 +163,7 @@ export const LibraryItem = memo(function LibraryItem({
                     </span>
                     <span style={{ 
                       flex: 1, 
-                      fontFamily: 'monospace', 
+                      fontFamily: terminalFontFamily || "'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace", 
                       fontSize: '13px',
                       color: '#00ff41',
                       wordBreak: 'break-all'

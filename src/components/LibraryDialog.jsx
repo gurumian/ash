@@ -6,6 +6,7 @@ import React, { useState, useEffect } from 'react';
 export function LibraryDialog({
   showDialog,
   library,
+  terminalFontFamily,
   onClose,
   onSave
 }) {
@@ -273,7 +274,7 @@ export function LibraryDialog({
                                     borderRadius: '4px',
                                     color: '#00ff41',
                                     fontSize: '13px',
-                                    fontFamily: 'monospace'
+                                    fontFamily: terminalFontFamily || "'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace"
                                   }}
                                   autoFocus
                                   onKeyDown={(e) => {
@@ -364,7 +365,7 @@ export function LibraryDialog({
                                 <span 
                                   style={{ 
                                     flex: 1, 
-                                    fontFamily: 'monospace', 
+                                    fontFamily: terminalFontFamily || "'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace", 
                                     fontSize: '13px',
                                     color: '#00ff41',
                                     wordBreak: 'break-all',
@@ -434,7 +435,7 @@ export function LibraryDialog({
                       borderRadius: '4px',
                       color: '#00ff41',
                       fontSize: '13px',
-                      fontFamily: 'monospace'
+                      fontFamily: terminalFontFamily || "'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace"
                     }}
                   />
                   <input
