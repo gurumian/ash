@@ -19,26 +19,17 @@ export function setMainWindow(window) {
 }
 
 /**
- * Create output directory: ${HOME}/Documents/ash/tftp/YYYYMMDD_HHMMSS/
+ * Create output directory: ${HOME}/Documents/ash/tftp/
  */
 function createOutputDirectory() {
   const homeDir = os.homedir();
   
-  // Format timestamp: YYYYMMDD_HHMMSS
-  const now = new Date();
-  const timestamp = now.toISOString()
-    .replace(/[-:]/g, '')
-    .replace(/\..+/, '')
-    .replace(/T/, '_')
-    .slice(0, 15); // YYYYMMDD_HHMMSS
-  
-  // Build path: ${HOME}/Documents/ash/tftp/YYYYMMDD_HHMMSS/
+  // Build path: ${HOME}/Documents/ash/tftp/
   const outputPath = path.join(
     homeDir,
     'Documents',
     'ash',
-    'tftp',
-    timestamp
+    'tftp'
   );
   
   // Create directory if it doesn't exist

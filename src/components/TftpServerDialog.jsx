@@ -104,6 +104,28 @@ export function TftpServerDialog({ isOpen, onClose }) {
     }
   };
 
+
+  const handlePathCopy = async (e, path) => {
+    e.stopPropagation();
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(path);
+      } else {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = path;
+        textArea.style.position = 'fixed';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+    } catch (err) {
+      console.error('Failed to copy path:', err);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -146,10 +168,30 @@ export function TftpServerDialog({ isOpen, onClose }) {
                   {status.outputDir && (
                     <div className="tftp-status-item">
                       <span className="tftp-status-label">Output Directory</span>
-                      <div className="tftp-output-dir">
-                        <span className="tftp-output-dir-path" title={status.outputDir}>
+                      <div 
+                        className="tftp-output-dir"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <span 
+                          className="tftp-output-dir-path" 
+                          title={status.outputDir}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           {status.outputDir}
                         </span>
+                        <button 
+                          className="tftp-copy-path-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePathCopy(e, status.outputDir);
+                          }}
+                          title="Copy path"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M4 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                            <path d="M2 6h10a2 2 0 0 1 2 2v6" stroke="currentColor" strokeWidth="1.5" fill="none" strokeDasharray="2 2"/>
+                          </svg>
+                        </button>
                         <button 
                           className="tftp-open-dir-btn"
                           onClick={(e) => {
@@ -202,11 +244,28 @@ export function TftpServerDialog({ isOpen, onClose }) {
                   <input
                     id="tftp-output-dir"
                     type="text"
-                    value={outputDir || '(Default: ~/Documents/ash/tftp/YYYYMMDD_HHMMSS/)'}
+                    value={outputDir || '(Default: ~/Documents/ash/tftp/)'}
                     readOnly
                     disabled={loading}
                     className="tftp-dir-input"
+                    title={outputDir || '~/Documents/ash/tftp/'}
                   />
+                  {outputDir && (
+                    <button
+                      className="tftp-copy-path-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePathCopy(e, outputDir);
+                      }}
+                      disabled={loading}
+                      title="Copy path"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                        <path d="M2 6h10a2 2 0 0 1 2 2v6" stroke="currentColor" strokeWidth="1.5" fill="none" strokeDasharray="2 2"/>
+                      </svg>
+                    </button>
+                  )}
                   <button
                     className="tftp-select-dir-btn"
                     onClick={handleSelectDirectory}
