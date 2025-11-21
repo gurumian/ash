@@ -15,6 +15,7 @@ export function CustomTitleBar({
   onAbout,
   onCheckForUpdates,
   onToggleDevTools,
+  onTftpServer,
 }) {
   const [activeMenu, setActiveMenu] = useState(null);
   const menuRef = useRef(null);
@@ -65,6 +66,12 @@ export function CustomTitleBar({
         { label: 'Toggle Developer Tools', shortcut: 'Ctrl+Shift+I', onClick: onToggleDevTools },
         { type: 'separator' },
         { label: 'Settings', shortcut: 'Ctrl+,', onClick: onSettings },
+      ],
+    },
+    {
+      name: 'Tools',
+      items: [
+        { label: 'TFTP Server', onClick: onTftpServer },
       ],
     },
     {

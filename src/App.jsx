@@ -716,6 +716,7 @@ function App() {
             }
             setShowAboutDialog(true);
           }}
+          onTftpServer={() => setShowTftpServerDialog(true)}
         />
       )}
       <div className="main-content">
