@@ -628,7 +628,19 @@ button, a, input, select, textarea, [role="button"] {
   opacity: 0.7;
 }
 
-.status-left, .status-right {
+.status-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.status-tftp-indicator {
+  color: #00ff41;
+  opacity: 0.8;
+  font-size: 11px;
+}
+
+.status-right {
   display: flex;
   align-items: center;
   gap: 16px;

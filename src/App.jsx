@@ -26,6 +26,7 @@ import { AboutDialog } from './components/AboutDialog';
 import { TerminalContextMenu } from './components/TerminalContextMenu';
 import { TerminalSearchBar } from './components/TerminalSearchBar';
 import { SessionDialog } from './components/SessionDialog';
+import { TftpServerDialog } from './components/TftpServerDialog';
 
 function App() {
   // Session management state
@@ -136,6 +137,8 @@ function App() {
   
   const [showSettings, setShowSettings] = useState(false);
   const [showAboutDialog, setShowAboutDialog] = useState(false);
+  const [showTftpServerDialog, setShowTftpServerDialog] = useState(false);
+  const [tftpStatus, setTftpStatus] = useState({ running: false, port: null });
   const [appInfo, setAppInfo] = useState({ version: '', author: { name: 'Bryce Ghim', email: 'admin@toktoktalk.com' } });
   
   // Load app info on mount
@@ -154,6 +157,28 @@ function App() {
       }
     };
     loadAppInfo();
+  }, []);
+
+  // Load TFTP server status on mount and periodically check
+  useEffect(() => {
+    const loadTftpStatus = async () => {
+      try {
+        const status = await window.electronAPI?.tftpStatus?.();
+        if (status) {
+          setTftpStatus(status);
+        }
+      } catch (error) {
+        console.error('Failed to load TFTP status:', error);
+      }
+    };
+
+    // Load immediately
+    loadTftpStatus();
+
+    // Check periodically (every 2 seconds)
+    const interval = setInterval(loadTftpStatus, 2000);
+
+    return () => clearInterval(interval);
   }, []);
   
   // Terminal context menu state
@@ -518,6 +543,7 @@ function App() {
     setShowSessionManager,
     setSessionManagerWidth,
     setShowAboutDialog,
+    setShowTftpServerDialog,
     setAppInfo,
     disconnectSession,
     resizeTerminal
@@ -824,6 +850,7 @@ function App() {
       <StatusBar 
         activeSession={activeSession}
         sessionsCount={sessions.length}
+        tftpStatus={tftpStatus}
       />
 
       {/* Connection form modal */}
@@ -943,6 +970,12 @@ function App() {
             }
           }
         }}
+      />
+
+      {/* TFTP Server Dialog */}
+      <TftpServerDialog
+        isOpen={showTftpServerDialog}
+        onClose={() => setShowTftpServerDialog(false)}
       />
     </div>
   );

@@ -3,7 +3,7 @@ import React, { memo } from 'react';
 /**
  * Status Bar component - Bottom status bar showing connection info and session count
  */
-export const StatusBar = memo(function StatusBar({ activeSession, sessionsCount }) {
+export const StatusBar = memo(function StatusBar({ activeSession, sessionsCount, tftpStatus }) {
   const getConnectionText = () => {
     if (!activeSession) {
       return 'Ready';
@@ -20,6 +20,11 @@ export const StatusBar = memo(function StatusBar({ activeSession, sessionsCount 
     <div className="status-bar">
       <div className="status-left">
         <span>{getConnectionText()}</span>
+        {tftpStatus?.running && (
+          <span className="status-tftp-indicator" title={`TFTP Server: UDP/${tftpStatus.port}`}>
+            • TFTP: UDP/{tftpStatus.port}
+          </span>
+        )}
       </div>
       <div className="status-right">
         <span>Sessions: {sessionsCount}</span>

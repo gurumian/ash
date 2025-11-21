@@ -50,6 +50,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onMenuSettings: (callback) => ipcRenderer.on('menu-settings', callback),
   onMenuCheckUpdates: (callback) => ipcRenderer.on('menu-check-updates', callback),
   onMenuAbout: (callback) => ipcRenderer.on('menu-about', callback),
+  onMenuTftpServer: (callback) => ipcRenderer.on('menu-tftp-server', callback),
   
   // Change window title
   setWindowTitle: async (title) => {
@@ -116,6 +117,24 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Settings
   getSettings: () => ipcRenderer.invoke('get-settings'),
   saveSettings: (settings) => ipcRenderer.invoke('save-settings', settings),
+  
+  // Open path in file manager
+  openPath: (path) => ipcRenderer.invoke('open-path', path),
+  
+  // Show directory picker dialog
+  showDirectoryPicker: (defaultPath) => ipcRenderer.invoke('show-directory-picker', defaultPath),
+  
+  // TFTP Server APIs
+  tftpStatus: () => ipcRenderer.invoke('tftp-status'),
+  tftpStart: (params) => ipcRenderer.invoke('tftp-start', params),
+  tftpStop: () => ipcRenderer.invoke('tftp-stop'),
+  tftpGetOutputDir: () => ipcRenderer.invoke('tftp-get-output-dir'),
+  onTftpTransferComplete: (callback) => {
+    ipcRenderer.on('tftp-transfer-complete', (_event, data) => callback(data));
+  },
+  offTftpTransferComplete: (callback) => {
+    ipcRenderer.removeListener('tftp-transfer-complete', callback);
+  },
   
   // Update events
   onUpdateAvailable: (callback) => ipcRenderer.on('update-available', (event, data) => callback(data)),

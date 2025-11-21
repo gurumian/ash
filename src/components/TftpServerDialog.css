@@ -1,0 +1,375 @@
+.tftp-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+.tftp-dialog {
+  background: #000000;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.8);
+  border: 1px solid #1a1a1a;
+  width: 90%;
+  max-width: 500px;
+  overflow: hidden;
+}
+
+.tftp-dialog-header {
+  background: #000000;
+  padding: 16px 20px;
+  border-bottom: 1px solid #1a1a1a;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-radius: 8px 8px 0 0;
+}
+
+.tftp-dialog-header h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #00ff41;
+}
+
+.tftp-dialog-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #00ff41;
+  padding: 4px;
+  border-radius: 4px;
+  opacity: 0.7;
+  width: auto;
+  height: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.tftp-dialog-close:hover {
+  background: rgba(0, 255, 65, 0.1);
+  color: #00ff41;
+  opacity: 1;
+}
+
+.tftp-dialog-content {
+  padding: 20px;
+  background: #000000;
+}
+
+.tftp-status-section {
+  margin-bottom: 20px;
+}
+
+.tftp-status-card {
+  background: #1a1a1a;
+  border: 1px solid #1a1a1a;
+  border-radius: 4px;
+  padding: 16px;
+  margin-bottom: 16px;
+  transition: all 0.2s;
+}
+
+.tftp-status-card:hover:not(.loading) {
+  border-color: #00ff41;
+  background: rgba(0, 255, 65, 0.05);
+}
+
+.tftp-status-card.loading {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.tftp-status-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+  gap: 12px;
+}
+
+.tftp-status-item:last-child {
+  margin-bottom: 0;
+}
+
+.tftp-status-label {
+  font-weight: 600;
+  color: #00ff41;
+  min-width: 140px;
+  font-size: 13px;
+}
+
+.tftp-status-value {
+  color: #00ff41;
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.tftp-status-value.running {
+  color: #00ff41;
+}
+
+.tftp-status-value.stopped {
+  color: #ff4444;
+}
+
+.tftp-status-control {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex: 1;
+}
+
+.tftp-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(0, 255, 65, 0.1);
+  color: #00ff41;
+  border: 1px solid rgba(0, 255, 65, 0.3);
+}
+
+.tftp-status-badge.stopped {
+  background: rgba(255, 68, 68, 0.1);
+  color: #ff4444;
+  border-color: rgba(255, 68, 68, 0.3);
+}
+
+.tftp-status-badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  display: inline-block;
+}
+
+.tftp-status-icon {
+  font-size: 16px;
+  color: #00ff41;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 24px;
+  background: rgba(0, 255, 65, 0.1);
+  border: 1px solid rgba(0, 255, 65, 0.3);
+  border-radius: 6px;
+  transition: all 0.2s;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.tftp-status-card.stopped .tftp-status-icon {
+  color: #00ff41;
+  background: rgba(0, 255, 65, 0.1);
+  border-color: rgba(0, 255, 65, 0.3);
+}
+
+.tftp-status-card.running .tftp-status-icon {
+  color: #ff4444;
+  background: rgba(255, 68, 68, 0.1);
+  border-color: rgba(255, 68, 68, 0.3);
+}
+
+.tftp-status-card:hover:not(.loading) .tftp-status-icon {
+  transform: scale(1.05);
+  border-color: #00ff41;
+  background: rgba(0, 255, 65, 0.15);
+}
+
+.tftp-output-dir {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.tftp-output-dir-path {
+  flex: 1;
+  color: #00ff41;
+  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 8px 12px;
+  background: #1a1a1a;
+  border: 1px solid #1a1a1a;
+  border-radius: 4px;
+  min-width: 0;
+}
+
+.tftp-open-dir-btn {
+  background: #1a1a1a;
+  border: 1px solid #1a1a1a;
+  color: #00ff41;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+}
+
+.tftp-open-dir-btn:hover {
+  border-color: #00ff41;
+  background: rgba(0, 255, 65, 0.1);
+}
+
+.tftp-config-section {
+  margin-bottom: 20px;
+}
+
+.tftp-config-item {
+  margin-bottom: 16px;
+}
+
+.tftp-config-item:last-child {
+  margin-bottom: 0;
+}
+
+.tftp-config-item label {
+  display: block;
+  font-weight: 600;
+  color: #00ff41;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.tftp-config-item input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #1a1a1a;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+  background: #1a1a1a;
+  color: #00ff41;
+}
+
+.tftp-config-item input:focus {
+  outline: none;
+  border-color: #00ff41;
+  box-shadow: 0 0 0 2px rgba(0, 255, 65, 0.2);
+}
+
+.tftp-config-item input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tftp-config-item input::placeholder {
+  color: #555;
+}
+
+.tftp-dir-selector {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.tftp-dir-input {
+  flex: 1;
+  background: #1a1a1a;
+  border: 1px solid #1a1a1a;
+  color: #555;
+  padding: 10px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+  cursor: default;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.tftp-dir-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tftp-select-dir-btn {
+  background: #1a1a1a;
+  border: 1px solid #1a1a1a;
+  color: #00ff41;
+  padding: 10px 12px;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  flex-shrink: 0;
+}
+
+.tftp-select-dir-btn:hover:not(:disabled) {
+  border-color: #00ff41;
+  background: rgba(0, 255, 65, 0.1);
+}
+
+.tftp-select-dir-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tftp-clear-dir-btn {
+  background: #1a1a1a;
+  border: 1px solid #1a1a1a;
+  color: #00ff41;
+  padding: 10px;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: auto;
+  height: auto;
+  min-width: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tftp-clear-dir-btn:hover:not(:disabled) {
+  border-color: #00ff41;
+  background: rgba(0, 255, 65, 0.1);
+}
+
+.tftp-clear-dir-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tftp-error {
+  background: rgba(255, 68, 68, 0.1);
+  border: 1px solid rgba(255, 68, 68, 0.3);
+  color: #ff4444;
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+

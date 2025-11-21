@@ -83,6 +83,24 @@ export function createMenu() {
       ]
     },
     {
+      label: 'Tools',
+      submenu: [
+        {
+          label: 'TFTP Server',
+          click: () => {
+            const focusedWindow = BrowserWindow.getFocusedWindow();
+            try {
+              if (focusedWindow && !focusedWindow.isDestroyed() && !focusedWindow.webContents.isDestroyed()) {
+                focusedWindow.webContents.send('menu-tftp-server');
+              }
+            } catch (error) {
+              console.error('Failed to send menu-tftp-server:', error);
+            }
+          }
+        }
+      ]
+    },
+    {
       label: 'View',
       submenu: [
         {

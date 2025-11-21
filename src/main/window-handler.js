@@ -1,4 +1,4 @@
-import { ipcMain, BrowserWindow, app } from 'electron';
+import { ipcMain, BrowserWindow, app, shell, dialog } from 'electron';
 import path from 'node:path';
 import fs from 'fs';
 
@@ -345,6 +345,37 @@ export function initializeWindowHandlers() {
       return { success: true };
     } catch (error) {
       console.error('Failed to save settings:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Open path in file manager
+  ipcMain.handle('open-path', async (event, pathToOpen) => {
+    try {
+      await shell.openPath(pathToOpen);
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to open path:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Show directory picker dialog
+  ipcMain.handle('show-directory-picker', async (event, defaultPath) => {
+    try {
+      const focusedWindow = BrowserWindow.getFocusedWindow();
+      const result = await dialog.showOpenDialog(focusedWindow || null, {
+        properties: ['openDirectory'],
+        defaultPath: defaultPath || undefined,
+      });
+      
+      if (result.canceled || result.filePaths.length === 0) {
+        return { success: false, canceled: true };
+      }
+      
+      return { success: true, path: result.filePaths[0] };
+    } catch (error) {
+      console.error('Failed to show directory picker:', error);
       return { success: false, error: error.message };
     }
   });
