@@ -8,6 +8,7 @@ import { useTheme } from './hooks/useTheme';
 import { useConnectionHistory } from './hooks/useConnectionHistory';
 import { useLogging } from './hooks/useLogging';
 import { useGroups } from './hooks/useGroups';
+import { useLibraries } from './hooks/useLibraries';
 import { useSerialPorts } from './hooks/useSerialPorts';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useWindowControls } from './hooks/useWindowControls';
@@ -26,6 +27,7 @@ import { AboutDialog } from './components/AboutDialog';
 import { TerminalContextMenu } from './components/TerminalContextMenu';
 import { TerminalSearchBar } from './components/TerminalSearchBar';
 import { SessionDialog } from './components/SessionDialog';
+import { LibraryDialog } from './components/LibraryDialog';
 import { TftpServerDialog } from './components/TftpServerDialog';
 
 function App() {
@@ -135,6 +137,15 @@ function App() {
   const { sessionLogs, logStates, appendToLog, startLogging, stopLogging, saveLog, clearLog, cleanupLog } = useLogging(sessions, groups);
   const { availableSerialPorts, loadSerialPorts } = useSerialPorts();
   
+  // Libraries hook
+  const {
+    libraries,
+    createLibrary,
+    updateLibrary,
+    deleteLibrary,
+    toggleLibraryExpanded
+  } = useLibraries();
+  
   const [showSettings, setShowSettings] = useState(false);
   const [showAboutDialog, setShowAboutDialog] = useState(false);
   const [showTftpServerDialog, setShowTftpServerDialog] = useState(false);
@@ -193,6 +204,8 @@ function App() {
   const [showSearchBar, setShowSearchBar] = useState(false);
   const [showSessionDialog, setShowSessionDialog] = useState(false);
   const [selectedSession, setSelectedSession] = useState(null);
+  const [showLibraryDialog, setShowLibraryDialog] = useState(false);
+  const [selectedLibrary, setSelectedLibrary] = useState(null);
   const [scrollbackLines, setScrollbackLines] = useState(() => {
     const saved = localStorage.getItem('ash-scrollback');
     return saved ? parseInt(saved, 10) : 5000;
@@ -760,6 +773,19 @@ function App() {
             setSelectedSession(session);
             setShowSessionDialog(true);
           }}
+          libraries={libraries}
+          sshConnections={sshConnections}
+          onEditLibrary={(library) => {
+            setSelectedLibrary(library);
+            setShowLibraryDialog(true);
+          }}
+          onDeleteLibrary={deleteLibrary}
+          onToggleLibraryExpanded={toggleLibraryExpanded}
+          onCreateLibrary={() => {
+            const newLibrary = createLibrary(`Library ${libraries.length + 1}`);
+            setSelectedLibrary(newLibrary);
+            setShowLibraryDialog(true);
+          }}
         />
         
         {/* Resize handle */}
@@ -970,6 +996,19 @@ function App() {
               localStorage.setItem('ssh-connections', JSON.stringify(updatedHistory));
             }
           }
+        }}
+      />
+
+      {/* Library Dialog */}
+      <LibraryDialog
+        showDialog={showLibraryDialog}
+        library={selectedLibrary}
+        onClose={() => {
+          setShowLibraryDialog(false);
+          setSelectedLibrary(null);
+        }}
+        onSave={(libraryId, updates) => {
+          updateLibrary(libraryId, updates);
         }}
       />
 

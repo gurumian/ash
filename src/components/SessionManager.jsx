@@ -3,6 +3,7 @@ import { SessionItem } from './SessionItem';
 import { FavoriteItem } from './FavoriteItem';
 import { ConnectionHistoryItem } from './ConnectionHistoryItem';
 import { GroupSessionItem } from './GroupSessionItem';
+import { LibraryItem } from './LibraryItem';
 
 /**
  * Session Manager component - Left sidebar for managing sessions, groups, and connections
@@ -42,7 +43,13 @@ export const SessionManager = memo(function SessionManager({
   onDeleteGroup,
   onCreateGroup,
   setGroups,
-  onOpenSessionSettings
+  onOpenSessionSettings,
+  libraries,
+  sshConnections,
+  onEditLibrary,
+  onDeleteLibrary,
+  onToggleLibraryExpanded,
+  onCreateLibrary
 }) {
   // Memoize group calculations
   // Match savedSessions with active sessions at runtime
@@ -88,6 +95,7 @@ export const SessionManager = memo(function SessionManager({
   const [isSessionListExpanded, setIsSessionListExpanded] = useState(true);
   const [isActiveSessionsExpanded, setIsActiveSessionsExpanded] = useState(true);
   const [isRecentExpanded, setIsRecentExpanded] = useState(true);
+  const [isLibrariesExpanded, setIsLibrariesExpanded] = useState(false);
 
   return (
     <div 
@@ -426,6 +434,62 @@ export const SessionManager = memo(function SessionManager({
           ))}
         </div>
       )}
+
+      {/* Libraries / Cheat-sheets */}
+      <div className="section">
+        <div 
+          className="section-header section-header-clickable"
+          onClick={() => setIsLibrariesExpanded(!isLibrariesExpanded)}
+          style={{ cursor: 'pointer' }}
+        >
+          <button
+            className="section-toggle"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsLibrariesExpanded(!isLibrariesExpanded);
+            }}
+            title={isLibrariesExpanded ? 'Collapse' : 'Expand'}
+          >
+            {isLibrariesExpanded ? '▼' : '▶'}
+          </button>
+          Libraries
+        </div>
+        {isLibrariesExpanded && (
+          <>
+            {libraries && libraries.length > 0 ? (
+              libraries.map((library) => (
+                <LibraryItem
+                  key={library.id}
+                  library={library}
+                  activeSessionId={activeSessionId}
+                  sessions={sessions}
+                  sshConnections={sshConnections}
+                  onEdit={onEditLibrary}
+                  onDelete={onDeleteLibrary}
+                  onToggleExpanded={onToggleLibraryExpanded}
+                />
+              ))
+            ) : (
+              <div style={{
+                padding: '12px',
+                textAlign: 'center',
+                color: '#00ff41',
+                opacity: 0.5,
+                fontSize: '12px'
+              }}>
+                No libraries yet
+              </div>
+            )}
+            <button
+              className="new-library-btn"
+              onClick={onCreateLibrary}
+              title="Create a new library"
+            >
+              + Create New Library
+            </button>
+          </>
+        )}
+      </div>
     </div>
   );
 });
