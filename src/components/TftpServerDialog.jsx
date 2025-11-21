@@ -158,7 +158,9 @@ export function TftpServerDialog({ isOpen, onClose }) {
                           }}
                           title="Open directory"
                         >
-                          📁
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M2 3h5l1 2h6v8H2V3z" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
                         </button>
                       </div>
                     </div>
@@ -211,7 +213,9 @@ export function TftpServerDialog({ isOpen, onClose }) {
                     disabled={loading}
                     title="Select directory"
                   >
-                    📁
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M2 3h5l1 2h6v8H2V3z" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
                   </button>
                   {outputDir && (
                     <button

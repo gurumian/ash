@@ -125,7 +125,7 @@
 .tftp-status-control {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 12px;
   flex: 1;
 }
@@ -222,12 +222,17 @@
   cursor: pointer;
   padding: 8px 12px;
   border-radius: 4px;
-  font-size: 14px;
   transition: all 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
   min-width: 40px;
+}
+
+.tftp-open-dir-btn svg {
+  width: 16px;
+  height: 16px;
+  color: #00ff41;
 }
 
 .tftp-open-dir-btn:hover {
@@ -315,7 +320,6 @@
   color: #00ff41;
   padding: 10px 12px;
   border-radius: 4px;
-  font-size: 16px;
   cursor: pointer;
   transition: all 0.2s;
   display: flex;
@@ -323,6 +327,12 @@
   justify-content: center;
   min-width: 40px;
   flex-shrink: 0;
+}
+
+.tftp-select-dir-btn svg {
+  width: 16px;
+  height: 16px;
+  color: #00ff41;
 }
 
 .tftp-select-dir-btn:hover:not(:disabled) {
