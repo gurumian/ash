@@ -320,13 +320,14 @@ export function useTerminalManagement({
                 }
               } catch (error) {
                 console.error(`Failed to start SSH shell for session ${sessionId}:`, error);
-                terminal.write(`Failed to start shell: ${error.message}\r\n`);
+                // Use grey color for error messages
+                terminal.write(`\x1b[90mFailed to start shell: ${error.message}\x1b[0m\r\n`);
               }
             }, 50);
           } else if (session.connectionType === 'serial') {
-            // Serial port connection
-            terminal.write(`Serial port ${session.serialPort} connected at ${session.baudRate} baud\r\n`);
-            terminal.write('Serial terminal ready\r\n');
+            // Serial port connection - use grey color for status messages
+            terminal.write(`\x1b[90mSerial port ${session.serialPort} connected at ${session.baudRate} baud\x1b[0m\r\n`);
+            terminal.write('\x1b[90mSerial terminal ready\x1b[0m\r\n');
             
             // Execute post-processing commands after serial connection is ready
             setTimeout(() => {
@@ -486,7 +487,8 @@ export function useTerminalManagement({
       const sessionId = connectionIdMap.get(connectionId);
       
       if (sessionId && terminalInstances.current[sessionId]) {
-        terminalInstances.current[sessionId].write('\r\nSSH connection closed.\r\n');
+        // Use grey color for connection status messages
+        terminalInstances.current[sessionId].write('\r\n\x1b[90mSSH connection closed.\x1b[0m\r\n');
       }
     };
 
@@ -525,7 +527,8 @@ export function useTerminalManagement({
 
     const handleSerialClose = (event, receivedSessionId) => {
       if (terminalInstances.current[receivedSessionId]) {
-        terminalInstances.current[receivedSessionId].write('\r\nSerial connection closed.\r\n');
+        // Use grey color for connection status messages
+        terminalInstances.current[receivedSessionId].write('\r\n\x1b[90mSerial connection closed.\x1b[0m\r\n');
       }
     };
 
