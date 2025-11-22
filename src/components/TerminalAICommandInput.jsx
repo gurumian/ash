@@ -68,8 +68,8 @@ export const TerminalAICommandInput = memo(function TerminalAICommandInput({
           style={{
             flex: 1,
             padding: '8px 12px',
-            background: '#1a1a1a',
-            border: '1px solid #00ff41',
+            background: 'transparent',
+            border: '1px solid rgba(0, 255, 65, 0.3)',
             borderRadius: '4px',
             color: '#00ff41',
             fontSize: '13px',
@@ -105,14 +105,16 @@ export const TerminalAICommandInput = memo(function TerminalAICommandInput({
           style={{
             marginLeft: '8px',
             padding: '8px 16px',
-            background: input.trim() && !isProcessing ? '#00ff41' : '#1a1a1a',
-            border: `1px solid ${input.trim() && !isProcessing ? '#00ff41' : '#1a1a1a'}`,
+            background: input.trim() && !isProcessing ? 'rgba(0, 255, 65, 0.8)' : 'rgba(26, 26, 26, 0.3)',
+            border: `1px solid ${input.trim() && !isProcessing ? '#00ff41' : 'rgba(0, 255, 65, 0.3)'}`,
             borderRadius: '4px',
-            color: input.trim() && !isProcessing ? '#000' : '#555',
+            color: input.trim() && !isProcessing ? '#000' : '#00ff41',
             cursor: input.trim() && !isProcessing ? 'pointer' : 'not-allowed',
             fontSize: '12px',
             fontWeight: '600',
-            transition: 'all 0.2s'
+            transition: 'all 0.2s',
+            backdropFilter: 'blur(3px)',
+            WebkitBackdropFilter: 'blur(3px)'
           }}
           title="Execute (Enter)"
         >
@@ -124,8 +126,8 @@ export const TerminalAICommandInput = memo(function TerminalAICommandInput({
           style={{
             marginLeft: '8px',
             padding: '8px 12px',
-            background: 'transparent',
-            border: '1px solid #1a1a1a',
+            background: 'rgba(26, 26, 26, 0.3)',
+            border: '1px solid rgba(0, 255, 65, 0.3)',
             borderRadius: '4px',
             color: '#00ff41',
             cursor: 'pointer',
@@ -135,7 +137,9 @@ export const TerminalAICommandInput = memo(function TerminalAICommandInput({
             height: '32px',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center'
+            justifyContent: 'center',
+            backdropFilter: 'blur(3px)',
+            WebkitBackdropFilter: 'blur(3px)'
           }}
           title="Close (Esc)"
         >

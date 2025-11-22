@@ -780,14 +780,39 @@ function App() {
                 currentDirectory: 'unknown' // TODO: Get actual current directory from terminal
               };
 
-              // Convert natural language to command
+              // Convert natural language to command with streaming
               console.log('Calling LLM service...');
-              const command = await llmService.convertToCommand(naturalLanguage, context);
+              
+              let streamingText = '';
+              const terminal = activeSessionId && terminalInstances.current[activeSessionId];
+              
+              // Show streaming indicator
+              if (terminal) {
+                terminal.write(`\r\n\x1b[90m# Generating command...\x1b[0m\r\n`);
+              }
+              
+              const command = await llmService.convertToCommand(
+                naturalLanguage, 
+                context,
+                // Streaming callback
+                (chunk) => {
+                  streamingText += chunk;
+                  // Show streaming text in terminal (grey color, overwrite previous line)
+                  if (terminal) {
+                    // Clear previous line and show current text
+                    // Use carriage return to overwrite the line
+                    terminal.write(`\r\x1b[K\x1b[90m# Generating: ${streamingText}\x1b[0m`);
+                  }
+                }
+              );
+              
               console.log('LLM returned command:', command);
 
-              // Show generated command in terminal (grey color)
-              if (activeSessionId && terminalInstances.current[activeSessionId]) {
-                terminalInstances.current[activeSessionId].write(`\x1b[90m# Generated command: ${command}\x1b[0m\r\n`);
+              // Clear streaming line and show final command
+              if (terminal) {
+                // Clear the streaming line and move to new line
+                terminal.write(`\r\x1b[K`); // Clear to end of line
+                terminal.write(`\x1b[90m# Generated command: ${command}\x1b[0m\r\n`);
               }
 
               // Execute command in active session
