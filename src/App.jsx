@@ -16,6 +16,7 @@ import { useMenuHandlers } from './hooks/useMenuHandlers';
 import { useDragAndDrop } from './hooks/useDragAndDrop';
 import { useTerminalManagement } from './hooks/useTerminalManagement';
 import { useConnectionManagement } from './hooks/useConnectionManagement';
+import { useAppHandlers } from './hooks/useAppHandlers';
 import { CustomTitleBar } from './components/CustomTitleBar';
 import { SessionManager } from './components/SessionManager';
 import { TerminalView } from './components/TerminalView';
@@ -330,23 +331,55 @@ function App() {
   // Connection history and favorites
   // Connection history and favorites are managed by useConnectionHistory hook
 
-  // Memoize input change handler
-  const handleInputChange = useCallback((e) => {
-    const { name, value } = e.target;
-    setConnectionForm(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  }, []);
+  // App handlers hook
+  const {
+    handleInputChange,
+    handleMouseDown: handleMouseDownBase,
+    handleMouseUp: handleMouseUpBase,
+    handleShowSettings,
+    handleShowConnectionForm,
+    handleCloseConnectionForm,
+    handleCloseSettings,
+    handleConnectionFormSubmit,
+    handleConnectionTypeChange,
+    handleSavePasswordChange,
+    connectFromHistory,
+    handleCreateGroupFromDialog,
+    handleCloseGroupDialog,
+    handleGroupNameChange,
+    handleGroupDialogKeyDown,
+    handleScrollbackChange,
+    handleTerminalFontSizeChange,
+    handleTerminalFontFamilyChange,
+    handleUiFontFamilyChange
+  } = useAppHandlers({
+    setConnectionForm,
+    setShowConnectionForm,
+    setFormError,
+    setShowSettings,
+    setShowGroupNameDialog,
+    setNewGroupName,
+    setPendingSessionForGroup,
+    setScrollbackLines,
+    setTerminalFontSize,
+    setTerminalFontFamily,
+    setUiFontFamily,
+    showSessionManager,
+    isResizing,
+    groups,
+    createGroup,
+    addSessionToGroup,
+    createNewSessionWithData,
+    connectionForm,
+    terminalInstances,
+    resizeTerminal,
+    pendingSessionForGroup,
+    newGroupName
+  });
 
-
-  // Log management functions are provided by useLogging hook
-
-  // Resize handlers
+  // Resize handlers with event listeners
   const handleMouseDown = (e) => {
-    if (!showSessionManager) return;
-    isResizing.current = true;
-    e.preventDefault();
+    handleMouseDownBase(e);
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
   };
@@ -355,20 +388,13 @@ function App() {
     if (!isResizing.current) return;
     const newWidth = Math.max(150, Math.min(400, e.clientX));
     setSessionManagerWidth(newWidth);
-    
-    // Resize terminal when session manager width changes
     setTimeout(resizeTerminal, 10);
   };
 
   const handleMouseUp = () => {
-    isResizing.current = false;
+    handleMouseUpBase();
     document.removeEventListener('mousemove', handleMouseMove);
     document.removeEventListener('mouseup', handleMouseUp);
-  };
-
-  // Create new session (returns sessionId if successful) - uses connectionForm state
-  const createNewSession = async (skipFormReset = false) => {
-    return createNewSessionWithData(connectionForm, skipFormReset);
   };
 
   // Switch active session - memoized to prevent unnecessary re-renders
@@ -400,49 +426,6 @@ function App() {
   useEffect(() => {
     window.__sessions__ = sessions;
   }, [sessions]);
-
-  // Group management functions are provided by useGroups hook
-
-
-  const handleCreateGroupFromDialog = () => {
-    if (pendingSessionForGroup) {
-      const groupName = newGroupName.trim() || `Group ${groups.length + 1}`;
-      const newGroupId = createGroup(groupName);
-      
-      if (pendingSessionForGroup.type === 'existing') {
-        addSessionToGroup(pendingSessionForGroup.sessionId, newGroupId);
-      } else if (pendingSessionForGroup.type === 'new') {
-        // Session was already created, just add to group
-        addSessionToGroup(pendingSessionForGroup.sessionId, newGroupId);
-      }
-      
-      setShowGroupNameDialog(false);
-      setNewGroupName('');
-      setPendingSessionForGroup(null);
-    }
-  };
-
-  // Connect from history
-  const connectFromHistory = (connection) => {
-    setConnectionForm({
-      connectionType: connection.connectionType || 'ssh',
-      host: connection.host,
-      port: connection.port || '22',
-      user: connection.user,
-      password: connection.password || '',
-      sessionName: connection.sessionName || connection.name || '',
-      savePassword: !!connection.password, // Check checkbox if saved password exists
-      serialPort: connection.serialPort || '',
-      baudRate: connection.baudRate || '9600',
-      dataBits: connection.dataBits || '8',
-      stopBits: connection.stopBits || '1',
-      parity: connection.parity || 'none',
-      flowControl: connection.flowControl || 'none',
-      postProcessing: connection.postProcessing || [],
-      postProcessingEnabled: connection.postProcessingEnabled !== false
-    });
-    setShowConnectionForm(true);
-  };
 
   // SSH/Serial data handling and detached session events are now in useTerminalManagement and useConnectionManagement hooks
 
@@ -563,94 +546,6 @@ function App() {
   });
 
 
-  // Memoized handlers for modals
-  const handleShowSettings = useCallback(() => setShowSettings(true), []);
-  const handleShowConnectionForm = useCallback(() => {
-    setFormError('');
-    setShowConnectionForm(true);
-  }, []);
-  const handleCloseConnectionForm = useCallback(() => {
-    setShowConnectionForm(false);
-    setFormError('');
-  }, []);
-  const handleCloseSettings = useCallback(() => setShowSettings(false), []);
-  const handleConnectionFormSubmit = useCallback((e) => {
-    e.preventDefault();
-    setFormError('');
-    // Use connectionForm directly to ensure we have the latest state
-    createNewSessionWithData(connectionForm);
-  }, [connectionForm]); // Include connectionForm in dependencies
-  const handleConnectionTypeChange = useCallback((type) => {
-    setConnectionForm(prev => ({ ...prev, connectionType: type }));
-  }, []);
-  const handleSavePasswordChange = useCallback((e) => {
-    setConnectionForm(prev => ({ ...prev, savePassword: e.target.checked }));
-  }, []);
-  const handleCloseGroupDialog = useCallback(() => {
-    setShowGroupNameDialog(false);
-    setNewGroupName('');
-    setPendingSessionForGroup(null);
-  }, []);
-  const handleGroupNameChange = useCallback((e) => {
-    setNewGroupName(e.target.value);
-  }, []);
-  const handleGroupDialogKeyDown = useCallback((e) => {
-    if (e.key === 'Enter') {
-      handleCreateGroupFromDialog();
-    } else if (e.key === 'Escape') {
-      setShowGroupNameDialog(false);
-      setNewGroupName('');
-      setPendingSessionForGroup(null);
-    }
-  }, []); // handleCreateGroupFromDialog is stable
-  const handleScrollbackChange = useCallback((e) => {
-    const value = parseInt(e.target.value, 10);
-    if (!isNaN(value) && value >= 100 && value <= 50000) {
-      setScrollbackLines(value);
-      localStorage.setItem('ash-scrollback', value.toString());
-    }
-  }, []);
-  const handleTerminalFontSizeChange = useCallback((e) => {
-    const value = parseInt(e.target.value, 10);
-    if (!isNaN(value) && value >= 8 && value <= 32) {
-      setTerminalFontSize(value);
-      localStorage.setItem('ash-terminal-font-size', value.toString());
-      // Update existing terminals
-      setTimeout(() => {
-        Object.keys(terminalInstances.current).forEach(sessionId => {
-          const terminal = terminalInstances.current[sessionId];
-          if (terminal) {
-            terminal.options.fontSize = value;
-            resizeTerminal();
-          }
-        });
-      }, 0);
-    }
-  }, [terminalInstances, resizeTerminal]);
-  const handleTerminalFontFamilyChange = useCallback((e) => {
-    const value = e.target.value;
-    setTerminalFontFamily(value);
-    localStorage.setItem('ash-terminal-font-family', value);
-    // Update existing terminals
-    setTimeout(() => {
-      Object.keys(terminalInstances.current).forEach(sessionId => {
-        const terminal = terminalInstances.current[sessionId];
-        if (terminal) {
-          terminal.options.fontFamily = value;
-          resizeTerminal();
-        }
-      });
-    }, 0);
-  }, [terminalInstances, resizeTerminal]);
-  
-  const handleUiFontFamilyChange = useCallback((e) => {
-    const value = e.target.value;
-    setUiFontFamily(value);
-    // Save to localStorage directly (same as other settings)
-    localStorage.setItem('ash-ui-font-family', value);
-    // Apply to root element via CSS variable immediately
-    document.documentElement.style.setProperty('--ui-font-family', value);
-  }, []);
 
   // Apply UI font family CSS variable on mount (useEffect handles state changes)
   useEffect(() => {

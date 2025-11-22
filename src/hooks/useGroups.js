@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
+import { matchSavedSessionWithActiveSession } from '../utils/sessionMatcher';
+import { getSessionLabel } from '../utils/sessionName';
 
 /**
  * Custom hook for group management
@@ -23,9 +25,7 @@ export function useGroups() {
             // Otherwise, migrate old format to new format
             return {
               id: crypto.randomUUID(),
-              label: saved.sessionName || saved.name || (saved.connectionType === 'serial'
-                ? `Serial: ${saved.serialPort}`
-                : `${saved.user}@${saved.host}`),
+              label: getSessionLabel(saved),
               ...saved
             };
           });
@@ -72,20 +72,6 @@ export function useGroups() {
     const verify = localStorage.getItem('ash-groups');
     console.log('Verification - localStorage contains:', verify);
   }, [groups]);
-
-  // Helper function to match a saved session (with UUID) with an active session
-  const matchSavedSessionWithActiveSession = (savedSession, session) => {
-    const connType = savedSession.connectionType || 'ssh';
-    if (connType === 'serial') {
-      return session.connectionType === 'serial' && 
-             session.serialPort === savedSession.serialPort;
-    } else {
-      return session.connectionType === 'ssh' &&
-             session.host === savedSession.host && 
-             session.user === savedSession.user && 
-             (session.port || '22') === (savedSession.port || '22');
-    }
-  };
 
   // Group management functions
   const createGroup = (name) => {
@@ -145,9 +131,7 @@ export function useGroups() {
           // Build saved session with UUID and label from session
           let savedSession = null;
           if (session) {
-            const label = session.name || (session.connectionType === 'serial'
-              ? `Serial: ${session.serialPort}`
-              : `${session.user}@${session.host}`);
+            const label = getSessionLabel(session);
             
             savedSession = {
               id: crypto.randomUUID(),
@@ -200,9 +184,7 @@ export function useGroups() {
         if (g.id === groupId) {
           // Always create a new instance with UUID and label
           // Same connection info can be added multiple times (e.g., multiple terminals to same host)
-          const label = connection.sessionName || connection.name || (connection.connectionType === 'serial'
-            ? `Serial: ${connection.serialPort}`
-            : `${connection.user}@${connection.host}`);
+          const label = getSessionLabel(connection);
           
           const savedSession = {
             id: crypto.randomUUID(),

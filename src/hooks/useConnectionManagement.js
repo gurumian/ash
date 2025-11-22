@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { SSHConnection } from '../connections/SSHConnection';
 import { SerialConnection } from '../connections/SerialConnection';
+import { matchSavedSessionWithActiveSession } from '../utils/sessionMatcher';
 
 /**
  * Custom hook for managing SSH/Serial connections
@@ -236,6 +237,128 @@ export function useConnectionManagement({
     sessionsRef.current = sessions;
   }, [sessions]);
 
+  // Helper: Find password from connection history
+  const findPasswordFromHistory = useCallback((session) => {
+    if (session.connectionType === 'ssh') {
+      const historyEntry = connectionHistory.find(c => 
+        c.connectionType === 'ssh' &&
+        c.host === session.host && 
+        c.user === session.user && 
+        (c.port || '22') === (session.port || '22')
+      );
+      return session.password || historyEntry?.password || '';
+    }
+    return '';
+  }, [connectionHistory]);
+
+  // Helper: Execute post-processing commands
+  const executePostProcessing = useCallback((connection, sessionId) => {
+    setTimeout(() => {
+      const updatedSession = sessionsRef.current.find(s => s.id === sessionId);
+      if (updatedSession && updatedSession.postProcessingEnabled !== false) {
+        const commands = updatedSession.postProcessing || [];
+        commands.forEach((cmd, index) => {
+          setTimeout(() => {
+            if (connection && connection.isConnected) {
+              const command = typeof cmd === 'string' ? cmd : cmd.command;
+              const enabled = typeof cmd === 'string' ? true : (cmd.enabled !== false);
+              if (enabled && command) {
+                connection.write(command + '\r\n');
+              }
+            }
+          }, index * 200);
+        });
+      }
+    }, 500);
+  }, []);
+
+  // Helper: Reconnect SSH session
+  const reconnectSSHSession = useCallback(async (session) => {
+    const password = findPasswordFromHistory(session);
+    const connection = new SSHConnection();
+    await connection.connect(session.host, session.port, session.user, password);
+    sshConnections.current[session.id] = connection;
+
+    // Initialize terminal if not already initialized
+    if (!terminalInstances.current[session.id]) {
+      setTimeout(() => {
+        initializeTerminal(session.id, session);
+      }, 100);
+    } else {
+      // Terminal already exists, start shell with current terminal size
+      const terminal = terminalInstances.current[session.id];
+      await connection.startShell(terminal.cols, terminal.rows);
+      executePostProcessing(connection, session.id);
+    }
+
+    setSessions(prev => prev.map(s => 
+      s.id === session.id ? { ...s, isConnected: true } : s
+    ));
+  }, [findPasswordFromHistory, initializeTerminal, executePostProcessing, setSessions]);
+
+  // Helper: Reconnect Serial session
+  const reconnectSerialSession = useCallback(async (session) => {
+    const connection = new SerialConnection();
+    await connection.connect(session.id, {
+      path: session.serialPort,
+      baudRate: parseInt(session.baudRate),
+      dataBits: parseInt(session.dataBits || '8'),
+      stopBits: parseInt(session.stopBits || '1'),
+      parity: session.parity || 'none',
+      flowControl: session.flowControl || 'none'
+    });
+    sshConnections.current[session.id] = connection;
+
+    // Initialize terminal if not already initialized
+    if (!terminalInstances.current[session.id]) {
+      setTimeout(() => {
+        initializeTerminal(session.id, session);
+      }, 100);
+    } else {
+      // Terminal already exists, execute post-processing after connection
+      setTimeout(() => {
+        executePostProcessing(connection, session.id);
+      }, 300);
+    }
+
+    setSessions(prev => prev.map(s => 
+      s.id === session.id ? { ...s, isConnected: true } : s
+    ));
+  }, [initializeTerminal, executePostProcessing, setSessions]);
+
+  // Helper: Reconnect session (type-agnostic)
+  const reconnectSession = useCallback(async (session) => {
+    try {
+      if (session.connectionType === 'ssh') {
+        await reconnectSSHSession(session);
+      } else if (session.connectionType === 'serial') {
+        await reconnectSerialSession(session);
+      }
+    } catch (error) {
+      console.error(`Failed to reconnect session ${session.id}:`, error);
+      alert(`Failed to reconnect ${session.name}: ${error.message}`);
+    }
+  }, [reconnectSSHSession, reconnectSerialSession]);
+
+  // Helper: Prepare connection form data from saved session
+  const prepareConnectionFormData = useCallback((savedSession) => {
+    return {
+      connectionType: savedSession.connectionType || 'ssh',
+      host: savedSession.host || '',
+      port: savedSession.port || '22',
+      user: savedSession.user || '',
+      password: savedSession.password || '',
+      sessionName: savedSession.label || savedSession.sessionName || savedSession.name || '',
+      savePassword: !!savedSession.password,
+      serialPort: savedSession.serialPort || '',
+      baudRate: savedSession.baudRate || '9600',
+      dataBits: savedSession.dataBits || '8',
+      stopBits: savedSession.stopBits || '1',
+      parity: savedSession.parity || 'none',
+      flowControl: savedSession.flowControl || 'none'
+    };
+  }, []);
+
   // Connect all sessions in a group
   const connectGroup = useCallback(async (groupId) => {
     console.log('connectGroup called:', groupId);
@@ -252,19 +375,6 @@ export function useConnectionManagement({
     
     console.log('Saved sessions to connect:', savedSessions.length);
     
-    // Helper function to match saved session (with UUID) with active session
-    const matchSavedSessionWithActiveSession = (savedSession, session) => {
-      const connType = savedSession.connectionType || 'ssh';
-      if (connType === 'serial') {
-        return session.connectionType === 'serial' && session.serialPort === savedSession.serialPort;
-      } else {
-        return session.connectionType === 'ssh' &&
-               session.host === savedSession.host && 
-               session.user === savedSession.user && 
-               (session.port || '22') === (savedSession.port || '22');
-      }
-    };
-    
     // Connect each saved session instance
     // Reuse existing sessions if they match, otherwise create new ones
     // Use ref to get latest sessions state
@@ -278,101 +388,7 @@ export function useConnectionManagement({
         if (existingSession) {
           // Reuse existing session - just reconnect if disconnected
           if (!existingSession.isConnected) {
-            // Reconnect disconnected session
-            try {
-              if (existingSession.connectionType === 'ssh') {
-                // Try to get password from connection history
-                const historyEntry = connectionHistory.find(c => 
-                  c.connectionType === 'ssh' &&
-                  c.host === existingSession.host && 
-                  c.user === existingSession.user && 
-                  (c.port || '22') === (existingSession.port || '22')
-                );
-                const password = existingSession.password || historyEntry?.password || '';
-                
-                const connection = new SSHConnection();
-                await connection.connect(existingSession.host, existingSession.port, existingSession.user, password);
-                sshConnections.current[existingSession.id] = connection;
-                
-                // Initialize terminal if not already initialized
-                if (!terminalInstances.current[existingSession.id]) {
-                  setTimeout(() => {
-                    initializeTerminal(existingSession.id, existingSession);
-                  }, 100);
-                } else {
-                  // Terminal already exists, start shell with current terminal size
-                  const terminal = terminalInstances.current[existingSession.id];
-                  await connection.startShell(terminal.cols, terminal.rows);
-                  
-                  // Execute post-processing commands after shell is ready
-                  setTimeout(() => {
-                    const updatedSession = sessionsRef.current.find(s => s.id === existingSession.id);
-                    if (updatedSession && updatedSession.postProcessingEnabled !== false) {
-                      const commands = updatedSession.postProcessing || [];
-                      commands.forEach((cmd, index) => {
-                        setTimeout(() => {
-                          if (connection && connection.isConnected) {
-                            const command = typeof cmd === 'string' ? cmd : cmd.command;
-                            const enabled = typeof cmd === 'string' ? true : (cmd.enabled !== false);
-                            if (enabled && command) {
-                              connection.write(command + '\r\n');
-                            }
-                          }
-                        }, index * 200);
-                      });
-                    }
-                  }, 500);
-                }
-                
-                setSessions(prev => prev.map(s => 
-                  s.id === existingSession.id ? { ...s, isConnected: true } : s
-                ));
-              } else if (existingSession.connectionType === 'serial') {
-                const connection = new SerialConnection();
-                await connection.connect(existingSession.id, {
-                  path: existingSession.serialPort,
-                  baudRate: parseInt(existingSession.baudRate),
-                  dataBits: parseInt(existingSession.dataBits || '8'),
-                  stopBits: parseInt(existingSession.stopBits || '1'),
-                  parity: existingSession.parity || 'none',
-                  flowControl: existingSession.flowControl || 'none'
-                });
-                sshConnections.current[existingSession.id] = connection;
-                
-                // Initialize terminal if not already initialized
-                if (!terminalInstances.current[existingSession.id]) {
-                  setTimeout(() => {
-                    initializeTerminal(existingSession.id, existingSession);
-                  }, 100);
-                } else {
-                  // Terminal already exists, execute post-processing after connection
-                  setTimeout(() => {
-                    const updatedSession = sessionsRef.current.find(s => s.id === existingSession.id);
-                    if (updatedSession && updatedSession.postProcessingEnabled !== false) {
-                      const commands = updatedSession.postProcessing || [];
-                      commands.forEach((cmd, index) => {
-                        setTimeout(() => {
-                          if (connection && connection.isConnected) {
-                            const command = typeof cmd === 'string' ? cmd : cmd.command;
-                            const enabled = typeof cmd === 'string' ? true : (cmd.enabled !== false);
-                            if (enabled && command) {
-                              connection.write(command + '\r\n');
-                            }
-                          }
-                        }, index * 200);
-                      });
-                    }
-                  }, 300);
-                }
-                
-                setSessions(prev => prev.map(s => 
-                  s.id === existingSession.id ? { ...s, isConnected: true } : s
-                ));
-              }
-            } catch (error) {
-              console.error(`Failed to reconnect session ${existingSession.id}:`, error);
-              alert(`Failed to reconnect ${existingSession.name}: ${error.message}`);
-            }
+            await reconnectSession(existingSession);
           }
           // If already connected, do nothing - just reuse the existing session
           console.log('Reusing existing session:', { sessionId: existingSession.id, savedSessionId: savedSession.id, label: savedSession.label });
@@ -380,21 +396,7 @@ export function useConnectionManagement({
           // No existing session found - create a new one
           // But first check if we should create it or if it already exists in sessions
           // (This prevents duplicate sessions when connecting a group)
-          const connectionFormData = {
-            connectionType: savedSession.connectionType || 'ssh',
-            host: savedSession.host || '',
-            port: savedSession.port || '22',
-            user: savedSession.user || '',
-            password: savedSession.password || '',
-            sessionName: savedSession.label || savedSession.sessionName || savedSession.name || '',
-            savePassword: !!savedSession.password,
-            serialPort: savedSession.serialPort || '',
-            baudRate: savedSession.baudRate || '9600',
-            dataBits: savedSession.dataBits || '8',
-            stopBits: savedSession.stopBits || '1',
-            parity: savedSession.parity || 'none',
-            flowControl: savedSession.flowControl || 'none'
-          };
+          const connectionFormData = prepareConnectionFormData(savedSession);
           
           // Double-check: make sure we don't have a matching session already
           // (This can happen if sessions state hasn't updated yet)
@@ -404,60 +406,7 @@ export function useConnectionManagement({
           if (matchingSession) {
             // Session exists, just reconnect if needed
             if (!matchingSession.isConnected) {
-              // Reconnect logic is the same as above
-              try {
-                if (matchingSession.connectionType === 'ssh') {
-                  const historyEntry = connectionHistory.find(c => 
-                    c.connectionType === 'ssh' &&
-                    c.host === matchingSession.host && 
-                    c.user === matchingSession.user && 
-                    (c.port || '22') === (matchingSession.port || '22')
-                  );
-                  const password = matchingSession.password || historyEntry?.password || '';
-                  
-                  const connection = new SSHConnection();
-                  await connection.connect(matchingSession.host, matchingSession.port, matchingSession.user, password);
-                  sshConnections.current[matchingSession.id] = connection;
-                  
-                  if (!terminalInstances.current[matchingSession.id]) {
-                    setTimeout(() => {
-                      initializeTerminal(matchingSession.id, matchingSession);
-                    }, 100);
-                  } else {
-                    // Terminal already exists, start shell with current terminal size
-                    const terminal = terminalInstances.current[matchingSession.id];
-                    await connection.startShell(terminal.cols, terminal.rows);
-                  }
-                  
-                  setSessions(prev => prev.map(s => 
-                    s.id === matchingSession.id ? { ...s, isConnected: true } : s
-                  ));
-                } else if (matchingSession.connectionType === 'serial') {
-                  const connection = new SerialConnection();
-                  await connection.connect(matchingSession.id, {
-                    path: matchingSession.serialPort,
-                    baudRate: parseInt(matchingSession.baudRate),
-                    dataBits: parseInt(matchingSession.dataBits || '8'),
-                    stopBits: parseInt(matchingSession.stopBits || '1'),
-                    parity: matchingSession.parity || 'none',
-                    flowControl: matchingSession.flowControl || 'none'
-                  });
-                  sshConnections.current[matchingSession.id] = connection;
-                  
-                  if (!terminalInstances.current[matchingSession.id]) {
-                    setTimeout(() => {
-                      initializeTerminal(matchingSession.id, matchingSession);
-                    }, 100);
-                  }
-                  
-                  setSessions(prev => prev.map(s => 
-                    s.id === matchingSession.id ? { ...s, isConnected: true } : s
-                  ));
-                }
-              } catch (error) {
-                console.error(`Failed to reconnect session ${matchingSession.id}:`, error);
-                alert(`Failed to reconnect ${matchingSession.name}: ${error.message}`);
-              }
+              await reconnectSession(matchingSession);
             }
             console.log('Reusing existing session (found in double-check):', { sessionId: matchingSession.id, savedSessionId: savedSession.id, label: savedSession.label });
           } else {
@@ -476,12 +425,10 @@ export function useConnectionManagement({
   }, [
     groups,
     sessions,
-    connectionHistory,
-    sshConnections,
-    terminalInstances,
-    createNewSessionWithData,
-    initializeTerminal,
-    setSessions
+    matchSavedSessionWithActiveSession,
+    reconnectSession,
+    prepareConnectionFormData,
+    createNewSessionWithData
   ]);
 
   // Detach tab to new window

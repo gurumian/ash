@@ -4,6 +4,8 @@ import { FavoriteItem } from './FavoriteItem';
 import { ConnectionHistoryItem } from './ConnectionHistoryItem';
 import { GroupSessionItem } from './GroupSessionItem';
 import { LibraryItem } from './LibraryItem';
+import { matchSavedSessionWithActiveSession } from '../utils/sessionMatcher';
+import { getSessionDisplayName } from '../utils/sessionName';
 
 /**
  * Session Manager component - Left sidebar for managing sessions, groups, and connections
@@ -60,18 +62,9 @@ export const SessionManager = memo(function SessionManager({
       
       // Find active sessions that match saved sessions
       const groupSessions = sessions.filter(session => {
-        return savedSessions.some(savedSession => {
-          const connType = savedSession.connectionType || 'ssh';
-          if (connType === 'serial') {
-            return session.connectionType === 'serial' && 
-                   session.serialPort === savedSession.serialPort;
-          } else {
-            return session.connectionType === 'ssh' &&
-                   session.host === savedSession.host && 
-                   session.user === savedSession.user && 
-                   (session.port || '22') === (savedSession.port || '22');
-          }
-        });
+        return savedSessions.some(savedSession => 
+          matchSavedSessionWithActiveSession(savedSession, session)
+        );
       });
       
       const totalSessions = savedSessions.length;
@@ -269,18 +262,9 @@ export const SessionManager = memo(function SessionManager({
                     {/* Active sessions (connected) */}
                     {groupSessions.map((session) => {
                       // Find the savedSession that matches this active session
-                      const matchingSavedSession = savedSessions.find(savedSession => {
-                        const connType = savedSession.connectionType || 'ssh';
-                        if (connType === 'serial') {
-                          return session.connectionType === 'serial' && 
-                                 session.serialPort === savedSession.serialPort;
-                        } else {
-                          return session.connectionType === 'ssh' &&
-                                 session.host === savedSession.host && 
-                                 session.user === savedSession.user && 
-                                 (session.port || '22') === (savedSession.port || '22');
-                        }
-                      });
+                      const matchingSavedSession = savedSessions.find(savedSession => 
+                        matchSavedSessionWithActiveSession(savedSession, session)
+                      );
                       
                       return (
                         <GroupSessionItem
@@ -301,25 +285,14 @@ export const SessionManager = memo(function SessionManager({
                     {savedSessions
                       .filter(savedSession => {
                         // Only show saved sessions that don't have an active session
-                        const activeSession = groupSessions.find(session => {
-                          const connType = savedSession.connectionType || 'ssh';
-                          if (connType === 'serial') {
-                            return session.connectionType === 'serial' && 
-                                   session.serialPort === savedSession.serialPort;
-                          } else {
-                            return session.connectionType === 'ssh' &&
-                                   session.host === savedSession.host && 
-                                   session.user === savedSession.user && 
-                                   (session.port || '22') === (savedSession.port || '22');
-                          }
-                        });
+                        const activeSession = groupSessions.find(session => 
+                          matchSavedSessionWithActiveSession(savedSession, session)
+                        );
                         // Only show if no active session exists (not connected)
                         return !activeSession;
                       })
                       .map((savedSession) => {
-                        const displayName = savedSession.label || savedSession.sessionName || savedSession.name || (savedSession.connectionType === 'serial'
-                          ? `Serial: ${savedSession.serialPort}`
-                          : `${savedSession.user}@${savedSession.host}`);
+                        const displayName = getSessionDisplayName(savedSession);
                         
                         return (
                           <div
