@@ -75,7 +75,7 @@ export function initializeSSHHandlers() {
         
         // Send terminal data to renderer
         stream.on('data', (data) => {
-          console.log(`SSH data for connectionId ${connectionId}`);
+          // Removed console.log for performance - logs on every data chunk cause significant overhead
           try {
             if (!webContents.isDestroyed()) {
               webContents.send('ssh-data', { connectionId: connectionId, data: data.toString() });
@@ -107,7 +107,7 @@ export function initializeSSHHandlers() {
       throw new Error('SSH stream not found');
     }
     
-    console.log(`SSH write to connectionId ${connectionId}: ${data.length} bytes`);
+    // Removed console.log for performance - logs on every write cause significant overhead
     streamInfo.stream.write(data);
     return { success: true };
   });

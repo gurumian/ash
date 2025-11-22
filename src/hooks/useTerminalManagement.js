@@ -27,6 +27,29 @@ export function useTerminalManagement({
   const terminalInputHandlers = useRef({});
   const terminalContextMenuHandlers = useRef({});
   const pendingResizeRef = useRef(null);
+  // Cache connectionId -> sessionId mapping for O(1) lookup
+  const connectionIdMapRef = useRef(new Map());
+
+  // Update connectionId map when connections change
+  // This function rebuilds the entire map from current sshConnections
+  const updateConnectionIdMap = useCallback(() => {
+    const map = new Map();
+    Object.entries(sshConnections.current).forEach(([sessionId, conn]) => {
+      if (conn && conn.connectionId) {
+        map.set(conn.connectionId, sessionId);
+      }
+    });
+    connectionIdMapRef.current = map;
+  }, []);
+
+  // Sync map whenever sshConnections ref changes
+  // This ensures map is always up-to-date with actual connections
+  useEffect(() => {
+    // Update map when component mounts or when connections might have changed
+    // We can't directly watch sshConnections.current, so we update on mount
+    // and rely on explicit updates in key places (connect/disconnect)
+    updateConnectionIdMap();
+  }, [updateConnectionIdMap]);
 
   // Execute post-processing commands
   const executePostProcessing = useCallback((sessionId, session, connection) => {
@@ -361,7 +384,13 @@ export function useTerminalManagement({
       };
     }
     terminal.onData(terminalInputHandlers.current[sessionId]);
-  }, [theme, themes, scrollbackLines, activeSessionId, sessions, sshConnections, sessionLogs, appendToLog, setContextMenu, setShowSearchBar]);
+    
+    // Update connectionId map when terminal is initialized with SSH connection
+    // This ensures map includes the connectionId after connection.connect() completes
+    if (session.connectionType === 'ssh' && sshConnections.current[sessionId]?.connectionId) {
+      updateConnectionIdMap();
+    }
+  }, [theme, themes, scrollbackLines, activeSessionId, sessions, sshConnections, sessionLogs, appendToLog, setContextMenu, setShowSearchBar, updateConnectionIdMap]);
 
   // Resize terminal when active session changes (tab switch)
   useEffect(() => {
@@ -446,17 +475,12 @@ export function useTerminalManagement({
 
   // Handle SSH data events - register only once
   useEffect(() => {
+    // Update map initially and when connections change
+    updateConnectionIdMap();
+    
     const handleSshData = (event, { connectionId, data }) => {
-      // Build connectionId map on each call to get latest connections
-      const connectionIdMap = new Map();
-      Object.entries(sshConnections.current).forEach(([sessionId, conn]) => {
-        if (conn.connectionId) {
-          connectionIdMap.set(conn.connectionId, sessionId);
-        }
-      });
-      
-      // Fast O(1) lookup instead of O(n) find
-      const sessionId = connectionIdMap.get(connectionId);
+      // Use cached map for O(1) lookup - much faster than building map each time
+      const sessionId = connectionIdMapRef.current.get(connectionId);
       
       if (sessionId && terminalInstances.current[sessionId]) {
         const terminal = terminalInstances.current[sessionId];
@@ -475,21 +499,19 @@ export function useTerminalManagement({
     };
 
     const handleSshClose = (event, { connectionId }) => {
-      // Build connectionId map on each call to get latest connections
-      const connectionIdMap = new Map();
-      Object.entries(sshConnections.current).forEach(([sessionId, conn]) => {
-        if (conn.connectionId) {
-          connectionIdMap.set(conn.connectionId, sessionId);
-        }
-      });
-      
-      // Fast O(1) lookup
-      const sessionId = connectionIdMap.get(connectionId);
+      // Use cached map for O(1) lookup
+      const sessionId = connectionIdMapRef.current.get(connectionId);
       
       if (sessionId && terminalInstances.current[sessionId]) {
         // Use grey color for connection status messages
         terminalInstances.current[sessionId].write('\r\n\x1b[90mSSH connection closed.\x1b[0m\r\n');
       }
+      
+      // Remove from map when connection closes
+      // Also rebuild map to ensure consistency (in case of race conditions)
+      connectionIdMapRef.current.delete(connectionId);
+      // Rebuild map to ensure it's in sync with actual connections
+      updateConnectionIdMap();
     };
 
     window.electronAPI.onSSHData(handleSshData);
@@ -499,7 +521,7 @@ export function useTerminalManagement({
       window.electronAPI.offSSHData(handleSshData);
       window.electronAPI.offSSHClose(handleSshClose);
     };
-  }, []); // Empty dependency array - listeners registered only once
+  }, [updateConnectionIdMap]); // Update map when connections change
 
   // Handle Serial data events - register only once
   useEffect(() => {

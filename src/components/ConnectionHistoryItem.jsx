@@ -14,14 +14,30 @@ export const ConnectionHistoryItem = memo(function ConnectionHistoryItem({
 }) {
   const isSerial = conn.connectionType === 'serial';
   
+  // Helper function to match connection for favorites (by UUID, or by connection info + sessionName)
+  const matchesFavorite = (f, connection) => {
+    // First check by UUID if both have it
+    if (f.id && connection.id && f.id === connection.id) {
+      return true;
+    }
+    
+    // Fallback to connection info + sessionName matching
+    const sessionNameMatch = (f.sessionName || f.name || '') === (connection.sessionName || connection.name || '');
+    if (connection.connectionType === 'serial') {
+      const connectionMatch = f.connectionType === 'serial' && f.serialPort === connection.serialPort;
+      return connectionMatch && sessionNameMatch;
+    } else {
+      const connectionMatch = f.host === connection.host && 
+                             f.user === connection.user && 
+                             (f.port || '22') === (connection.port || '22');
+      return connectionMatch && sessionNameMatch;
+    }
+  };
+
   // Memoize expensive calculations
   const isFavorite = useMemo(() => {
-    if (isSerial) {
-      return favorites.some(f => f.connectionType === 'serial' && f.serialPort === conn.serialPort);
-    } else {
-      return favorites.some(f => f.host === conn.host && f.user === conn.user);
-    }
-  }, [isSerial, favorites, conn]);
+    return favorites.some(f => matchesFavorite(f, conn));
+  }, [favorites, conn]);
 
   const sessionId = useMemo(() => {
     if (isSerial) {
