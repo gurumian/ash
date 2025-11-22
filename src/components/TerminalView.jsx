@@ -91,7 +91,7 @@ export const TerminalView = memo(function TerminalView({
                     console.log('AI button mouse down');
                     e.stopPropagation();
                   }}
-                  title="AI Command (Ctrl+Shift+A)"
+                  title={window.electronAPI?.platform === 'darwin' ? 'AI Command (⌘⇧A)' : 'AI Command (Ctrl+Shift+A)'}
                   style={{
                     marginRight: '8px',
                     padding: '4px 8px',
