@@ -1,0 +1,82 @@
+import { useState, useEffect, useRef } from 'react';
+
+/**
+ * Custom hook for LLM settings management
+ */
+export function useLLMSettings() {
+  const [llmSettings, setLlmSettings] = useState(() => {
+    const saved = localStorage.getItem('ash-llm-settings');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return {
+          provider: parsed.provider || 'ollama',
+          apiKey: parsed.apiKey || '',
+          baseURL: parsed.baseURL || (parsed.provider === 'ollama' ? 'http://localhost:11434' : ''),
+          model: parsed.model || (parsed.provider === 'ollama' ? 'llama3.2' : ''),
+          enabled: parsed.enabled !== undefined ? parsed.enabled : false,
+          temperature: parsed.temperature !== undefined ? parsed.temperature : 0.7,
+          maxTokens: parsed.maxTokens !== undefined ? parsed.maxTokens : 1000
+        };
+      } catch (e) {
+        console.error('Failed to parse LLM settings from localStorage:', e);
+        return getDefaultSettings();
+      }
+    }
+    return getDefaultSettings();
+  });
+
+  const isInitialLoad = useRef(true);
+
+  // Default settings
+  function getDefaultSettings() {
+    return {
+      provider: 'ollama',
+      apiKey: '',
+      baseURL: 'http://localhost:11434',
+      model: 'llama3.2',
+      enabled: false,
+      temperature: 0.7,
+      maxTokens: 1000
+    };
+  }
+
+  // Sync to localStorage whenever settings change (skip initial mount)
+  useEffect(() => {
+    if (isInitialLoad.current) {
+      isInitialLoad.current = false;
+      return; // Skip on initial mount
+    }
+    localStorage.setItem('ash-llm-settings', JSON.stringify(llmSettings));
+  }, [llmSettings]);
+
+  // Update settings
+  const updateLlmSettings = (updates) => {
+    setLlmSettings(prev => {
+      const updated = { ...prev, ...updates };
+      // Auto-update baseURL for ollama if not set
+      if (updated.provider === 'ollama' && !updated.baseURL) {
+        updated.baseURL = 'http://localhost:11434';
+      }
+      // Auto-update model for ollama if not set
+      if (updated.provider === 'ollama' && !updated.model) {
+        updated.model = 'llama3.2';
+      }
+      return updated;
+    });
+  };
+
+  // Reset to defaults
+  const resetLlmSettings = () => {
+    const defaults = getDefaultSettings();
+    setLlmSettings(defaults);
+    localStorage.setItem('ash-llm-settings', JSON.stringify(defaults));
+  };
+
+  return {
+    llmSettings,
+    updateLlmSettings,
+    resetLlmSettings
+  };
+}
+

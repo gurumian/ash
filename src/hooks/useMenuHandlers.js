@@ -12,6 +12,7 @@ export function useMenuHandlers({
   setSessionManagerWidth,
   setShowAboutDialog,
   setShowTftpServerDialog,
+  setShowAICommandInput,
   setAppInfo,
   disconnectSession,
   resizeTerminal
@@ -155,6 +156,13 @@ export function useMenuHandlers({
       setShowTftpServerDialog(true);
     });
 
+    // AI Command menu event
+    window.electronAPI.onMenuAICommand(() => {
+      if (activeSessionIdRef.current) {
+        setShowAICommandInput(true);
+      }
+    });
+
     return () => {
       // Clean up event listeners
       window.electronAPI.removeAllListeners('menu-new-session');
@@ -164,6 +172,7 @@ export function useMenuHandlers({
       window.electronAPI.removeAllListeners('menu-check-updates');
       window.electronAPI.removeAllListeners('menu-about');
       window.electronAPI.removeAllListeners('menu-tftp-server');
+      window.electronAPI.removeAllListeners('menu-ai-command');
       window.electronAPI.removeAllListeners('update-status-log');
       window.electronAPI.removeAllListeners('update-available');
       window.electronAPI.removeAllListeners('update-download-progress');

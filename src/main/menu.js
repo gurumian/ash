@@ -86,6 +86,21 @@ export function createMenu() {
       label: 'Tools',
       submenu: [
         {
+          label: 'AI Command',
+          accelerator: 'CmdOrCtrl+Shift+A',
+          click: () => {
+            const focusedWindow = BrowserWindow.getFocusedWindow();
+            try {
+              if (focusedWindow && !focusedWindow.isDestroyed() && !focusedWindow.webContents.isDestroyed()) {
+                focusedWindow.webContents.send('menu-ai-command');
+              }
+            } catch (error) {
+              console.error('Failed to send menu-ai-command:', error);
+            }
+          }
+        },
+        { type: 'separator' },
+        {
           label: 'TFTP Server',
           click: () => {
             const focusedWindow = BrowserWindow.getFocusedWindow();

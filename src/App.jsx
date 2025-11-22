@@ -10,6 +10,7 @@ import { useLogging } from './hooks/useLogging';
 import { useGroups } from './hooks/useGroups';
 import { useLibraries } from './hooks/useLibraries';
 import { useSerialPorts } from './hooks/useSerialPorts';
+import { useLLMSettings } from './hooks/useLLMSettings';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useWindowControls } from './hooks/useWindowControls';
 import { useMenuHandlers } from './hooks/useMenuHandlers';
@@ -25,8 +26,11 @@ import { Settings } from './components/Settings';
 import { GroupNameDialog } from './components/GroupNameDialog';
 import { StatusBar } from './components/StatusBar';
 import { AboutDialog } from './components/AboutDialog';
+import { ErrorDialog } from './components/ErrorDialog';
 import { TerminalContextMenu } from './components/TerminalContextMenu';
 import { TerminalSearchBar } from './components/TerminalSearchBar';
+import { TerminalAICommandInput } from './components/TerminalAICommandInput';
+import LLMService from './services/llm-service';
 import { SessionDialog } from './components/SessionDialog';
 import { LibraryDialog } from './components/LibraryDialog';
 import { TftpServerDialog } from './components/TftpServerDialog';
@@ -147,6 +151,12 @@ function App() {
     toggleLibraryExpanded
   } = useLibraries();
   
+  // LLM Settings hook
+  const {
+    llmSettings,
+    updateLlmSettings
+  } = useLLMSettings();
+  
   const [showSettings, setShowSettings] = useState(false);
   const [showAboutDialog, setShowAboutDialog] = useState(false);
   const [showTftpServerDialog, setShowTftpServerDialog] = useState(false);
@@ -203,6 +213,16 @@ function App() {
   
   // Terminal search state
   const [showSearchBar, setShowSearchBar] = useState(false);
+  // AI Command input state
+  const [showAICommandInput, setShowAICommandInput] = useState(false);
+  const [isAIProcessing, setIsAIProcessing] = useState(false);
+  // Error dialog state
+  const [errorDialog, setErrorDialog] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    detail: ''
+  });
   const [showSessionDialog, setShowSessionDialog] = useState(false);
   const [selectedSession, setSelectedSession] = useState(null);
   const [showLibraryDialog, setShowLibraryDialog] = useState(false);
@@ -251,7 +271,9 @@ function App() {
     sessionLogs,
     appendToLog,
     setContextMenu,
-    setShowSearchBar
+    setShowSearchBar,
+    setShowAICommandInput,
+    showAICommandInput
   });
   
   // Update ref for useTheme after terminalInstances is available
@@ -267,6 +289,9 @@ function App() {
     activeSessionId,
     showSearchBar,
     setShowSearchBar,
+    showAICommandInput,
+    setShowAICommandInput,
+    llmSettings,
     terminalInstances,
     terminalFontSize,
     setTerminalFontSize,
@@ -540,6 +565,7 @@ function App() {
     setSessionManagerWidth,
     setShowAboutDialog,
     setShowTftpServerDialog,
+    setShowAICommandInput,
     setAppInfo,
     disconnectSession,
     resizeTerminal
@@ -714,6 +740,117 @@ function App() {
           searchAddons={searchAddons}
           showSearchBar={showSearchBar}
           onCloseSearchBar={() => setShowSearchBar(false)}
+          showAICommandInput={showAICommandInput || false}
+          onCloseAICommandInput={() => {
+            console.log('Closing AI Command Input');
+            setShowAICommandInput(false);
+          }}
+          onToggleAICommandInput={() => {
+            console.log('=== onToggleAICommandInput called ===');
+            console.log('Current showAICommandInput:', showAICommandInput);
+            setShowAICommandInput(prev => {
+              const newValue = !prev;
+              console.log('Setting showAICommandInput from', prev, 'to', newValue);
+              return newValue;
+            });
+            // Force a re-render check
+            setTimeout(() => {
+              console.log('After toggle, showAICommandInput should be:', !showAICommandInput);
+            }, 100);
+          }}
+          onExecuteAICommand={async (naturalLanguage) => {
+            setIsAIProcessing(true);
+            try {
+              console.log('AI Command requested:', naturalLanguage);
+              
+              if (!llmSettings?.enabled) {
+                throw new Error('LLM is not enabled. Please enable it in Settings.');
+              }
+
+              // Show AI request in terminal (grey color)
+              if (activeSessionId && terminalInstances.current[activeSessionId]) {
+                terminalInstances.current[activeSessionId].write(`\r\n\x1b[90m# AI: ${naturalLanguage}\x1b[0m\r\n`);
+              }
+
+              // Create LLM service instance
+              const llmService = new LLMService(llmSettings);
+              
+              // Get current directory context (if available)
+              const context = {
+                currentDirectory: 'unknown' // TODO: Get actual current directory from terminal
+              };
+
+              // Convert natural language to command
+              console.log('Calling LLM service...');
+              const command = await llmService.convertToCommand(naturalLanguage, context);
+              console.log('LLM returned command:', command);
+
+              // Show generated command in terminal (grey color)
+              if (activeSessionId && terminalInstances.current[activeSessionId]) {
+                terminalInstances.current[activeSessionId].write(`\x1b[90m# Generated command: ${command}\x1b[0m\r\n`);
+              }
+
+              // Execute command in active session
+              if (activeSessionId && sshConnections.current[activeSessionId]) {
+                const connection = sshConnections.current[activeSessionId];
+                if (connection.isConnected) {
+                  // Write command to terminal
+                  connection.write(command + '\r\n');
+                  console.log('Command executed:', command);
+                } else {
+                  throw new Error('Session is not connected');
+                }
+              } else {
+                throw new Error('No active session');
+              }
+            } catch (error) {
+              console.error('AI Command error:', error);
+              
+              // Determine error type and show appropriate dialog
+              let errorTitle = 'AI Command Error';
+              let errorMessage = 'Failed to process AI command';
+              let errorDetail = error.message;
+
+              // Check for specific error types
+              if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError') || error.message.includes('ECONNREFUSED')) {
+                errorTitle = 'Connection Error';
+                errorMessage = 'Cannot connect to LLM service';
+                if (llmSettings?.provider === 'ollama') {
+                  errorDetail = `Cannot connect to Ollama at ${llmSettings.baseURL}\n\nPlease make sure:\n1. Ollama is running\n2. The base URL is correct (default: http://localhost:11434)\n3. The model "${llmSettings.model}" is installed`;
+                } else {
+                  errorDetail = `Cannot connect to ${llmSettings?.provider} API.\n\nPlease check:\n1. Your internet connection\n2. API key is correct\n3. Base URL is correct`;
+                }
+              } else if (error.message.includes('API key') || error.message.includes('401') || error.message.includes('403')) {
+                errorTitle = 'Authentication Error';
+                errorMessage = 'Invalid API key';
+                errorDetail = `Please check your ${llmSettings?.provider} API key in Settings.`;
+              } else if (error.message.includes('not enabled')) {
+                errorTitle = 'LLM Not Enabled';
+                errorMessage = 'AI command assistance is disabled';
+                errorDetail = 'Please enable "Enable AI command assistance" in Settings.';
+              } else if (error.message.includes('No active session')) {
+                errorTitle = 'No Active Session';
+                errorMessage = 'No active terminal session';
+                errorDetail = 'Please connect to a session first.';
+              } else if (error.message.includes('not connected')) {
+                errorTitle = 'Session Not Connected';
+                errorMessage = 'The current session is not connected';
+                errorDetail = 'Please reconnect to the session.';
+              }
+
+              // Show error dialog
+              setErrorDialog({
+                isOpen: true,
+                title: errorTitle,
+                message: errorMessage,
+                detail: errorDetail
+              });
+            } finally {
+              setIsAIProcessing(false);
+              setShowAICommandInput(false);
+            }
+          }}
+          isAIProcessing={isAIProcessing}
         />
         
         {/* Terminal Context Menu */}
@@ -818,11 +955,13 @@ function App() {
         terminalFontSize={terminalFontSize}
         terminalFontFamily={terminalFontFamily}
         uiFontFamily={uiFontFamily}
+        llmSettings={llmSettings}
         onChangeTheme={changeTheme}
         onChangeScrollbackLines={handleScrollbackChange}
         onChangeTerminalFontSize={handleTerminalFontSizeChange}
         onChangeTerminalFontFamily={handleTerminalFontFamilyChange}
         onChangeUiFontFamily={handleUiFontFamilyChange}
+        onChangeLlmSettings={updateLlmSettings}
         onClose={handleCloseSettings}
         onShowAbout={async () => {
           try {
@@ -913,6 +1052,15 @@ function App() {
       <TftpServerDialog
         isOpen={showTftpServerDialog}
         onClose={() => setShowTftpServerDialog(false)}
+      />
+
+      {/* Error Dialog */}
+      <ErrorDialog
+        isOpen={errorDialog.isOpen}
+        onClose={() => setErrorDialog({ isOpen: false, title: '', message: '', detail: '' })}
+        title={errorDialog.title}
+        message={errorDialog.message}
+        detail={errorDialog.detail}
       />
     </div>
   );

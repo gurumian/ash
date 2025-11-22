@@ -11,11 +11,13 @@ export const Settings = memo(function Settings({
   terminalFontSize,
   terminalFontFamily,
   uiFontFamily,
+  llmSettings,
   onChangeTheme,
   onChangeScrollbackLines,
   onChangeTerminalFontSize,
   onChangeTerminalFontFamily,
   onChangeUiFontFamily,
+  onChangeLlmSettings,
   onClose,
   onShowAbout
 }) {
@@ -179,6 +181,169 @@ export const Settings = memo(function Settings({
                 Allow marking connections as favorites
               </p>
             </div>
+          </div>
+
+          <div className="settings-section">
+            <h4>AI / LLM</h4>
+            
+            <div className="setting-group">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                <label style={{ margin: 0, flex: 1, cursor: 'pointer' }} onClick={() => onChangeLlmSettings?.({ enabled: !llmSettings?.enabled })}>
+                  Enable AI command assistance
+                </label>
+                <div 
+                  className="toggle-switch"
+                  style={{
+                    position: 'relative',
+                    width: '48px',
+                    height: '24px',
+                    backgroundColor: llmSettings?.enabled ? '#00ff41' : '#2a2a2a',
+                    borderRadius: '12px',
+                    cursor: 'pointer',
+                    transition: 'background-color 0.2s',
+                    border: '1px solid',
+                    borderColor: llmSettings?.enabled ? '#00ff41' : '#1a1a1a'
+                  }}
+                  onClick={() => onChangeLlmSettings?.({ enabled: !llmSettings?.enabled })}
+                >
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '2px',
+                      left: llmSettings?.enabled ? '26px' : '2px',
+                      width: '18px',
+                      height: '18px',
+                      backgroundColor: '#000000',
+                      borderRadius: '50%',
+                      transition: 'left 0.2s',
+                      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
+                    }}
+                  />
+                </div>
+                <span style={{ 
+                  fontSize: '12px', 
+                  color: llmSettings?.enabled ? '#00ff41' : '#555',
+                  fontWeight: '600',
+                  minWidth: '40px'
+                }}>
+                  {llmSettings?.enabled ? 'ON' : 'OFF'}
+                </span>
+              </div>
+              <p className="setting-description">
+                Convert natural language to shell commands using LLM
+              </p>
+            </div>
+
+            {llmSettings?.enabled && (
+              <>
+                <div className="setting-group">
+                  <label>Provider</label>
+                  <select
+                    value={llmSettings?.provider || 'ollama'}
+                    onChange={(e) => {
+                      const provider = e.target.value;
+                      const updates = { provider };
+                      // Set default baseURL and model for ollama
+                      if (provider === 'ollama') {
+                        updates.baseURL = 'http://localhost:11434';
+                        updates.model = 'llama3.2';
+                      } else if (provider === 'openai') {
+                        updates.baseURL = 'https://api.openai.com/v1';
+                        updates.model = 'gpt-4o-mini';
+                      } else if (provider === 'anthropic') {
+                        updates.baseURL = 'https://api.anthropic.com/v1';
+                        updates.model = 'claude-3-5-sonnet-20241022';
+                      }
+                      onChangeLlmSettings?.(updates);
+                    }}
+                    style={{ width: '200px', padding: '8px 12px', background: '#1a1a1a', border: '1px solid #1a1a1a', borderRadius: '4px', color: '#00ff41', fontSize: '13px' }}
+                  >
+                    <option value="ollama">Ollama (Local)</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="anthropic">Anthropic (Claude)</option>
+                  </select>
+                  <p className="setting-description">
+                    LLM provider. Ollama runs locally, others require API keys.
+                  </p>
+                </div>
+
+                {llmSettings?.provider !== 'ollama' && (
+                  <div className="setting-group">
+                    <label>API Key</label>
+                    <input
+                      type="password"
+                      value={llmSettings?.apiKey || ''}
+                      onChange={(e) => onChangeLlmSettings?.({ apiKey: e.target.value })}
+                      placeholder={llmSettings?.provider === 'openai' ? 'sk-...' : 'sk-ant-...'}
+                      style={{ width: '400px', padding: '8px 12px', background: '#1a1a1a', border: '1px solid #1a1a1a', borderRadius: '4px', color: '#00ff41', fontSize: '13px' }}
+                    />
+                    <p className="setting-description">
+                      API key for {llmSettings?.provider === 'openai' ? 'OpenAI' : 'Anthropic'}. Keep this secure.
+                    </p>
+                  </div>
+                )}
+
+                <div className="setting-group">
+                  <label>Base URL</label>
+                  <input
+                    type="text"
+                    value={llmSettings?.baseURL || ''}
+                    onChange={(e) => onChangeLlmSettings?.({ baseURL: e.target.value })}
+                    placeholder={llmSettings?.provider === 'ollama' ? 'http://localhost:11434' : 'https://api.openai.com/v1'}
+                    style={{ width: '400px', padding: '8px 12px', background: '#1a1a1a', border: '1px solid #1a1a1a', borderRadius: '4px', color: '#00ff41', fontSize: '13px' }}
+                  />
+                  <p className="setting-description">
+                    API endpoint URL. For Ollama, default is http://localhost:11434
+                  </p>
+                </div>
+
+                <div className="setting-group">
+                  <label>Model</label>
+                  <input
+                    type="text"
+                    value={llmSettings?.model || ''}
+                    onChange={(e) => onChangeLlmSettings?.({ model: e.target.value })}
+                    placeholder={llmSettings?.provider === 'ollama' ? 'llama3.2' : llmSettings?.provider === 'openai' ? 'gpt-4o-mini' : 'claude-3-5-sonnet-20241022'}
+                    style={{ width: '300px', padding: '8px 12px', background: '#1a1a1a', border: '1px solid #1a1a1a', borderRadius: '4px', color: '#00ff41', fontSize: '13px' }}
+                  />
+                  <p className="setting-description">
+                    Model name to use. For Ollama, use models you have installed (e.g., llama3.2, qwen2.5).
+                  </p>
+                </div>
+
+                <div className="setting-group">
+                  <label>Temperature</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="2"
+                    step="0.1"
+                    value={llmSettings?.temperature || 0.7}
+                    onChange={(e) => onChangeLlmSettings?.({ temperature: parseFloat(e.target.value) })}
+                    style={{ width: '100px', padding: '8px 12px', background: '#1a1a1a', border: '1px solid #1a1a1a', borderRadius: '4px', color: '#00ff41', fontSize: '13px' }}
+                  />
+                  <p className="setting-description">
+                    Controls randomness (0.0 = deterministic, 2.0 = very creative). Recommended: 0.7
+                  </p>
+                </div>
+
+                <div className="setting-group">
+                  <label>Max Tokens</label>
+                  <input
+                    type="number"
+                    min="100"
+                    max="4000"
+                    step="100"
+                    value={llmSettings?.maxTokens || 1000}
+                    onChange={(e) => onChangeLlmSettings?.({ maxTokens: parseInt(e.target.value) })}
+                    style={{ width: '100px', padding: '8px 12px', background: '#1a1a1a', border: '1px solid #1a1a1a', borderRadius: '4px', color: '#00ff41', fontSize: '13px' }}
+                  />
+                  <p className="setting-description">
+                    Maximum tokens in response. Higher values allow longer commands but cost more.
+                  </p>
+                </div>
+              </>
+            )}
           </div>
 
           <div className="settings-section">

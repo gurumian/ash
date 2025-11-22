@@ -51,6 +51,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onMenuCheckUpdates: (callback) => ipcRenderer.on('menu-check-updates', callback),
   onMenuAbout: (callback) => ipcRenderer.on('menu-about', callback),
   onMenuTftpServer: (callback) => ipcRenderer.on('menu-tftp-server', callback),
+  onMenuAICommand: (callback) => ipcRenderer.on('menu-ai-command', callback),
   
   // Change window title
   setWindowTitle: async (title) => {

@@ -18,7 +18,9 @@ export function useTerminalManagement({
   sessionLogs,
   appendToLog,
   setContextMenu,
-  setShowSearchBar
+  setShowSearchBar,
+  setShowAICommandInput,
+  showAICommandInput
 }) {
   const terminalRefs = useRef({});
   const terminalInstances = useRef({});
@@ -260,6 +262,30 @@ export function useTerminalManagement({
           }).catch(err => {
             console.error('Failed to paste:', err);
           });
+          event.preventDefault();
+          return false;
+        }
+      }
+      // Ctrl+Shift+A or Cmd+Shift+A - open AI command input
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && (event.key === 'a' || event.key === 'A')) {
+        console.log('=== Terminal: Ctrl+Shift+A detected ===');
+        console.log('sessionId:', sessionId, 'activeSessionId:', activeSessionId);
+        console.log('setShowAICommandInput exists:', !!setShowAICommandInput);
+        if (activeSessionId === sessionId && setShowAICommandInput) {
+          console.log('Terminal: Opening AI Command Input');
+          setShowAICommandInput(true);
+          event.preventDefault();
+          event.stopPropagation();
+          return false;
+        } else {
+          console.log('Terminal: Conditions not met - sessionId match:', activeSessionId === sessionId, 'setShowAICommandInput:', !!setShowAICommandInput);
+        }
+      }
+      // Escape - close AI input if open
+      if (event.key === 'Escape' && showAICommandInput && activeSessionId === sessionId) {
+        console.log('Terminal: ESC detected, closing AI input');
+        if (setShowAICommandInput) {
+          setShowAICommandInput(false);
           event.preventDefault();
           return false;
         }

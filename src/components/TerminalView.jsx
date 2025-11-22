@@ -1,6 +1,7 @@
-import React, { memo, useCallback } from 'react';
+import React, { memo, useCallback, useRef, useEffect } from 'react';
 import { TabItem } from './TabItem';
 import { TerminalSearchBar } from './TerminalSearchBar';
+import { TerminalAICommandInput } from './TerminalAICommandInput';
 
 /**
  * Terminal View component - Right side terminal area with tabs and terminal content
@@ -24,8 +25,21 @@ export const TerminalView = memo(function TerminalView({
   terminalInstances,
   searchAddons,
   showSearchBar,
-  onCloseSearchBar
+  onCloseSearchBar,
+  showAICommandInput,
+  onCloseAICommandInput,
+  onExecuteAICommand,
+  isAIProcessing,
+  onToggleAICommandInput
 }) {
+  // Debug log - only log when value changes to reduce noise
+  const prevShowAICommandInput = useRef(showAICommandInput);
+  useEffect(() => {
+    if (prevShowAICommandInput.current !== showAICommandInput) {
+      console.log('TerminalView - showAICommandInput changed from', prevShowAICommandInput.current, 'to', showAICommandInput);
+      prevShowAICommandInput.current = showAICommandInput;
+    }
+  }, [showAICommandInput]);
   const handleTabDragOver = useCallback((e, index) => {
     // Visual feedback can be added here if needed
   }, []);
@@ -57,6 +71,42 @@ export const TerminalView = memo(function TerminalView({
             </div>
             {activeSessionId && (
               <div className="log-controls">
+                <button
+                  className="log-btn"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('=== AI BUTTON CLICKED ===');
+                    console.log('Current showAICommandInput:', showAICommandInput);
+                    console.log('onToggleAICommandInput type:', typeof onToggleAICommandInput);
+                    if (onToggleAICommandInput) {
+                      console.log('Calling onToggleAICommandInput...');
+                      onToggleAICommandInput();
+                      console.log('onToggleAICommandInput called');
+                    } else {
+                      console.error('ERROR: onToggleAICommandInput is not defined!');
+                    }
+                  }}
+                  onMouseDown={(e) => {
+                    console.log('AI button mouse down');
+                    e.stopPropagation();
+                  }}
+                  title="AI Command (Ctrl+Shift+A)"
+                  style={{
+                    marginRight: '8px',
+                    padding: '4px 8px',
+                    fontSize: '11px',
+                    background: showAICommandInput ? '#00ff41' : '#1a1a1a',
+                    border: '1px solid #00ff41',
+                    color: showAICommandInput ? '#000' : '#00ff41',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    zIndex: 10000,
+                    position: 'relative'
+                  }}
+                >
+                  AI
+                </button>
                 <button 
                   className={`log-btn ${logStates[activeSessionId]?.isLogging ? 'logging' : 'not-logging'}`}
                   onClick={async () => {
@@ -139,12 +189,21 @@ export const TerminalView = memo(function TerminalView({
               </div>
             ))}
             {activeSessionId && (
-              <TerminalSearchBar
-                terminal={terminalInstances.current[activeSessionId]}
-                searchAddon={searchAddons?.current[activeSessionId]}
-                isVisible={showSearchBar}
-                onClose={onCloseSearchBar}
-              />
+              <>
+                <TerminalSearchBar
+                  terminal={terminalInstances.current[activeSessionId]}
+                  searchAddon={searchAddons?.current[activeSessionId]}
+                  isVisible={showSearchBar}
+                  onClose={onCloseSearchBar}
+                />
+                <TerminalAICommandInput
+                  terminal={terminalInstances.current[activeSessionId]}
+                  isVisible={showAICommandInput || false}
+                  onClose={onCloseAICommandInput}
+                  onExecute={onExecuteAICommand}
+                  isProcessing={isAIProcessing}
+                />
+              </>
             )}
           </div>
         </div>

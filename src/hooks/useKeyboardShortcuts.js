@@ -7,6 +7,9 @@ export function useKeyboardShortcuts({
   activeSessionId,
   showSearchBar,
   setShowSearchBar,
+  showAICommandInput,
+  setShowAICommandInput,
+  llmSettings,
   terminalInstances,
   terminalFontSize,
   setTerminalFontSize,
@@ -14,8 +17,30 @@ export function useKeyboardShortcuts({
 }) {
   useEffect(() => {
     const handleKeyDown = (event) => {
-      // Don't handle shortcuts when typing in input fields
-      if (event.target.matches('input, textarea')) {
+      // Check for Ctrl+Shift+A or Cmd+Shift+A first (before other checks)
+      // This should work even when terminal has focus
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && (event.key === 'a' || event.key === 'A')) {
+        console.log('=== Ctrl+Shift+A detected (window handler) ===');
+        console.log('activeSessionId:', activeSessionId);
+        console.log('event.target:', event.target);
+        console.log('event.target.tagName:', event.target.tagName);
+        console.log('event.target.className:', event.target.className);
+        // Only open if there's an active session
+        if (activeSessionId) {
+          console.log('Opening AI Command Input from window handler');
+          setShowAICommandInput(true);
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          return;
+        } else {
+          console.log('No active session, cannot open AI Command Input');
+        }
+      }
+
+      // Don't handle other shortcuts when typing in input fields (but allow Ctrl+Shift+A above)
+      // Exception: don't block Ctrl+Shift+A even in input fields
+      if (event.target.matches('input, textarea') && !((event.ctrlKey || event.metaKey) && event.shiftKey && (event.key === 'a' || event.key === 'A'))) {
         return;
       }
 
@@ -27,10 +52,15 @@ export function useKeyboardShortcuts({
           event.preventDefault();
         }
       }
-      // Escape - close search bar
-      if (event.key === 'Escape' && showSearchBar) {
-        setShowSearchBar(false);
-        event.preventDefault();
+      // Escape - close search bar or AI input
+      if (event.key === 'Escape') {
+        if (showSearchBar) {
+          setShowSearchBar(false);
+          event.preventDefault();
+        } else if (showAICommandInput) {
+          setShowAICommandInput(false);
+          event.preventDefault();
+        }
       }
       // Ctrl + '+' or Ctrl + '=' - increase font size
       if ((event.ctrlKey || event.metaKey) && (event.key === '+' || event.key === '=')) {
@@ -74,10 +104,14 @@ export function useKeyboardShortcuts({
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
+    // Use capture phase to catch events before they reach terminal
+    // Also add to document for better coverage
+    window.addEventListener('keydown', handleKeyDown, true);
+    document.addEventListener('keydown', handleKeyDown, true);
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keydown', handleKeyDown, true);
+      document.removeEventListener('keydown', handleKeyDown, true);
     };
-  }, [activeSessionId, showSearchBar, setShowSearchBar, terminalInstances, terminalFontSize, setTerminalFontSize, resizeTerminal]);
+  }, [activeSessionId, showSearchBar, setShowSearchBar, showAICommandInput, setShowAICommandInput, llmSettings, terminalInstances, terminalFontSize, setTerminalFontSize, resizeTerminal]);
 }
 
