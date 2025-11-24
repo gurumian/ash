@@ -30,6 +30,7 @@
     "@electron-forge/plugin-vite": "^7.9.0",
     "@electron/fuses": "^1.8.0",
     "@felixrieseberg/electron-forge-maker-nsis": "^7.2.0",
+    "@reforged/maker-appimage": "^5.1.1",
     "electron": "^39.0.0",
     "form-data": "^4.0.4",
     "vite": "^5.4.20"

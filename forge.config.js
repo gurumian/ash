@@ -39,6 +39,13 @@ const makers = [
     name: '@electron-forge/maker-deb',
     config: {},
   },
+  {
+    name: '@reforged/maker-appimage',
+    platforms: ['linux'],
+    config: {
+      name: 'ash',
+    },
+  },
 ];
 
 module.exports = {
