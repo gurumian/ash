@@ -153,6 +153,43 @@ export function useTerminalManagement({
     });
   }, [sessions, sshConnections, activeSessionId]);
 
+  // Cleanup terminal resources
+  const cleanupTerminal = useCallback((sessionId) => {
+    // Remove context menu handler
+    if (terminalContextMenuHandlers.current[sessionId]) {
+      const { handler, element } = terminalContextMenuHandlers.current[sessionId];
+      if (element) {
+        element.removeEventListener('contextmenu', handler);
+      }
+      delete terminalContextMenuHandlers.current[sessionId];
+    }
+    
+    // Dispose terminal - this automatically removes all event listeners
+    if (terminalInstances.current[sessionId]) {
+      terminalInstances.current[sessionId].dispose();
+      delete terminalInstances.current[sessionId];
+    }
+    
+    // Clean up input handler
+    if (terminalInputHandlers.current[sessionId]) {
+      delete terminalInputHandlers.current[sessionId];
+    }
+    
+    // Clean up terminal ref
+    if (terminalRefs.current[sessionId]) {
+      delete terminalRefs.current[sessionId];
+    }
+    
+    // Clean up connection ID from map if exists
+    // Check connectionIdMap for any entries matching this sessionId
+    for (const [connectionId, mapSessionId] of connectionIdMapRef.current.entries()) {
+      if (mapSessionId === sessionId) {
+        connectionIdMapRef.current.delete(connectionId);
+        break;
+      }
+    }
+  }, []);
+
   // Initialize terminal
   const initializeTerminal = useCallback(async (sessionId, sessionInfo = null) => {
     const terminalRef = terminalRefs.current[sessionId];
@@ -160,19 +197,7 @@ export function useTerminalManagement({
 
     // Clean up existing terminal if it exists
     if (terminalInstances.current[sessionId]) {
-      // Remove context menu handler
-      if (terminalContextMenuHandlers.current[sessionId]) {
-        const { handler, element } = terminalContextMenuHandlers.current[sessionId];
-        if (element) {
-          element.removeEventListener('contextmenu', handler);
-        }
-        delete terminalContextMenuHandlers.current[sessionId];
-      }
-      
-      // Dispose terminal - this automatically removes all event listeners
-      terminalInstances.current[sessionId].dispose();
-      delete terminalInstances.current[sessionId];
-      delete terminalInputHandlers.current[sessionId];
+      cleanupTerminal(sessionId);
     }
 
     // Get the current theme configuration
@@ -416,7 +441,7 @@ export function useTerminalManagement({
     if (session.connectionType === 'ssh' && sshConnections.current[sessionId]?.connectionId) {
       updateConnectionIdMap();
     }
-  }, [theme, themes, scrollbackLines, activeSessionId, sessions, sshConnections, sessionLogs, appendToLog, setContextMenu, setShowSearchBar, updateConnectionIdMap]);
+  }, [theme, themes, scrollbackLines, activeSessionId, sessions, sshConnections, sessionLogs, appendToLog, setContextMenu, setShowSearchBar, updateConnectionIdMap, cleanupTerminal, showAICommandInput, setShowAICommandInput]);
 
   // Resize terminal when active session changes (tab switch)
   useEffect(() => {
@@ -434,12 +459,14 @@ export function useTerminalManagement({
   // Adjust terminal size on window resize and container size changes
   useEffect(() => {
     let resizeObserver;
+    let throttleTimeout = null;
     
     // Debounce function for window resize (throttle to reduce frequency)
+    // Returns both the throttled function and a cleanup function
     function throttle(func, wait) {
-      let timeout;
+      let timeout = null;
       let lastCall = 0;
-      return function executedFunction(...args) {
+      const throttled = function executedFunction(...args) {
         const now = Date.now();
         const timeSinceLastCall = now - lastCall;
         
@@ -447,13 +474,26 @@ export function useTerminalManagement({
           lastCall = now;
           func(...args);
         } else {
-          clearTimeout(timeout);
+          if (timeout) {
+            clearTimeout(timeout);
+          }
           timeout = setTimeout(() => {
             lastCall = Date.now();
+            timeout = null;
             func(...args);
           }, wait - timeSinceLastCall);
         }
       };
+      
+      // Add cleanup method to throttled function
+      throttled.cleanup = () => {
+        if (timeout) {
+          clearTimeout(timeout);
+          timeout = null;
+        }
+      };
+      
+      return throttled;
     }
 
     // Window resize handler with throttle (100ms)
@@ -482,6 +522,10 @@ export function useTerminalManagement({
     
     return () => {
       window.removeEventListener('resize', throttledResize);
+      // Clean up throttle timeout
+      if (throttledResize.cleanup) {
+        throttledResize.cleanup();
+      }
       if (resizeObserver) {
         resizeObserver.disconnect();
       }
@@ -595,7 +639,8 @@ export function useTerminalManagement({
     fitAddons,
     searchAddons,
     initializeTerminal,
-    resizeTerminal
+    resizeTerminal,
+    cleanupTerminal
   };
 }
 

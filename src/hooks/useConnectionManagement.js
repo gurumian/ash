@@ -26,7 +26,8 @@ export function useConnectionManagement({
   addSessionToGroup,
   setPendingGroupAdditions,
   initializeTerminal,
-  cleanupLog
+  cleanupLog,
+  cleanupTerminal
 }) {
   // Create new session with provided data (returns sessionId if successful)
   const createNewSessionWithData = useCallback(async (formData, skipFormReset = false) => {
@@ -180,24 +181,23 @@ export function useConnectionManagement({
     setConnectionForm,
     setShowConnectionForm,
     saveConnectionHistory,
-    sshConnections
+    sshConnections,
+    cleanupTerminal
   ]);
 
   // Disconnect session
   const disconnectSession = useCallback(async (sessionId) => {
     const session = sessions.find(s => s.id === sessionId);
     
+    // Clean up terminal resources first (including refs and handlers)
+    if (cleanupTerminal) {
+      cleanupTerminal(sessionId);
+    }
+    
     // Use polymorphic disconnect
     if (session && sshConnections.current[sessionId]) {
       sshConnections.current[sessionId].disconnect();
       delete sshConnections.current[sessionId];
-    }
-    
-    if (terminalInstances.current[sessionId]) {
-      // Dispose terminal - this automatically removes all event listeners
-      terminalInstances.current[sessionId].dispose();
-      delete terminalInstances.current[sessionId];
-      // terminalInputHandlers cleanup is handled by useTerminalManagement
     }
     
     // Clean up fit addon
@@ -227,6 +227,7 @@ export function useConnectionManagement({
     fitAddons,
     searchAddons,
     cleanupLog,
+    cleanupTerminal,
     setSessions,
     setActiveSessionId
   ]);
@@ -478,9 +479,8 @@ export function useConnectionManagement({
         }
         
         // Clean up local references
-        if (terminalInstances.current[sessionId]) {
-          terminalInstances.current[sessionId].dispose();
-          delete terminalInstances.current[sessionId];
+        if (cleanupTerminal) {
+          cleanupTerminal(sessionId);
         }
         if (fitAddons.current[sessionId]) {
           delete fitAddons.current[sessionId];
@@ -582,7 +582,7 @@ export function useConnectionManagement({
       window.electronAPI.offRemoveDetachedSession(handleRemoveDetachedSession);
       window.electronAPI.offDetachedSession(handleDetachedSession);
     };
-  }, []); // Empty dependency array - listeners registered only once
+  }, [cleanupTerminal]); // Include cleanupTerminal in dependencies
 
   return {
     createNewSessionWithData,

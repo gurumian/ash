@@ -11,6 +11,9 @@ export function useLogging(sessions, groups) {
   const flushPending = useRef({});
 
   // Fast synchronous append - no blocking operations
+  // Maximum buffer size: 1MB per session to prevent excessive memory usage
+  const MAX_BUFFER_SIZE = 1024 * 1024; // 1MB
+  
   const appendToLog = (sessionId, data) => {
     if (!sessionLogs.current[sessionId]) return;
     
@@ -30,8 +33,15 @@ export function useLogging(sessions, groups) {
       }
     }
     
+    // Force flush if buffer exceeds maximum size (memory protection)
+    const shouldFlush = logSession.isLogging && (
+      logSession.lineCount >= 100 || 
+      logSession.bufferSize >= 10240 ||
+      logSession.bufferSize >= MAX_BUFFER_SIZE
+    );
+    
     // Schedule flush asynchronously - don't block input
-    if (logSession.isLogging && (logSession.lineCount >= 100 || logSession.bufferSize >= 10240)) {
+    if (shouldFlush) {
       // Cancel previous flush timeout
       if (flushTimeouts.current[sessionId]) {
         clearTimeout(flushTimeouts.current[sessionId]);

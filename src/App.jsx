@@ -197,8 +197,8 @@ function App() {
     // Load immediately
     loadTftpStatus();
 
-    // Check periodically (every 2 seconds)
-    const interval = setInterval(loadTftpStatus, 2000);
+    // Check periodically (every 10 seconds to reduce overhead)
+    const interval = setInterval(loadTftpStatus, 10000);
 
     return () => clearInterval(interval);
   }, []);
@@ -258,7 +258,8 @@ function App() {
     fitAddons,
     searchAddons,
     initializeTerminal,
-    resizeTerminal
+    resizeTerminal,
+    cleanupTerminal
   } = useTerminalManagement({
     theme,
     themes,
