@@ -24,8 +24,10 @@ export function TftpServerDialog({ isOpen, onClose }) {
         if (result.running && result.port) {
           setPort(result.port);
         }
-        if (result.outputDir) {
-          setStatus(prev => ({ ...prev, outputDir: result.outputDir }));
+        // Always update outputDir from server state if available
+        // This ensures the path is displayed correctly when dialog reopens
+        if (result.outputDir !== undefined) {
+          setOutputDir(result.outputDir);
         }
       }
     } catch (err) {
@@ -81,9 +83,9 @@ export function TftpServerDialog({ isOpen, onClose }) {
     try {
       const result = await window.electronAPI?.tftpStop?.();
       if (result?.success) {
-        setStatus({ running: false, port: null, outputDir: null });
-        // Reset outputDir to null when stopping (will use default on next start)
-        setOutputDir(null);
+        // Reload status to get the current outputDir from server
+        // This preserves the selected directory even after stopping
+        await loadStatus();
       } else {
         setError(result?.error || 'Failed to stop TFTP server');
       }

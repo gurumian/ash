@@ -76,6 +76,9 @@ export function initializeTftpHandlers() {
         outputPath = createOutputDirectory();
       }
       
+      // Update global outputDir variable to persist the path
+      outputDir = outputPath;
+      
       // Create TFTP server using tftp package
       tftpServer = tftp.createServer({
         host: bindAddr,
