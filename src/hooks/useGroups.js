@@ -53,24 +53,49 @@ export function useGroups() {
   const saveGroups = (newGroups) => {
     setGroups(newGroups);
     localStorage.setItem('ash-groups', JSON.stringify(newGroups));
-    console.log('Groups saved to localStorage:', newGroups);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Groups saved to localStorage:', newGroups);
+    }
   };
+  
+  // Debounced save to localStorage - avoid frequent writes
+  const saveTimeoutRef = useRef(null);
   
   // Sync groups to localStorage whenever groups state changes (skip initial mount)
   useEffect(() => {
     if (isInitialGroupsLoad.current) {
       isInitialGroupsLoad.current = false;
-      console.log('Initial groups load, skipping sync:', groups);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Initial groups load, skipping sync:', groups);
+      }
       return; // Skip on initial mount
     }
-    const serialized = JSON.stringify(groups);
-    localStorage.setItem('ash-groups', serialized);
-    console.log('Groups synced to localStorage:', groups);
-    console.log('Serialized data:', serialized);
     
-    // Verify it was saved correctly
-    const verify = localStorage.getItem('ash-groups');
-    console.log('Verification - localStorage contains:', verify);
+    // Clear previous timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    
+    // Debounce localStorage writes to avoid blocking on rapid changes
+    saveTimeoutRef.current = setTimeout(() => {
+      const serialized = JSON.stringify(groups);
+      localStorage.setItem('ash-groups', serialized);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Groups synced to localStorage');
+      }
+      saveTimeoutRef.current = null;
+    }, 300); // 300ms debounce
+    
+    // Cleanup on unmount
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        // Save immediately on unmount if pending
+        const serialized = JSON.stringify(groups);
+        localStorage.setItem('ash-groups', serialized);
+        saveTimeoutRef.current = null;
+      }
+    };
   }, [groups]);
 
   // Group management functions

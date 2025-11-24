@@ -19,13 +19,18 @@ export function useLogging(sessions, groups) {
     
     const logSession = sessionLogs.current[sessionId];
     
-    // Fast string append - synchronous, no blocking
-    logSession.content += data;
+    // Optimized: Use array for efficient string building (avoids string recreation)
+    if (!logSession.contentArray) {
+      logSession.contentArray = [logSession.content || ''];
+    }
+    logSession.contentArray.push(data);
     logSession.bufferSize += data.length;
     
     // Optimized line count - only count if we're close to flush threshold
     if (logSession.bufferSize > 8000) { // Only count when approaching 10KB
-      logSession.lineCount = (logSession.content.match(/\n/g) || []).length;
+      // Join array for line count (only when needed)
+      const contentStr = logSession.contentArray.join('');
+      logSession.lineCount = (contentStr.match(/\n/g) || []).length;
     } else {
       // Fast increment for small data
       for (let i = 0; i < data.length; i++) {
@@ -73,18 +78,25 @@ export function useLogging(sessions, groups) {
 
   const flushLogToFile = async (sessionId) => {
     const logSession = sessionLogs.current[sessionId];
-    if (!logSession || !logSession.content) return;
+    if (!logSession) return;
+    
+    // Join array to string only when flushing (efficient)
+    const content = logSession.contentArray ? logSession.contentArray.join('') : logSession.content || '';
+    if (!content) return;
     
     try {
       // If filePath exists, append to existing file; otherwise create new one
       if (logSession.filePath) {
         // Append to existing file
-        const result = await window.electronAPI.appendLogToFile(sessionId, logSession.content, logSession.filePath);
+        const result = await window.electronAPI.appendLogToFile(sessionId, content, logSession.filePath);
         
         if (result.success) {
-          console.log(`Log flushed to file: ${logSession.filePath}`);
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`Log flushed to file: ${logSession.filePath}`);
+          }
           
           // Reset buffer
+          logSession.contentArray = [];
           logSession.content = '';
           logSession.bufferSize = 0;
           logSession.lineCount = 0;
@@ -116,13 +128,16 @@ export function useLogging(sessions, groups) {
           }
         }
         
-        const result = await window.electronAPI.saveLogToFile(sessionId, logSession.content, sessionName, groupName, true);
+        const result = await window.electronAPI.saveLogToFile(sessionId, content, sessionName, groupName, true);
         
         if (result.success) {
           logSession.filePath = result.filePath;
-          console.log(`Log flushed to file: ${result.filePath}`);
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`Log flushed to file: ${result.filePath}`);
+          }
           
           // Reset buffer
+          logSession.contentArray = [];
           logSession.content = '';
           logSession.bufferSize = 0;
           logSession.lineCount = 0;
@@ -169,6 +184,7 @@ export function useLogging(sessions, groups) {
       
       sessionLogs.current[sessionId] = {
         content: '',
+        contentArray: [], // Optimized: use array for efficient string building
         startTime: startTime,
         isLogging: true,
         bufferSize: 0,
@@ -211,6 +227,7 @@ export function useLogging(sessions, groups) {
       sessionLogs.current[sessionId].isLogging = true;
       sessionLogs.current[sessionId].startTime = startTime;
       sessionLogs.current[sessionId].content = '';
+      sessionLogs.current[sessionId].contentArray = []; // Optimized: reset array
       sessionLogs.current[sessionId].bufferSize = 0;
       sessionLogs.current[sessionId].lineCount = 0;
       sessionLogs.current[sessionId].filePath = result.success ? result.filePath : null;
@@ -258,7 +275,9 @@ export function useLogging(sessions, groups) {
       
       if (logSession.filePath) {
         // Show success message with file path
-        console.log(`Log saved to: ${logSession.filePath}`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`Log saved to: ${logSession.filePath}`);
+        }
         alert(`Log saved to: ${logSession.filePath}`);
       } else {
         alert('No log data to save');
@@ -269,10 +288,13 @@ export function useLogging(sessions, groups) {
   const clearLog = (sessionId) => {
     if (sessionLogs.current[sessionId]) {
       sessionLogs.current[sessionId].content = '';
+      sessionLogs.current[sessionId].contentArray = []; // Optimized: reset array
       sessionLogs.current[sessionId].bufferSize = 0;
       sessionLogs.current[sessionId].lineCount = 0;
       sessionLogs.current[sessionId].filePath = null;
-      console.log(`Log cleared for session ${sessionId}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Log cleared for session ${sessionId}`);
+      }
     }
   };
 

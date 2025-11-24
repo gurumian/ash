@@ -555,9 +555,26 @@ export function useTerminalManagement({
       if (sessionId && terminalInstances.current[sessionId]) {
         const terminal = terminalInstances.current[sessionId];
         
-        // Write to terminal immediately to preserve output order
-        // Always write synchronously to maintain correct sequence with server output
-        terminal.write(data);
+        // Optimized: Split large data chunks to prevent blocking
+        // Large synchronous writes can block the UI thread
+        if (data.length > 8192) { // 8KB threshold
+          // Split into smaller chunks and write asynchronously
+          const chunkSize = 4096;
+          let offset = 0;
+          const writeChunk = () => {
+            if (offset < data.length) {
+              const chunk = data.slice(offset, offset + chunkSize);
+              terminal.write(chunk);
+              offset += chunkSize;
+              // Use requestAnimationFrame for smooth rendering
+              requestAnimationFrame(writeChunk);
+            }
+          };
+          writeChunk();
+        } else {
+          // Write to terminal immediately for small data to preserve output order
+          terminal.write(data);
+        }
         
         // Log asynchronously without blocking display - use ref to get latest function
         if (sessionLogs.current[sessionId] && sessionLogs.current[sessionId].isLogging) {

@@ -362,19 +362,27 @@ export function useConnectionManagement({
 
   // Connect all sessions in a group
   const connectGroup = useCallback(async (groupId) => {
-    console.log('connectGroup called:', groupId);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('connectGroup called:', groupId);
+    }
     const group = groups.find(g => g.id === groupId);
     if (!group) {
-      console.log('Group not found:', groupId);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Group not found:', groupId);
+      }
       return;
     }
 
-    console.log('Group found:', { id: group.id, name: group.name, savedSessions: group.savedSessions });
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Group found:', { id: group.id, name: group.name, savedSessions: group.savedSessions });
+    }
 
     // Get all saved sessions (connection info) from the group
     const savedSessions = group.savedSessions || [];
     
-    console.log('Saved sessions to connect:', savedSessions.length);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Saved sessions to connect:', savedSessions.length);
+    }
     
     // Connect each saved session instance
     // Reuse existing sessions if they match, otherwise create new ones
@@ -392,7 +400,9 @@ export function useConnectionManagement({
             await reconnectSession(existingSession);
           }
           // If already connected, do nothing - just reuse the existing session
-          console.log('Reusing existing session:', { sessionId: existingSession.id, savedSessionId: savedSession.id, label: savedSession.label });
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Reusing existing session:', { sessionId: existingSession.id, savedSessionId: savedSession.id, label: savedSession.label });
+          }
         } else {
           // No existing session found - create a new one
           // But first check if we should create it or if it already exists in sessions
@@ -409,12 +419,14 @@ export function useConnectionManagement({
             if (!matchingSession.isConnected) {
               await reconnectSession(matchingSession);
             }
-            console.log('Reusing existing session (found in double-check):', { sessionId: matchingSession.id, savedSessionId: savedSession.id, label: savedSession.label });
+            if (process.env.NODE_ENV === 'development') {
+              console.log('Reusing existing session (found in double-check):', { sessionId: matchingSession.id, savedSessionId: savedSession.id, label: savedSession.label });
+            }
           } else {
             // Really no existing session - create a new one
             const sessionId = await createNewSessionWithData(connectionFormData, true);
             
-            if (sessionId) {
+            if (process.env.NODE_ENV === 'development' && sessionId) {
               console.log('Created new session from savedSession:', { sessionId, savedSessionId: savedSession.id, label: savedSession.label });
             }
           }
@@ -438,7 +450,9 @@ export function useConnectionManagement({
       const result = await window.electronAPI.detachTab(sessionId);
       if (result.success) {
         // Session will be removed via IPC event
-        console.log(`Tab ${sessionId} detached to new window`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`Tab ${sessionId} detached to new window`);
+        }
       } else {
         alert('Failed to detach tab: ' + result.error);
       }
@@ -465,7 +479,9 @@ export function useConnectionManagement({
   useEffect(() => {
     // Listen for session to be removed (when detached)
     const handleRemoveDetachedSession = (sessionId) => {
-      console.log('Removing detached session:', sessionId);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Removing detached session:', sessionId);
+      }
       
       // Use functional updates to avoid stale closure issues
       setSessions(prev => {
@@ -508,7 +524,9 @@ export function useConnectionManagement({
     const handleDetachedSession = async (sessionData) => {
       try {
         const session = JSON.parse(sessionData);
-        console.log('Received detached session:', session);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Received detached session:', session);
+        }
         
         // Mark as disconnected since connection objects can't be transferred
         const newSession = { ...session, isConnected: false };

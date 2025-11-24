@@ -32,13 +32,13 @@ export const TerminalView = memo(function TerminalView({
   isAIProcessing,
   onToggleAICommandInput
 }) {
-  // Debug log - only log when value changes to reduce noise
+  // Track previous value for change detection (debug only)
   const prevShowAICommandInput = useRef(showAICommandInput);
   useEffect(() => {
-    if (prevShowAICommandInput.current !== showAICommandInput) {
+    if (process.env.NODE_ENV === 'development' && prevShowAICommandInput.current !== showAICommandInput) {
       console.log('TerminalView - showAICommandInput changed from', prevShowAICommandInput.current, 'to', showAICommandInput);
-      prevShowAICommandInput.current = showAICommandInput;
     }
+    prevShowAICommandInput.current = showAICommandInput;
   }, [showAICommandInput]);
   const handleTabDragOver = useCallback((e, index) => {
     // Visual feedback can be added here if needed
@@ -76,19 +76,13 @@ export const TerminalView = memo(function TerminalView({
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    console.log('=== AI BUTTON CLICKED ===');
-                    console.log('Current showAICommandInput:', showAICommandInput);
-                    console.log('onToggleAICommandInput type:', typeof onToggleAICommandInput);
                     if (onToggleAICommandInput) {
-                      console.log('Calling onToggleAICommandInput...');
                       onToggleAICommandInput();
-                      console.log('onToggleAICommandInput called');
-                    } else {
+                    } else if (process.env.NODE_ENV === 'development') {
                       console.error('ERROR: onToggleAICommandInput is not defined!');
                     }
                   }}
                   onMouseDown={(e) => {
-                    console.log('AI button mouse down');
                     e.stopPropagation();
                   }}
                   title={window.electronAPI?.platform === 'darwin' ? 'AI Command (⌘⇧A)' : 'AI Command (Ctrl+Shift+A)'}
@@ -128,7 +122,7 @@ export const TerminalView = memo(function TerminalView({
                 <button 
                   className="log-btn save-log"
                   onClick={() => onSaveLog(activeSessionId)}
-                  disabled={!sessionLogs.current[activeSessionId]?.content}
+                  disabled={!sessionLogs.current[activeSessionId]?.content && !sessionLogs.current[activeSessionId]?.contentArray?.length}
                   title="Save Log - Save current buffer to file (appends to existing file)"
                 >
                   <svg 
@@ -149,7 +143,7 @@ export const TerminalView = memo(function TerminalView({
                 <button 
                   className="log-btn clear-log"
                   onClick={() => onClearLog(activeSessionId)}
-                  disabled={!sessionLogs.current[activeSessionId]?.content}
+                  disabled={!sessionLogs.current[activeSessionId]?.content && !sessionLogs.current[activeSessionId]?.contentArray?.length}
                   title="Clear Log - Clear current buffer (saved logs remain in file)"
                 >
                   <svg 

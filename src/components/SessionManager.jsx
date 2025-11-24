@@ -54,17 +54,37 @@ export const SessionManager = memo(function SessionManager({
   onToggleLibraryExpanded,
   onCreateLibrary
 }) {
-  // Memoize group calculations
+  // Memoize group calculations - optimized with Map for O(1) lookup
   // Match savedSessions with active sessions at runtime
   const groupCalculations = useMemo(() => {
+    // Create a map of session keys for fast O(1) lookup instead of O(n) some()
+    // This reduces complexity from O(n*m) to O(n+m)
+    const sessionKeyMap = new Map();
+    sessions.forEach(session => {
+      if (session.connectionType === 'serial') {
+        sessionKeyMap.set(`serial:${session.serialPort}`, session);
+      } else {
+        sessionKeyMap.set(`ssh:${session.host}:${session.user}:${session.port || '22'}`, session);
+      }
+    });
+
     return groups.map(group => {
       const savedSessions = group.savedSessions || [];
       
-      // Find active sessions that match saved sessions
-      const groupSessions = sessions.filter(session => {
-        return savedSessions.some(savedSession => 
-          matchSavedSessionWithActiveSession(savedSession, session)
-        );
+      // Optimized: Use Map lookup instead of nested filter/some (O(n*m) -> O(n+m))
+      const groupSessions = [];
+      savedSessions.forEach(savedSession => {
+        let key;
+        const connType = savedSession.connectionType || 'ssh';
+        if (connType === 'serial') {
+          key = `serial:${savedSession.serialPort}`;
+        } else {
+          key = `ssh:${savedSession.host}:${savedSession.user}:${savedSession.port || '22'}`;
+        }
+        const matchedSession = sessionKeyMap.get(key);
+        if (matchedSession && matchSavedSessionWithActiveSession(savedSession, matchedSession)) {
+          groupSessions.push(matchedSession);
+        }
       });
       
       const totalSessions = savedSessions.length;

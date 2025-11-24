@@ -353,6 +353,7 @@ function App() {
   const resizeHandleRef = useRef(null);
   const isResizing = useRef(false);
   const isInitialGroupsLoad = useRef(true);
+  const resizeTerminalTimeoutRef = useRef(null);
 
   // Connection history and favorites
   // Connection history and favorites are managed by useConnectionHistory hook
@@ -410,11 +411,21 @@ function App() {
     document.addEventListener('mouseup', handleMouseUp);
   };
 
+  // Throttle resize terminal calls to avoid excessive execution
+  const resizeTerminalTimeoutRef = useRef(null);
   const handleMouseMove = (e) => {
     if (!isResizing.current) return;
     const newWidth = Math.max(150, Math.min(400, e.clientX));
     setSessionManagerWidth(newWidth);
-    setTimeout(resizeTerminal, 10);
+    
+    // Throttle resize calls - clear previous timeout and set new one
+    if (resizeTerminalTimeoutRef.current) {
+      clearTimeout(resizeTerminalTimeoutRef.current);
+    }
+    resizeTerminalTimeoutRef.current = setTimeout(() => {
+      resizeTerminal();
+      resizeTerminalTimeoutRef.current = null;
+    }, 16); // ~60fps (16ms)
   };
 
   const handleMouseUp = () => {
@@ -476,9 +487,16 @@ function App() {
   }, []);
 
 
+  // Memoize active session connection status to avoid repeated find() calls
+  const activeSessionConnectionStatus = useMemo(() => {
+    if (!activeSessionId) return null;
+    const session = sessions.find(s => s.id === activeSessionId);
+    return session?.isConnected || false;
+  }, [activeSessionId, sessions]);
+
   // Terminal initialization effect - only for existing sessions when switching
   useEffect(() => {
-    if (activeSessionId && sessions.find(s => s.id === activeSessionId)?.isConnected) {
+    if (activeSessionId && activeSessionConnectionStatus) {
       // Only initialize if terminal doesn't exist yet (for session switching)
       if (!terminalInstances.current[activeSessionId]) {
         const timer = setTimeout(() => {
@@ -488,7 +506,7 @@ function App() {
         return () => clearTimeout(timer);
       }
     }
-  }, [activeSessionId, sessions]);
+  }, [activeSessionId, activeSessionConnectionStatus, initializeTerminal]);
 
   // Terminal resize and keyboard shortcuts are now in useTerminalManagement and useKeyboardShortcuts hooks
 
@@ -579,13 +597,17 @@ function App() {
     document.documentElement.style.setProperty('--ui-font-family', uiFontFamily);
   }, [uiFontFamily]);
 
-  // Cleanup resize event listeners on unmount
+  // Cleanup resize event listeners and timeout on unmount
   useEffect(() => {
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
+      if (resizeTerminalTimeoutRef.current) {
+        clearTimeout(resizeTerminalTimeoutRef.current);
+        resizeTerminalTimeoutRef.current = null;
+      }
     };
-  }, []);
+  }, [handleMouseMove, handleMouseUp]);
 
   // Apply theme with CSS variables (currentTheme is from useTheme hook)
   
@@ -743,26 +765,30 @@ function App() {
           onCloseSearchBar={() => setShowSearchBar(false)}
           showAICommandInput={showAICommandInput || false}
           onCloseAICommandInput={() => {
-            console.log('Closing AI Command Input');
+            if (process.env.NODE_ENV === 'development') {
+              console.log('Closing AI Command Input');
+            }
             setShowAICommandInput(false);
           }}
           onToggleAICommandInput={() => {
-            console.log('=== onToggleAICommandInput called ===');
-            console.log('Current showAICommandInput:', showAICommandInput);
+            if (process.env.NODE_ENV === 'development') {
+              console.log('=== onToggleAICommandInput called ===');
+              console.log('Current showAICommandInput:', showAICommandInput);
+            }
             setShowAICommandInput(prev => {
               const newValue = !prev;
-              console.log('Setting showAICommandInput from', prev, 'to', newValue);
+              if (process.env.NODE_ENV === 'development') {
+                console.log('Setting showAICommandInput from', prev, 'to', newValue);
+              }
               return newValue;
             });
-            // Force a re-render check
-            setTimeout(() => {
-              console.log('After toggle, showAICommandInput should be:', !showAICommandInput);
-            }, 100);
           }}
           onExecuteAICommand={async (naturalLanguage) => {
             setIsAIProcessing(true);
             try {
-              console.log('AI Command requested:', naturalLanguage);
+              if (process.env.NODE_ENV === 'development') {
+                console.log('AI Command requested:', naturalLanguage);
+              }
               
               if (!llmSettings?.enabled) {
                 throw new Error('LLM is not enabled. Please enable it in Settings.');
@@ -782,9 +808,12 @@ function App() {
               };
 
               // Convert natural language to command with streaming
-              console.log('Calling LLM service...');
+              if (process.env.NODE_ENV === 'development') {
+                console.log('Calling LLM service...');
+              }
               
-              let streamingText = '';
+              // Optimized: Use array for efficient string building
+              const streamingChunks = [];
               const terminal = activeSessionId && terminalInstances.current[activeSessionId];
               
               // Show streaming indicator
@@ -797,9 +826,11 @@ function App() {
                 context,
                 // Streaming callback
                 (chunk) => {
-                  streamingText += chunk;
+                  streamingChunks.push(chunk);
                   // Show streaming text in terminal (grey color, overwrite previous line)
                   if (terminal) {
+                    // Join array efficiently only for display
+                    const streamingText = streamingChunks.join('');
                     // Clear previous line and show current text
                     // Use carriage return to overwrite the line
                     terminal.write(`\r\x1b[K\x1b[90m# Generating: ${streamingText}\x1b[0m`);
@@ -807,7 +838,9 @@ function App() {
                 }
               );
               
-              console.log('LLM returned command:', command);
+              if (process.env.NODE_ENV === 'development') {
+                console.log('LLM returned command:', command);
+              }
 
               // Clear streaming line and show final command
               if (terminal) {
@@ -822,7 +855,9 @@ function App() {
                 if (connection.isConnected) {
                   // Write command to terminal
                   connection.write(command + '\r\n');
-                  console.log('Command executed:', command);
+                  if (process.env.NODE_ENV === 'development') {
+                    console.log('Command executed:', command);
+                  }
                 } else {
                   throw new Error('Session is not connected');
                 }
