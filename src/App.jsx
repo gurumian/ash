@@ -412,7 +412,6 @@ function App() {
   };
 
   // Throttle resize terminal calls to avoid excessive execution
-  const resizeTerminalTimeoutRef = useRef(null);
   const handleMouseMove = (e) => {
     if (!isResizing.current) return;
     const newWidth = Math.max(150, Math.min(400, e.clientX));
