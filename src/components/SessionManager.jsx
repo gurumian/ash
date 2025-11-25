@@ -52,7 +52,8 @@ export const SessionManager = memo(function SessionManager({
   onEditLibrary,
   onDeleteLibrary,
   onToggleLibraryExpanded,
-  onCreateLibrary
+  onCreateLibrary,
+  setErrorDialog
 }) {
   // Memoize group calculations - optimized with Map for O(1) lookup
   // Match savedSessions with active sessions at runtime
@@ -155,6 +156,7 @@ export const SessionManager = memo(function SessionManager({
               key={`fav-${index}-${fav.name || fav.host || fav.serialPort}`}
               fav={fav}
               onCreateNewSessionWithData={onCreateNewSessionWithData}
+              setErrorDialog={setErrorDialog}
             />
           ))}
         </div>

@@ -324,7 +324,8 @@ function App() {
     groups,
     addSessionToGroup,
     initializeTerminal,
-    cleanupLog
+    cleanupLog,
+    setErrorDialog
   });
 
   // Drag and drop hook
@@ -730,6 +731,7 @@ function App() {
             setSelectedLibrary(newLibrary);
             setShowLibraryDialog(true);
           }}
+          setErrorDialog={setErrorDialog}
         />
         
         {/* Resize handle */}

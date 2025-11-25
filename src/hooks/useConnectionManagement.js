@@ -27,8 +27,50 @@ export function useConnectionManagement({
   setPendingGroupAdditions,
   initializeTerminal,
   cleanupLog,
-  cleanupTerminal
+  cleanupTerminal,
+  setErrorDialog
 }) {
+  // Helper function to format connection errors
+  const formatConnectionError = useCallback((error) => {
+    const errorMessage = error.message || String(error);
+    const errorCode = error.code || '';
+    
+    let title = 'Connection Failed';
+    let message = 'Failed to establish connection';
+    let detail = errorMessage;
+    
+    // Parse common SSH error codes
+    if (errorCode === 'EHOSTUNREACH' || errorMessage.includes('EHOSTUNREACH')) {
+      title = 'Host Unreachable';
+      message = 'Cannot reach the target host';
+      const match = errorMessage.match(/(\d+\.\d+\.\d+\.\d+):(\d+)/);
+      const host = match ? match[1] : (error.address || 'target host');
+      const port = match ? match[2] : (error.port || '22');
+      detail = `The host ${host}:${port} is not reachable.\n\nPossible causes:\n- Host is down or unreachable\n- Network connectivity issues\n- Firewall blocking the connection\n- Incorrect host address`;
+    } else if (errorCode === 'ECONNREFUSED' || errorMessage.includes('ECONNREFUSED')) {
+      title = 'Connection Refused';
+      message = 'The connection was refused';
+      const match = errorMessage.match(/(\d+\.\d+\.\d+\.\d+):(\d+)/);
+      const host = match ? match[1] : (error.address || 'target host');
+      const port = match ? match[2] : (error.port || '22');
+      detail = `Connection to ${host}:${port} was refused.\n\nPossible causes:\n- SSH service is not running on the target\n- Port ${port} is not open\n- Firewall is blocking the connection`;
+    } else if (errorCode === 'ETIMEDOUT' || errorMessage.includes('ETIMEDOUT') || errorMessage.includes('timeout')) {
+      title = 'Connection Timeout';
+      message = 'Connection attempt timed out';
+      detail = `The connection attempt timed out.\n\nPossible causes:\n- Network is slow or unstable\n- Host is not responding\n- Firewall is blocking the connection`;
+    } else if (errorCode === 'ENOTFOUND' || errorMessage.includes('ENOTFOUND')) {
+      title = 'Host Not Found';
+      message = 'Hostname could not be resolved';
+      detail = `The hostname could not be resolved to an IP address.\n\nPossible causes:\n- Incorrect hostname or domain name\n- DNS server issues\n- Network connectivity problems`;
+    } else if (errorMessage.includes('authentication') || errorMessage.includes('password') || errorMessage.includes('Permission denied')) {
+      title = 'Authentication Failed';
+      message = 'Invalid credentials';
+      detail = `Authentication failed.\n\nPlease check:\n- Username is correct\n- Password is correct\n- User has SSH access permissions`;
+    }
+    
+    return { title, message, detail };
+  }, []);
+
   // Create new session with provided data (returns sessionId if successful)
   const createNewSessionWithData = useCallback(async (formData, skipFormReset = false) => {
     setFormError('');
@@ -168,8 +210,14 @@ export function useConnectionManagement({
     } catch (error) {
       console.error('Connection failed:', error);
       setIsConnecting(false);
-      if (!skipFormReset) {
-        alert('Connection failed: ' + error.message);
+      if (!skipFormReset && setErrorDialog) {
+        const formattedError = formatConnectionError(error);
+        setErrorDialog({
+          isOpen: true,
+          title: formattedError.title,
+          message: formattedError.message,
+          detail: formattedError.detail
+        });
       }
       throw error; // Re-throw so caller can handle it
     }
@@ -182,7 +230,9 @@ export function useConnectionManagement({
     setShowConnectionForm,
     saveConnectionHistory,
     sshConnections,
-    cleanupTerminal
+    cleanupTerminal,
+    setErrorDialog,
+    formatConnectionError
   ]);
 
   // Disconnect session
