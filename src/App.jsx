@@ -221,7 +221,8 @@ function App() {
     isOpen: false,
     title: '',
     message: '',
-    detail: ''
+    detail: '',
+    error: null
   });
   const [showSessionDialog, setShowSessionDialog] = useState(false);
   const [selectedSession, setSelectedSession] = useState(null);
@@ -905,7 +906,8 @@ function App() {
                 isOpen: true,
                 title: errorTitle,
                 message: errorMessage,
-                detail: errorDetail
+                detail: errorDetail,
+                error: error // Pass original error for system info
               });
             } finally {
               setIsAIProcessing(false);
@@ -1119,10 +1121,11 @@ function App() {
       {/* Error Dialog */}
       <ErrorDialog
         isOpen={errorDialog.isOpen}
-        onClose={() => setErrorDialog({ isOpen: false, title: '', message: '', detail: '' })}
+        onClose={() => setErrorDialog({ isOpen: false, title: '', message: '', detail: '', error: null })}
         title={errorDialog.title}
         message={errorDialog.message}
         detail={errorDialog.detail}
+        error={errorDialog.error}
       />
     </div>
   );

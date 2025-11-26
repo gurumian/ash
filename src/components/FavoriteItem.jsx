@@ -74,7 +74,8 @@ export const FavoriteItem = memo(function FavoriteItem({
           isOpen: true,
           title: formattedError.title,
           message: formattedError.message,
-          detail: formattedError.detail
+          detail: formattedError.detail,
+          error: error // Pass the original error object
         });
       } else {
         alert('Connection failed: ' + error.message);

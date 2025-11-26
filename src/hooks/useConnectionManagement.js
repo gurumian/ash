@@ -216,7 +216,8 @@ export function useConnectionManagement({
           isOpen: true,
           title: formattedError.title,
           message: formattedError.message,
-          detail: formattedError.detail
+          detail: formattedError.detail,
+          error: error // Pass the original error object
         });
       }
       throw error; // Re-throw so caller can handle it
