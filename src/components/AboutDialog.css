@@ -78,8 +78,24 @@
 .about-description {
   font-size: 14px;
   color: #ccc;
-  margin: 0;
+  margin: 0 0 12px 0;
   line-height: 1.6;
+}
+
+.about-website {
+  margin: 0;
+  font-size: 13px;
+}
+
+.about-website a {
+  color: #00ff41;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.about-website a:hover {
+  color: #00cc35;
+  text-decoration: underline;
 }
 
 .about-separator {

@@ -2,6 +2,8 @@
 
 A modern, cross-platform terminal client built with Electron that supports both SSH connections and Serial port communication.
 
+🌐 **Homepage**: [https://ash.toktoktalk.com](https://ash.toktoktalk.com)
+
 ## Features
 
 ### 🔐 SSH Support
@@ -177,7 +179,7 @@ The application follows a modular architecture:
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is proprietary software. All rights reserved. See the LICENSE file for details.
 
 ## Support
 

@@ -18,7 +18,7 @@
     "name": "Bryce Ghim",
     "email": "admin@toktoktalk.com"
   },
-  "license": "MIT",
+  "license": "UNLICENSED",
   "devDependencies": {
     "@electron-forge/cli": "^7.9.0",
     "@electron-forge/maker-deb": "^7.9.0",

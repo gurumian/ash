@@ -18,6 +18,16 @@ export const AboutDialog = ({ isOpen, onClose, appVersion, author }) => {
             <p className="about-description">
               A modern SSH and Serial terminal client
             </p>
+            <p className="about-website">
+              <a 
+                href="https://ash.toktoktalk.com" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+              >
+                https://ash.toktoktalk.com
+              </a>
+            </p>
           </div>
           
           <div className="about-separator"></div>
@@ -34,7 +44,7 @@ export const AboutDialog = ({ isOpen, onClose, appVersion, author }) => {
           
           <div className="about-copyright">
             <p>© {new Date().getFullYear()} {author?.name || 'Bryce Ghim'}</p>
-            <p className="about-license">Licensed under MIT</p>
+            <p className="about-license">Proprietary Software - All Rights Reserved</p>
           </div>
         </div>
         
