@@ -40,8 +40,15 @@ export function useKeyboardShortcuts({
 
       // Don't handle other shortcuts when typing in input fields (but allow Ctrl+Shift+A above)
       // Exception: don't block Ctrl+Shift+A even in input fields
-      if (event.target.matches('input, textarea') && !((event.ctrlKey || event.metaKey) && event.shiftKey && (event.key === 'a' || event.key === 'A'))) {
-        return;
+      // Also allow standard text editing shortcuts (Ctrl+Z, Ctrl+Y, Ctrl+A, Ctrl+X, Ctrl+C, Ctrl+V)
+      if (event.target.matches('input, textarea')) {
+        const isStandardEditShortcut = (event.ctrlKey || event.metaKey) && 
+          (event.key === 'z' || event.key === 'Z' || event.key === 'y' || event.key === 'Y' || 
+           event.key === 'a' || event.key === 'A' || event.key === 'x' || event.key === 'X' || 
+           event.key === 'c' || event.key === 'C' || event.key === 'v' || event.key === 'V');
+        if (!((event.ctrlKey || event.metaKey) && event.shiftKey && (event.key === 'a' || event.key === 'A')) && !isStandardEditShortcut) {
+          return;
+        }
       }
 
       // Ctrl+F or Cmd+F - open search bar

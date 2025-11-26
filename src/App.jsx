@@ -33,6 +33,7 @@ import { TerminalAICommandInput } from './components/TerminalAICommandInput';
 import LLMService from './services/llm-service';
 import { SessionDialog } from './components/SessionDialog';
 import { LibraryDialog } from './components/LibraryDialog';
+import { LibraryImportDialog } from './components/LibraryImportDialog';
 import { TftpServerDialog } from './components/TftpServerDialog';
 
 function App() {
@@ -228,6 +229,7 @@ function App() {
   const [showSessionDialog, setShowSessionDialog] = useState(false);
   const [selectedSession, setSelectedSession] = useState(null);
   const [showLibraryDialog, setShowLibraryDialog] = useState(false);
+  const [showLibraryImportDialog, setShowLibraryImportDialog] = useState(false);
   const [selectedLibrary, setSelectedLibrary] = useState(null);
   const [scrollbackLines, setScrollbackLines] = useState(() => {
     const saved = localStorage.getItem('ash-scrollback');
@@ -749,41 +751,8 @@ function App() {
               alert('Failed to export library: ' + error.message);
             }
           }}
-          onImportLibrary={async () => {
-            try {
-              // Try to read from clipboard first
-              let libraryData = null;
-              try {
-                if (navigator.clipboard && navigator.clipboard.readText) {
-                  const clipboardText = await navigator.clipboard.readText();
-                  try {
-                    libraryData = JSON.parse(clipboardText);
-                    // Validate it's a library object
-                    if (libraryData && (libraryData.name || libraryData.commands)) {
-                      importLibrary(libraryData);
-                      console.log('Library imported from clipboard');
-                      return;
-                    }
-                  } catch (e) {
-                    // Not valid JSON or not a library, continue to file dialog
-                  }
-                }
-              } catch (e) {
-                // Clipboard read failed, continue to file dialog
-              }
-              
-              // If clipboard doesn't have valid library, show file dialog
-              const result = await window.electronAPI.importLibrary();
-              if (result.success && result.library) {
-                importLibrary(result.library);
-                console.log('Library imported from file');
-              } else if (!result.canceled) {
-                alert('Failed to import library: ' + (result.error || 'Invalid library file'));
-              }
-            } catch (error) {
-              console.error('Import library error:', error);
-              alert('Failed to import library: ' + error.message);
-            }
+          onImportLibrary={() => {
+            setShowLibraryImportDialog(true);
           }}
           setErrorDialog={setErrorDialog}
         />
@@ -1162,6 +1131,19 @@ function App() {
         }}
         onSave={(libraryId, updates) => {
           updateLibrary(libraryId, updates);
+        }}
+      />
+
+      {/* Library Import Dialog */}
+      <LibraryImportDialog
+        showDialog={showLibraryImportDialog}
+        terminalFontFamily={terminalFontFamily}
+        onClose={() => {
+          setShowLibraryImportDialog(false);
+        }}
+        onImport={(libraryData) => {
+          importLibrary(libraryData);
+          setShowLibraryImportDialog(false);
         }}
       />
 

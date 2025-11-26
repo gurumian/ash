@@ -492,7 +492,7 @@ export const SessionManager = memo(function SessionManager({
               <button
                 className="new-library-btn"
                 onClick={onImportLibrary}
-                title="Import library from clipboard (if JSON) or file"
+                title="Import library from clipboard, file, or manual input"
                 style={{
                   backgroundColor: 'rgba(0, 255, 65, 0.1)',
                   border: '1px solid rgba(0, 255, 65, 0.3)',
