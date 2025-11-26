@@ -4,6 +4,7 @@ import { FavoriteItem } from './FavoriteItem';
 import { ConnectionHistoryItem } from './ConnectionHistoryItem';
 import { GroupSessionItem } from './GroupSessionItem';
 import { LibraryItem } from './LibraryItem';
+import { ConnectionStatusIcon } from './ConnectionStatusIcon';
 import { matchSavedSessionWithActiveSession } from '../utils/sessionMatcher';
 import { getSessionDisplayName } from '../utils/sessionName';
 
@@ -326,7 +327,10 @@ export const SessionManager = memo(function SessionManager({
                             <span className="session-name">
                               {displayName} (not connected)
                             </span>
-                            <span className="connection-status disconnected">○</span>
+                            <ConnectionStatusIcon 
+                              isConnected={false}
+                              className="connection-status disconnected"
+                            />
                             <button
                               className="remove-from-group-btn"
                               onClick={(e) => {

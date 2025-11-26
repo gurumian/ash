@@ -1,4 +1,5 @@
 import React, { memo, useCallback } from 'react';
+import { ConnectionStatusIcon } from './ConnectionStatusIcon';
 
 /**
  * Tab item component - memoized for performance
@@ -66,9 +67,10 @@ export const TabItem = memo(function TabItem({
       onClick={handleClick}
     >
       <span className="tab-name">{session.name}</span>
-      <span className={`tab-status ${session.isConnected ? 'connected' : 'disconnected'}`}>
-        {session.isConnected ? '●' : '○'}
-      </span>
+      <ConnectionStatusIcon 
+        isConnected={session.isConnected}
+        className={`tab-status ${session.isConnected ? 'connected' : 'disconnected'}`}
+      />
       <button 
         className="tab-close"
         onClick={handleClose}

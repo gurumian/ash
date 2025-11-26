@@ -1,4 +1,5 @@
 import React, { memo, useCallback } from 'react';
+import { ConnectionStatusIcon } from './ConnectionStatusIcon';
 
 /**
  * Individual session item component - memoized for performance
@@ -40,9 +41,10 @@ export const SessionItem = memo(function SessionItem({
     >
       <span className="session-name">{session.name}</span>
       <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-        <span className={`connection-status ${session.isConnected ? 'connected' : 'disconnected'}`}>
-          {session.isConnected ? '●' : '○'}
-        </span>
+        <ConnectionStatusIcon 
+          isConnected={session.isConnected}
+          className={`connection-status ${session.isConnected ? 'connected' : 'disconnected'}`}
+        />
         {onOpenSettings && (
           <button 
             className="session-settings-btn"
