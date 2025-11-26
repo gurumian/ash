@@ -1,0 +1,115 @@
+.confirm-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+.confirm-dialog {
+  background: var(--theme-surface, #1a1a1a);
+  border: 1px solid var(--theme-border, #2a2a2a);
+  border-radius: 6px;
+  min-width: 320px;
+  max-width: 480px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+}
+
+.confirm-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--theme-border, #2a2a2a);
+}
+
+.confirm-dialog-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--theme-text, #00ff41);
+}
+
+.confirm-dialog-close {
+  background: none;
+  border: none;
+  color: var(--theme-text, #00ff41);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.confirm-dialog-close:hover {
+  opacity: 1;
+}
+
+.confirm-dialog-content {
+  padding: 20px 16px;
+  color: var(--theme-text, #00ff41);
+}
+
+.confirm-dialog-content p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.confirm-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--theme-border, #2a2a2a);
+}
+
+.confirm-dialog-cancel,
+.confirm-dialog-confirm {
+  padding: 8px 16px;
+  font-size: 13px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid var(--theme-border, #2a2a2a);
+  transition: all 0.2s;
+}
+
+.confirm-dialog-cancel {
+  background: var(--theme-surface, #1a1a1a);
+  color: var(--theme-text, #00ff41);
+}
+
+.confirm-dialog-cancel:hover {
+  background: rgba(0, 255, 65, 0.1);
+  border-color: rgba(0, 255, 65, 0.3);
+}
+
+.confirm-dialog-confirm {
+  background: var(--theme-accent, #00ff41);
+  color: #000;
+  border-color: var(--theme-accent, #00ff41);
+  font-weight: 600;
+}
+
+.confirm-dialog-confirm:hover {
+  background: rgba(0, 255, 65, 0.9);
+  border-color: rgba(0, 255, 65, 0.9);
+}
+
+.confirm-dialog-confirm:active {
+  transform: scale(0.98);
+}
+

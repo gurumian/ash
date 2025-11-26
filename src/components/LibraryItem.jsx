@@ -1,4 +1,5 @@
 import React, { memo, useCallback, useState } from 'react';
+import { ConfirmDialog } from './ConfirmDialog';
 
 /**
  * Library Item component - Displays a library with commands that can be executed one by one
@@ -16,6 +17,7 @@ export const LibraryItem = memo(function LibraryItem({
 }) {
   const [executingCommandIndex, setExecutingCommandIndex] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const handleToggleExpanded = useCallback(() => {
     onToggleExpanded(library.id);
@@ -28,10 +30,12 @@ export const LibraryItem = memo(function LibraryItem({
 
   const handleDelete = useCallback((e) => {
     e.stopPropagation();
-    if (window.confirm(`Delete library "${library.name}"?`)) {
-      onDelete(library.id);
-    }
-  }, [library.id, library.name, onDelete]);
+    setShowDeleteConfirm(true);
+  }, []);
+
+  const handleConfirmDelete = useCallback(() => {
+    onDelete(library.id);
+  }, [library.id, onDelete]);
 
   const handleCopyToClipboard = useCallback(async (e) => {
     e.stopPropagation();
@@ -318,6 +322,14 @@ export const LibraryItem = memo(function LibraryItem({
           )}
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleConfirmDelete}
+        title="Delete Library"
+        message={`Are you sure you want to delete library "${library.name}"? This action cannot be undone.`}
+      />
     </div>
   );
 });
