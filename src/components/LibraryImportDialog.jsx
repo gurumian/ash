@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 /**
  * Library Import Dialog component - Modal for importing library from various sources
@@ -12,16 +12,115 @@ export function LibraryImportDialog({
   const [jsonText, setJsonText] = useState('');
   const [error, setError] = useState(null);
   const [importSource, setImportSource] = useState('clipboard'); // 'clipboard', 'file', 'manual'
+  const textareaRef = useRef(null);
+  const historyRef = useRef([]);
+  const historyIndexRef = useRef(-1);
 
   useEffect(() => {
     if (showDialog) {
       setJsonText('');
       setError(null);
       setImportSource('clipboard');
+      // Reset history
+      historyRef.current = [''];
+      historyIndexRef.current = 0;
       // Try to load from clipboard automatically
       loadFromClipboard();
     }
   }, [showDialog]);
+
+  // Save to history when text changes (debounced)
+  useEffect(() => {
+    if (!showDialog) return;
+    
+    const timeoutId = setTimeout(() => {
+      const history = historyRef.current;
+      const currentIndex = historyIndexRef.current;
+      const currentText = jsonText;
+      
+      // Don't save if it's the same as current history entry
+      if (history[currentIndex] === currentText) {
+        return;
+      }
+      
+      // Remove any future history if we're not at the end
+      if (currentIndex < history.length - 1) {
+        history.splice(currentIndex + 1);
+      }
+      
+      // Add new state to history (limit to 50 entries)
+      if (history.length >= 50) {
+        history.shift();
+        historyIndexRef.current = history.length - 1;
+      } else {
+        historyIndexRef.current = history.length;
+      }
+      history.push(currentText);
+    }, 300);
+    
+    return () => clearTimeout(timeoutId);
+  }, [jsonText, showDialog]);
+
+  // Handle undo/redo manually since controlled component doesn't support browser undo
+  useEffect(() => {
+    if (!showDialog) return;
+    
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const handleKeyDown = (event) => {
+      // Handle Ctrl+Z (undo) or Cmd+Z
+      if ((event.ctrlKey || event.metaKey) && !event.shiftKey && (event.key === 'z' || event.key === 'Z')) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        
+        const history = historyRef.current;
+        const currentIndex = historyIndexRef.current;
+        
+        if (currentIndex > 0) {
+          historyIndexRef.current = currentIndex - 1;
+          setJsonText(history[currentIndex - 1]);
+          setError(null);
+        }
+        return;
+      }
+      
+      // Handle Ctrl+Y or Ctrl+Shift+Z (redo) or Cmd+Shift+Z
+      if ((event.ctrlKey || event.metaKey) && 
+          ((event.key === 'y' || event.key === 'Y') || 
+           (event.shiftKey && (event.key === 'z' || event.key === 'Z')))) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        
+        const history = historyRef.current;
+        const currentIndex = historyIndexRef.current;
+        
+        if (currentIndex < history.length - 1) {
+          historyIndexRef.current = currentIndex + 1;
+          setJsonText(history[currentIndex + 1]);
+          setError(null);
+        }
+        return;
+      }
+      
+      // For other standard shortcuts, just stop propagation
+      if ((event.ctrlKey || event.metaKey) && 
+          (event.key === 'a' || event.key === 'A' || event.key === 'x' || event.key === 'X' || 
+           event.key === 'c' || event.key === 'C' || event.key === 'v' || event.key === 'V')) {
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+      }
+    };
+
+    // Add listener in capture phase (before other handlers)
+    textarea.addEventListener('keydown', handleKeyDown, true);
+
+    return () => {
+      textarea.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, [showDialog, jsonText]);
 
   const loadFromClipboard = async () => {
     try {
@@ -171,26 +270,14 @@ export function LibraryImportDialog({
               Library JSON
             </label>
             <textarea
+              ref={textareaRef}
               value={jsonText}
               onChange={(e) => {
-                setJsonText(e.target.value);
+                const newValue = e.target.value;
+                setJsonText(newValue);
                 setError(null);
-                if (e.target.value.trim()) {
+                if (newValue.trim()) {
                   setImportSource('manual');
-                }
-              }}
-              onKeyDown={(e) => {
-                // Allow standard text editing shortcuts (Ctrl+Z, Ctrl+Y, Ctrl+A, etc.)
-                // Stop all propagation to prevent global handlers from interfering
-                if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z' || e.key === 'y' || e.key === 'Y' || e.key === 'a' || e.key === 'A' || e.key === 'x' || e.key === 'X' || e.key === 'c' || e.key === 'C' || e.key === 'v' || e.key === 'V')) {
-                  // Let browser handle these shortcuts natively
-                  e.stopPropagation(); // Stop bubbling
-                  // Access native event for stopImmediatePropagation
-                  if (e.nativeEvent && typeof e.nativeEvent.stopImmediatePropagation === 'function') {
-                    e.nativeEvent.stopImmediatePropagation();
-                  }
-                  // Don't prevent default - let browser handle undo/redo natively
-                  return;
                 }
               }}
               placeholder="Paste or type library JSON here..."

@@ -17,7 +17,20 @@ export function useKeyboardShortcuts({
 }) {
   useEffect(() => {
     const handleKeyDown = (event) => {
-      // Check for Ctrl+Shift+A or Cmd+Shift+A first (before other checks)
+      // Allow standard text editing shortcuts in input/textarea fields (must be first check)
+      // This includes Ctrl+Z (undo), Ctrl+Y (redo), Ctrl+A (select all), etc.
+      if (event.target.matches('input, textarea')) {
+        const isStandardEditShortcut = (event.ctrlKey || event.metaKey) && 
+          (event.key === 'z' || event.key === 'Z' || event.key === 'y' || event.key === 'Y' || 
+           event.key === 'a' || event.key === 'A' || event.key === 'x' || event.key === 'X' || 
+           event.key === 'c' || event.key === 'C' || event.key === 'v' || event.key === 'V');
+        if (isStandardEditShortcut) {
+          // Let browser handle these shortcuts natively - don't interfere
+          return;
+        }
+      }
+
+      // Check for Ctrl+Shift+A or Cmd+Shift+A (before other checks)
       // This should work even when terminal has focus
       if ((event.ctrlKey || event.metaKey) && event.shiftKey && (event.key === 'a' || event.key === 'A')) {
         console.log('=== Ctrl+Shift+A detected (window handler) ===');
@@ -40,15 +53,8 @@ export function useKeyboardShortcuts({
 
       // Don't handle other shortcuts when typing in input fields (but allow Ctrl+Shift+A above)
       // Exception: don't block Ctrl+Shift+A even in input fields
-      // Also allow standard text editing shortcuts (Ctrl+Z, Ctrl+Y, Ctrl+A, Ctrl+X, Ctrl+C, Ctrl+V)
-      if (event.target.matches('input, textarea')) {
-        const isStandardEditShortcut = (event.ctrlKey || event.metaKey) && 
-          (event.key === 'z' || event.key === 'Z' || event.key === 'y' || event.key === 'Y' || 
-           event.key === 'a' || event.key === 'A' || event.key === 'x' || event.key === 'X' || 
-           event.key === 'c' || event.key === 'C' || event.key === 'v' || event.key === 'V');
-        if (!((event.ctrlKey || event.metaKey) && event.shiftKey && (event.key === 'a' || event.key === 'A')) && !isStandardEditShortcut) {
-          return;
-        }
+      if (event.target.matches('input, textarea') && !((event.ctrlKey || event.metaKey) && event.shiftKey && (event.key === 'a' || event.key === 'A'))) {
+        return;
       }
 
       // Ctrl+F or Cmd+F - open search bar
