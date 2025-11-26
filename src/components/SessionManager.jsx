@@ -61,33 +61,33 @@ export const SessionManager = memo(function SessionManager({
   // Memoize group calculations - optimized with Map for O(1) lookup
   // Match savedSessions with active sessions at runtime
   const groupCalculations = useMemo(() => {
-    // Create a map of session keys for fast O(1) lookup instead of O(n) some()
-    // This reduces complexity from O(n*m) to O(n+m)
-    const sessionKeyMap = new Map();
-    sessions.forEach(session => {
-      if (session.connectionType === 'serial') {
-        sessionKeyMap.set(`serial:${session.serialPort}`, session);
-      } else {
-        sessionKeyMap.set(`ssh:${session.host}:${session.user}:${session.port || '22'}`, session);
-      }
-    });
-
     return groups.map(group => {
       const savedSessions = group.savedSessions || [];
       
-      // Optimized: Use Map lookup instead of nested filter/some (O(n*m) -> O(n+m))
+      // Match each savedSession with an active session
+      // Each savedSession should match with at most one session
+      // Use a Set to track which sessions have already been matched to avoid duplicates
+      const matchedSessionIds = new Set();
       const groupSessions = [];
+      
       savedSessions.forEach(savedSession => {
-        let key;
-        const connType = savedSession.connectionType || 'ssh';
-        if (connType === 'serial') {
-          key = `serial:${savedSession.serialPort}`;
-        } else {
-          key = `ssh:${savedSession.host}:${savedSession.user}:${savedSession.port || '22'}`;
-        }
-        const matchedSession = sessionKeyMap.get(key);
-        if (matchedSession && matchSavedSessionWithActiveSession(savedSession, matchedSession)) {
+        // Find all sessions that match this savedSession
+        const matchingSessions = sessions.filter(session => {
+          // Skip if this session has already been matched to another savedSession
+          if (matchedSessionIds.has(session.id)) {
+            return false;
+          }
+          // Check if this session matches the savedSession
+          return matchSavedSessionWithActiveSession(savedSession, session);
+        });
+        
+        // If there are matching sessions, use the first one (or the one that's already connected)
+        // Prefer connected sessions over disconnected ones
+        const matchedSession = matchingSessions.find(s => s.isConnected) || matchingSessions[0];
+        
+        if (matchedSession) {
           groupSessions.push(matchedSession);
+          matchedSessionIds.add(matchedSession.id);
         }
       });
       

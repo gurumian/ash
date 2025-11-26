@@ -436,51 +436,19 @@ export function useConnectionManagement({
     }
     
     // Connect each saved session instance
-    // Reuse existing sessions if they match, otherwise create new ones
-    // Use ref to get latest sessions state
+    // Each savedSession is an independent instance - always create a new session
+    // This allows multiple sessions with the same connection info (duplicate sessions)
+    // Group opening is a batch action: open each savedSession one by one
     for (const savedSession of savedSessions) {
       try {
-        // Get latest sessions from ref
-        const currentSessions = sessionsRef.current;
-        // Check if there's an existing session with the same connection info
-        const existingSession = currentSessions.find(s => matchSavedSessionWithActiveSession(savedSession, s));
+        // Always create a new session for each savedSession instance
+        // This ensures that even if multiple savedSessions have the same connection info,
+        // each one will open as a separate session (allowing duplicates)
+        const connectionFormData = prepareConnectionFormData(savedSession);
+        const sessionId = await createNewSessionWithData(connectionFormData, true);
         
-        if (existingSession) {
-          // Reuse existing session - just reconnect if disconnected
-          if (!existingSession.isConnected) {
-            await reconnectSession(existingSession);
-          }
-          // If already connected, do nothing - just reuse the existing session
-          if (process.env.NODE_ENV === 'development') {
-            console.log('Reusing existing session:', { sessionId: existingSession.id, savedSessionId: savedSession.id, label: savedSession.label });
-          }
-        } else {
-          // No existing session found - create a new one
-          // But first check if we should create it or if it already exists in sessions
-          // (This prevents duplicate sessions when connecting a group)
-          const connectionFormData = prepareConnectionFormData(savedSession);
-          
-          // Double-check: make sure we don't have a matching session already
-          // (This can happen if sessions state hasn't updated yet)
-          // Use ref to get latest sessions state
-          const currentSessionsForCheck = sessionsRef.current;
-          const matchingSession = currentSessionsForCheck.find(s => matchSavedSessionWithActiveSession(savedSession, s));
-          if (matchingSession) {
-            // Session exists, just reconnect if needed
-            if (!matchingSession.isConnected) {
-              await reconnectSession(matchingSession);
-            }
-            if (process.env.NODE_ENV === 'development') {
-              console.log('Reusing existing session (found in double-check):', { sessionId: matchingSession.id, savedSessionId: savedSession.id, label: savedSession.label });
-            }
-          } else {
-            // Really no existing session - create a new one
-            const sessionId = await createNewSessionWithData(connectionFormData, true);
-            
-            if (process.env.NODE_ENV === 'development' && sessionId) {
-              console.log('Created new session from savedSession:', { sessionId, savedSessionId: savedSession.id, label: savedSession.label });
-            }
-          }
+        if (process.env.NODE_ENV === 'development' && sessionId) {
+          console.log('Created new session from savedSession:', { sessionId, savedSessionId: savedSession.id, label: savedSession.label });
         }
       } catch (error) {
         console.error(`Failed to connect saved session instance in group:`, error);
@@ -488,9 +456,6 @@ export function useConnectionManagement({
     }
   }, [
     groups,
-    sessions,
-    matchSavedSessionWithActiveSession,
-    reconnectSession,
     prepareConnectionFormData,
     createNewSessionWithData
   ]);
