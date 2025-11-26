@@ -1,7 +1,7 @@
 {
   "name": "ash",
   "productName": "ash",
-  "version": "1.0.41",
+  "version": "1.0.42",
   "description": "A modern SSH and Serial terminal client",
   "main": ".vite/build/main.js",
   "scripts": {
