@@ -108,7 +108,7 @@ export const ConnectionHistoryItem = memo(function ConnectionHistoryItem({
           onClick={handleRemove}
           title="Remove from Session List"
         >
-          ⊗
+          🗑
         </button>
       )}
     </div>

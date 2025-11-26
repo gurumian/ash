@@ -335,7 +335,7 @@ export const SessionManager = memo(function SessionManager({
                               }}
                               title="Remove from Group"
                             >
-                              ⊗
+                              🗑
                             </button>
                           </div>
                         );
