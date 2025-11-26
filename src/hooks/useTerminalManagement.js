@@ -20,7 +20,8 @@ export function useTerminalManagement({
   setContextMenu,
   setShowSearchBar,
   setShowAICommandInput,
-  showAICommandInput
+  showAICommandInput,
+  outputCaptures = null // Optional: ref to output captures for command output capture
 }) {
   const terminalRefs = useRef({});
   const terminalInstances = useRef({});
@@ -574,6 +575,11 @@ export function useTerminalManagement({
         } else {
           // Write to terminal immediately for small data to preserve output order
           terminal.write(data);
+        }
+        
+        // Feed data to output captures for AI Agent (if active)
+        if (outputCaptures && outputCaptures.current && outputCaptures.current[sessionId]) {
+          outputCaptures.current[sessionId].feedData(data);
         }
         
         // Log asynchronously without blocking display - use ref to get latest function

@@ -8,7 +8,8 @@ export const TerminalAICommandInput = memo(function TerminalAICommandInput({
   isVisible,
   onClose,
   onExecute,
-  isProcessing = false
+  isProcessing = false,
+  progress = null
 }) {
   const [input, setInput] = useState('');
   const inputRef = useRef(null);
@@ -95,7 +96,7 @@ export const TerminalAICommandInput = memo(function TerminalAICommandInput({
               borderRadius: '50%',
               animation: 'spin 1s linear infinite'
             }} />
-            Processing...
+            {progress?.message || 'Processing...'}
           </div>
         )}
         <button

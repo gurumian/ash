@@ -76,9 +76,17 @@ Command:`;
 
   /**
    * Call Ollama API with streaming support
+   * Uses /api/chat endpoint for better structured responses
    */
   async callOllama(prompt, onChunk = null) {
-    const url = `${this.baseURL}/api/generate`;
+    const url = `${this.baseURL}/api/chat`;
+    
+    // Build messages array
+    const messages = [];
+    if (prompt.system) {
+      messages.push({ role: 'system', content: prompt.system });
+    }
+    messages.push({ role: 'user', content: prompt.user });
     
     // Use streaming if onChunk callback is provided
     if (onChunk) {
@@ -89,7 +97,7 @@ Command:`;
         },
         body: JSON.stringify({
           model: this.model,
-          prompt: `${prompt.system}\n\n${prompt.user}`,
+          messages: messages,
           stream: true,
           options: {
             temperature: this.temperature,
@@ -118,8 +126,14 @@ Command:`;
           for (const line of lines) {
             try {
               const data = JSON.parse(line);
-              if (data.response) {
-                const text = data.response;
+              // /api/chat uses 'message' field with 'content'
+              if (data.message?.content) {
+                const text = data.message.content;
+                fullResponse += text;
+                onChunk(text);
+              } else if (data.content) {
+                // Fallback for some response formats
+                const text = data.content;
                 fullResponse += text;
                 onChunk(text);
               }
@@ -145,7 +159,7 @@ Command:`;
         },
         body: JSON.stringify({
           model: this.model,
-          prompt: `${prompt.system}\n\n${prompt.user}`,
+          messages: messages,
           stream: false,
           options: {
             temperature: this.temperature,
@@ -160,7 +174,7 @@ Command:`;
       }
 
       const data = await response.json();
-      return data.response || data.text || '';
+      return data.message?.content || data.content || '';
     }
   }
 

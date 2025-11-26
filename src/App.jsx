@@ -31,6 +31,9 @@ import { TerminalContextMenu } from './components/TerminalContextMenu';
 import { TerminalSearchBar } from './components/TerminalSearchBar';
 import { TerminalAICommandInput } from './components/TerminalAICommandInput';
 import LLMService from './services/llm-service';
+import TerminalOutputCapture from './services/terminal-output-capture';
+import AIAgentService from './services/ai-agent-service';
+import { executeCommandAndWait } from './utils/command-executor';
 import { SessionDialog } from './components/SessionDialog';
 import { LibraryDialog } from './components/LibraryDialog';
 import { LibraryImportDialog } from './components/LibraryImportDialog';
@@ -218,6 +221,8 @@ function App() {
   // AI Command input state
   const [showAICommandInput, setShowAICommandInput] = useState(false);
   const [isAIProcessing, setIsAIProcessing] = useState(false);
+  const [aiProgress, setAIProgress] = useState(null); // Progress for Agent mode
+  const outputCaptures = useRef({}); // sessionId -> TerminalOutputCapture
   // Error dialog state
   const [errorDialog, setErrorDialog] = useState({
     isOpen: false,
@@ -278,7 +283,8 @@ function App() {
     setContextMenu,
     setShowSearchBar,
     setShowAICommandInput,
-    showAICommandInput
+    showAICommandInput,
+    outputCaptures // Pass outputCaptures ref for command output capture
   });
   
   // Update ref for useTheme after terminalInstances is available
@@ -809,6 +815,8 @@ function App() {
           }}
           onExecuteAICommand={async (naturalLanguage) => {
             setIsAIProcessing(true);
+            setAIProgress(null);
+            
             try {
               if (process.env.NODE_ENV === 'development') {
                 console.log('AI Command requested:', naturalLanguage);
@@ -818,75 +826,123 @@ function App() {
                 throw new Error('LLM is not enabled. Please enable it in Settings.');
               }
 
-              // Show AI request in terminal (grey color)
-              if (activeSessionId && terminalInstances.current[activeSessionId]) {
-                terminalInstances.current[activeSessionId].write(`\r\n\x1b[90m# AI: ${naturalLanguage}\x1b[0m\r\n`);
-              }
-
-              // Create LLM service instance
-              const llmService = new LLMService(llmSettings);
-              
-              // Get current directory context (if available)
-              const context = {
-                currentDirectory: 'unknown' // TODO: Get actual current directory from terminal
-              };
-
-              // Convert natural language to command with streaming
-              if (process.env.NODE_ENV === 'development') {
-                console.log('Calling LLM service...');
-              }
-              
-              // Optimized: Use array for efficient string building
-              const streamingChunks = [];
-              const terminal = activeSessionId && terminalInstances.current[activeSessionId];
-              
-              // Show streaming indicator
-              if (terminal) {
-                terminal.write(`\r\n\x1b[90m# Generating command...\x1b[0m\r\n`);
-              }
-              
-              const command = await llmService.convertToCommand(
-                naturalLanguage, 
-                context,
-                // Streaming callback
-                (chunk) => {
-                  streamingChunks.push(chunk);
-                  // Show streaming text in terminal (grey color, overwrite previous line)
-                  if (terminal) {
-                    // Join array efficiently only for display
-                    const streamingText = streamingChunks.join('');
-                    // Clear previous line and show current text
-                    // Use carriage return to overwrite the line
-                    terminal.write(`\r\x1b[K\x1b[90m# Generating: ${streamingText}\x1b[0m`);
-                  }
-                }
-              );
-              
-              if (process.env.NODE_ENV === 'development') {
-                console.log('LLM returned command:', command);
-              }
-
-              // Clear streaming line and show final command
-              if (terminal) {
-                // Clear the streaming line and move to new line
-                terminal.write(`\r\x1b[K`); // Clear to end of line
-                terminal.write(`\x1b[90m# Generated command: ${command}\x1b[0m\r\n`);
-              }
-
-              // Execute command in active session
-              if (activeSessionId && sshConnections.current[activeSessionId]) {
-                const connection = sshConnections.current[activeSessionId];
-                if (connection.isConnected) {
-                  // Write command to terminal
-                  connection.write(command + '\r\n');
-                  if (process.env.NODE_ENV === 'development') {
-                    console.log('Command executed:', command);
-                  }
-                } else {
-                  throw new Error('Session is not connected');
-                }
-              } else {
+              if (!activeSessionId || !sshConnections.current[activeSessionId]) {
                 throw new Error('No active session');
+              }
+
+              const connection = sshConnections.current[activeSessionId];
+              if (!connection.isConnected) {
+                throw new Error('Session is not connected');
+              }
+
+              // Initialize output capture for this session
+              if (!outputCaptures.current[activeSessionId]) {
+                outputCaptures.current[activeSessionId] = new TerminalOutputCapture(activeSessionId);
+              }
+
+              // Initialize agent service (for mode detection and agent functionality)
+              const agentService = new AIAgentService(
+                llmSettings,
+                connection,
+                outputCaptures.current[activeSessionId]
+              );
+
+              // Detect mode (quick command vs full agent)
+              const mode = await agentService.detectMode(naturalLanguage);
+
+              // Show AI request in terminal
+              const terminal = activeSessionId && terminalInstances.current[activeSessionId];
+              if (terminal) {
+                terminal.write(`\r\n\x1b[90m# AI: ${naturalLanguage} [${mode} mode]\x1b[0m\r\n`);
+              }
+
+              if (mode === 'quick') {
+                // Quick command mode - simple command conversion
+                setAIProgress({
+                  phase: 'generating',
+                  message: 'Generating command...'
+                });
+
+                const llmService = new LLMService(llmSettings);
+                const context = { currentDirectory: 'unknown' };
+                
+                const streamingChunks = [];
+                if (terminal) {
+                  terminal.write(`\r\n\x1b[90m# Generating command...\x1b[0m\r\n`);
+                }
+                
+                const command = await llmService.convertToCommand(
+                  naturalLanguage,
+                  context,
+                  (chunk) => {
+                    streamingChunks.push(chunk);
+                    if (terminal) {
+                      const streamingText = streamingChunks.join('');
+                      terminal.write(`\r\x1b[K\x1b[90m# Generating: ${streamingText}\x1b[0m`);
+                    }
+                  }
+                );
+
+                if (terminal) {
+                  terminal.write(`\r\x1b[K`);
+                  terminal.write(`\x1b[90m# Generated command: ${command}\x1b[0m\r\n`);
+                }
+
+                // Execute command and wait for output
+                setAIProgress({
+                  phase: 'executing',
+                  message: `Executing: ${command}`
+                });
+
+                const result = await executeCommandAndWait(
+                  connection,
+                  command,
+                  outputCaptures.current[activeSessionId],
+                  10000
+                );
+
+                if (terminal && result.output) {
+                  // Output is already shown in terminal, just mark completion
+                  terminal.write(`\x1b[90m# Command completed\x1b[0m\r\n`);
+                }
+
+              } else {
+                // Agent mode - full diagnosis with planning
+                setAIProgress({
+                  phase: 'planning',
+                  message: 'Creating diagnosis plan...'
+                });
+
+                const report = await agentService.diagnose(naturalLanguage, (progress) => {
+                  setAIProgress(progress);
+                  
+                  // Show progress in terminal
+                  if (terminal && progress.message) {
+                    const phaseColors = {
+                      planning: '90',
+                      executing: '33',
+                      analyzing: '93',
+                      replanning: '91',
+                      reporting: '95',
+                      complete: '32',
+                      generating: '90'
+                    };
+                    const color = phaseColors[progress.phase] || '90';
+                    terminal.write(`\r\n\x1b[${color}m# Agent: ${progress.message}\x1b[0m\r\n`);
+                  }
+                });
+
+                // Show final report in terminal
+                if (terminal) {
+                  terminal.write(`\r\n\x1b[32m# Agent Report:\x1b[0m\r\n`);
+                  terminal.write(`\x1b[90m${report.summary}\x1b[0m\r\n`);
+                }
+              }
+
+              // Cleanup
+              if (outputCaptures.current[activeSessionId]) {
+                outputCaptures.current[activeSessionId].cleanup();
+                delete outputCaptures.current[activeSessionId];
               }
             } catch (error) {
               console.error('AI Command error:', error);
@@ -933,10 +989,16 @@ function App() {
               });
             } finally {
               setIsAIProcessing(false);
-              setShowAICommandInput(false);
+              setAIProgress(null);
+              // Cleanup output capture
+              if (activeSessionId && outputCaptures.current[activeSessionId]) {
+                outputCaptures.current[activeSessionId].cleanup();
+                delete outputCaptures.current[activeSessionId];
+              }
             }
           }}
           isAIProcessing={isAIProcessing}
+          progress={aiProgress}
         />
         
         {/* Terminal Context Menu */}
