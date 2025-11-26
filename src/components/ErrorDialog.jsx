@@ -3,6 +3,7 @@ import './ErrorDialog.css';
 
 export const ErrorDialog = ({ isOpen, onClose, title, message, detail, error }) => {
   const [showDetails, setShowDetails] = useState(false);
+  const isDev = process.env.NODE_ENV === 'development';
   
   if (!isOpen) return null;
 
@@ -52,8 +53,8 @@ export const ErrorDialog = ({ isOpen, onClose, title, message, detail, error }) 
               </div>
             )}
             
-            {/* Stack Trace (collapsible) */}
-            {errorStack && (
+            {/* Stack Trace (only in development mode) */}
+            {isDev && errorStack && (
               <div className="error-stack-section">
                 <button 
                   className="error-details-toggle"

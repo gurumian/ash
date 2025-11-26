@@ -59,6 +59,20 @@ module.exports = {
     extraResource: [
       path.resolve(__dirname, 'app-update.yml'), // Auto-updater configuration (like FAC1)
     ],
+    // macOS entitlements for network permissions (SSH, TFTP)
+    // This is required for the built app to access network, especially SSH connections.
+    // Entitlements require code signing.
+    // 
+    // Default: Uses "Apple Development: Sungmin Kim (XM4Q8R9Y2G)" if available
+    // Override with APPLE_IDENTITY environment variable:
+    //   export APPLE_IDENTITY="Apple Development: Your Name (TEAM_ID)"
+    osxSign: {
+      identity: process.env.APPLE_IDENTITY || 'Apple Development: Sungmin Kim (XM4Q8R9Y2G)',
+      hardenedRuntime: true,
+      entitlements: path.resolve(__dirname, 'entitlements.plist'),
+      'entitlements-inherit': path.resolve(__dirname, 'entitlements.plist'),
+      'gatekeeper-assess': false
+    },
     // Electron Forge will automatically find the appropriate format:
     // - Windows: icon.ico (preferred) or icon.png
     // - macOS: icon.icns (preferred) or icon.png
