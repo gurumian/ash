@@ -344,7 +344,7 @@ button, a, input, select, textarea, [role="button"] {
   color: #888888;
 }
 
-.close-session-btn, .favorite-btn, .session-settings-btn {
+.close-session-btn, .stop-session-btn, .favorite-btn, .session-settings-btn {
   background: none;
   border: none;
   cursor: pointer;
@@ -359,12 +359,13 @@ button, a, input, select, textarea, [role="button"] {
   justify-content: center;
 }
 
-.close-session-btn:hover, .favorite-btn:hover, .session-settings-btn:hover {
+.close-session-btn:hover, .stop-session-btn:hover, .favorite-btn:hover, .session-settings-btn:hover {
   opacity: 1;
   background: rgba(0, 255, 65, 0.1);
 }
 
 .session-item.active .close-session-btn:hover,
+.session-item.active .stop-session-btn:hover,
 .session-item.active .favorite-btn:hover,
 .session-item.active .session-settings-btn:hover {
   background: rgba(0, 0, 0, 0.2);

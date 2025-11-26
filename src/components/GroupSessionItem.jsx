@@ -65,18 +65,18 @@ export const GroupSessionItem = memo(function GroupSessionItem({
           </button>
         )}
         <button
+          className="stop-session-btn"
+          onClick={handleDisconnect}
+          title="Stop Session"
+        >
+          ⏹
+        </button>
+        <button
           className="remove-from-group-btn"
           onClick={handleRemove}
           title="Remove from Group"
         >
           🗑
-        </button>
-        <button
-          className="close-session-btn"
-          onClick={handleDisconnect}
-          title="Close Session"
-        >
-          ×
         </button>
       </div>
     </div>
