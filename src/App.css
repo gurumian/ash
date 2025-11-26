@@ -333,7 +333,7 @@ button, a, input, select, textarea, [role="button"] {
 }
 
 .connection-status.disconnected {
-  color: #ff4444;
+  color: #888888;
 }
 
 .session-item.active .connection-status.connected {
@@ -341,7 +341,7 @@ button, a, input, select, textarea, [role="button"] {
 }
 
 .session-item.active .connection-status.disconnected {
-  color: #ff4444;
+  color: #888888;
 }
 
 .close-session-btn, .favorite-btn, .session-settings-btn {
@@ -449,7 +449,7 @@ button, a, input, select, textarea, [role="button"] {
 }
 
 .tab-status.disconnected {
-  color: #ff4444;
+  color: #888888;
 }
 
 .tab {
