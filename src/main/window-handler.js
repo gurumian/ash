@@ -379,5 +379,63 @@ export function initializeWindowHandlers() {
       return { success: false, error: error.message };
     }
   });
+
+  // Export library to JSON file
+  ipcMain.handle('export-library', async (event, libraryData, defaultFileName) => {
+    try {
+      const { writeFile } = require('fs').promises;
+      const { join } = require('path');
+      const focusedWindow = BrowserWindow.getFocusedWindow();
+      
+      const result = await dialog.showSaveDialog(focusedWindow || null, {
+        title: 'Export Library',
+        defaultPath: defaultFileName || 'library.json',
+        filters: [
+          { name: 'JSON Files', extensions: ['json'] },
+          { name: 'All Files', extensions: ['*'] }
+        ]
+      });
+      
+      if (result.canceled || !result.filePath) {
+        return { success: false, canceled: true };
+      }
+      
+      await writeFile(result.filePath, JSON.stringify(libraryData, null, 2), 'utf8');
+      return { success: true, path: result.filePath };
+    } catch (error) {
+      console.error('Failed to export library:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Import library from JSON file
+  ipcMain.handle('import-library', async (event) => {
+    try {
+      const { readFile } = require('fs').promises;
+      const focusedWindow = BrowserWindow.getFocusedWindow();
+      
+      const result = await dialog.showOpenDialog(focusedWindow || null, {
+        title: 'Import Library',
+        properties: ['openFile'],
+        filters: [
+          { name: 'JSON Files', extensions: ['json'] },
+          { name: 'All Files', extensions: ['*'] }
+        ]
+      });
+      
+      if (result.canceled || result.filePaths.length === 0) {
+        return { success: false, canceled: true };
+      }
+      
+      const filePath = result.filePaths[0];
+      const fileContent = await readFile(filePath, 'utf8');
+      const libraryData = JSON.parse(fileContent);
+      
+      return { success: true, library: libraryData, path: filePath };
+    } catch (error) {
+      console.error('Failed to import library:', error);
+      return { success: false, error: error.message };
+    }
+  });
 }
 

@@ -53,6 +53,8 @@ export const SessionManager = memo(function SessionManager({
   onDeleteLibrary,
   onToggleLibraryExpanded,
   onCreateLibrary,
+  onExportLibrary,
+  onImportLibrary,
   setErrorDialog
 }) {
   // Memoize group calculations - optimized with Map for O(1) lookup
@@ -465,6 +467,7 @@ export const SessionManager = memo(function SessionManager({
                   onEdit={onEditLibrary}
                   onDelete={onDeleteLibrary}
                   onToggleExpanded={onToggleLibraryExpanded}
+                  onExport={onExportLibrary}
                 />
               ))
             ) : (
@@ -478,13 +481,35 @@ export const SessionManager = memo(function SessionManager({
                 No libraries yet
               </div>
             )}
-            <button
-              className="new-library-btn"
-              onClick={onCreateLibrary}
-              title="Create a new library"
-            >
-              + Create New Library
-            </button>
+            <div style={{ display: 'flex', gap: '8px', flexDirection: 'column' }}>
+              <button
+                className="new-library-btn"
+                onClick={onCreateLibrary}
+                title="Create a new library"
+              >
+                + Create New Library
+              </button>
+              <button
+                className="new-library-btn"
+                onClick={onImportLibrary}
+                title="Import library from clipboard (if JSON) or file"
+                style={{
+                  backgroundColor: 'rgba(0, 255, 65, 0.1)',
+                  border: '1px solid rgba(0, 255, 65, 0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00ff41" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                Import Library
+              </button>
+            </div>
           </>
         )}
       </div>

@@ -148,7 +148,8 @@ function App() {
     createLibrary,
     updateLibrary,
     deleteLibrary,
-    toggleLibraryExpanded
+    toggleLibraryExpanded,
+    importLibrary
   } = useLibraries();
   
   // LLM Settings hook
@@ -731,6 +732,58 @@ function App() {
             const newLibrary = createLibrary(`Library ${libraries.length + 1}`);
             setSelectedLibrary(newLibrary);
             setShowLibraryDialog(true);
+          }}
+          onExportLibrary={async (library) => {
+            try {
+              const sanitizedFileName = library.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+              const defaultFileName = `${sanitizedFileName}.json`;
+              const result = await window.electronAPI.exportLibrary(library, defaultFileName);
+              if (result.success) {
+                // Optional: Show success message
+                console.log('Library exported successfully:', result.path);
+              } else if (!result.canceled) {
+                alert('Failed to export library: ' + (result.error || 'Unknown error'));
+              }
+            } catch (error) {
+              console.error('Export library error:', error);
+              alert('Failed to export library: ' + error.message);
+            }
+          }}
+          onImportLibrary={async () => {
+            try {
+              // Try to read from clipboard first
+              let libraryData = null;
+              try {
+                if (navigator.clipboard && navigator.clipboard.readText) {
+                  const clipboardText = await navigator.clipboard.readText();
+                  try {
+                    libraryData = JSON.parse(clipboardText);
+                    // Validate it's a library object
+                    if (libraryData && (libraryData.name || libraryData.commands)) {
+                      importLibrary(libraryData);
+                      console.log('Library imported from clipboard');
+                      return;
+                    }
+                  } catch (e) {
+                    // Not valid JSON or not a library, continue to file dialog
+                  }
+                }
+              } catch (e) {
+                // Clipboard read failed, continue to file dialog
+              }
+              
+              // If clipboard doesn't have valid library, show file dialog
+              const result = await window.electronAPI.importLibrary();
+              if (result.success && result.library) {
+                importLibrary(result.library);
+                console.log('Library imported from file');
+              } else if (!result.canceled) {
+                alert('Failed to import library: ' + (result.error || 'Invalid library file'));
+              }
+            } catch (error) {
+              console.error('Import library error:', error);
+              alert('Failed to import library: ' + error.message);
+            }
           }}
           setErrorDialog={setErrorDialog}
         />

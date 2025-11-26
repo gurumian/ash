@@ -125,6 +125,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Show directory picker dialog
   showDirectoryPicker: (defaultPath) => ipcRenderer.invoke('show-directory-picker', defaultPath),
   
+  // Library export/import
+  exportLibrary: (libraryData, defaultFileName) => ipcRenderer.invoke('export-library', libraryData, defaultFileName),
+  importLibrary: () => ipcRenderer.invoke('import-library'),
+  
   // TFTP Server APIs
   tftpStatus: () => ipcRenderer.invoke('tftp-status'),
   tftpStart: (params) => ipcRenderer.invoke('tftp-start', params),

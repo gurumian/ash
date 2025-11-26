@@ -11,9 +11,11 @@ export const LibraryItem = memo(function LibraryItem({
   terminalFontFamily,
   onEdit,
   onDelete,
-  onToggleExpanded
+  onToggleExpanded,
+  onExport
 }) {
   const [executingCommandIndex, setExecutingCommandIndex] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   const handleToggleExpanded = useCallback(() => {
     onToggleExpanded(library.id);
@@ -30,6 +32,45 @@ export const LibraryItem = memo(function LibraryItem({
       onDelete(library.id);
     }
   }, [library.id, library.name, onDelete]);
+
+  const handleCopyToClipboard = useCallback(async (e) => {
+    e.stopPropagation();
+    try {
+      const libraryJson = JSON.stringify(library, null, 2);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(libraryJson);
+        // Show visual feedback
+        setCopied(true);
+        setTimeout(() => {
+          setCopied(false);
+        }, 2000);
+      } else {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = libraryJson;
+        textArea.style.position = 'fixed';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        setCopied(true);
+        setTimeout(() => {
+          setCopied(false);
+        }, 2000);
+      }
+    } catch (error) {
+      console.error('Failed to copy library:', error);
+      alert('Failed to copy library to clipboard: ' + error.message);
+    }
+  }, [library]);
+
+  const handleExportToFile = useCallback((e) => {
+    e.stopPropagation();
+    if (onExport) {
+      onExport(library);
+    }
+  }, [library, onExport]);
 
   const executeCommand = useCallback((command, index) => {
     if (!activeSessionId) {
@@ -108,6 +149,66 @@ export const LibraryItem = memo(function LibraryItem({
         >
           ⚙
         </button>
+        <button
+          className="library-copy-btn"
+          onClick={handleCopyToClipboard}
+          title={copied ? 'Copied!' : 'Copy Library to Clipboard'}
+          style={{
+            padding: '4px',
+            width: '24px',
+            height: '24px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: copied ? 'rgba(0, 255, 65, 0.2)' : 'rgba(0, 255, 65, 0.1)',
+            border: copied ? '1px solid #00ff41' : '1px solid rgba(0, 255, 65, 0.3)',
+            color: '#00ff41',
+            cursor: 'pointer',
+            borderRadius: '4px',
+            marginRight: '4px',
+            transition: 'all 0.2s ease'
+          }}
+        >
+          {copied ? (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00ff41" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          ) : (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00ff41" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+          )}
+        </button>
+        {onExport && (
+          <button
+            className="library-export-btn"
+            onClick={handleExportToFile}
+            title="Export Library to File"
+            style={{
+              padding: '4px',
+              width: '24px',
+              height: '24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: 'rgba(0, 255, 65, 0.1)',
+              border: '1px solid rgba(0, 255, 65, 0.3)',
+              color: '#00ff41',
+              cursor: 'pointer',
+              borderRadius: '4px',
+              marginRight: '4px'
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00ff41" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="18" cy="5" r="3"></circle>
+              <circle cx="6" cy="12" r="3"></circle>
+              <circle cx="18" cy="19" r="3"></circle>
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+            </svg>
+          </button>
+        )}
         <button
           className="library-delete-btn"
           onClick={handleDelete}

@@ -141,6 +141,19 @@ export function useLibraries() {
     }));
   };
 
+  const importLibrary = (libraryData) => {
+    // Generate new ID and timestamps for imported library
+    const importedLibrary = {
+      ...libraryData,
+      id: Date.now().toString() + Math.random(),
+      createdAt: libraryData.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      isExpanded: false
+    };
+    saveLibraries([...libraries, importedLibrary]);
+    return importedLibrary;
+  };
+
   return {
     libraries,
     setLibraries,
@@ -152,7 +165,8 @@ export function useLibraries() {
     addCommandToLibrary,
     updateCommandInLibrary,
     removeCommandFromLibrary,
-    reorderCommandsInLibrary
+    reorderCommandsInLibrary,
+    importLibrary
   };
 }
 
