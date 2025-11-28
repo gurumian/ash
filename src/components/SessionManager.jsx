@@ -14,6 +14,7 @@ import { getSessionDisplayName } from '../utils/sessionName';
 export const SessionManager = memo(function SessionManager({
   showSessionManager,
   sessionManagerWidth,
+  isResizing = false,
   sessions,
   activeSessionId,
   groups,
@@ -117,7 +118,7 @@ export const SessionManager = memo(function SessionManager({
 
   return (
     <div 
-      className={`session-manager ${!showSessionManager ? 'hidden' : ''}`}
+      className={`session-manager ${!showSessionManager ? 'hidden' : ''} ${isResizing ? 'resizing' : ''}`}
       style={{ width: showSessionManager ? `${sessionManagerWidth}px` : '0' }}
     >
       <div className="session-manager-header">

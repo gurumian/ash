@@ -135,6 +135,7 @@ function App() {
   const [showConnectionForm, setShowConnectionForm] = useState(false);
   const [showSessionManager, setShowSessionManager] = useState(true);
   const [sessionManagerWidth, setSessionManagerWidth] = useState(250);
+  const [isResizingState, setIsResizingState] = useState(false);
   
   const isWindows = window.electronAPI?.platform !== 'darwin';
 
@@ -409,34 +410,44 @@ function App() {
     newGroupName
   });
 
-  // Resize handlers with event listeners
-  const handleMouseDown = (e) => {
+  // Resize handlers - following FilterSidebar pattern
+  const handleResizeStart = useCallback((e) => {
+    e.preventDefault();
+    if (!showSessionManager) return;
+    
     handleMouseDownBase(e);
+    setIsResizingState(true);
+    const startX = e.clientX;
+    const startWidth = sessionManagerWidth;
+
+    const handleMouseMove = (e) => {
+      if (!isResizing.current) return;
+      // Calculate width change based on mouse movement (left sidebar, so diff is positive when moving right)
+      const diff = e.clientX - startX;
+      // Only enforce minimum width, no maximum limit (but prevent negative width)
+      const newWidth = Math.max(150, startWidth + diff);
+      setSessionManagerWidth(newWidth);
+      
+      // Throttle resize calls - clear previous timeout and set new one
+      if (resizeTerminalTimeoutRef.current) {
+        clearTimeout(resizeTerminalTimeoutRef.current);
+      }
+      resizeTerminalTimeoutRef.current = setTimeout(() => {
+        resizeTerminal();
+        resizeTerminalTimeoutRef.current = null;
+      }, 16); // ~60fps (16ms)
+    };
+
+    const handleMouseUp = () => {
+      handleMouseUpBase();
+      setIsResizingState(false);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-  };
-
-  // Throttle resize terminal calls to avoid excessive execution
-  const handleMouseMove = (e) => {
-    if (!isResizing.current) return;
-    const newWidth = Math.max(150, Math.min(400, e.clientX));
-    setSessionManagerWidth(newWidth);
-    
-    // Throttle resize calls - clear previous timeout and set new one
-    if (resizeTerminalTimeoutRef.current) {
-      clearTimeout(resizeTerminalTimeoutRef.current);
-    }
-    resizeTerminalTimeoutRef.current = setTimeout(() => {
-      resizeTerminal();
-      resizeTerminalTimeoutRef.current = null;
-    }, 16); // ~60fps (16ms)
-  };
-
-  const handleMouseUp = () => {
-    handleMouseUpBase();
-    document.removeEventListener('mousemove', handleMouseMove);
-    document.removeEventListener('mouseup', handleMouseUp);
-  };
+  }, [showSessionManager, sessionManagerWidth, handleMouseDownBase, handleMouseUpBase, resizeTerminal]);
 
   // Switch active session - memoized to prevent unnecessary re-renders
   const switchToSession = useCallback((sessionId) => {
@@ -601,17 +612,19 @@ function App() {
     document.documentElement.style.setProperty('--ui-font-family', uiFontFamily);
   }, [uiFontFamily]);
 
-  // Cleanup resize event listeners and timeout on unmount
+  // Cleanup resize timeout on unmount
   useEffect(() => {
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
       if (resizeTerminalTimeoutRef.current) {
         clearTimeout(resizeTerminalTimeoutRef.current);
         resizeTerminalTimeoutRef.current = null;
       }
+      // Reset resizing state on unmount
+      if (isResizing.current) {
+        isResizing.current = false;
+      }
     };
-  }, [handleMouseMove, handleMouseUp]);
+  }, []);
 
   // Apply theme with CSS variables (currentTheme is from useTheme hook)
   
@@ -695,6 +708,7 @@ function App() {
         <SessionManager
           showSessionManager={showSessionManager}
           sessionManagerWidth={sessionManagerWidth}
+          isResizing={isResizingState}
           sessions={sessions}
           activeSessionId={activeSessionId}
           groups={groups}
@@ -772,7 +786,7 @@ function App() {
           <div 
             ref={resizeHandleRef}
             className="resize-handle"
-            onMouseDown={handleMouseDown}
+            onMouseDown={handleResizeStart}
           />
         )}
 
