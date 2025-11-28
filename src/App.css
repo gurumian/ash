@@ -1159,7 +1159,7 @@ button, a, input, select, textarea, [role="button"] {
 .log-btn svg {
   width: 16px;
   height: 16px;
-  stroke: #00ff41;
+  stroke: var(--theme-text, #00ff41);
 }
 
 .log-btn:hover:not(:disabled) {
