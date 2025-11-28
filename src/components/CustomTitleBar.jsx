@@ -16,6 +16,7 @@ export function CustomTitleBar({
   onCheckForUpdates,
   onToggleDevTools,
   onTftpServer,
+  onWebServer,
   showSessionManager,
   onToggleSessionManager,
 }) {
@@ -91,6 +92,7 @@ export function CustomTitleBar({
       name: 'Tools',
       items: [
         { label: 'TFTP Server', onClick: onTftpServer },
+        { label: 'Web Server', onClick: onWebServer },
       ],
     },
     {

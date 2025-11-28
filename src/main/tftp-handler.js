@@ -1,4 +1,4 @@
-import { ipcMain, dialog, BrowserWindow } from 'electron';
+import { ipcMain, BrowserWindow } from 'electron';
 import os from 'node:os';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -113,14 +113,13 @@ export function initializeTftpHandlers() {
           title = 'TFTP Port In Use';
         }
         
-        // Show error dialog to user
+        // Send error event to renderer to show ErrorDialog
         if (mainWindow && !mainWindow.isDestroyed()) {
-          dialog.showMessageBox(mainWindow, {
-            type: 'error',
+          mainWindow.webContents.send('tftp-server-error', {
             title: title,
             message: 'Failed to start TFTP server',
             detail: errorMsg,
-            buttons: ['OK']
+            error: { code: err.code, message: err.message }
           });
         }
       });
@@ -238,14 +237,13 @@ export function initializeTftpHandlers() {
         
         console.error(`[TFTP] ${errorMsg}`);
         
-        // Show error dialog to user
+        // Send error event to renderer to show ErrorDialog
         if (mainWindow && !mainWindow.isDestroyed()) {
-          dialog.showMessageBox(mainWindow, {
-            type: 'error',
+          mainWindow.webContents.send('tftp-server-error', {
             title: 'TFTP Server Error',
             message: 'Failed to start TFTP server',
             detail: errorMsg,
-            buttons: ['OK']
+            error: listeningError ? { code: listeningError.code, message: listeningError.message } : null
           });
         }
         

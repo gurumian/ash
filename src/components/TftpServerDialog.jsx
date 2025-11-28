@@ -142,12 +142,14 @@ export function TftpServerDialog({ isOpen, onClose }) {
           <div className="tftp-status-section">
             <div 
               className={`tftp-status-card ${status.running ? 'running' : 'stopped'} ${loading ? 'loading' : ''}`}
-              onClick={status.running ? handleStop : handleStart}
-              style={{ cursor: loading ? 'not-allowed' : 'pointer' }}
             >
               <div className="tftp-status-item">
                 <span className="tftp-status-label">Status</span>
-                <div className="tftp-status-control">
+                <div 
+                  className="tftp-status-control"
+                  onClick={status.running ? handleStop : handleStart}
+                  style={{ cursor: loading ? 'not-allowed' : 'pointer' }}
+                >
                   <span className={`tftp-status-badge ${status.running ? 'running' : 'stopped'}`}>
                     {loading ? (status.running ? 'Stopping...' : 'Starting...') : (status.running ? 'Running' : 'Stopped')}
                   </span>

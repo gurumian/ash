@@ -42,9 +42,12 @@
     "@xterm/xterm": "^5.5.0",
     "electron-squirrel-startup": "^1.0.1",
     "electron-updater": "^6.6.2",
+    "express": "^5.1.0",
+    "finalhandler": "^2.1.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "serialport": "^13.0.0",
+    "serve-static": "^2.2.0",
     "ssh2": "^1.17.0",
     "tftp": "^0.1.2"
   },

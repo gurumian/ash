@@ -51,6 +51,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onMenuCheckUpdates: (callback) => ipcRenderer.on('menu-check-updates', callback),
   onMenuAbout: (callback) => ipcRenderer.on('menu-about', callback),
   onMenuTftpServer: (callback) => ipcRenderer.on('menu-tftp-server', callback),
+  onMenuWebServer: (callback) => ipcRenderer.on('menu-web-server', callback),
   onMenuAICommand: (callback) => ipcRenderer.on('menu-ai-command', callback),
   
   // Change window title
@@ -122,6 +123,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Open path in file manager
   openPath: (path) => ipcRenderer.invoke('open-path', path),
   
+  // Open external URL in default browser
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
+  
   // Show directory picker dialog
   showDirectoryPicker: (defaultPath) => ipcRenderer.invoke('show-directory-picker', defaultPath),
   
@@ -140,6 +144,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
   offTftpTransferComplete: (callback) => {
     ipcRenderer.removeListener('tftp-transfer-complete', callback);
   },
+  
+  // Web Server APIs
+  webStatus: () => ipcRenderer.invoke('web-status'),
+  webStart: (params) => ipcRenderer.invoke('web-start', params),
+  webStop: () => ipcRenderer.invoke('web-stop'),
+  webGetRootDir: () => ipcRenderer.invoke('web-get-root-dir'),
+  webGetNetworkInterfaces: () => ipcRenderer.invoke('web-get-network-interfaces'),
+  onWebServerError: (callback) => ipcRenderer.on('web-server-error', (event, data) => callback(data)),
+  offWebServerError: (callback) => ipcRenderer.off('web-server-error', callback),
+  
+  // TFTP Server error events
+  onTftpServerError: (callback) => ipcRenderer.on('tftp-server-error', (event, data) => callback(data)),
+  offTftpServerError: (callback) => ipcRenderer.off('tftp-server-error', callback),
   
   // Update events
   onUpdateAvailable: (callback) => ipcRenderer.on('update-available', (event, data) => callback(data)),

@@ -35,6 +35,7 @@ import { SessionDialog } from './components/SessionDialog';
 import { LibraryDialog } from './components/LibraryDialog';
 import { LibraryImportDialog } from './components/LibraryImportDialog';
 import { TftpServerDialog } from './components/TftpServerDialog';
+import { WebServerDialog } from './components/WebServerDialog';
 
 function App() {
   // Session management state
@@ -164,6 +165,8 @@ function App() {
   const [showAboutDialog, setShowAboutDialog] = useState(false);
   const [showTftpServerDialog, setShowTftpServerDialog] = useState(false);
   const [tftpStatus, setTftpStatus] = useState({ running: false, port: null });
+  const [showWebServerDialog, setShowWebServerDialog] = useState(false);
+  const [webStatus, setWebStatus] = useState({ running: false, port: null });
   const [appInfo, setAppInfo] = useState({ version: '', author: { name: 'Bryce Ghim', email: 'admin@toktoktalk.com' } });
   
   // Load app info on mount
@@ -204,6 +207,66 @@ function App() {
     const interval = setInterval(loadTftpStatus, 10000);
 
     return () => clearInterval(interval);
+  }, []);
+
+  // Load Web server status on mount and periodically check
+  useEffect(() => {
+    const loadWebStatus = async () => {
+      try {
+        const status = await window.electronAPI?.webStatus?.();
+        if (status) {
+          setWebStatus(status);
+        }
+      } catch (error) {
+        console.error('Failed to load Web Server status:', error);
+      }
+    };
+
+    // Load immediately
+    loadWebStatus();
+
+    // Check periodically (every 10 seconds to reduce overhead)
+    const interval = setInterval(loadWebStatus, 10000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Listen for Web Server error events
+  useEffect(() => {
+    const handleWebServerError = (errorData) => {
+      setErrorDialog({
+        isOpen: true,
+        title: errorData.title || 'Web Server Error',
+        message: errorData.message || 'An error occurred',
+        detail: errorData.detail || '',
+        error: errorData.error || null
+      });
+    };
+
+    window.electronAPI?.onWebServerError?.(handleWebServerError);
+
+    return () => {
+      window.electronAPI?.offWebServerError?.(handleWebServerError);
+    };
+  }, []);
+
+  // Listen for TFTP Server error events
+  useEffect(() => {
+    const handleTftpServerError = (errorData) => {
+      setErrorDialog({
+        isOpen: true,
+        title: errorData.title || 'TFTP Server Error',
+        message: errorData.message || 'An error occurred',
+        detail: errorData.detail || '',
+        error: errorData.error || null
+      });
+    };
+
+    window.electronAPI?.onTftpServerError?.(handleTftpServerError);
+
+    return () => {
+      window.electronAPI?.offTftpServerError?.(handleTftpServerError);
+    };
   }, []);
   
   // Terminal context menu state
@@ -599,6 +662,7 @@ function App() {
     setSessionManagerWidth,
     setShowAboutDialog,
     setShowTftpServerDialog,
+    setShowWebServerDialog,
     setShowAICommandInput,
     setAppInfo,
     disconnectSession,
@@ -691,6 +755,7 @@ function App() {
             setShowAboutDialog(true);
           }}
           onTftpServer={() => setShowTftpServerDialog(true)}
+          onWebServer={() => setShowWebServerDialog(true)}
           showSessionManager={showSessionManager}
           onToggleSessionManager={(checked) => {
             setShowSessionManager(checked);
@@ -1021,6 +1086,7 @@ function App() {
         activeSession={activeSession}
         sessionsCount={sessions.length}
         tftpStatus={tftpStatus}
+        webStatus={webStatus}
       />
 
       {/* Connection form modal */}
@@ -1175,6 +1241,12 @@ function App() {
       <TftpServerDialog
         isOpen={showTftpServerDialog}
         onClose={() => setShowTftpServerDialog(false)}
+      />
+
+      {/* Web Server Dialog */}
+      <WebServerDialog
+        isOpen={showWebServerDialog}
+        onClose={() => setShowWebServerDialog(false)}
       />
 
       {/* Error Dialog */}

@@ -360,6 +360,17 @@ export function initializeWindowHandlers() {
     }
   });
 
+  // Open external URL in default browser
+  ipcMain.handle('open-external', async (event, url) => {
+    try {
+      await shell.openExternal(url);
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to open external URL:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
   // Show directory picker dialog
   ipcMain.handle('show-directory-picker', async (event, defaultPath) => {
     try {

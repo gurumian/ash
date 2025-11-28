@@ -102,6 +102,7 @@ export function createMenu() {
         { type: 'separator' },
         {
           label: 'TFTP Server',
+          accelerator: 'CmdOrCtrl+Shift+T',
           click: () => {
             const focusedWindow = BrowserWindow.getFocusedWindow();
             try {
@@ -110,6 +111,20 @@ export function createMenu() {
               }
             } catch (error) {
               console.error('Failed to send menu-tftp-server:', error);
+            }
+          }
+        },
+        {
+          label: 'Web Server',
+          accelerator: 'CmdOrCtrl+Shift+W',
+          click: () => {
+            const focusedWindow = BrowserWindow.getFocusedWindow();
+            try {
+              if (focusedWindow && !focusedWindow.isDestroyed() && !focusedWindow.webContents.isDestroyed()) {
+                focusedWindow.webContents.send('menu-web-server');
+              }
+            } catch (error) {
+              console.error('Failed to send menu-web-server:', error);
             }
           }
         }
