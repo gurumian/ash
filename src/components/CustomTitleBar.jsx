@@ -91,8 +91,8 @@ export function CustomTitleBar({
     {
       name: 'Tools',
       items: [
-        { label: 'TFTP Server', onClick: onTftpServer },
-        { label: 'Web Server', onClick: onWebServer },
+        { label: 'TFTP Server', shortcut: 'Ctrl+Shift+T', onClick: onTftpServer },
+        { label: 'Web Server', shortcut: 'Ctrl+Shift+W', onClick: onWebServer },
       ],
     },
     {
