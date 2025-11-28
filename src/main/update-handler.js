@@ -15,6 +15,7 @@ const APP_NAME = 'ash';
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 
 let checkOnStartupTimeout;
+let isAutoCheck = false; // Flag to distinguish auto checks from manual checks
 
 // Check for updates 5 seconds after app is ready
 export function scheduleStartupCheck() {
@@ -26,46 +27,53 @@ export function scheduleStartupCheck() {
     return;
   }
   
-  console.log('Scheduling update check in 5 seconds...');
-  checkOnStartupTimeout = setTimeout(() => {
-    const { BrowserWindow } = require('electron');
-    const status = {
-      message: 'Executing startup update check...',
-      timestamp: new Date().toISOString(),
-    };
-    
-    console.log('========================================');
-    console.log('Executing startup update check...');
-    console.log('========================================');
-    
-    // Send to renderer
-    BrowserWindow.getAllWindows().forEach(window => {
-      try {
-        if (!window.isDestroyed() && !window.webContents.isDestroyed()) {
-          window.webContents.send('update-status-log', status);
-        }
-      } catch (error) {
-        // Ignore errors
-      }
-    });
-    
-    autoUpdater.checkForUpdatesAndNotify().catch(err => {
-      console.error('Auto-update check failed:', err);
+    console.log('Scheduling update check in 5 seconds...');
+    checkOnStartupTimeout = setTimeout(() => {
+      const { BrowserWindow } = require('electron');
+      const status = {
+        message: 'Executing startup update check...',
+        timestamp: new Date().toISOString(),
+      };
+      
+      console.log('========================================');
+      console.log('Executing startup update check...');
+      console.log('========================================');
+      
+      // Send to renderer
       BrowserWindow.getAllWindows().forEach(window => {
         try {
           if (!window.isDestroyed() && !window.webContents.isDestroyed()) {
-            window.webContents.send('update-status-log', {
-              message: 'Update check failed',
-              error: err.message,
-              errorCode: err.code,
-            });
+            window.webContents.send('update-status-log', status);
           }
         } catch (error) {
           // Ignore errors
         }
       });
-    });
-  }, 5000);
+      
+      // Mark as auto check (startup check is also automatic)
+      isAutoCheck = true;
+      autoUpdater.checkForUpdatesAndNotify().catch(err => {
+        console.error('Auto-update check failed:', err);
+        BrowserWindow.getAllWindows().forEach(window => {
+          try {
+            if (!window.isDestroyed() && !window.webContents.isDestroyed()) {
+              window.webContents.send('update-status-log', {
+                message: 'Update check failed',
+                error: err.message,
+                errorCode: err.code,
+              });
+            }
+          } catch (error) {
+            // Ignore errors
+          }
+        });
+      }).finally(() => {
+        // Reset flag after a short delay
+        setTimeout(() => {
+          isAutoCheck = false;
+        }, 1000);
+      });
+    }, 5000);
 }
 
 // Variables for progress window (like FAC1)
@@ -97,8 +105,15 @@ const sendUpdateStatus = (status) => {
 function setupUpdateEventHandlers() {
   // Auto-check for updates every 4 hours
   setInterval(() => {
+    isAutoCheck = true; // Mark as auto check
     autoUpdater.checkForUpdatesAndNotify().catch(err => {
       console.error('Auto-update check failed:', err);
+      // Don't show error dialog for auto checks - just log it
+    }).finally(() => {
+      // Reset flag after a short delay to allow error event to process
+      setTimeout(() => {
+        isAutoCheck = false;
+      }, 1000);
     });
   }, 4 * 60 * 60 * 1000); // 4 hours
   
@@ -401,14 +416,20 @@ function setupUpdateEventHandlers() {
       code: err.code,
     });
 
-    // Show error dialog to user (like FAC1)
-    dialog.showMessageBox({
-      type: 'error',
-      title: 'Update Error',
-      message: 'Failed to check for updates',
-      detail: `Error: ${err.message || err}\n\nPlease try again later or download the update manually from our website.`,
-      buttons: ['OK']
-    });
+    // Only show error dialog for manual checks, not for automatic background checks
+    // This prevents annoying error dialogs when network is temporarily unavailable
+    if (!isAutoCheck) {
+      dialog.showMessageBox({
+        type: 'error',
+        title: 'Update Error',
+        message: 'Failed to check for updates',
+        detail: `Error: ${err.message || err}\n\nPlease try again later or download the update manually from our website.`,
+        buttons: ['OK']
+      });
+    } else {
+      // For auto checks, just log the error silently
+      console.log('Auto-update check failed (silent):', err.message);
+    }
   });
   
   // Log update check events for debugging
@@ -492,6 +513,9 @@ export function initializeUpdateHandlers(scheduleCheck) {
         error: 'Update check is disabled in development mode',
       };
     }
+    
+    // Mark as manual check (not auto check)
+    isAutoCheck = false;
     
     try {
       console.log('Checking for updates...');
