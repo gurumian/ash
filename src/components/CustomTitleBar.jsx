@@ -16,8 +16,11 @@ export function CustomTitleBar({
   onCheckForUpdates,
   onToggleDevTools,
   onTftpServer,
+  showSessionManager,
+  onToggleSessionManager,
 }) {
   const [activeMenu, setActiveMenu] = useState(null);
+  const [activeSubmenu, setActiveSubmenu] = useState(null);
   const menuRef = useRef(null);
 
   // Close menu when clicking outside
@@ -65,6 +68,22 @@ export function CustomTitleBar({
       items: [
         { label: 'Toggle Developer Tools', shortcut: 'Ctrl+Shift+I', onClick: onToggleDevTools },
         { type: 'separator' },
+        {
+          label: 'Appearance',
+          submenu: [
+            {
+              label: 'Primary Side Bar',
+              type: 'checkbox',
+              checked: showSessionManager !== false,
+              onClick: () => {
+                if (onToggleSessionManager) {
+                  onToggleSessionManager(!showSessionManager);
+                }
+              }
+            }
+          ]
+        },
+        { type: 'separator' },
         { label: 'Settings', shortcut: 'Ctrl+,', onClick: onSettings },
       ],
     },
@@ -106,6 +125,57 @@ export function CustomTitleBar({
                   {menu.items.map((item, index) => (
                     item.type === 'separator' ? (
                       <div key={`sep-${index}`} className="menubar-separator" />
+                    ) : item.submenu ? (
+                      <div
+                        key={item.label}
+                        className="menubar-item-with-submenu"
+                        onMouseEnter={() => setActiveSubmenu(item.label)}
+                        onMouseLeave={() => setActiveSubmenu(null)}
+                      >
+                        <button
+                          className="menubar-item-button"
+                          onMouseDown={(e) => e.stopPropagation()}
+                        >
+                          <span className="menubar-item-label">{item.label}</span>
+                          <span className="menubar-item-arrow">▶</span>
+                        </button>
+                        {activeSubmenu === item.label && (
+                          <div className="menubar-submenu">
+                            {item.submenu.map((subItem, subIndex) => (
+                              subItem.type === 'separator' ? (
+                                <div key={`sub-sep-${subIndex}`} className="menubar-separator" />
+                              ) : (
+                                <button
+                                  key={subItem.label}
+                                  className={`menubar-item-button ${subItem.type === 'checkbox' && subItem.checked ? 'checked' : ''}`}
+                                  onMouseDown={(e) => e.stopPropagation()}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    if (subItem.onClick) {
+                                      subItem.onClick();
+                                    }
+                                    setActiveMenu(null);
+                                    setActiveSubmenu(null);
+                                  }}
+                                >
+                                  <span className="menubar-item-label">
+                                    {subItem.type === 'checkbox' && (
+                                      <span className="menubar-checkbox">
+                                        {subItem.checked ? '✓' : ''}
+                                      </span>
+                                    )}
+                                    {subItem.label}
+                                  </span>
+                                  {subItem.shortcut && (
+                                    <span className="menubar-item-shortcut">{subItem.shortcut}</span>
+                                  )}
+                                </button>
+                              )
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     ) : (
                       <button
                         key={item.label}

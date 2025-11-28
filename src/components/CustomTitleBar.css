@@ -107,6 +107,43 @@
   background: rgba(0, 255, 65, 0.15);
 }
 
+.menubar-item-with-submenu {
+  position: relative;
+}
+
+.menubar-item-arrow {
+  margin-left: auto;
+  padding-left: 8px;
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+.menubar-submenu {
+  position: absolute;
+  top: 0;
+  left: 100%;
+  min-width: 200px;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  padding: 4px 0;
+  z-index: 1001;
+  margin-left: 4px;
+}
+
+.menubar-checkbox {
+  display: inline-block;
+  width: 16px;
+  margin-right: 8px;
+  text-align: center;
+  color: #00ff41;
+}
+
+.menubar-item-button.checked {
+  background: rgba(0, 255, 65, 0.1);
+}
+
 .menubar-item-label {
   flex: 1;
 }

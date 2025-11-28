@@ -678,6 +678,16 @@ function App() {
             setShowAboutDialog(true);
           }}
           onTftpServer={() => setShowTftpServerDialog(true)}
+          showSessionManager={showSessionManager}
+          onToggleSessionManager={(checked) => {
+            setShowSessionManager(checked);
+            if (checked && sessionManagerWidth === 0) {
+              setSessionManagerWidth(250);
+            }
+            setTimeout(() => {
+              resizeTerminal();
+            }, 350);
+          }}
         />
       )}
       <div className="main-content">

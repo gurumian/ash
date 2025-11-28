@@ -129,19 +129,24 @@ export function createMenu() {
         },
         { type: 'separator' },
         {
-          label: 'Toggle Session Manager',
-          type: 'checkbox',
-          checked: true,
-          click: (menuItem) => {
-            const focusedWindow = BrowserWindow.getFocusedWindow();
-            try {
-              if (focusedWindow && !focusedWindow.isDestroyed() && !focusedWindow.webContents.isDestroyed()) {
-                focusedWindow.webContents.send('menu-toggle-session-manager', menuItem.checked);
+          label: 'Appearance',
+          submenu: [
+            {
+              label: 'Primary Side Bar',
+              type: 'checkbox',
+              checked: true,
+              click: (menuItem) => {
+                const focusedWindow = BrowserWindow.getFocusedWindow();
+                try {
+                  if (focusedWindow && !focusedWindow.isDestroyed() && !focusedWindow.webContents.isDestroyed()) {
+                    focusedWindow.webContents.send('menu-toggle-session-manager', menuItem.checked);
+                  }
+                } catch (error) {
+                  console.error('Failed to send menu-toggle-session-manager:', error);
+                }
               }
-            } catch (error) {
-              console.error('Failed to send menu-toggle-session-manager:', error);
             }
-          }
+          ]
         },
         { type: 'separator' },
         {
