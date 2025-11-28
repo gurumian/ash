@@ -30,7 +30,8 @@ export const TerminalView = memo(function TerminalView({
   onCloseAICommandInput,
   onExecuteAICommand,
   isAIProcessing,
-  onToggleAICommandInput
+  onToggleAICommandInput,
+  onFileDrop
 }) {
   // Track previous value for change detection (debug only)
   const prevShowAICommandInput = useRef(showAICommandInput);
@@ -49,10 +50,48 @@ export const TerminalView = memo(function TerminalView({
       onReorderTabs(draggedSessionId, targetIndex);
     }
   }, [onReorderTabs]);
+
+  const handleDragOver = useCallback((e) => {
+    // Only allow file drops on SSH sessions - early return for performance
+    if (!activeSession || activeSession.connectionType !== 'ssh' || !activeSession.isConnected) {
+      return;
+    }
+    
+    // Only prevent default if it's actually a file drag
+    if (e.dataTransfer.types.includes('Files')) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.dataTransfer.dropEffect = 'copy';
+    }
+  }, [activeSession]);
+
+  const handleDrop = useCallback((e) => {
+    // Only handle file drops on SSH sessions - early return for performance
+    if (!activeSession || activeSession.connectionType !== 'ssh' || !activeSession.isConnected) {
+      return;
+    }
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0 && onFileDrop) {
+      // Use the first file
+      const file = files[0];
+      // In Electron, file.path should be available
+      const filePath = file.path || file.name;
+      onFileDrop(filePath);
+    }
+  }, [activeSession, onFileDrop]);
+
   return (
     <div className="terminal-area">
       {activeSession ? (
-        <div className="terminal-container">
+        <div 
+          className="terminal-container"
+          onDragOver={activeSession?.connectionType === 'ssh' && activeSession?.isConnected ? handleDragOver : undefined}
+          onDrop={activeSession?.connectionType === 'ssh' && activeSession?.isConnected ? handleDrop : undefined}
+        >
           <div className="terminal-header">
             <div className="tab-bar">
               {sessions.map((session, index) => (

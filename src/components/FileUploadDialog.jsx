@@ -6,7 +6,8 @@ export function FileUploadDialog({
   sessionId, 
   connectionId, 
   libraries,
-  onUploadComplete 
+  onUploadComplete,
+  initialFilePath
 }) {
   const [selectedFile, setSelectedFile] = useState(null);
   const [remotePath, setRemotePath] = useState('/tmp/');
@@ -17,22 +18,55 @@ export function FileUploadDialog({
   const [error, setError] = useState(null);
   const [showLibraryDropdown, setShowLibraryDropdown] = useState(false);
 
+  // Update selected file when initialFilePath changes (for drag and drop)
+  useEffect(() => {
+    if (initialFilePath) {
+      setSelectedFile(initialFilePath);
+      // Auto-set remote path based on filename
+      const pathParts = initialFilePath.split(/[/\\]/);
+      const fileName = pathParts[pathParts.length - 1];
+      const newRemotePath = `/tmp/${fileName}`;
+      setRemotePath(newRemotePath);
+      // Cache the file path and remote path
+      localStorage.setItem('ash-last-upload-file', initialFilePath);
+      localStorage.setItem('ash-last-upload-remote-path', newRemotePath);
+    }
+  }, [initialFilePath]);
+
   useEffect(() => {
     if (isOpen) {
-      // Load cached file path from localStorage
-      const cachedFilePath = localStorage.getItem('ash-last-upload-file');
-      const cachedRemotePath = localStorage.getItem('ash-last-upload-remote-path') || '/tmp/';
+      // If initialFilePath is provided (from drag and drop), use it and ignore cache
+      if (initialFilePath) {
+        setSelectedFile(initialFilePath);
+        // Auto-set remote path based on filename
+        const pathParts = initialFilePath.split(/[/\\]/);
+        const fileName = pathParts[pathParts.length - 1];
+        const newRemotePath = `/tmp/${fileName}`;
+        setRemotePath(newRemotePath);
+        // Cache the file path and remote path
+        localStorage.setItem('ash-last-upload-file', initialFilePath);
+        localStorage.setItem('ash-last-upload-remote-path', newRemotePath);
+      } else {
+        // Use cached file path if no initialFilePath
+        const cachedFilePath = localStorage.getItem('ash-last-upload-file');
+        const cachedRemotePath = localStorage.getItem('ash-last-upload-remote-path') || '/tmp/';
+        setSelectedFile(cachedFilePath || null);
+        setRemotePath(cachedRemotePath);
+      }
+      
+      // Load other cached settings
       const cachedAutoExecute = localStorage.getItem('ash-last-upload-auto-execute') === 'true';
       const cachedLibraryId = localStorage.getItem('ash-last-upload-library-id');
-      
-      setSelectedFile(cachedFilePath || null);
-      setRemotePath(cachedRemotePath);
       setAutoExecute(cachedAutoExecute);
       setSelectedLibraryId(cachedLibraryId || null);
+      
       setUploading(false);
       setProgress(0);
       setError(null);
       setShowLibraryDropdown(false);
+    } else {
+      // Reset when dialog closes
+      setSelectedFile(null);
     }
   }, [isOpen]);
 

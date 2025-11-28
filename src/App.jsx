@@ -295,6 +295,7 @@ function App() {
   const [selectedSession, setSelectedSession] = useState(null);
   const [showLibraryDialog, setShowLibraryDialog] = useState(false);
   const [showFileUploadDialog, setShowFileUploadDialog] = useState(false);
+  const [fileUploadInitialPath, setFileUploadInitialPath] = useState(null);
   const [showLibraryImportDialog, setShowLibraryImportDialog] = useState(false);
   const [selectedLibrary, setSelectedLibrary] = useState(null);
   const [scrollbackLines, setScrollbackLines] = useState(() => {
@@ -859,6 +860,10 @@ function App() {
 
         {/* Right terminal area */}
         <TerminalView
+          onFileDrop={(filePath) => {
+            setFileUploadInitialPath(filePath);
+            setShowFileUploadDialog(true);
+          }}
           activeSession={activeSession}
           sessions={sessions}
           activeSessionId={activeSessionId}
@@ -1261,7 +1266,10 @@ function App() {
 
       <FileUploadDialog
         isOpen={showFileUploadDialog}
-        onClose={() => setShowFileUploadDialog(false)}
+        onClose={() => {
+          setShowFileUploadDialog(false);
+          setFileUploadInitialPath(null);
+        }}
         sessionId={contextMenu.sessionId || activeSessionId}
         connectionId={(() => {
           const sessionId = contextMenu.sessionId || activeSessionId;
@@ -1270,6 +1278,7 @@ function App() {
           return connection?.connectionId || null;
         })()}
         libraries={libraries}
+        initialFilePath={fileUploadInitialPath}
         onUploadComplete={(result) => {
           console.log('Upload complete:', result);
           // Optionally show success message or execute additional commands
