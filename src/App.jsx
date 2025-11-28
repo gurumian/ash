@@ -36,6 +36,7 @@ import { LibraryDialog } from './components/LibraryDialog';
 import { LibraryImportDialog } from './components/LibraryImportDialog';
 import { TftpServerDialog } from './components/TftpServerDialog';
 import { WebServerDialog } from './components/WebServerDialog';
+import { FileUploadDialog } from './components/FileUploadDialog';
 
 function App() {
   // Session management state
@@ -293,6 +294,7 @@ function App() {
   const [showSessionDialog, setShowSessionDialog] = useState(false);
   const [selectedSession, setSelectedSession] = useState(null);
   const [showLibraryDialog, setShowLibraryDialog] = useState(false);
+  const [showFileUploadDialog, setShowFileUploadDialog] = useState(false);
   const [showLibraryImportDialog, setShowLibraryImportDialog] = useState(false);
   const [selectedLibrary, setSelectedLibrary] = useState(null);
   const [scrollbackLines, setScrollbackLines] = useState(() => {
@@ -1077,6 +1079,14 @@ function App() {
               terminal.selectAll();
             }
           }}
+          onUpload={() => {
+            setShowFileUploadDialog(true);
+          }}
+          isSSHSession={(() => {
+            if (!contextMenu.sessionId) return false;
+            const session = sessions.find(s => s.id === contextMenu.sessionId);
+            return session?.connectionType === 'ssh' && session?.isConnected;
+          })()}
           onClose={() => setContextMenu({ visible: false, x: 0, y: 0, sessionId: null })}
         />
       </div>
@@ -1247,6 +1257,23 @@ function App() {
       <WebServerDialog
         isOpen={showWebServerDialog}
         onClose={() => setShowWebServerDialog(false)}
+      />
+
+      <FileUploadDialog
+        isOpen={showFileUploadDialog}
+        onClose={() => setShowFileUploadDialog(false)}
+        sessionId={contextMenu.sessionId || activeSessionId}
+        connectionId={(() => {
+          const sessionId = contextMenu.sessionId || activeSessionId;
+          if (!sessionId) return null;
+          const connection = sshConnections.current[sessionId];
+          return connection?.connectionId || null;
+        })()}
+        libraries={libraries}
+        onUploadComplete={(result) => {
+          console.log('Upload complete:', result);
+          // Optionally show success message or execute additional commands
+        }}
       />
 
       {/* Error Dialog */}

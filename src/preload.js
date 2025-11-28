@@ -20,10 +20,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Disconnect SSH connection
   sshDisconnect: (connectionId) => ipcRenderer.invoke('ssh-disconnect', connectionId),
   
+  // SFTP file upload
+  sshUploadFile: ({ connectionId, localPath, remotePath }) => ipcRenderer.invoke('ssh-upload-file', { connectionId, localPath, remotePath }),
+  
   onSSHData: (callback) => ipcRenderer.on('ssh-data', callback),
   
   // SSH connection close event
   onSSHClose: (callback) => ipcRenderer.on('ssh-closed', callback),
+  
+  // SFTP upload progress event
+  onSSHUploadProgress: (callback) => ipcRenderer.on('ssh-upload-progress', (event, data) => callback(data)),
+  offSSHUploadProgress: (callback) => ipcRenderer.off('ssh-upload-progress', callback),
   
   // Remove SSH event listeners
   offSSHData: (callback) => ipcRenderer.off('ssh-data', callback),
@@ -128,6 +135,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Show directory picker dialog
   showDirectoryPicker: (defaultPath) => ipcRenderer.invoke('show-directory-picker', defaultPath),
+  
+  // Show file picker dialog
+  showFilePicker: (defaultPath) => ipcRenderer.invoke('show-file-picker', defaultPath),
   
   // Library export/import
   exportLibrary: (libraryData, defaultFileName) => ipcRenderer.invoke('export-library', libraryData, defaultFileName),

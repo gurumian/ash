@@ -144,6 +144,71 @@ export function initializeSSHHandlers() {
     }
     return { success: false };
   });
+
+  // SFTP file upload
+  ipcMain.handle('ssh-upload-file', async (event, { connectionId, localPath, remotePath }) => {
+    const conn = sshConnections.get(connectionId);
+    if (!conn) {
+      throw new Error('SSH connection not found');
+    }
+
+    const fs = require('fs');
+    const path = require('path');
+
+    return new Promise((resolve, reject) => {
+      conn.sftp((err, sftp) => {
+        if (err) {
+          reject(new Error(`SFTP error: ${err.message}`));
+          return;
+        }
+
+        // Check if local file exists
+        if (!fs.existsSync(localPath)) {
+          reject(new Error(`Local file not found: ${localPath}`));
+          return;
+        }
+
+        // Get file stats for progress tracking
+        const stats = fs.statSync(localPath);
+        const fileSize = stats.size;
+
+        // Use fastPut for efficient file transfer
+        sftp.fastPut(
+          localPath,
+          remotePath,
+          {
+            concurrency: 64,
+            chunkSize: 32768,
+            step: (totalTransferred, chunk, total) => {
+              // Send progress updates
+              const progress = (totalTransferred / total) * 100;
+              const webContents = event.sender;
+              if (!webContents.isDestroyed()) {
+                webContents.send('ssh-upload-progress', {
+                  connectionId,
+                  progress,
+                  transferred: totalTransferred,
+                  total: total
+                });
+              }
+            }
+          },
+          (err) => {
+            if (err) {
+              reject(new Error(`Upload failed: ${err.message}`));
+            } else {
+              resolve({
+                success: true,
+                localPath,
+                remotePath,
+                fileSize
+              });
+            }
+          }
+        );
+      });
+    });
+  });
 }
 
 /**

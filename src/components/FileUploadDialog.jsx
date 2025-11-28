@@ -1,0 +1,559 @@
+import React, { useState, useEffect } from 'react';
+
+export function FileUploadDialog({ 
+  isOpen, 
+  onClose, 
+  sessionId, 
+  connectionId, 
+  libraries,
+  onUploadComplete 
+}) {
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [remotePath, setRemotePath] = useState('/tmp/');
+  const [autoExecute, setAutoExecute] = useState(false);
+  const [selectedLibraryId, setSelectedLibraryId] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [error, setError] = useState(null);
+  const [showLibraryDropdown, setShowLibraryDropdown] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      // Load cached file path from localStorage
+      const cachedFilePath = localStorage.getItem('ash-last-upload-file');
+      const cachedRemotePath = localStorage.getItem('ash-last-upload-remote-path') || '/tmp/';
+      const cachedAutoExecute = localStorage.getItem('ash-last-upload-auto-execute') === 'true';
+      const cachedLibraryId = localStorage.getItem('ash-last-upload-library-id');
+      
+      setSelectedFile(cachedFilePath || null);
+      setRemotePath(cachedRemotePath);
+      setAutoExecute(cachedAutoExecute);
+      setSelectedLibraryId(cachedLibraryId || null);
+      setUploading(false);
+      setProgress(0);
+      setError(null);
+      setShowLibraryDropdown(false);
+    }
+  }, [isOpen]);
+
+  const handleSelectFile = async () => {
+    try {
+      // Get cached file path for default path in file picker
+      const cachedFilePath = localStorage.getItem('ash-last-upload-file');
+      
+      const result = await window.electronAPI?.showFilePicker?.(cachedFilePath);
+      if (result?.success && result.filePath) {
+        setSelectedFile(result.filePath);
+        setError(null);
+        
+        // Cache the selected file path
+        localStorage.setItem('ash-last-upload-file', result.filePath);
+        
+        // Auto-set remote path based on filename if remote path is default
+        if (remotePath === '/tmp/' || (remotePath.startsWith('/tmp/') && remotePath.split('/').length === 3)) {
+          const pathParts = result.filePath.split(/[/\\]/);
+          const fileName = pathParts[pathParts.length - 1];
+          const newRemotePath = `/tmp/${fileName}`;
+          setRemotePath(newRemotePath);
+          localStorage.setItem('ash-last-upload-remote-path', newRemotePath);
+        }
+      }
+    } catch (err) {
+      setError(`Failed to select file: ${err.message}`);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile || !connectionId) {
+      setError('Please select a file');
+      return;
+    }
+
+    setUploading(true);
+    setError(null);
+    setProgress(0);
+
+    try {
+      // Set up progress listener
+      const progressHandler = (data) => {
+        if (data.connectionId === connectionId) {
+          setProgress(data.progress);
+        }
+      };
+      window.electronAPI?.onSSHUploadProgress?.(progressHandler);
+
+      // Upload file
+      const result = await window.electronAPI?.sshUploadFile?.({
+        connectionId,
+        localPath: selectedFile,
+        remotePath: remotePath
+      });
+
+      // Remove progress listener
+      window.electronAPI?.offSSHUploadProgress?.(progressHandler);
+
+      if (result?.success) {
+        // Extract filename from path
+        const pathParts = selectedFile.split(/[/\\]/);
+        const fileName = pathParts[pathParts.length - 1];
+        
+        // If auto-execute is enabled, execute library command
+        if (autoExecute && selectedLibraryId) {
+          const library = libraries.find(lib => lib.id === selectedLibraryId);
+          if (library && library.commands && library.commands.length > 0) {
+            // Use first command from library
+            const command = library.commands[0].command;
+            // Replace {filename} variable if present
+            const finalCommand = command.replace(/{filename}/g, fileName)
+                                       .replace(/{remotePath}/g, remotePath);
+            
+            // Execute command via SSH write
+            await window.electronAPI?.sshWrite?.(connectionId, finalCommand + '\r\n');
+          }
+        }
+
+        if (onUploadComplete) {
+          onUploadComplete({
+            fileName,
+            remotePath: result.remotePath,
+            fileSize: result.fileSize
+          });
+        }
+
+        onClose();
+      } else {
+        setError(result?.error || 'Upload failed');
+      }
+    } catch (err) {
+      setError(`Upload failed: ${err.message}`);
+    } finally {
+      setUploading(false);
+      setProgress(0);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  const fileName = selectedFile ? selectedFile.split(/[/\\]/).pop() : '';
+
+  return (
+    <div 
+      className="modal-overlay" 
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 10000
+      }}
+    >
+      <div 
+        className="connection-modal" 
+        onClick={(e) => {
+          e.stopPropagation();
+          // Close library dropdown when clicking outside
+          if (showLibraryDropdown) {
+            setShowLibraryDropdown(false);
+          }
+        }}
+        style={{
+          backgroundColor: '#000000',
+          border: '1px solid #1a1a1a',
+          borderRadius: '8px',
+          minWidth: '500px',
+          maxWidth: '600px',
+          maxHeight: '90vh',
+          overflowY: 'auto',
+          boxShadow: '0 4px 20px rgba(0, 255, 65, 0.2)'
+        }}
+      >
+        <div className="modal-header" style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '16px 20px',
+          borderBottom: '1px solid #1a1a1a'
+        }}>
+          <h3 style={{ margin: 0, color: '#00ff41', fontSize: '16px' }}>Upload File</h3>
+          <button 
+            className="modal-close"
+            onClick={onClose}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#00ff41',
+              fontSize: '24px',
+              cursor: 'pointer',
+              padding: 0,
+              width: '24px',
+              height: '24px',
+              lineHeight: '24px'
+            }}
+          >
+            ×
+          </button>
+        </div>
+        
+        <div style={{ padding: '20px' }}>
+          {/* File Selection */}
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', color: '#00ff41', fontSize: '13px' }}>
+              Local File
+            </label>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input
+                type="text"
+                value={fileName || 'No file selected'}
+                readOnly
+                style={{
+                  flex: 1,
+                  padding: '8px 12px',
+                  backgroundColor: '#000000',
+                  border: '1px solid #1a1a1a',
+                  borderRadius: '4px',
+                  color: '#00ff41',
+                  fontSize: '13px'
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleSelectFile}
+                disabled={uploading}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#1a1a1a',
+                  border: '1px solid #1a1a1a',
+                  borderRadius: '4px',
+                  color: '#00ff41',
+                  cursor: uploading ? 'not-allowed' : 'pointer',
+                  opacity: uploading ? 0.5 : 1
+                }}
+              >
+                Browse...
+              </button>
+            </div>
+          </div>
+
+          {/* Remote Path */}
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', color: '#00ff41', fontSize: '13px' }}>
+              Remote Path
+            </label>
+            <input
+              type="text"
+              value={remotePath}
+              onChange={(e) => {
+                setRemotePath(e.target.value);
+                localStorage.setItem('ash-last-upload-remote-path', e.target.value);
+              }}
+              disabled={uploading}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                backgroundColor: '#000000',
+                border: '1px solid #1a1a1a',
+                borderRadius: '4px',
+                color: '#00ff41',
+                fontSize: '13px'
+              }}
+            />
+          </div>
+
+          {/* Auto Execute Option */}
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={autoExecute}
+                onChange={(e) => {
+                  setAutoExecute(e.target.checked);
+                  localStorage.setItem('ash-last-upload-auto-execute', e.target.checked.toString());
+                  if (!e.target.checked) {
+                    setSelectedLibraryId(null);
+                    localStorage.removeItem('ash-last-upload-library-id');
+                  }
+                }}
+                disabled={uploading || libraries.length === 0}
+                style={{
+                  width: '16px',
+                  height: '16px',
+                  cursor: uploading || libraries.length === 0 ? 'not-allowed' : 'pointer'
+                }}
+              />
+              <span style={{ color: '#00ff41', fontSize: '13px' }}>
+                Execute command after upload
+              </span>
+            </label>
+            {autoExecute && libraries.length > 0 && (
+              <div style={{ marginTop: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowLibraryDropdown(!showLibraryDropdown)}
+                  disabled={uploading}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    backgroundColor: '#000000',
+                    border: '1px solid #1a1a1a',
+                    borderRadius: '4px',
+                    color: '#00ff41',
+                    fontSize: '13px',
+                    textAlign: 'left',
+                    cursor: uploading ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    opacity: uploading ? 0.5 : 1
+                  }}
+                >
+                  <span>
+                    {selectedLibraryId ? (() => {
+                      const selectedLib = libraries.find(lib => lib.id === selectedLibraryId);
+                      return selectedLib ? selectedLib.name : 'Select Library...';
+                    })() : 'Select Library...'}
+                  </span>
+                  <span style={{ fontSize: '10px', opacity: 0.7 }}>
+                    {showLibraryDropdown ? '▲' : '▼'}
+                  </span>
+                </button>
+                
+                {showLibraryDropdown && (
+                  <div
+                    style={{
+                      marginTop: '4px',
+                      backgroundColor: '#000000',
+                      border: '1px solid #1a1a1a',
+                      borderRadius: '4px',
+                      maxHeight: '300px',
+                      overflowY: 'auto',
+                      overflowX: 'hidden',
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)'
+                    }}
+                  >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedLibraryId(null);
+                          localStorage.removeItem('ash-last-upload-library-id');
+                          setShowLibraryDropdown(false);
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          backgroundColor: selectedLibraryId === null ? '#1a2a1a' : '#000000',
+                          border: 'none',
+                          borderBottom: '1px solid #1a1a1a',
+                          color: '#00ff41',
+                          fontSize: '13px',
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (selectedLibraryId !== null) {
+                            e.currentTarget.style.backgroundColor = '#1a1a1a';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (selectedLibraryId !== null) {
+                            e.currentTarget.style.backgroundColor = '#000000';
+                          }
+                        }}
+                      >
+                        <span style={{ opacity: 0.5 }}>—</span>
+                        <span>None</span>
+                      </button>
+                      {libraries.map(lib => {
+                        const isSelected = selectedLibraryId === lib.id;
+                        const commandCount = lib.commands?.length || 0;
+                        return (
+                          <button
+                            key={lib.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedLibraryId(lib.id);
+                              localStorage.setItem('ash-last-upload-library-id', lib.id);
+                              setShowLibraryDropdown(false);
+                            }}
+                            style={{
+                              width: '100%',
+                              padding: '10px 12px',
+                              backgroundColor: isSelected ? '#1a2a1a' : '#000000',
+                              border: 'none',
+                              borderBottom: '1px solid #1a1a1a',
+                              color: '#00ff41',
+                              fontSize: '13px',
+                              textAlign: 'left',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '4px'
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!isSelected) {
+                                e.currentTarget.style.backgroundColor = '#1a1a1a';
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!isSelected) {
+                                e.currentTarget.style.backgroundColor = '#000000';
+                              }
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ 
+                                fontWeight: isSelected ? 'bold' : 'normal',
+                                color: isSelected ? '#00ff41' : '#00ff41'
+                              }}>
+                                {lib.name}
+                              </span>
+                              <span style={{ 
+                                fontSize: '11px', 
+                                opacity: 0.5,
+                                marginLeft: 'auto'
+                              }}>
+                                ({commandCount})
+                              </span>
+                            </div>
+                            {lib.description && (
+                              <div style={{ 
+                                fontSize: '11px', 
+                                opacity: 0.6,
+                                fontStyle: 'italic',
+                                color: '#00ff41'
+                              }}>
+                                {lib.description}
+                              </div>
+                            )}
+                            {lib.commands && lib.commands.length > 0 && (
+                              <div style={{
+                                fontSize: '11px',
+                                opacity: 0.7,
+                                fontFamily: "'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace",
+                                color: '#00ff41',
+                                marginTop: '2px',
+                                wordBreak: 'break-all'
+                              }}>
+                                {lib.commands[0].command}
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                )}
+              </div>
+            )}
+            {libraries.length === 0 && (
+              <div style={{ 
+                marginTop: '8px', 
+                fontSize: '12px', 
+                color: '#ffaa00', 
+                opacity: 0.7 
+              }}>
+                No libraries available. Create a library first.
+              </div>
+            )}
+          </div>
+
+          {/* Progress Bar */}
+          {uploading && (
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                marginBottom: '4px',
+                fontSize: '12px',
+                color: '#00ff41',
+                opacity: 0.7
+              }}>
+                <span>Uploading...</span>
+                <span>{Math.round(progress)}%</span>
+              </div>
+              <div style={{
+                width: '100%',
+                height: '8px',
+                backgroundColor: '#1a1a1a',
+                borderRadius: '4px',
+                overflow: 'hidden'
+              }}>
+                <div style={{
+                  width: `${progress}%`,
+                  height: '100%',
+                  backgroundColor: '#00ff41',
+                  transition: 'width 0.3s ease'
+                }} />
+              </div>
+            </div>
+          )}
+
+          {/* Error Message */}
+          {error && (
+            <div style={{
+              marginBottom: '16px',
+              padding: '8px 12px',
+              backgroundColor: 'rgba(255, 68, 68, 0.1)',
+              border: '1px solid rgba(255, 68, 68, 0.3)',
+              borderRadius: '4px',
+              color: '#ff4444',
+              fontSize: '12px'
+            }}>
+              {error}
+            </div>
+          )}
+        </div>
+
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'flex-end', 
+          gap: '8px', 
+          padding: '16px 20px',
+          borderTop: '1px solid #1a1a1a'
+        }}>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={uploading}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: '#1a1a1a',
+              border: '1px solid #1a1a1a',
+              borderRadius: '4px',
+              color: '#00ff41',
+              cursor: uploading ? 'not-allowed' : 'pointer',
+              opacity: uploading ? 0.5 : 1
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleUpload}
+            disabled={!selectedFile || uploading}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: uploading ? '#1a1a1a' : '#00ff41',
+              border: '1px solid #00ff41',
+              borderRadius: '4px',
+              color: uploading ? '#666' : '#000000',
+              cursor: (!selectedFile || uploading) ? 'not-allowed' : 'pointer',
+              fontWeight: 'bold',
+              opacity: (!selectedFile || uploading) ? 0.5 : 1
+            }}
+          >
+            {uploading ? 'Uploading...' : 'Upload'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+

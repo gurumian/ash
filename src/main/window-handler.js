@@ -448,5 +448,36 @@ export function initializeWindowHandlers() {
       return { success: false, error: error.message };
     }
   });
+
+  // Show file picker dialog for upload
+  ipcMain.handle('show-file-picker', async (event, defaultPath) => {
+    try {
+      const focusedWindow = BrowserWindow.getFocusedWindow();
+      const dialogOptions = {
+        title: 'Select File to Upload',
+        properties: ['openFile'],
+        filters: [
+          { name: 'All Files', extensions: ['*'] }
+        ]
+      };
+      
+      // Set default path if provided
+      if (defaultPath) {
+        const path = require('path');
+        dialogOptions.defaultPath = path.dirname(defaultPath);
+      }
+      
+      const result = await dialog.showOpenDialog(focusedWindow || null, dialogOptions);
+      
+      if (result.canceled || result.filePaths.length === 0) {
+        return { success: false, canceled: true };
+      }
+      
+      return { success: true, filePath: result.filePaths[0] };
+    } catch (error) {
+      console.error('Failed to show file picker:', error);
+      return { success: false, error: error.message };
+    }
+  });
 }
 

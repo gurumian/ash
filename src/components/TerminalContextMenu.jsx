@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import './TerminalContextMenu.css';
 
-export function TerminalContextMenu({ visible, x, y, onCopy, onPaste, onSelectAll, onClose }) {
+export function TerminalContextMenu({ visible, x, y, onCopy, onPaste, onSelectAll, onUpload, isSSHSession, onClose }) {
   const menuRef = useRef(null);
 
   useEffect(() => {
@@ -94,6 +94,22 @@ export function TerminalContextMenu({ visible, x, y, onCopy, onPaste, onSelectAl
         <span className="context-menu-label">Select All</span>
         <span className="context-menu-shortcut">Ctrl+A</span>
       </button>
+      {isSSHSession && (
+        <>
+          <div className="context-menu-separator"></div>
+          <button 
+            className="context-menu-item"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onUpload();
+              onClose();
+            }}
+          >
+            <span className="context-menu-label">Upload...</span>
+          </button>
+        </>
+      )}
     </div>
   );
 }
