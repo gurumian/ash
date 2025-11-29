@@ -122,22 +122,34 @@ function setupWindowsCLI() {
       }
     }
 
-    // Create batch file that launches the app
+    // Create VBScript wrapper that launches the app without console window
+    // This is similar to how VSCode and Cursor work
+    const vbsPath = path.join(binDir, 'ash.vbs');
+    const vbsContent = `Set WshShell = CreateObject("WScript.Shell")
+WshShell.Run """${exePath}""" & " " & Join(Array(Join(WScript.Arguments, " ")), " "), 0, False
+Set WshShell = Nothing
+`;
+
+    // Also create a batch file that calls the VBScript (for compatibility)
     const batContent = `@echo off
 REM CLI wrapper for ash app
-REM Launches the app executable
-"${exePath}" %*
+REM Launches the app without console window
+cscript //nologo "%~dp0ash.vbs" %*
 `;
 
     try {
-      // Write batch file
+      // Write VBScript file
+      require('fs').writeFileSync(vbsPath, vbsContent, { encoding: 'utf8' });
+      console.log('[CLI Setup] Created CLI VBScript:', vbsPath);
+      
+      // Write batch file that calls VBScript
       require('fs').writeFileSync(batPath, batContent, { encoding: 'utf8' });
       console.log('[CLI Setup] Created CLI batch file:', batPath);
       
       // Add to user PATH
       addToWindowsPath(binDir);
     } catch (e) {
-      console.log('[CLI Setup] Could not create CLI batch file automatically');
+      console.log('[CLI Setup] Could not create CLI files automatically');
       console.error('[CLI Setup] Error:', e.message);
     }
   } catch (error) {
