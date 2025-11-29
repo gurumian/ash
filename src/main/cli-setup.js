@@ -94,64 +94,11 @@ function setupWindowsCLI() {
       return;
     }
 
-    // Create batch file in a directory that's typically in PATH
-    // Use %LOCALAPPDATA%\Programs\ash or create in user's local bin directory
-    const localAppData = process.env.LOCALAPPDATA || path.join(process.env.USERPROFILE, 'AppData', 'Local');
-    const binDir = path.join(localAppData, 'Programs', 'ash');
-    const batPath = path.join(binDir, 'ash.bat');
-
-    // Ensure bin directory exists
-    try {
-      require('fs').mkdirSync(binDir, { recursive: true });
-    } catch (e) {
-      // Directory might already exist
-    }
-
-    // Check if batch file already exists and is correct
-    if (existsSync(batPath)) {
-      try {
-        const content = require('fs').readFileSync(batPath, 'utf8');
-        if (content.includes(exePath)) {
-          console.log('[CLI Setup] CLI batch file already exists and is correct');
-          // Still try to add to PATH in case it's not there
-          addToWindowsPath(binDir);
-          return;
-        }
-      } catch (e) {
-        // Error reading, will recreate
-      }
-    }
-
-    // Create VBScript wrapper that launches the app without console window
-    // This is similar to how VSCode and Cursor work
-    const vbsPath = path.join(binDir, 'ash.vbs');
-    const vbsContent = `Set WshShell = CreateObject("WScript.Shell")
-WshShell.Run """${exePath}""" & " " & Join(Array(Join(WScript.Arguments, " ")), " "), 0, False
-Set WshShell = Nothing
-`;
-
-    // Also create a batch file that calls the VBScript (for compatibility)
-    const batContent = `@echo off
-REM CLI wrapper for ash app
-REM Launches the app without console window
-cscript //nologo "%~dp0ash.vbs" %*
-`;
-
-    try {
-      // Write VBScript file
-      require('fs').writeFileSync(vbsPath, vbsContent, { encoding: 'utf8' });
-      console.log('[CLI Setup] Created CLI VBScript:', vbsPath);
-      
-      // Write batch file that calls VBScript
-      require('fs').writeFileSync(batPath, batContent, { encoding: 'utf8' });
-      console.log('[CLI Setup] Created CLI batch file:', batPath);
-      
-      // Add to user PATH
-      addToWindowsPath(binDir);
-    } catch (e) {
-      console.log('[CLI Setup] Could not create CLI files automatically');
-      console.error('[CLI Setup] Error:', e.message);
-    }
+    // Just add the installation directory to PATH
+    // This is the simplest approach - just like VSCode and Cursor
+    // The executable itself will be in PATH, no wrapper needed
+    console.log('[CLI Setup] Adding installation directory to PATH:', installDir);
+    addToWindowsPath(installDir);
   } catch (error) {
     console.error('[CLI Setup] Error setting up Windows CLI:', error);
   }
