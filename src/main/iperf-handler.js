@@ -13,6 +13,9 @@ let iperfStreams = 1;
 let iperfBandwidth = null;
 let mainWindow = null;
 
+// Cache for found iperf3 full path (from isIperf3Available check)
+let cachedIperf3FullPath = null;
+
 /**
  * Set main window reference for error dialogs
  */
@@ -31,15 +34,19 @@ function isIperf3Available(binaryPath) {
     if (path.isAbsolute(binaryPath) || binaryPath.includes(path.sep)) {
       return fs.existsSync(binaryPath);
     }
-    // For system PATH binary, check using 'where' command
+    // For system PATH binary, try to execute it (same as actual execution)
     try {
-      const result = spawnSync('where', [binaryPath], { stdio: 'ignore' });
+      const result = spawnSync(binaryPath, ['--version'], { 
+        stdio: 'ignore',
+        timeout: 3000,
+        env: process.env
+      });
       return result.status === 0;
     } catch (e) {
       return false;
     }
   } else if (platform === 'darwin') {
-    // macOS: check common installation paths first, then try 'which'
+    // macOS: check common installation paths first, then try PATH
     // This handles packaged apps where PATH may be restricted
     if (binaryPath === 'iperf3' || !path.isAbsolute(binaryPath)) {
       // Common Homebrew paths
@@ -59,6 +66,8 @@ function isIperf3Available(binaryPath) {
               timeout: 3000
             });
             if (result.status === 0) {
+              // Cache the full path for actual execution
+              cachedIperf3FullPath = binPath;
               return true;
             }
           } catch (e) {
@@ -93,11 +102,32 @@ function isIperf3Available(binaryPath) {
       return false;
     }
   } else {
-    // Linux: use 'which' command (more efficient and reliable on Linux)
-    try {
-      const result = spawnSync('which', [binaryPath], { stdio: 'ignore' });
-      return result.status === 0;
-    } catch (e) {
+    // Linux: try to execute iperf3 from PATH (same as actual execution)
+    if (binaryPath === 'iperf3' || !path.isAbsolute(binaryPath)) {
+      try {
+        const result = spawnSync('iperf3', ['--version'], { 
+          stdio: 'ignore',
+          timeout: 3000,
+          env: process.env
+        });
+        return result.status === 0;
+      } catch (e) {
+        return false;
+      }
+    } else {
+      // Full path provided, check if it exists and is executable
+      if (fs.existsSync(binaryPath)) {
+        try {
+          const result = spawnSync(binaryPath, ['--version'], { 
+            stdio: 'ignore',
+            timeout: 3000,
+            env: process.env
+          });
+          return result.status === 0;
+        } catch (e) {
+          return false;
+        }
+      }
       return false;
     }
   }
@@ -105,14 +135,14 @@ function isIperf3Available(binaryPath) {
 
 /**
  * Get iperf3 binary path
- * - Windows: Use bundled binary from assets/bin
- * - macOS/Linux: Use system iperf3 (brew install iperf3 / apt-get install iperf3)
+ * - Windows: Use bundled binary from assets/bin (if exists) or system iperf3.exe
+ * - macOS/Linux: Use cached full path if available, otherwise use system iperf3
  */
 function getIperf3BinaryPath() {
   const platform = process.platform;
   const binaryName = platform === 'win32' ? 'iperf3.exe' : 'iperf3';
   
-  // Windows: Use bundled binary
+  // Windows: Use bundled binary (if exists) or system iperf3.exe
   if (platform === 'win32') {
     // In development
     if (!app.isPackaged) {
@@ -133,7 +163,12 @@ function getIperf3BinaryPath() {
     return 'iperf3.exe';
   }
   
-  // macOS/Linux: Use system iperf3
+  // macOS/Linux: Use cached full path if available (from isIperf3Available check)
+  if (cachedIperf3FullPath) {
+    return cachedIperf3FullPath;
+  }
+  
+  // Fallback to system iperf3 (will try PATH)
   return 'iperf3';
 }
 
@@ -141,6 +176,8 @@ function getIperf3BinaryPath() {
  * Check if iperf3 is available on the system
  */
 export function checkIperf3Available() {
+  // Clear cache to force re-check
+  cachedIperf3FullPath = null;
   const binaryPath = getIperf3BinaryPath();
   return isIperf3Available(binaryPath);
 }
