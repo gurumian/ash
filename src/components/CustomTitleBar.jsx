@@ -17,6 +17,7 @@ export function CustomTitleBar({
   onToggleDevTools,
   onTftpServer,
   onWebServer,
+  onIperfServer,
   showSessionManager,
   onToggleSessionManager,
 }) {
@@ -93,6 +94,7 @@ export function CustomTitleBar({
       items: [
         { label: 'TFTP Server', shortcut: 'Ctrl+Shift+T', onClick: onTftpServer },
         { label: 'Web Server', shortcut: 'Ctrl+Shift+W', onClick: onWebServer },
+        { label: 'iperf3 Server', shortcut: 'Ctrl+Shift+I', onClick: onIperfServer },
       ],
     },
     {

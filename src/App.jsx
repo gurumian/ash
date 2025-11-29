@@ -785,6 +785,7 @@ function App() {
           }}
           onTftpServer={() => setShowTftpServerDialog(true)}
           onWebServer={() => setShowWebServerDialog(true)}
+          onIperfServer={() => setShowIperfServerDialog(true)}
           showSessionManager={showSessionManager}
           onToggleSessionManager={(checked) => {
             setShowSessionManager(checked);

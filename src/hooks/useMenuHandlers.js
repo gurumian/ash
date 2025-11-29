@@ -13,6 +13,7 @@ export function useMenuHandlers({
   setShowAboutDialog,
   setShowTftpServerDialog,
   setShowWebServerDialog,
+  setShowIperfServerDialog,
   setShowAICommandInput,
   setAppInfo,
   disconnectSession,
@@ -162,6 +163,11 @@ export function useMenuHandlers({
       setShowWebServerDialog(true);
     });
 
+    // iperf3 Server menu event
+    window.electronAPI.onMenuIperfServer?.(() => {
+      setShowIperfServerDialog(true);
+    });
+
     // AI Command menu event
     window.electronAPI.onMenuAICommand(() => {
       if (activeSessionIdRef.current) {
@@ -179,6 +185,7 @@ export function useMenuHandlers({
       window.electronAPI.removeAllListeners('menu-about');
       window.electronAPI.removeAllListeners('menu-tftp-server');
       window.electronAPI.removeAllListeners('menu-web-server');
+      window.electronAPI.removeAllListeners('menu-iperf-server');
       window.electronAPI.removeAllListeners('menu-ai-command');
       window.electronAPI.removeAllListeners('update-status-log');
       window.electronAPI.removeAllListeners('update-available');
