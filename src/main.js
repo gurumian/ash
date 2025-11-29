@@ -8,6 +8,7 @@ import { initializeWindowHandlers } from './main/window-handler.js';
 import { initializeUpdateHandlers, cleanupUpdateHandlers, scheduleStartupCheck } from './main/update-handler.js';
 import { initializeTftpHandlers, cleanupTftpServer, setMainWindow as setTftpMainWindow } from './main/tftp-handler.js';
 import { initializeWebHandlers, cleanupWebServer, setMainWindow as setWebMainWindow } from './main/web-handler.js';
+import { initializeIperfHandlers, cleanupIperfServer, setMainWindow as setIperfMainWindow } from './main/iperf-handler.js';
 
 // Set app name
 app.setName('ash');
@@ -23,6 +24,7 @@ initializeSerialHandlers();
 initializeWindowHandlers();
 initializeTftpHandlers();
 initializeWebHandlers();
+initializeIperfHandlers();
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
@@ -31,9 +33,10 @@ app.whenReady().then(() => {
   createMenu(); // Create system menu
   const mainWindow = createWindow();
   
-  // Set main window reference for TFTP and Web handlers
+  // Set main window reference for TFTP, Web, and iperf handlers
   setTftpMainWindow(mainWindow);
   setWebMainWindow(mainWindow);
+  setIperfMainWindow(mainWindow);
 
   // Initialize update handlers after app is ready
   initializeUpdateHandlers(scheduleStartupCheck);
@@ -59,4 +62,5 @@ app.on('before-quit', () => {
   cleanupUpdateHandlers();
   cleanupTftpServer();
   cleanupWebServer();
+  cleanupIperfServer();
 });

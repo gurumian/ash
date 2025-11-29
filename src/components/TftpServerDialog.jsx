@@ -8,13 +8,59 @@ export function TftpServerDialog({ isOpen, onClose }) {
   const [outputDir, setOutputDir] = useState(null); // null = use default, string = user selected
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [endpoints, setEndpoints] = useState([]);
 
   // Load current status when dialog opens
   useEffect(() => {
     if (isOpen) {
       loadStatus();
+      loadEndpoints();
     }
-  }, [isOpen]);
+  }, [isOpen, status.running, status.port, host]);
+
+  const loadEndpointsForStatus = async (statusToUse = status) => {
+    if (!statusToUse.running || !statusToUse.port) {
+      setEndpoints([]);
+      return;
+    }
+
+    try {
+      // If host is 0.0.0.0, get all network interfaces
+      if (host === '0.0.0.0') {
+        const result = await window.electronAPI?.getNetworkInterfaces?.();
+        if (result?.success && result.addresses) {
+          const eps = result.addresses.map(addr => ({
+            endpoint: `${addr.address}:${statusToUse.port}`,
+            address: addr.address,
+            internal: addr.internal,
+            interface: addr.interface
+          }));
+          setEndpoints(eps);
+        } else {
+          // Fallback to localhost if network interfaces can't be retrieved
+          setEndpoints([
+            { endpoint: `localhost:${statusToUse.port}`, address: 'localhost', internal: true },
+            { endpoint: `127.0.0.1:${statusToUse.port}`, address: '127.0.0.1', internal: true }
+          ]);
+        }
+      } else {
+        // If specific host, just show that one
+        setEndpoints([
+          { endpoint: `${host}:${statusToUse.port}`, address: host, internal: host === 'localhost' || host === '127.0.0.1' }
+        ]);
+      }
+    } catch (err) {
+      console.error('Failed to load TFTP endpoints:', err);
+      // Fallback to localhost
+      setEndpoints([
+        { endpoint: `localhost:${statusToUse.port}`, address: 'localhost', internal: true }
+      ]);
+    }
+  };
+
+  const loadEndpoints = () => {
+    loadEndpointsForStatus();
+  };
 
   const loadStatus = async () => {
     try {
@@ -64,6 +110,14 @@ export function TftpServerDialog({ isOpen, onClose }) {
           port: result.port,
           outputDir: result.outputDir
         });
+        // Load endpoints after server starts
+        setTimeout(() => {
+          loadEndpointsForStatus({
+            running: true,
+            port: result.port,
+            outputDir: result.outputDir
+          });
+        }, 100);
       } else {
         setError(result?.error || 'Failed to start TFTP server');
       }
@@ -86,6 +140,7 @@ export function TftpServerDialog({ isOpen, onClose }) {
         // Reload status to get the current outputDir from server
         // This preserves the selected directory even after stopping
         await loadStatus();
+        setEndpoints([]);
       } else {
         setError(result?.error || 'Failed to stop TFTP server');
       }
@@ -168,6 +223,42 @@ export function TftpServerDialog({ isOpen, onClose }) {
                   <div className="tftp-status-item">
                     <span className="tftp-status-label">Host</span>
                     <span className="tftp-status-value">{host}</span>
+                  </div>
+                  <div className="tftp-status-item">
+                    <span className="tftp-status-label">Accessible Endpoints</span>
+                    <div className="tftp-endpoints-list">
+                      {endpoints.length > 0 ? (
+                        endpoints.map((item, index) => (
+                          <div key={index} className="tftp-endpoint-item">
+                            <span 
+                              className="tftp-endpoint-value" 
+                              title={item.endpoint}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handlePathCopy(e, item.endpoint);
+                              }}
+                            >
+                              {item.endpoint}
+                            </span>
+                            <button 
+                              className="tftp-copy-endpoint-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handlePathCopy(e, item.endpoint);
+                              }}
+                              title="Copy endpoint"
+                            >
+                              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M4 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                                <path d="M2 6h10a2 2 0 0 1 2 2v6" stroke="currentColor" strokeWidth="1.5" fill="none" strokeDasharray="2 2"/>
+                              </svg>
+                            </button>
+                          </div>
+                        ))
+                      ) : (
+                        <span className="tftp-endpoint-value">Loading...</span>
+                      )}
+                    </div>
                   </div>
                   {status.outputDir && (
                     <div className="tftp-status-item">

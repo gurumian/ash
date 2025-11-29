@@ -55,6 +55,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onMenuCloseSession: (callback) => ipcRenderer.on('menu-close-session', callback),
   onMenuToggleSessionManager: (callback) => ipcRenderer.on('menu-toggle-session-manager', callback),
   onMenuSettings: (callback) => ipcRenderer.on('menu-settings', callback),
+  onMenuIperfServer: (callback) => ipcRenderer.on('menu-iperf-server', callback),
   onMenuCheckUpdates: (callback) => ipcRenderer.on('menu-check-updates', callback),
   onMenuAbout: (callback) => ipcRenderer.on('menu-about', callback),
   onMenuTftpServer: (callback) => ipcRenderer.on('menu-tftp-server', callback),
@@ -160,9 +161,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
   webStart: (params) => ipcRenderer.invoke('web-start', params),
   webStop: () => ipcRenderer.invoke('web-stop'),
   webGetRootDir: () => ipcRenderer.invoke('web-get-root-dir'),
-  webGetNetworkInterfaces: () => ipcRenderer.invoke('web-get-network-interfaces'),
+  
+  // Shared network interfaces API
+  getNetworkInterfaces: () => ipcRenderer.invoke('net-get-network-interfaces'),
   onWebServerError: (callback) => ipcRenderer.on('web-server-error', (event, data) => callback(data)),
   offWebServerError: (callback) => ipcRenderer.off('web-server-error', callback),
+  
+  // iperf3 Server APIs
+  iperfStatus: () => ipcRenderer.invoke('iperf-status'),
+  iperfStart: (params) => ipcRenderer.invoke('iperf-start', params),
+  iperfStop: () => ipcRenderer.invoke('iperf-stop'),
+  onIperfServerError: (callback) => ipcRenderer.on('iperf-server-error', (event, data) => callback(data)),
+  offIperfServerError: (callback) => ipcRenderer.off('iperf-server-error', callback),
+  onIperfServerStopped: (callback) => ipcRenderer.on('iperf-server-stopped', (event, data) => callback(data)),
+  offIperfServerStopped: (callback) => ipcRenderer.off('iperf-server-stopped', callback),
   
   // TFTP Server error events
   onTftpServerError: (callback) => ipcRenderer.on('tftp-server-error', (event, data) => callback(data)),

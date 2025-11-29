@@ -27,7 +27,7 @@ export function WebServerDialog({ isOpen, onClose }) {
     try {
       // If host is 0.0.0.0, get all network interfaces
       if (host === '0.0.0.0') {
-        const result = await window.electronAPI?.webGetNetworkInterfaces?.();
+        const result = await window.electronAPI?.getNetworkInterfaces?.();
         if (result?.success && result.addresses) {
           const urls = result.addresses.map(addr => ({
             url: `http://${addr.address}:${statusToUse.port}`,

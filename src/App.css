@@ -652,6 +652,27 @@ button, a, input, select, textarea, [role="button"] {
   gap: 12px;
 }
 
+/* Clickable server indicators in status bar */
+.status-indicator {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.status-indicator:focus {
+  outline: none;
+}
+
+.status-indicator:hover {
+  opacity: 1;
+}
+
 .status-tftp-indicator {
   color: #00ff41;
   opacity: 0.8;
@@ -659,6 +680,12 @@ button, a, input, select, textarea, [role="button"] {
 }
 
 .status-web-indicator {
+  color: #00ff41;
+  opacity: 0.8;
+  font-size: 11px;
+}
+
+.status-iperf-indicator {
   color: #00ff41;
   opacity: 0.8;
   font-size: 11px;

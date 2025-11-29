@@ -1,6 +1,7 @@
 import { ipcMain, BrowserWindow, app, shell, dialog } from 'electron';
 import path from 'node:path';
 import fs from 'fs';
+import os from 'node:os';
 
 /**
  * Initialize window-related IPC handlers
@@ -356,6 +357,39 @@ export function initializeWindowHandlers() {
       return { success: true };
     } catch (error) {
       console.error('Failed to open path:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Get network interfaces (shared by TFTP/Web/iperf dialogs)
+  ipcMain.handle('net-get-network-interfaces', async () => {
+    try {
+      const interfaces = os.networkInterfaces();
+      const addresses = [];
+      
+      // Always include localhost addresses
+      addresses.push({ address: 'localhost', family: 'IPv4', internal: true });
+      addresses.push({ address: '127.0.0.1', family: 'IPv4', internal: true });
+      
+      // Get all IPv4 addresses (both internal and external)
+      for (const [name, ifaces] of Object.entries(interfaces)) {
+        if (!ifaces) continue;
+        for (const iface of ifaces) {
+          const isIPv4 = iface.family === 'IPv4' || iface.family === 4;
+          if (isIPv4) {
+            addresses.push({
+              address: iface.address,
+              family: 'IPv4',
+              internal: iface.internal || false,
+              interface: name
+            });
+          }
+        }
+      }
+      
+      return { success: true, addresses };
+    } catch (error) {
+      console.error('[Network] Failed to get network interfaces:', error);
       return { success: false, error: error.message };
     }
   });

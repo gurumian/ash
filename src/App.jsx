@@ -36,6 +36,7 @@ import { LibraryDialog } from './components/LibraryDialog';
 import { LibraryImportDialog } from './components/LibraryImportDialog';
 import { TftpServerDialog } from './components/TftpServerDialog';
 import { WebServerDialog } from './components/WebServerDialog';
+import { IperfServerDialog } from './components/IperfServerDialog';
 import { FileUploadDialog } from './components/FileUploadDialog';
 
 function App() {
@@ -168,6 +169,8 @@ function App() {
   const [tftpStatus, setTftpStatus] = useState({ running: false, port: null });
   const [showWebServerDialog, setShowWebServerDialog] = useState(false);
   const [webStatus, setWebStatus] = useState({ running: false, port: null });
+  const [iperfStatus, setIperfStatus] = useState({ running: false, port: null });
+  const [showIperfServerDialog, setShowIperfServerDialog] = useState(false);
   const [appInfo, setAppInfo] = useState({ version: '', author: { name: 'Bryce Ghim', email: 'admin@toktoktalk.com' } });
   
   // Load app info on mount
@@ -228,6 +231,28 @@ function App() {
 
     // Check periodically (every 10 seconds to reduce overhead)
     const interval = setInterval(loadWebStatus, 10000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Load iperf3 server status on mount and periodically check
+  useEffect(() => {
+    const loadIperfStatus = async () => {
+      try {
+        const status = await window.electronAPI?.iperfStatus?.();
+        if (status) {
+          setIperfStatus(status);
+        }
+      } catch (error) {
+        console.error('Failed to load iperf3 status:', error);
+      }
+    };
+
+    // Load immediately
+    loadIperfStatus();
+
+    // Check periodically (every 10 seconds to reduce overhead)
+    const interval = setInterval(loadIperfStatus, 10000);
 
     return () => clearInterval(interval);
   }, []);
@@ -666,6 +691,7 @@ function App() {
     setShowAboutDialog,
     setShowTftpServerDialog,
     setShowWebServerDialog,
+    setShowIperfServerDialog,
     setShowAICommandInput,
     setAppInfo,
     disconnectSession,
@@ -1102,6 +1128,10 @@ function App() {
         sessionsCount={sessions.length}
         tftpStatus={tftpStatus}
         webStatus={webStatus}
+        iperfStatus={iperfStatus}
+        onTftpClick={() => setShowTftpServerDialog(true)}
+        onWebClick={() => setShowWebServerDialog(true)}
+        onIperfClick={() => setShowIperfServerDialog(true)}
       />
 
       {/* Connection form modal */}
@@ -1262,6 +1292,12 @@ function App() {
       <WebServerDialog
         isOpen={showWebServerDialog}
         onClose={() => setShowWebServerDialog(false)}
+      />
+
+      {/* iperf3 Server Dialog */}
+      <IperfServerDialog
+        isOpen={showIperfServerDialog}
+        onClose={() => setShowIperfServerDialog(false)}
       />
 
       <FileUploadDialog

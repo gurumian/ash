@@ -1,9 +1,18 @@
 import React, { memo } from 'react';
 
 /**
- * Status Bar component - Bottom status bar showing connection info and session count
+ * Status Bar component - Bottom status bar showing connection info, servers, and session count
  */
-export const StatusBar = memo(function StatusBar({ activeSession, sessionsCount, tftpStatus, webStatus }) {
+export const StatusBar = memo(function StatusBar({ 
+  activeSession, 
+  sessionsCount, 
+  tftpStatus, 
+  webStatus,
+  iperfStatus,
+  onTftpClick,
+  onWebClick,
+  onIperfClick,
+}) {
   const getConnectionText = () => {
     if (!activeSession) {
       return 'Ready';
@@ -21,14 +30,34 @@ export const StatusBar = memo(function StatusBar({ activeSession, sessionsCount,
       <div className="status-left">
         <span>{getConnectionText()}</span>
         {tftpStatus?.running && (
-          <span className="status-tftp-indicator" title={`TFTP Server: UDP/${tftpStatus.port}`}>
+          <button 
+            type="button"
+            className="status-indicator status-tftp-indicator" 
+            title={`TFTP Server: UDP/${tftpStatus.port}\nClick to open TFTP dialog`}
+            onClick={onTftpClick}
+          >
             • TFTP: UDP/{tftpStatus.port}
-          </span>
+          </button>
         )}
         {webStatus?.running && (
-          <span className="status-web-indicator" title={`Web Server: HTTP/${webStatus.port}`}>
+          <button 
+            type="button"
+            className="status-indicator status-web-indicator" 
+            title={`Web Server: HTTP/${webStatus.port}\nClick to open Web Server dialog`}
+            onClick={onWebClick}
+          >
             • Web: HTTP/{webStatus.port}
-          </span>
+          </button>
+        )}
+        {iperfStatus?.running && (
+          <button 
+            type="button"
+            className="status-indicator status-iperf-indicator" 
+            title={`iperf3 Server: TCP/${iperfStatus.port}\nClick to open iperf3 dialog`}
+            onClick={onIperfClick}
+          >
+            • iperf3: TCP/{iperfStatus.port}
+          </button>
         )}
       </div>
       <div className="status-right">

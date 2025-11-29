@@ -277,39 +277,7 @@ export function initializeWebHandlers() {
     return { rootDir: rootDir || null };
   });
 
-  // Get network interfaces (for displaying all accessible URLs)
-  ipcMain.handle('web-get-network-interfaces', async () => {
-    try {
-      const interfaces = os.networkInterfaces();
-      const addresses = [];
-      
-      // Always include localhost addresses (these are internal/local)
-      addresses.push({ address: 'localhost', family: 'IPv4', internal: true });
-      addresses.push({ address: '127.0.0.1', family: 'IPv4', internal: true });
-      
-      // Get all IPv4 addresses (both internal and external)
-      for (const [name, ifaces] of Object.entries(interfaces)) {
-        if (!ifaces) continue;
-        for (const iface of ifaces) {
-          // Check for IPv4 (can be 'IPv4' string or 4 number depending on Node.js version)
-          const isIPv4 = iface.family === 'IPv4' || iface.family === 4;
-          if (isIPv4) {
-            addresses.push({
-              address: iface.address,
-              family: 'IPv4',
-              internal: iface.internal || false, // Ensure boolean
-              interface: name
-            });
-          }
-        }
-      }
-      
-      return { success: true, addresses };
-    } catch (error) {
-      console.error('[Web Server] Failed to get network interfaces:', error);
-      return { success: false, error: error.message };
-    }
-  });
+  // Network interfaces handler moved to window-handler (net-get-network-interfaces)
 
   // Stop Web Server
   ipcMain.handle('web-stop', async () => {

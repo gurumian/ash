@@ -1,9 +1,54 @@
 import { app, BrowserWindow, Menu } from 'electron';
+import fs from 'node:fs';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+
+/**
+ * Check if iperf3 is available on this system.
+ * - Windows: prefer bundled binary in assets/bin/win32/x64/iperf3.exe, fallback to system PATH
+ * - macOS/Linux: check system PATH for iperf3
+ */
+function isIperfAvailable() {
+  const platform = process.platform;
+
+  try {
+    if (platform === 'win32') {
+      const binaryName = 'iperf3.exe';
+
+      // Check bundled binary first (production)
+      const resourcesPath = process.resourcesPath || app.getAppPath();
+      const bundledPath = path.join(resourcesPath, 'assets', 'bin', 'win32', 'x64', binaryName);
+      if (fs.existsSync(bundledPath)) {
+        return true;
+      }
+
+      // In development, also check project assets path
+      const devBundledPath = path.join(__dirname, '../../assets/bin', 'win32', 'x64', binaryName);
+      if (fs.existsSync(devBundledPath)) {
+        return true;
+      }
+
+      // Fallback: check system PATH (where iperf3.exe)
+      const result = spawnSync('where', [binaryName], { stdio: 'ignore' });
+      return result.status === 0;
+    }
+
+    // macOS / Linux: check system PATH (which iperf3)
+    const result = spawnSync('which', ['iperf3'], { stdio: 'ignore' });
+    return result.status === 0;
+  } catch (e) {
+    // If any error occurs, treat as not available
+    console.warn('Failed to detect iperf3 availability:', e.message);
+    return false;
+  }
+}
 
 /**
  * Creates the application menu
  */
 export function createMenu() {
+  const iperfAvailable = isIperfAvailable();
+
   const template = [
     {
       label: 'File',
@@ -125,6 +170,23 @@ export function createMenu() {
               }
             } catch (error) {
               console.error('Failed to send menu-web-server:', error);
+            }
+          }
+        },
+        {
+          label: 'iperf3 Server',
+          accelerator: 'CmdOrCtrl+Shift+I',
+          enabled: iperfAvailable,
+          // Lightweight hint instead of tooltip
+          sublabel: iperfAvailable ? '' : 'Install iperf3 to enable',
+          click: () => {
+            const focusedWindow = BrowserWindow.getFocusedWindow();
+            try {
+              if (focusedWindow && !focusedWindow.isDestroyed() && !focusedWindow.webContents.isDestroyed()) {
+                focusedWindow.webContents.send('menu-iperf-server');
+              }
+            } catch (error) {
+              console.error('Failed to send menu-iperf-server:', error);
             }
           }
         }
