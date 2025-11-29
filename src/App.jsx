@@ -18,6 +18,7 @@ import { useDragAndDrop } from './hooks/useDragAndDrop';
 import { useTerminalManagement } from './hooks/useTerminalManagement';
 import { useConnectionManagement } from './hooks/useConnectionManagement';
 import { useAppHandlers } from './hooks/useAppHandlers';
+import { useAICommand } from './hooks/useAICommand';
 import { CustomTitleBar } from './components/CustomTitleBar';
 import { SessionManager } from './components/SessionManager';
 import { TerminalView } from './components/TerminalView';
@@ -30,7 +31,6 @@ import { ErrorDialog } from './components/ErrorDialog';
 import { TerminalContextMenu } from './components/TerminalContextMenu';
 import { TerminalSearchBar } from './components/TerminalSearchBar';
 import { TerminalAICommandInput } from './components/TerminalAICommandInput';
-import LLMService from './services/llm-service';
 import { SessionDialog } from './components/SessionDialog';
 import { LibraryDialog } from './components/LibraryDialog';
 import { LibraryImportDialog } from './components/LibraryImportDialog';
@@ -462,6 +462,17 @@ function App() {
     setShowGroupNameDialog,
     setNewGroupName,
     setPendingSessionForGroup
+  });
+
+  // AI Command hook
+  const { executeAICommand } = useAICommand({
+    activeSessionId,
+    terminalInstances,
+    sshConnections,
+    llmSettings,
+    setErrorDialog,
+    setIsAIProcessing,
+    setShowAICommandInput
   });
 
   // Resize handle refs
@@ -949,135 +960,7 @@ function App() {
               return newValue;
             });
           }}
-          onExecuteAICommand={async (naturalLanguage) => {
-            setIsAIProcessing(true);
-            try {
-              if (process.env.NODE_ENV === 'development') {
-                console.log('AI Command requested:', naturalLanguage);
-              }
-              
-              if (!llmSettings?.enabled) {
-                throw new Error('LLM is not enabled. Please enable it in Settings.');
-              }
-
-              // Show AI request in terminal (grey color)
-              if (activeSessionId && terminalInstances.current[activeSessionId]) {
-                terminalInstances.current[activeSessionId].write(`\r\n\x1b[90m# AI: ${naturalLanguage}\x1b[0m\r\n`);
-              }
-
-              // Create LLM service instance
-              const llmService = new LLMService(llmSettings);
-              
-              // Get current directory context (if available)
-              const context = {
-                currentDirectory: 'unknown' // TODO: Get actual current directory from terminal
-              };
-
-              // Convert natural language to command with streaming
-              if (process.env.NODE_ENV === 'development') {
-                console.log('Calling LLM service...');
-              }
-              
-              // Optimized: Use array for efficient string building
-              const streamingChunks = [];
-              const terminal = activeSessionId && terminalInstances.current[activeSessionId];
-              
-              // Show streaming indicator
-              if (terminal) {
-                terminal.write(`\r\n\x1b[90m# Generating command...\x1b[0m\r\n`);
-              }
-              
-              const command = await llmService.convertToCommand(
-                naturalLanguage, 
-                context,
-                // Streaming callback
-                (chunk) => {
-                  streamingChunks.push(chunk);
-                  // Show streaming text in terminal (grey color, overwrite previous line)
-                  if (terminal) {
-                    // Join array efficiently only for display
-                    const streamingText = streamingChunks.join('');
-                    // Clear previous line and show current text
-                    // Use carriage return to overwrite the line
-                    terminal.write(`\r\x1b[K\x1b[90m# Generating: ${streamingText}\x1b[0m`);
-                  }
-                }
-              );
-              
-              if (process.env.NODE_ENV === 'development') {
-                console.log('LLM returned command:', command);
-              }
-
-              // Clear streaming line and show final command
-              if (terminal) {
-                // Clear the streaming line and move to new line
-                terminal.write(`\r\x1b[K`); // Clear to end of line
-                terminal.write(`\x1b[90m# Generated command: ${command}\x1b[0m\r\n`);
-              }
-
-              // Execute command in active session
-              if (activeSessionId && sshConnections.current[activeSessionId]) {
-                const connection = sshConnections.current[activeSessionId];
-                if (connection.isConnected) {
-                  // Write command to terminal
-                  connection.write(command + '\r\n');
-                  if (process.env.NODE_ENV === 'development') {
-                    console.log('Command executed:', command);
-                  }
-                } else {
-                  throw new Error('Session is not connected');
-                }
-              } else {
-                throw new Error('No active session');
-              }
-            } catch (error) {
-              console.error('AI Command error:', error);
-              
-              // Determine error type and show appropriate dialog
-              let errorTitle = 'AI Command Error';
-              let errorMessage = 'Failed to process AI command';
-              let errorDetail = error.message;
-
-              // Check for specific error types
-              if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError') || error.message.includes('ECONNREFUSED')) {
-                errorTitle = 'Connection Error';
-                errorMessage = 'Cannot connect to LLM service';
-                if (llmSettings?.provider === 'ollama') {
-                  errorDetail = `Cannot connect to Ollama at ${llmSettings.baseURL}\n\nPlease make sure:\n1. Ollama is running\n2. The base URL is correct (default: http://localhost:11434)\n3. The model "${llmSettings.model}" is installed`;
-                } else {
-                  errorDetail = `Cannot connect to ${llmSettings?.provider} API.\n\nPlease check:\n1. Your internet connection\n2. API key is correct\n3. Base URL is correct`;
-                }
-              } else if (error.message.includes('API key') || error.message.includes('401') || error.message.includes('403')) {
-                errorTitle = 'Authentication Error';
-                errorMessage = 'Invalid API key';
-                errorDetail = `Please check your ${llmSettings?.provider} API key in Settings.`;
-              } else if (error.message.includes('not enabled')) {
-                errorTitle = 'LLM Not Enabled';
-                errorMessage = 'AI command assistance is disabled';
-                errorDetail = 'Please enable "Enable AI command assistance" in Settings.';
-              } else if (error.message.includes('No active session')) {
-                errorTitle = 'No Active Session';
-                errorMessage = 'No active terminal session';
-                errorDetail = 'Please connect to a session first.';
-              } else if (error.message.includes('not connected')) {
-                errorTitle = 'Session Not Connected';
-                errorMessage = 'The current session is not connected';
-                errorDetail = 'Please reconnect to the session.';
-              }
-
-              // Show error dialog
-              setErrorDialog({
-                isOpen: true,
-                title: errorTitle,
-                message: errorMessage,
-                detail: errorDetail,
-                error: error // Pass original error for system info
-              });
-            } finally {
-              setIsAIProcessing(false);
-              setShowAICommandInput(false);
-            }
-          }}
+          onExecuteAICommand={executeAICommand}
           isAIProcessing={isAIProcessing}
         />
         
