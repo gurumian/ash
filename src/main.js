@@ -39,7 +39,7 @@ app.whenReady().then(() => {
   setWebMainWindow(mainWindow);
   setIperfMainWindow(mainWindow);
 
-  // Setup CLI command on first run (macOS and Windows)
+  // Setup CLI command on first run (macOS: creates symlink, Windows: PATH added during installation)
   if (app.isPackaged) {
     setupCLISymlink();
   }

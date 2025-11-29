@@ -18,6 +18,8 @@ const makers = [
       createDesktopShortcut: true,
       createStartMenuShortcut: true,
       shortcutName: 'ash',
+      // Include custom NSIS script to add installation directory to PATH
+      includeCustomNSIS: path.resolve(__dirname, 'installer.nsh'),
     },
   },
   {
