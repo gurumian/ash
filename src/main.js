@@ -39,8 +39,8 @@ app.whenReady().then(() => {
   setWebMainWindow(mainWindow);
   setIperfMainWindow(mainWindow);
 
-  // Setup CLI symlink on first run (macOS only)
-  if (process.platform === 'darwin' && app.isPackaged) {
+  // Setup CLI command on first run (macOS and Windows)
+  if (app.isPackaged) {
     setupCLISymlink();
   }
 

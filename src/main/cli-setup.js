@@ -5,14 +5,21 @@ import { app } from 'electron';
 
 /**
  * Setup CLI wrapper script for ash command
- * Creates a wrapper script in /usr/local/bin/ash that uses 'open' command
- * This ensures the app runs in proper GUI environment
+ * Creates a wrapper script that allows running the app from terminal
+ * - macOS: /usr/local/bin/ash (uses 'open' command)
+ * - Windows: %LOCALAPPDATA%\Programs\ash\ash.bat (batch file)
  * Similar to how VSCode and Cursor work
  */
 export function setupCLISymlink() {
-  if (process.platform !== 'darwin') {
-    return; // Only for macOS
+  if (process.platform === 'darwin') {
+    setupMacOSCLI();
+  } else if (process.platform === 'win32') {
+    setupWindowsCLI();
   }
+  // Linux support can be added later if needed
+}
+
+function setupMacOSCLI() {
 
   try {
     const symlinkPath = '/usr/local/bin/ash';
@@ -71,6 +78,58 @@ exec open -a "${appPath}" "$@"
     }
   } catch (error) {
     console.error('[CLI Setup] Error setting up CLI wrapper:', error);
+  }
+}
+
+function setupWindowsCLI() {
+  try {
+    const appPath = app.getAppPath();
+    // Get installation directory (e.g., C:\Users\...\AppData\Local\Programs\ash)
+    const installDir = path.dirname(appPath);
+    const batPath = path.join(installDir, 'ash.bat');
+    const exePath = path.join(installDir, 'ash.exe');
+    
+    // Check if executable exists
+    if (!existsSync(exePath)) {
+      console.log('[CLI Setup] Executable not found, skipping CLI setup');
+      return;
+    }
+
+    // Check if batch file already exists and is correct
+    if (existsSync(batPath)) {
+      try {
+        const content = require('fs').readFileSync(batPath, 'utf8');
+        if (content.includes(exePath)) {
+          console.log('[CLI Setup] CLI batch file already exists and is correct');
+          return;
+        }
+      } catch (e) {
+        // Error reading, will recreate
+      }
+    }
+
+    // Create batch file that launches the app
+    const batContent = `@echo off
+REM CLI wrapper for ash app
+REM Launches the app executable
+start "" "${exePath}" %*
+`;
+
+    try {
+      // Write batch file
+      require('fs').writeFileSync(batPath, batContent, { encoding: 'utf8' });
+      console.log('[CLI Setup] Created CLI batch file:', batPath);
+      
+      // Try to add to user PATH (requires user interaction or admin rights)
+      // Note: This is optional - user can manually add to PATH if needed
+      console.log('[CLI Setup] To use "ash" command, add to PATH:');
+      console.log(`  setx PATH "%PATH%;${installDir}"`);
+    } catch (e) {
+      console.log('[CLI Setup] Could not create CLI batch file automatically');
+      console.error('[CLI Setup] Error:', e.message);
+    }
+  } catch (error) {
+    console.error('[CLI Setup] Error setting up Windows CLI:', error);
   }
 }
 
