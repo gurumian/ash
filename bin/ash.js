@@ -37,12 +37,33 @@ const isDev = !process.env.APP_PATH && process.env.NODE_ENV !== 'production';
 
 if (isDev) {
   // Development mode: use electron-forge start
-  const forgePath = require.resolve('@electron-forge/cli');
+  const projectRoot = path.join(__dirname, '..');
+  
+  // Try to resolve forge from project root
+  let forgePath;
+  try {
+    forgePath = require.resolve('@electron-forge/cli', { paths: [projectRoot] });
+  } catch (e) {
+    // If not found, try to use npx
+    const electron = spawn('npx', ['-y', '@electron-forge/cli', 'start'], {
+      stdio: 'ignore',
+      cwd: projectRoot,
+      env: { ...process.env, NODE_ENV: 'development' },
+      detached: true,
+      shell: process.platform === 'win32' // Use shell on Windows
+    });
+    
+    electron.unref();
+    process.exit(0);
+    return;
+  }
+  
   const electron = spawn('node', [forgePath, 'start'], {
     stdio: 'ignore', // Suppress all output - just launch the app
-    cwd: path.join(__dirname, '..'),
+    cwd: projectRoot,
     env: { ...process.env, NODE_ENV: 'development' },
-    detached: true // Detach from parent process
+    detached: true, // Detach from parent process
+    shell: process.platform === 'win32' // Use shell on Windows
   });
   
   electron.unref(); // Allow parent process to exit immediately
