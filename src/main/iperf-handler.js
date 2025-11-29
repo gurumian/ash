@@ -41,7 +41,26 @@ function isIperf3Available(binaryPath) {
         timeout: 3000,
         env: process.env
       });
-      return result.status === 0;
+      if (result.status === 0) {
+        // Find the actual path using 'where' command
+        try {
+          const whereResult = spawnSync('where', [binaryPath], { 
+            stdio: 'pipe',
+            timeout: 3000,
+            env: process.env
+          });
+          if (whereResult.status === 0 && whereResult.stdout) {
+            const fullPath = whereResult.stdout.toString().trim().split('\n')[0].trim();
+            if (fullPath && fs.existsSync(fullPath)) {
+              cachedIperf3FullPath = fullPath;
+            }
+          }
+        } catch (e) {
+          // Ignore where command failure
+        }
+        return true;
+      }
+      return false;
     } catch (e) {
       return false;
     }
@@ -110,7 +129,26 @@ function isIperf3Available(binaryPath) {
           timeout: 3000,
           env: process.env
         });
-        return result.status === 0;
+        if (result.status === 0) {
+          // Find the actual path using 'which' command
+          try {
+            const whichResult = spawnSync('which', ['iperf3'], { 
+              stdio: 'pipe',
+              timeout: 3000,
+              env: process.env
+            });
+            if (whichResult.status === 0 && whichResult.stdout) {
+              const fullPath = whichResult.stdout.toString().trim();
+              if (fullPath && fs.existsSync(fullPath)) {
+                cachedIperf3FullPath = fullPath;
+              }
+            }
+          } catch (e) {
+            // Ignore which command failure
+          }
+          return true;
+        }
+        return false;
       } catch (e) {
         return false;
       }
