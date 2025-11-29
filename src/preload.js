@@ -58,6 +58,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onMenuIperfServer: (callback) => ipcRenderer.on('menu-iperf-server', callback),
   onMenuCheckUpdates: (callback) => ipcRenderer.on('menu-check-updates', callback),
   onMenuAbout: (callback) => ipcRenderer.on('menu-about', callback),
+  onMenuThirdPartyLicenses: (callback) => ipcRenderer.on('menu-third-party-licenses', callback),
   onMenuTftpServer: (callback) => ipcRenderer.on('menu-tftp-server', callback),
   onMenuWebServer: (callback) => ipcRenderer.on('menu-web-server', callback),
   onMenuAICommand: (callback) => ipcRenderer.on('menu-ai-command', callback),
@@ -198,4 +199,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   offUpdateDownloadProgress: (callback) => ipcRenderer.off('update-download-progress', callback),
   offUpdateDownloaded: (callback) => ipcRenderer.off('update-downloaded', callback),
   offUpdateError: (callback) => ipcRenderer.off('update-error', callback),
+  
+  // Third-party licenses
+  readThirdPartyLicenses: () => ipcRenderer.invoke('read-third-party-licenses'),
 });

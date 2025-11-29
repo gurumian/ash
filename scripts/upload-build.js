@@ -197,8 +197,8 @@ async function uploadMacOS() {
   }
   
   // Upload DMG files (for manual distribution)
-  // DMG is named "ash.dmg" (without version), but represents current version
-  const expectedDmgName = 'ash.dmg';
+  // DMG filename includes version for consistency with ZIP files
+  const expectedDmgName = `ash-${VERSION}.dmg`;
   const dmgFiles = fs.readdirSync(outDir).filter(f => f === expectedDmgName);
   if (dmgFiles.length > 0) {
     console.log('\n📤 Uploading DMG file for manual distribution...\n');

@@ -1,7 +1,7 @@
 import React from 'react';
 import './AboutDialog.css';
 
-export const AboutDialog = ({ isOpen, onClose, appVersion, author }) => {
+export const AboutDialog = ({ isOpen, onClose, appVersion, author, onShowLicenses }) => {
   if (!isOpen) return null;
 
   return (
@@ -45,6 +45,22 @@ export const AboutDialog = ({ isOpen, onClose, appVersion, author }) => {
           <div className="about-copyright">
             <p>© {new Date().getFullYear()} {author?.name || 'Bryce Ghim'}</p>
             <p className="about-license">Proprietary Software - All Rights Reserved</p>
+          </div>
+          
+          <div className="about-separator"></div>
+          
+          <div className="about-third-party">
+            <button 
+              className="about-licenses-link" 
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onShowLicenses) {
+                  onShowLicenses();
+                }
+              }}
+            >
+              Third-Party Licenses
+            </button>
           </div>
         </div>
         

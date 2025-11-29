@@ -27,6 +27,7 @@ import { Settings } from './components/Settings';
 import { GroupNameDialog } from './components/GroupNameDialog';
 import { StatusBar } from './components/StatusBar';
 import { AboutDialog } from './components/AboutDialog';
+import { LicensesDialog } from './components/LicensesDialog';
 import { ErrorDialog } from './components/ErrorDialog';
 import { TerminalContextMenu } from './components/TerminalContextMenu';
 import { TerminalSearchBar } from './components/TerminalSearchBar';
@@ -165,6 +166,7 @@ function App() {
   
   const [showSettings, setShowSettings] = useState(false);
   const [showAboutDialog, setShowAboutDialog] = useState(false);
+  const [showLicensesDialog, setShowLicensesDialog] = useState(false);
   const [showTftpServerDialog, setShowTftpServerDialog] = useState(false);
   const [tftpStatus, setTftpStatus] = useState({ running: false, port: null });
   const [showWebServerDialog, setShowWebServerDialog] = useState(false);
@@ -718,6 +720,7 @@ function App() {
     setShowSessionManager,
     setSessionManagerWidth,
     setShowAboutDialog,
+    setShowLicensesDialog,
     setShowTftpServerDialog,
     setShowWebServerDialog,
     setShowIperfServerDialog,
@@ -1109,6 +1112,16 @@ function App() {
         onClose={() => setShowAboutDialog(false)}
         appVersion={appInfo.version}
         author={appInfo.author}
+        onShowLicenses={() => {
+          setShowAboutDialog(false);
+          setShowLicensesDialog(true);
+        }}
+      />
+
+      {/* Licenses dialog */}
+      <LicensesDialog
+        isOpen={showLicensesDialog}
+        onClose={() => setShowLicensesDialog(false)}
       />
 
       {/* Session Dialog */}

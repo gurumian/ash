@@ -2,6 +2,7 @@ const { FusesPlugin } = require('@electron-forge/plugin-fuses');
 const { FuseV1Options, FuseVersion } = require('@electron/fuses');
 
 const path = require('path');
+const packageJson = require('./package.json');
 
 // Platform-specific makers
 const makers = [
@@ -31,8 +32,8 @@ const makers = [
     name: '@electron-forge/maker-dmg',
     platforms: ['darwin'],
     config: {
-      name: 'ash',
-      // DMG will use version from package.json automatically
+      name: `ash-${packageJson.version}`,
+      // DMG filename includes version for better file management
     },
   },
   {

@@ -143,6 +143,27 @@
   color: #666;
 }
 
+.about-third-party {
+  text-align: center;
+  margin-top: 8px;
+}
+
+.about-licenses-link {
+  background: none;
+  border: none;
+  color: #00ff41;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 8px;
+  text-decoration: underline;
+  transition: color 0.2s;
+  font-family: inherit;
+}
+
+.about-licenses-link:hover {
+  color: #00cc35;
+}
+
 .about-dialog-actions {
   padding: 16px 24px;
   border-top: 1px solid #333;

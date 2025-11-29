@@ -513,5 +513,54 @@ export function initializeWindowHandlers() {
       return { success: false, error: error.message };
     }
   });
+
+  // Read third-party licenses file
+  ipcMain.handle('read-third-party-licenses', async () => {
+    try {
+      let licensesPath;
+      
+      if (app.isPackaged) {
+        // In production, try multiple possible locations
+        const possiblePaths = [
+          path.join(process.resourcesPath, 'app', 'THIRD_PARTY_LICENSES.txt'),
+          path.join(__dirname, '../../THIRD_PARTY_LICENSES.txt'),
+          path.join(__dirname, '../../../THIRD_PARTY_LICENSES.txt'),
+        ];
+        
+        for (const possiblePath of possiblePaths) {
+          if (fs.existsSync(possiblePath)) {
+            licensesPath = possiblePath;
+            break;
+          }
+        }
+      } else {
+        // In development, it's in the project root
+        licensesPath = path.join(__dirname, '../../../THIRD_PARTY_LICENSES.txt');
+      }
+      
+      // Fallback: try project root
+      if (!licensesPath || !fs.existsSync(licensesPath)) {
+        licensesPath = path.join(process.cwd(), 'THIRD_PARTY_LICENSES.txt');
+      }
+      
+      if (licensesPath && fs.existsSync(licensesPath)) {
+        const content = fs.readFileSync(licensesPath, 'utf8');
+        return { success: true, content };
+      } else {
+        // Return default message if file doesn't exist
+        return { 
+          success: true, 
+          content: 'Third-party licenses file not found.\n\nThis application uses open-source software components. License information will be available in a future update.' 
+        };
+      }
+    } catch (error) {
+      console.error('Failed to read third-party licenses:', error);
+      return { 
+        success: false, 
+        error: error.message,
+        content: 'Failed to load third-party licenses file.' 
+      };
+    }
+  });
 }
 

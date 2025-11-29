@@ -11,6 +11,7 @@ export function useMenuHandlers({
   setShowSessionManager,
   setSessionManagerWidth,
   setShowAboutDialog,
+  setShowLicensesDialog,
   setShowTftpServerDialog,
   setShowWebServerDialog,
   setShowIperfServerDialog,
@@ -153,6 +154,11 @@ export function useMenuHandlers({
       setShowAboutDialog(true);
     });
 
+    // Third-Party Licenses menu event
+    window.electronAPI.onMenuThirdPartyLicenses(() => {
+      setShowLicensesDialog(true);
+    });
+
     // TFTP Server menu event
     window.electronAPI.onMenuTftpServer(() => {
       setShowTftpServerDialog(true);
@@ -183,6 +189,7 @@ export function useMenuHandlers({
       window.electronAPI.removeAllListeners('menu-settings');
       window.electronAPI.removeAllListeners('menu-check-updates');
       window.electronAPI.removeAllListeners('menu-about');
+      window.electronAPI.removeAllListeners('menu-third-party-licenses');
       window.electronAPI.removeAllListeners('menu-tftp-server');
       window.electronAPI.removeAllListeners('menu-web-server');
       window.electronAPI.removeAllListeners('menu-iperf-server');

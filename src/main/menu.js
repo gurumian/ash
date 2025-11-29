@@ -295,6 +295,19 @@ export function createMenu() {
               console.error('Failed to send menu-about:', error);
             }
           }
+        },
+        {
+          label: 'Third-Party Licenses',
+          click: () => {
+            const focusedWindow = BrowserWindow.getFocusedWindow();
+            try {
+              if (focusedWindow && !focusedWindow.isDestroyed() && !focusedWindow.webContents.isDestroyed()) {
+                focusedWindow.webContents.send('menu-third-party-licenses');
+              }
+            } catch (error) {
+              console.error('Failed to send menu-third-party-licenses:', error);
+            }
+          }
         }
       ]
     }
