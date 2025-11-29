@@ -1,0 +1,24 @@
+#!/bin/bash
+# CLI wrapper for ash app
+# This script is included in the app bundle and creates a symlink on first run
+
+APP_PATH="/Applications/ash.app"
+EXECUTABLE="$APP_PATH/Contents/MacOS/ash"
+SYMLINK_PATH="/usr/local/bin/ash"
+
+# If app is not in /Applications, try to find it
+if [ ! -f "$EXECUTABLE" ]; then
+  # Try to find the app in common locations
+  if [ -f "$HOME/Applications/ash.app/Contents/MacOS/ash" ]; then
+    EXECUTABLE="$HOME/Applications/ash.app/Contents/MacOS/ash"
+  elif [ -f "/Applications/ash.app/Contents/MacOS/ash" ]; then
+    EXECUTABLE="/Applications/ash.app/Contents/MacOS/ash"
+  else
+    echo "Error: ash.app not found. Please install the app first."
+    exit 1
+  fi
+fi
+
+# Execute the app
+exec "$EXECUTABLE" "$@"
+

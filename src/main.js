@@ -9,6 +9,7 @@ import { initializeUpdateHandlers, cleanupUpdateHandlers, scheduleStartupCheck }
 import { initializeTftpHandlers, cleanupTftpServer, setMainWindow as setTftpMainWindow } from './main/tftp-handler.js';
 import { initializeWebHandlers, cleanupWebServer, setMainWindow as setWebMainWindow } from './main/web-handler.js';
 import { initializeIperfHandlers, cleanupIperfServer, setMainWindow as setIperfMainWindow } from './main/iperf-handler.js';
+import { setupCLISymlink } from './main/cli-setup.js';
 
 // Set app name
 app.setName('ash');
@@ -37,6 +38,11 @@ app.whenReady().then(() => {
   setTftpMainWindow(mainWindow);
   setWebMainWindow(mainWindow);
   setIperfMainWindow(mainWindow);
+
+  // Setup CLI symlink on first run (macOS only)
+  if (process.platform === 'darwin' && app.isPackaged) {
+    setupCLISymlink();
+  }
 
   // Initialize update handlers after app is ready
   initializeUpdateHandlers(scheduleStartupCheck);

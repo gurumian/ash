@@ -59,6 +59,7 @@ module.exports = {
     icon: path.resolve(__dirname, 'assets/icons/icon'), // Icon path without extension
     extraResource: [
       path.resolve(__dirname, 'app-update.yml'), // Auto-updater configuration (like FAC1)
+      path.resolve(__dirname, 'resources', 'bin'), // CLI wrapper script
     ],
     // macOS entitlements for network permissions (SSH, TFTP)
     // This is required for the built app to access network, especially SSH connections.
