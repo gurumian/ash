@@ -62,6 +62,7 @@ Function StrStr
 FunctionEnd
 
 ; Add installation directory to PATH
+; This section runs after files are installed
 Section -Post
   ; Get installation directory
   Push $INSTDIR
