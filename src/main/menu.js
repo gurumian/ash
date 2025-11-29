@@ -2,40 +2,15 @@ import { app, BrowserWindow, Menu } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { checkIperf3Available } from './iperf-handler.js';
 
 /**
  * Check if iperf3 is available on this system.
- * - Windows: prefer bundled binary in assets/bin/win32/x64/iperf3.exe, fallback to system PATH
- * - macOS/Linux: check system PATH for iperf3
+ * Reuses the same logic from iperf-handler.js for consistency.
  */
 function isIperfAvailable() {
-  const platform = process.platform;
-
   try {
-    if (platform === 'win32') {
-      const binaryName = 'iperf3.exe';
-
-      // Check bundled binary first (production)
-      const resourcesPath = process.resourcesPath || app.getAppPath();
-      const bundledPath = path.join(resourcesPath, 'assets', 'bin', 'win32', 'x64', binaryName);
-      if (fs.existsSync(bundledPath)) {
-        return true;
-      }
-
-      // In development, also check project assets path
-      const devBundledPath = path.join(__dirname, '../../assets/bin', 'win32', 'x64', binaryName);
-      if (fs.existsSync(devBundledPath)) {
-        return true;
-      }
-
-      // Fallback: check system PATH (where iperf3.exe)
-      const result = spawnSync('where', [binaryName], { stdio: 'ignore' });
-      return result.status === 0;
-    }
-
-    // macOS / Linux: check system PATH (which iperf3)
-    const result = spawnSync('which', ['iperf3'], { stdio: 'ignore' });
-    return result.status === 0;
+    return checkIperf3Available();
   } catch (e) {
     // If any error occurs, treat as not available
     console.warn('Failed to detect iperf3 availability:', e.message);

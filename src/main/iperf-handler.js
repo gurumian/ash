@@ -38,8 +38,62 @@ function isIperf3Available(binaryPath) {
     } catch (e) {
       return false;
     }
+  } else if (platform === 'darwin') {
+    // macOS: check common installation paths first, then try 'which'
+    // This handles packaged apps where PATH may be restricted
+    if (binaryPath === 'iperf3' || !path.isAbsolute(binaryPath)) {
+      // Common Homebrew paths
+      const commonPaths = [
+        '/opt/homebrew/bin/iperf3',  // Apple Silicon Homebrew
+        '/usr/local/bin/iperf3',     // Intel Mac Homebrew
+        '/usr/bin/iperf3'            // System default
+      ];
+
+      // Check if binary exists at common paths
+      for (const binPath of commonPaths) {
+        if (fs.existsSync(binPath)) {
+          // Verify it's executable by trying to run it
+          try {
+            const result = spawnSync(binPath, ['--version'], { 
+              stdio: 'ignore',
+              timeout: 3000
+            });
+            if (result.status === 0) {
+              return true;
+            }
+          } catch (e) {
+            // Continue to next path
+          }
+        }
+      }
+
+      // Fallback: try to execute iperf3 from PATH (may work in some cases)
+      try {
+        const result = spawnSync('iperf3', ['--version'], { 
+          stdio: 'ignore',
+          timeout: 3000
+        });
+        return result.status === 0;
+      } catch (e) {
+        return false;
+      }
+    } else {
+      // Full path provided, check if it exists and is executable
+      if (fs.existsSync(binaryPath)) {
+        try {
+          const result = spawnSync(binaryPath, ['--version'], { 
+            stdio: 'ignore',
+            timeout: 3000
+          });
+          return result.status === 0;
+        } catch (e) {
+          return false;
+        }
+      }
+      return false;
+    }
   } else {
-    // For macOS/Linux, check using 'which' command
+    // Linux: use 'which' command (more efficient and reliable on Linux)
     try {
       const result = spawnSync('which', [binaryPath], { stdio: 'ignore' });
       return result.status === 0;
