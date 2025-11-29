@@ -2,7 +2,7 @@ import { ipcMain, BrowserWindow, app } from 'electron';
 import os from 'node:os';
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawn } from 'child_process';
+import { spawn, spawnSync } from 'child_process';
 
 // iperf3 server management
 let iperfProcess = null;
@@ -18,6 +18,35 @@ let mainWindow = null;
  */
 export function setMainWindow(window) {
   mainWindow = window;
+}
+
+/**
+ * Check if iperf3 binary is available at the given path
+ */
+function isIperf3Available(binaryPath) {
+  const platform = process.platform;
+  
+  if (platform === 'win32') {
+    // For Windows, check if it's a full path (bundled binary)
+    if (path.isAbsolute(binaryPath) || binaryPath.includes(path.sep)) {
+      return fs.existsSync(binaryPath);
+    }
+    // For system PATH binary, check using 'where' command
+    try {
+      const result = spawnSync('where', [binaryPath], { stdio: 'ignore' });
+      return result.status === 0;
+    } catch (e) {
+      return false;
+    }
+  } else {
+    // For macOS/Linux, check using 'which' command
+    try {
+      const result = spawnSync('which', [binaryPath], { stdio: 'ignore' });
+      return result.status === 0;
+    } catch (e) {
+      return false;
+    }
+  }
 }
 
 /**
@@ -55,9 +84,22 @@ function getIperf3BinaryPath() {
 }
 
 /**
+ * Check if iperf3 is available on the system
+ */
+export function checkIperf3Available() {
+  const binaryPath = getIperf3BinaryPath();
+  return isIperf3Available(binaryPath);
+}
+
+/**
  * Initialize iperf3 handlers
  */
 export function initializeIperfHandlers() {
+  // Check if iperf3 is available
+  ipcMain.handle('iperf-check-available', async () => {
+    return { available: checkIperf3Available() };
+  });
+
   // Get iperf3 server status
   ipcMain.handle('iperf-status', async () => {
     return { 
@@ -91,44 +133,34 @@ export function initializeIperfHandlers() {
       
       const binaryPath = getIperf3BinaryPath();
       
-      // Check if binary exists
-      if (process.platform === 'win32') {
-        // Windows: Check if bundled binary exists
-        if (binaryPath !== 'iperf3.exe' && !fs.existsSync(binaryPath)) {
-          const errorMsg = `iperf3 binary not found at: ${binaryPath}\n\nPlease run: npm run download-iperf3:all to download Windows binary.`;
-          console.error(`[iperf3] ${errorMsg}`);
-          
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('iperf-server-error', {
-              title: 'iperf3 Server Error',
-              message: 'iperf3 binary not found',
-              detail: errorMsg,
-              error: null
-            });
+      // Check if binary exists and is available
+      if (!isIperf3Available(binaryPath)) {
+        let errorMsg;
+        if (process.platform === 'win32') {
+          if (binaryPath !== 'iperf3.exe' && !fs.existsSync(binaryPath)) {
+            // Bundled binary not found
+            errorMsg = `iperf3 binary not found at: ${binaryPath}\n\nPlease run: npm run download-iperf3:all to download Windows binary.`;
+          } else {
+            // System iperf3.exe not found in PATH
+            errorMsg = `iperf3 is not installed on your system.\n\nPlease install iperf3:\n  - Download from https://iperf.fr/iperf-download.php\n  - Or install via package manager (e.g., Chocolatey: choco install iperf3)`;
           }
-          
-          return { success: false, running: false, error: errorMsg };
+        } else {
+          // macOS/Linux: iperf3 not found in system PATH
+          errorMsg = `iperf3 is not installed on your system.\n\nPlease install it:\n  macOS: brew install iperf3\n  Linux: sudo apt-get install iperf3 (or sudo yum install iperf3)`;
         }
-      } else {
-        // macOS/Linux: Check if iperf3 is available in system
-        try {
-          const { execSync } = require('child_process');
-          execSync(`which ${binaryPath}`, { stdio: 'ignore' });
-        } catch (e) {
-          const errorMsg = `iperf3 is not installed on your system.\n\nPlease install it:\n  macOS: brew install iperf3\n  Linux: sudo apt-get install iperf3 (or sudo yum install iperf3)`;
-          console.error(`[iperf3] ${errorMsg}`);
-          
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('iperf-server-error', {
-              title: 'iperf3 Server Error',
-              message: 'iperf3 is not installed',
-              detail: errorMsg,
-              error: null
-            });
-          }
-          
-          return { success: false, running: false, error: errorMsg };
+        
+        console.error(`[iperf3] ${errorMsg}`);
+        
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('iperf-server-error', {
+            title: 'iperf3 Server Error',
+            message: 'iperf3 is not available',
+            detail: errorMsg,
+            error: null
+          });
         }
+        
+        return { success: false, running: false, error: errorMsg };
       }
       
       // Start iperf3 server (server side does not use client-only flags like -u, -P, -b)
@@ -198,7 +230,29 @@ export function initializeIperfHandlers() {
       // Handle process error (spawn failure)
       iperfProcess.on('error', (err) => {
         console.error(`[iperf3] Process error:`, err);
-        serverError = err.message || `Failed to start iperf3: ${err.code || 'Unknown error'}`;
+        
+        // Handle ENOENT (file not found) error specifically
+        if (err.code === 'ENOENT') {
+          let errorMsg;
+          if (process.platform === 'win32') {
+            errorMsg = `iperf3 is not installed on your system.\n\nPlease install iperf3:\n  - Download from https://iperf.fr/iperf-download.php\n  - Or install via package manager (e.g., Chocolatey: choco install iperf3)`;
+          } else {
+            errorMsg = `iperf3 is not installed on your system.\n\nPlease install it:\n  macOS: brew install iperf3\n  Linux: sudo apt-get install iperf3 (or sudo yum install iperf3)`;
+          }
+          serverError = errorMsg;
+          
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('iperf-server-error', {
+              title: 'iperf3 Server Error',
+              message: 'iperf3 is not available',
+              detail: errorMsg,
+              error: { code: err.code, message: err.message }
+            });
+          }
+        } else {
+          serverError = err.message || `Failed to start iperf3: ${err.code || 'Unknown error'}`;
+        }
+        
         iperfProcess = null;
       });
       

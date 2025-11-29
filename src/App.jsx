@@ -171,6 +171,7 @@ function App() {
   const [webStatus, setWebStatus] = useState({ running: false, port: null });
   const [iperfStatus, setIperfStatus] = useState({ running: false, port: null });
   const [showIperfServerDialog, setShowIperfServerDialog] = useState(false);
+  const [iperfAvailable, setIperfAvailable] = useState(true); // Default to true, will be checked on mount
   const [appInfo, setAppInfo] = useState({ version: '', author: { name: 'Bryce Ghim', email: 'admin@toktoktalk.com' } });
   
   // Load app info on mount
@@ -233,6 +234,23 @@ function App() {
     const interval = setInterval(loadWebStatus, 10000);
 
     return () => clearInterval(interval);
+  }, []);
+
+  // Check iperf3 availability on mount
+  useEffect(() => {
+    const checkIperf3Available = async () => {
+      try {
+        const result = await window.electronAPI?.iperfCheckAvailable?.();
+        if (result !== undefined) {
+          setIperfAvailable(result.available);
+        }
+      } catch (error) {
+        console.error('Failed to check iperf3 availability:', error);
+        setIperfAvailable(false);
+      }
+    };
+
+    checkIperf3Available();
   }, []);
 
   // Load iperf3 server status on mount and periodically check
@@ -786,6 +804,7 @@ function App() {
           onTftpServer={() => setShowTftpServerDialog(true)}
           onWebServer={() => setShowWebServerDialog(true)}
           onIperfServer={() => setShowIperfServerDialog(true)}
+          iperfAvailable={iperfAvailable}
           showSessionManager={showSessionManager}
           onToggleSessionManager={(checked) => {
             setShowSessionManager(checked);

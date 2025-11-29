@@ -20,6 +20,7 @@ export function CustomTitleBar({
   onIperfServer,
   showSessionManager,
   onToggleSessionManager,
+  iperfAvailable = true,
 }) {
   const [activeMenu, setActiveMenu] = useState(null);
   const [activeSubmenu, setActiveSubmenu] = useState(null);
@@ -94,7 +95,13 @@ export function CustomTitleBar({
       items: [
         { label: 'TFTP Server', shortcut: 'Ctrl+Shift+T', onClick: onTftpServer },
         { label: 'Web Server', shortcut: 'Ctrl+Shift+W', onClick: onWebServer },
-        { label: 'iperf3 Server', shortcut: 'Ctrl+Shift+I', onClick: onIperfServer },
+        { 
+          label: 'iperf3 Server', 
+          shortcut: 'Ctrl+Shift+I', 
+          onClick: iperfAvailable ? onIperfServer : null,
+          disabled: !iperfAvailable,
+          sublabel: iperfAvailable ? '' : 'Install iperf3 to enable'
+        },
       ],
     },
     {
@@ -183,17 +190,24 @@ export function CustomTitleBar({
                     ) : (
                       <button
                         key={item.label}
-                        className="menubar-item-button"
+                        className={`menubar-item-button ${item.disabled ? 'disabled' : ''}`}
+                        disabled={item.disabled}
                         onMouseDown={(e) => e.stopPropagation()}
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          handleMenuItemClick(item.onClick);
+                          if (!item.disabled) {
+                            handleMenuItemClick(item.onClick);
+                          }
                         }}
+                        title={item.disabled && item.sublabel ? item.sublabel : undefined}
                       >
                         <span className="menubar-item-label">{item.label}</span>
                         {item.shortcut && (
                           <span className="menubar-item-shortcut">{item.shortcut}</span>
+                        )}
+                        {item.sublabel && !item.disabled && (
+                          <span className="menubar-item-sublabel">{item.sublabel}</span>
                         )}
                       </button>
                     )

@@ -168,6 +168,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   offWebServerError: (callback) => ipcRenderer.off('web-server-error', callback),
   
   // iperf3 Server APIs
+  iperfCheckAvailable: () => ipcRenderer.invoke('iperf-check-available'),
   iperfStatus: () => ipcRenderer.invoke('iperf-status'),
   iperfStart: (params) => ipcRenderer.invoke('iperf-start', params),
   iperfStop: () => ipcRenderer.invoke('iperf-stop'),

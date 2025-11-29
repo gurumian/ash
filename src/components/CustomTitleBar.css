@@ -107,6 +107,16 @@
   background: rgba(0, 255, 65, 0.15);
 }
 
+.menubar-item-button.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  color: #666;
+}
+
+.menubar-item-button.disabled:hover {
+  background: transparent;
+}
+
 .menubar-item-with-submenu {
   position: relative;
 }
