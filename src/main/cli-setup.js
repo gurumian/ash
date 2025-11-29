@@ -86,7 +86,6 @@ function setupWindowsCLI() {
     const appPath = app.getAppPath();
     // Get installation directory (e.g., C:\Users\...\AppData\Local\Programs\ash)
     const installDir = path.dirname(appPath);
-    const batPath = path.join(installDir, 'ash.bat');
     const exePath = path.join(installDir, 'ash.exe');
     
     // Check if executable exists
@@ -95,12 +94,27 @@ function setupWindowsCLI() {
       return;
     }
 
+    // Create batch file in a directory that's typically in PATH
+    // Use %LOCALAPPDATA%\Programs\ash or create in user's local bin directory
+    const localAppData = process.env.LOCALAPPDATA || path.join(process.env.USERPROFILE, 'AppData', 'Local');
+    const binDir = path.join(localAppData, 'Programs', 'ash');
+    const batPath = path.join(binDir, 'ash.bat');
+
+    // Ensure bin directory exists
+    try {
+      require('fs').mkdirSync(binDir, { recursive: true });
+    } catch (e) {
+      // Directory might already exist
+    }
+
     // Check if batch file already exists and is correct
     if (existsSync(batPath)) {
       try {
         const content = require('fs').readFileSync(batPath, 'utf8');
         if (content.includes(exePath)) {
           console.log('[CLI Setup] CLI batch file already exists and is correct');
+          // Still try to add to PATH in case it's not there
+          addToWindowsPath(binDir);
           return;
         }
       } catch (e) {
@@ -112,7 +126,7 @@ function setupWindowsCLI() {
     const batContent = `@echo off
 REM CLI wrapper for ash app
 REM Launches the app executable
-start "" "${exePath}" %*
+"${exePath}" %*
 `;
 
     try {
@@ -120,16 +134,46 @@ start "" "${exePath}" %*
       require('fs').writeFileSync(batPath, batContent, { encoding: 'utf8' });
       console.log('[CLI Setup] Created CLI batch file:', batPath);
       
-      // Try to add to user PATH (requires user interaction or admin rights)
-      // Note: This is optional - user can manually add to PATH if needed
-      console.log('[CLI Setup] To use "ash" command, add to PATH:');
-      console.log(`  setx PATH "%PATH%;${installDir}"`);
+      // Add to user PATH
+      addToWindowsPath(binDir);
     } catch (e) {
       console.log('[CLI Setup] Could not create CLI batch file automatically');
       console.error('[CLI Setup] Error:', e.message);
     }
   } catch (error) {
     console.error('[CLI Setup] Error setting up Windows CLI:', error);
+  }
+}
+
+function addToWindowsPath(binDir) {
+  try {
+    // Get current user PATH
+    const currentPath = process.env.PATH || '';
+    
+    // Check if already in PATH
+    if (currentPath.includes(binDir)) {
+      console.log('[CLI Setup] Already in PATH');
+      return;
+    }
+
+    // Try to add to user PATH using setx
+    // Note: setx requires new terminal session to take effect
+    try {
+      execSync(`setx PATH "${currentPath};${binDir}"`, { stdio: 'ignore' });
+      console.log('[CLI Setup] Added to PATH. Please restart your terminal.');
+    } catch (e) {
+      // If setx fails, try using PowerShell
+      try {
+        const psCommand = `[Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path", "User") + ";${binDir}", "User")`;
+        execSync(`powershell -Command "${psCommand}"`, { stdio: 'ignore' });
+        console.log('[CLI Setup] Added to PATH. Please restart your terminal.');
+      } catch (psError) {
+        console.log('[CLI Setup] Could not automatically add to PATH. Please add manually:');
+        console.log(`  setx PATH "%PATH%;${binDir}"`);
+      }
+    }
+  } catch (error) {
+    console.error('[CLI Setup] Error adding to PATH:', error);
   }
 }
 
