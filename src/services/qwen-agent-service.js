@@ -86,31 +86,27 @@ class QwenAgentService {
                 
                 if (data.type === 'content' && data.content) {
                   // Backend sends full accumulated content - we should replace, not append
+                  // Note: [function]: {...} patterns in content will be parsed and displayed 
+                  // separately in the UI using FunctionResult component
+                  // We keep the full content here so the UI can parse and extract function results
                   let currentContent = data.content;
                   
-                  // Filter out [function]: {...} patterns from full content
-                  const functionPattern = /\[function\]:\s*\{[^}]*"success"[^}]*\}/g;
-                  const functionPattern2 = /\[function\]:\s*\{[^}]+\}/g;
-                  const jsonPattern = /\{"success":\s*(?:true|false)[^}]+\}/g;
-                  
-                  currentContent = currentContent.replace(functionPattern, '');
-                  currentContent = currentContent.replace(functionPattern2, '');
-                  currentContent = currentContent.replace(jsonPattern, '');
+                  // Clean up excessive newlines only (keep function patterns for parsing)
                   currentContent = currentContent.replace(/\n\s*\n\s*\n+/g, '\n\n').trim();
                   
-                  // Update full response with filtered content (for history)
+                  // Update full response (keep full content including function patterns for parsing)
                   fullResponse = currentContent; // Replace, not append
                   
-                  // Call onChunk with FULL filtered content - frontend will replace, not append
+                  // Call onChunk with FULL content - UI will parse [function]: patterns and display them nicely
                   if (onChunk && currentContent) {
                     onChunk(currentContent); // Send full content for refresh
                   }
                   
-                  // Track assistant messages for history (keep accumulated filtered content)
+                  // Track assistant messages for history (keep full content for parsing in UI)
                   if (!messages.length || messages[messages.length - 1].role !== 'assistant') {
                     messages.push({ role: 'assistant', content: currentContent });
                   } else {
-                    // Update with full accumulated filtered content
+                    // Update with full accumulated content
                     messages[messages.length - 1].content = currentContent;
                   }
                 } else if (data.type === 'reasoning') {
@@ -156,17 +152,51 @@ class QwenAgentService {
                   
                   // Don't add to messages or display - user doesn't need to see tool calls
                 } else if (data.type === 'tool_result') {
-                  // Tool execution result - Qwen-Agent automatically includes this in conversation
-                  // Track tool messages for history
-                  // Qwen-Agent format: { role: 'tool', name: tool_name, content: tool_result }
+                  // Tool execution result - Backend now sends structured format:
+                  // { type: 'tool_result', name: '...', success: true/false, exitCode: 0, stdout: '...', stderr: '...' }
+                  // OR legacy format: { type: 'tool_result', tool_name: '...', content: '...' }
+                  
+                  const toolName = data.name || data.tool_name || 'unknown_tool';
                   
                   // Don't display ash_list_connections results - they're not useful to the user
-                  if (data.tool_name === 'ash_list_connections') {
+                  if (toolName === 'ash_list_connections') {
                     // Still track it for conversation history, but don't show to user
-                    messages.push({ role: 'tool', name: data.tool_name, content: data.content });
+                    messages.push({ role: 'tool', name: toolName, content: data.content || '' });
                     // Don't call onToolResult callback for this tool - skip displaying it
                   } else {
                     // For other tools, track and display normally
+                    
+                    // Handle structured format from backend
+                    if (data.name && (data.stdout !== undefined || data.stderr !== undefined)) {
+                      // New structured format
+                      const toolResult = {
+                        name: data.name,
+                        success: data.success !== undefined ? data.success : true,
+                        exitCode: data.exitCode !== undefined ? data.exitCode : 0,
+                        stdout: data.stdout || '',
+                        stderr: data.stderr || ''
+                      };
+                      
+                      messages.push({ role: 'tool', name: toolName, toolResult });
+                      
+                      // Call onToolResult callback with structured data
+                      if (onToolResult) {
+                        onToolResult(toolName, toolResult);
+                      }
+                    } else {
+                      // Legacy format - parse if possible
+                      const toolResult = {
+                        name: toolName,
+                        content: data.content || ''
+                      };
+                      
+                      messages.push({ role: 'tool', name: toolName, toolResult });
+                      
+                      // Call onToolResult callback
+                      if (onToolResult) {
+                        onToolResult(toolName, data.content || '');
+                      }
+                    }
                     messages.push({ role: 'tool', name: data.tool_name, content: data.content });
                     
                     // Call tool result callback if provided

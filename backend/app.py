@@ -314,8 +314,28 @@ async def execute_task_stream(request: TaskRequest):
                         tool_name = message.get('name', 'unknown_tool')
                         tool_content = str(content)
                         logger.info(f"Tool {tool_name} result: {tool_content[:100]}...")
-                        # Stream tool result to client for visibility
-                        yield f"data: {json.dumps({'type': 'tool_result', 'tool_name': tool_name, 'content': tool_content})}\n\n"
+                        
+                        # Parse tool result JSON if possible for structured display
+                        try:
+                            # Tool result is typically a JSON string like {"success": true, "output": "...", "error": "", "exitCode": 0}
+                            parsed_result = json.loads(tool_content) if isinstance(tool_content, str) else tool_content
+                            
+                            # Structure the result for frontend rendering
+                            structured_result = {
+                                'type': 'tool_result',
+                                'name': tool_name,
+                                'success': parsed_result.get('success', True),
+                                'exitCode': parsed_result.get('exitCode', 0),
+                                'stdout': parsed_result.get('output', ''),
+                                'stderr': parsed_result.get('error', ''),
+                            }
+                            
+                            # Stream structured tool result
+                            yield f"data: {json.dumps(structured_result, ensure_ascii=False)}\n\n"
+                        except (json.JSONDecodeError, AttributeError):
+                            # Fallback: if parsing fails, send as-is
+                            logger.warning(f"Could not parse tool result as JSON, sending as raw content")
+                            yield f"data: {json.dumps({'type': 'tool_result', 'name': tool_name, 'content': tool_content})}\n\n"
                     
                     # Handle any other message types
                     else:

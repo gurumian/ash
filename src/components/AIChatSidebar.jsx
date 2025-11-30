@@ -1,6 +1,8 @@
-import React, { memo, useState, useEffect, useRef, useCallback } from 'react';
+import React, { memo, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { visit } from 'unist-util-visit';
+import { FunctionResult } from './FunctionResult';
+import { parseAndCleanContent } from '../utils/parseFunctionResult';
 
 /**
  * AI Chat Sidebar - Displays AI conversation history and input
@@ -149,7 +151,11 @@ export const AIChatSidebar = memo(function AIChatSidebar({
             No messages yet. Start a conversation with AI.
           </div>
         ) : (
-          messages.map((msg, index) => (
+          messages.map((msg, index) => {
+            // Parse function results from content
+            const { functionResults, cleanedContent } = parseAndCleanContent(msg.content || '');
+            
+            return (
             <div
               key={msg.id || `${msg.role}-${index}`}
               style={{
@@ -336,28 +342,36 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                     )
                   }}
                 >
-                  {msg.content}
+                  {cleanedContent}
                 </ReactMarkdown>
               </div>
+              
+              {/* Display parsed function results from content */}
+              {functionResults.map((result, idx) => (
+                <FunctionResult
+                  key={`function-${index}-${idx}`}
+                  name={result.name}
+                  success={result.success}
+                  exitCode={result.exitCode}
+                  stdout={result.stdout}
+                  stderr={result.stderr}
+                />
+              ))}
+              
+              {/* Display structured tool result from backend */}
               {msg.toolResult && (
-                <div
-                  style={{
-                    marginTop: '8px',
-                    padding: '8px',
-                    background: 'rgba(0, 255, 65, 0.05)',
-                    border: '1px solid rgba(0, 255, 65, 0.1)',
-                    borderRadius: '4px',
-                    fontSize: '11px',
-                    color: '#888',
-                    fontFamily: 'monospace'
-                  }}
-                >
-                  <div style={{ color: '#00ff41', marginBottom: '4px' }}>Tool: {msg.toolResult.name}</div>
-                  <div style={{ color: '#666', whiteSpace: 'pre-wrap' }}>{msg.toolResult.content}</div>
-                </div>
+                <FunctionResult
+                  name={msg.toolResult.name}
+                  success={msg.toolResult.success}
+                  exitCode={msg.toolResult.exitCode}
+                  stdout={msg.toolResult.stdout}
+                  stderr={msg.toolResult.stderr}
+                  content={msg.toolResult.content}
+                />
               )}
             </div>
-          ))
+            );
+          })
         )}
         {isProcessing && (
           <div
