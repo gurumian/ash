@@ -9,6 +9,8 @@ import { initializeUpdateHandlers, cleanupUpdateHandlers, scheduleStartupCheck }
 import { initializeTftpHandlers, cleanupTftpServer, setMainWindow as setTftpMainWindow } from './main/tftp-handler.js';
 import { initializeWebHandlers, cleanupWebServer, setMainWindow as setWebMainWindow } from './main/web-handler.js';
 import { initializeIperfHandlers, cleanupIperfServer, setMainWindow as setIperfMainWindow } from './main/iperf-handler.js';
+import { startBackend, stopBackend } from './main/backend-handler.js';
+import { startIPCBridge, stopIPCBridge } from './main/ipc-bridge-handler.js';
 
 // Set app name
 app.setName('ash');
@@ -26,10 +28,13 @@ initializeTftpHandlers();
 initializeWebHandlers();
 initializeIperfHandlers();
 
+// Start IPC bridge (for Python backend communication)
+startIPCBridge();
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   createMenu(); // Create system menu
   const mainWindow = createWindow();
   
@@ -40,6 +45,15 @@ app.whenReady().then(() => {
 
   // Initialize update handlers after app is ready
   initializeUpdateHandlers(scheduleStartupCheck);
+
+  // Start Python backend (for Qwen-Agent)
+  try {
+    await startBackend();
+    console.log('✅ Backend started successfully');
+  } catch (error) {
+    console.error('❌ Failed to start backend:', error);
+    // Continue without backend - agent mode won't work but app can still run
+  }
 
   // On OS X it's common to re-create a window in the app when the
   // dock icon is clicked and there are no other windows open.
@@ -56,11 +70,19 @@ app.on('window-all-closed', () => {
 });
 
 // Cleanup on app quit
-app.on('before-quit', () => {
+app.on('before-quit', async (event) => {
+  console.log('App is quitting, stopping backend...');
+  event.preventDefault(); // Prevent immediate quit
+  
   cleanupSSHConnections();
   cleanupSerialConnections();
   cleanupUpdateHandlers();
   cleanupTftpServer();
   cleanupWebServer();
   cleanupIperfServer();
+  await stopBackend();
+  stopIPCBridge();
+  
+  // Now allow the app to quit
+  app.exit(0);
 });

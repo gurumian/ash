@@ -9,6 +9,7 @@ export function useKeyboardShortcuts({
   setShowSearchBar,
   showAICommandInput,
   setShowAICommandInput,
+  setShowAIChatSidebar,
   llmSettings,
   terminalInstances,
   terminalFontSize,
@@ -35,19 +36,17 @@ export function useKeyboardShortcuts({
       if ((event.ctrlKey || event.metaKey) && event.shiftKey && (event.key === 'a' || event.key === 'A')) {
         console.log('=== Ctrl+Shift+A detected (window handler) ===');
         console.log('activeSessionId:', activeSessionId);
-        console.log('event.target:', event.target);
-        console.log('event.target.tagName:', event.target.tagName);
-        console.log('event.target.className:', event.target.className);
         // Only open if there's an active session
         if (activeSessionId) {
-          console.log('Opening AI Command Input from window handler');
-          setShowAICommandInput(true);
+          console.log('Opening AI Chat Sidebar from window handler');
+          setShowAIChatSidebar(true);
+          setShowAICommandInput(true); // For button state
           event.preventDefault();
           event.stopPropagation();
           event.stopImmediatePropagation();
           return;
         } else {
-          console.log('No active session, cannot open AI Command Input');
+          console.log('No active session, cannot open AI Chat Sidebar');
         }
       }
 

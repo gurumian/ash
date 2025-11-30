@@ -16,6 +16,7 @@ export function useMenuHandlers({
   setShowWebServerDialog,
   setShowIperfServerDialog,
   setShowAICommandInput,
+  setShowAIChatSidebar,
   setAppInfo,
   disconnectSession,
   resizeTerminal
@@ -174,10 +175,11 @@ export function useMenuHandlers({
       setShowIperfServerDialog(true);
     });
 
-    // AI Command menu event
+    // AI Command menu event - open AI Chat Sidebar
     window.electronAPI.onMenuAICommand(() => {
       if (activeSessionIdRef.current) {
-        setShowAICommandInput(true);
+        setShowAIChatSidebar(true);
+        setShowAICommandInput(true); // For button state
       }
     });
 

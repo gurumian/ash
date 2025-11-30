@@ -1,7 +1,7 @@
 import { ipcMain } from 'electron';
 
 // SSH connection management
-let sshConnections = new Map();
+export const sshConnections = new Map();
 let sshStreams = new Map();
 
 // ssh2 is dynamically imported only in main process

@@ -1,7 +1,6 @@
 import React, { memo, useCallback, useRef, useEffect } from 'react';
 import { TabItem } from './TabItem';
 import { TerminalSearchBar } from './TerminalSearchBar';
-import { TerminalAICommandInput } from './TerminalAICommandInput';
 
 /**
  * Terminal View component - Right side terminal area with tabs and terminal content
@@ -116,7 +115,7 @@ export const TerminalView = memo(function TerminalView({
                     e.preventDefault();
                     e.stopPropagation();
                     if (onToggleAICommandInput) {
-                      onToggleAICommandInput();
+                      onToggleAICommandInput(); // This will toggle AI Chat Sidebar
                     } else if (process.env.NODE_ENV === 'development') {
                       console.error('ERROR: onToggleAICommandInput is not defined!');
                     }
@@ -124,7 +123,7 @@ export const TerminalView = memo(function TerminalView({
                   onMouseDown={(e) => {
                     e.stopPropagation();
                   }}
-                  title={window.electronAPI?.platform === 'darwin' ? 'AI Command (⌘⇧A)' : 'AI Command (Ctrl+Shift+A)'}
+                  title={window.electronAPI?.platform === 'darwin' ? 'AI Chat (⌘⇧A)' : 'AI Chat (Ctrl+Shift+A)'}
                   style={{
                     marginRight: '8px',
                     padding: '4px 8px',
@@ -229,13 +228,7 @@ export const TerminalView = memo(function TerminalView({
                   isVisible={showSearchBar}
                   onClose={onCloseSearchBar}
                 />
-                <TerminalAICommandInput
-                  terminal={terminalInstances.current[activeSessionId]}
-                  isVisible={showAICommandInput || false}
-                  onClose={onCloseAICommandInput}
-                  onExecute={onExecuteAICommand}
-                  isProcessing={isAIProcessing}
-                />
+                {/* AI Command Input is now in AIChatSidebar, not here */}
               </>
             )}
           </div>

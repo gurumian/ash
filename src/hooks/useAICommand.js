@@ -1,5 +1,6 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import LLMService from '../services/llm-service';
+import QwenAgentService from '../services/qwen-agent-service';
 import { formatAICommandError } from '../utils/errorFormatter';
 
 /**
@@ -25,13 +26,16 @@ export function useAICommand({
   llmSettings,
   setErrorDialog,
   setIsAIProcessing,
-  setShowAICommandInput
+  setShowAICommandInput,
+  onAIMessageUpdate = null // Callback to update AI messages in sidebar
 }) {
+  const [aiMessages, setAiMessages] = useState([]);
   /**
    * Execute AI command from natural language input
    * @param {string} naturalLanguage - Natural language command description
+   * @param {string} mode - AI mode: 'ask' (simple) or 'agent' (multi-step)
    */
-  const executeAICommand = useCallback(async (naturalLanguage) => {
+  const executeAICommand = useCallback(async (naturalLanguage, mode = 'ask') => {
     setIsAIProcessing(true);
     try {
       if (process.env.NODE_ENV === 'development') {
@@ -42,9 +46,102 @@ export function useAICommand({
         throw new Error('LLM is not enabled. Please enable it in Settings.');
       }
 
-      // Show AI request in terminal (grey color)
-      if (activeSessionId && terminalInstances.current[activeSessionId]) {
-        terminalInstances.current[activeSessionId].write(`\r\n\x1b[90m# AI: ${naturalLanguage}\x1b[0m\r\n`);
+      // Don't show AI request in terminal - it will be shown in sidebar
+      // if (activeSessionId && terminalInstances.current[activeSessionId]) {
+      //   const modeLabel = mode === 'agent' ? 'agent' : 'ask';
+      //   terminalInstances.current[activeSessionId].write(`\r\n\x1b[90m# AI [${modeLabel}]: ${naturalLanguage}\x1b[0m\r\n`);
+      // }
+
+      // Handle agent mode with Qwen-Agent
+      if (mode === 'agent') {
+        if (!activeSessionId || !sshConnections.current[activeSessionId]) {
+          throw new Error('No active session');
+        }
+
+        const connection = sshConnections.current[activeSessionId];
+        if (!connection.isConnected) {
+          throw new Error('Session is not connected');
+        }
+
+        // Get connection ID from SSHConnection object
+        // The connectionId is the actual UUID from main process, not the session ID
+        const connectionId = connection.connectionId || activeSessionId;
+        const terminal = activeSessionId && terminalInstances.current[activeSessionId];
+        
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Agent mode - connectionId:', connectionId, 'activeSessionId:', activeSessionId);
+        }
+        
+        // Create Qwen-Agent service
+        const qwenAgent = new QwenAgentService();
+        
+        // Check backend health
+        const isHealthy = await qwenAgent.checkHealth();
+        if (!isHealthy) {
+          throw new Error('Qwen-Agent backend is not available. Please ensure the backend is running.');
+        }
+
+        // Add user message to sidebar
+        const userMessage = { role: 'user', content: naturalLanguage };
+        setAiMessages(prev => [...prev, userMessage]);
+        if (onAIMessageUpdate) {
+          onAIMessageUpdate([...aiMessages, userMessage]);
+        }
+
+        // Collect assistant response and tool results
+        let assistantContent = '';
+        const collectedMessages = [userMessage];
+
+        // Execute task with streaming
+        await qwenAgent.executeTask(
+          naturalLanguage,
+          connectionId,
+          (chunk) => {
+            // Collect chunks for sidebar (not terminal)
+            // This includes reasoning (thinking process) and regular content
+            assistantContent += chunk;
+            
+            // Update assistant message in sidebar
+            const assistantMessage = { role: 'assistant', content: assistantContent };
+            const updatedMessages = [...collectedMessages, assistantMessage];
+            setAiMessages(updatedMessages);
+            if (onAIMessageUpdate) {
+              onAIMessageUpdate(updatedMessages);
+            }
+          },
+          llmSettings,
+          // Tool result callback
+          (toolName, toolContent) => {
+            // Add tool result as a message (but don't show it prominently - just in tool result section)
+            const toolMessage = { role: 'tool', content: toolContent, toolResult: { name: toolName, content: toolContent } };
+            collectedMessages.push(toolMessage);
+            // Update messages with tool result
+            const updatedMessages = [...collectedMessages, { role: 'assistant', content: assistantContent }];
+            setAiMessages(updatedMessages);
+            if (onAIMessageUpdate) {
+              onAIMessageUpdate(updatedMessages);
+            }
+          },
+          // Tool call callback (when LLM requests to call a tool) - don't display
+          (toolName, toolArgs) => {
+            // Don't display tool calls to user - just track internally if needed
+            // The reasoning/thinking is what matters
+          }
+        );
+
+        // Final assistant message
+        const finalAssistantMessage = { role: 'assistant', content: assistantContent };
+        const finalMessages = [...collectedMessages, finalAssistantMessage];
+        setAiMessages(finalMessages);
+        if (onAIMessageUpdate) {
+          onAIMessageUpdate(finalMessages);
+        }
+
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Qwen-Agent task completed');
+        }
+
+        return; // Agent mode completed
       }
 
       // Create LLM service instance
@@ -60,28 +157,31 @@ export function useAICommand({
         console.log('Calling LLM service...');
       }
       
-      // Optimized: Use array for efficient string building
-      const streamingChunks = [];
-      const terminal = activeSessionId && terminalInstances.current[activeSessionId];
-      
-      // Show streaming indicator
-      if (terminal) {
-        terminal.write(`\r\n\x1b[90m# Generating command...\x1b[0m\r\n`);
+      // Add user message to sidebar
+      const userMessage = { role: 'user', content: naturalLanguage };
+      setAiMessages(prev => [...prev, userMessage]);
+      if (onAIMessageUpdate) {
+        onAIMessageUpdate([...aiMessages, userMessage]);
       }
+
+      // Collect assistant response for sidebar
+      let assistantContent = '';
+      const streamingChunks = [];
       
       const command = await llmService.convertToCommand(
         naturalLanguage, 
         context,
-        // Streaming callback
+        // Streaming callback - collect for sidebar
         (chunk) => {
           streamingChunks.push(chunk);
-          // Show streaming text in terminal (grey color, overwrite previous line)
-          if (terminal) {
-            // Join array efficiently only for display
-            const streamingText = streamingChunks.join('');
-            // Clear previous line and show current text
-            // Use carriage return to overwrite the line
-            terminal.write(`\r\x1b[K\x1b[90m# Generating: ${streamingText}\x1b[0m`);
+          assistantContent += chunk;
+          
+          // Update assistant message in sidebar
+          const assistantMessage = { role: 'assistant', content: `Generating command: ${assistantContent}` };
+          const updatedMessages = [...aiMessages, userMessage, assistantMessage];
+          setAiMessages(updatedMessages);
+          if (onAIMessageUpdate) {
+            onAIMessageUpdate(updatedMessages);
           }
         }
       );
@@ -90,12 +190,21 @@ export function useAICommand({
         console.log('LLM returned command:', command);
       }
 
-      // Clear streaming line and show final command
-      if (terminal) {
-        // Clear the streaming line and move to new line
-        terminal.write(`\r\x1b[K`); // Clear to end of line
-        terminal.write(`\x1b[90m# Generated command: ${command}\x1b[0m\r\n`);
-      }
+      // Final assistant message with command
+      const finalAssistantMessage = { role: 'assistant', content: `Generated command: \`${command}\`` };
+      setAiMessages(prev => {
+        const updated = [...prev];
+        const lastIndex = updated.length - 1;
+        if (lastIndex >= 0 && updated[lastIndex].role === 'assistant') {
+          updated[lastIndex] = finalAssistantMessage;
+        } else {
+          updated.push(finalAssistantMessage);
+        }
+        if (onAIMessageUpdate) {
+          onAIMessageUpdate(updated);
+        }
+        return updated;
+      });
 
       // Execute command in active session
       if (activeSessionId && sshConnections.current[activeSessionId]) {
@@ -138,7 +247,14 @@ export function useAICommand({
   ]);
 
   return {
-    executeAICommand
+    executeAICommand,
+    aiMessages,
+    clearAIMessages: () => {
+      setAiMessages([]);
+      if (onAIMessageUpdate) {
+        onAIMessageUpdate([]);
+      }
+    }
   };
 }
 

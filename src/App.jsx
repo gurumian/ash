@@ -31,7 +31,7 @@ import { LicensesDialog } from './components/LicensesDialog';
 import { ErrorDialog } from './components/ErrorDialog';
 import { TerminalContextMenu } from './components/TerminalContextMenu';
 import { TerminalSearchBar } from './components/TerminalSearchBar';
-import { TerminalAICommandInput } from './components/TerminalAICommandInput';
+import { AIChatSidebar } from './components/AIChatSidebar';
 import { SessionDialog } from './components/SessionDialog';
 import { LibraryDialog } from './components/LibraryDialog';
 import { LibraryImportDialog } from './components/LibraryImportDialog';
@@ -175,6 +175,9 @@ function App() {
   const [showIperfServerDialog, setShowIperfServerDialog] = useState(false);
   const [iperfAvailable, setIperfAvailable] = useState(true); // Default to true, will be checked on mount
   const [appInfo, setAppInfo] = useState({ version: '', author: { name: 'Bryce Ghim', email: 'admin@toktoktalk.com' } });
+  const [showAIChatSidebar, setShowAIChatSidebar] = useState(false);
+  const [aiChatSidebarWidth, setAiChatSidebarWidth] = useState(400);
+  const [aiMessages, setAiMessages] = useState([]);
   
   // Load app info on mount
   useEffect(() => {
@@ -408,6 +411,7 @@ function App() {
     setShowSearchBar,
     showAICommandInput,
     setShowAICommandInput,
+    setShowAIChatSidebar,
     llmSettings,
     terminalInstances,
     terminalFontSize,
@@ -467,14 +471,21 @@ function App() {
   });
 
   // AI Command hook
-  const { executeAICommand } = useAICommand({
+  const { executeAICommand, clearAIMessages } = useAICommand({
     activeSessionId,
     terminalInstances,
     sshConnections,
     llmSettings,
     setErrorDialog,
     setIsAIProcessing,
-    setShowAICommandInput
+    setShowAICommandInput,
+    onAIMessageUpdate: (messages) => {
+      setAiMessages(messages);
+      // Auto-show sidebar when messages arrive
+      if (messages.length > 0 && !showAIChatSidebar) {
+        setShowAIChatSidebar(true);
+      }
+    }
   });
 
   // Resize handle refs
@@ -725,6 +736,7 @@ function App() {
     setShowWebServerDialog,
     setShowIperfServerDialog,
     setShowAICommandInput,
+    setShowAIChatSidebar,
     setAppInfo,
     disconnectSession,
     resizeTerminal
@@ -951,20 +963,62 @@ function App() {
             setShowAICommandInput(false);
           }}
           onToggleAICommandInput={() => {
-            if (process.env.NODE_ENV === 'development') {
-              console.log('=== onToggleAICommandInput called ===');
-              console.log('Current showAICommandInput:', showAICommandInput);
-            }
-            setShowAICommandInput(prev => {
-              const newValue = !prev;
-              if (process.env.NODE_ENV === 'development') {
-                console.log('Setting showAICommandInput from', prev, 'to', newValue);
-              }
-              return newValue;
-            });
+            // Toggle AI Chat Sidebar instead of terminal input
+            setShowAIChatSidebar(prev => !prev);
+            // Also update showAICommandInput for button state
+            setShowAICommandInput(prev => !prev);
           }}
           onExecuteAICommand={executeAICommand}
           isAIProcessing={isAIProcessing}
+        />
+
+        {/* Resize handle for AI Chat Sidebar */}
+        {showAIChatSidebar && (
+          <div 
+            className="resize-handle"
+            style={{
+              width: '4px',
+              background: 'transparent',
+              cursor: 'col-resize',
+              flexShrink: 0,
+              transition: 'background 0.2s'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = '#4a90e2'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              const startX = e.clientX;
+              const startWidth = aiChatSidebarWidth;
+              
+              const handleMouseMove = (e) => {
+                const diff = startX - e.clientX; // Reverse because it's on the right
+                const newWidth = Math.max(300, Math.min(800, startWidth + diff));
+                setAiChatSidebarWidth(newWidth);
+              };
+              
+              const handleMouseUp = () => {
+                document.removeEventListener('mousemove', handleMouseMove);
+                document.removeEventListener('mouseup', handleMouseUp);
+              };
+              
+              document.addEventListener('mousemove', handleMouseMove);
+              document.addEventListener('mouseup', handleMouseUp);
+            }}
+          />
+        )}
+
+        {/* AI Chat Sidebar */}
+        <AIChatSidebar
+          isVisible={showAIChatSidebar}
+          width={aiChatSidebarWidth}
+          messages={aiMessages}
+          isProcessing={isAIProcessing}
+          terminal={activeSessionId ? terminalInstances.current[activeSessionId] : null}
+          onExecuteAICommand={executeAICommand}
+          onClose={() => {
+            setShowAIChatSidebar(false);
+            clearAIMessages();
+          }}
         />
         
         {/* Terminal Context Menu */}

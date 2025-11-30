@@ -11,32 +11,61 @@ export const TerminalAICommandInput = memo(function TerminalAICommandInput({
   isProcessing = false
 }) {
   const [input, setInput] = useState('');
+  const [mode, setMode] = useState('ask');
+  const [showModeDropdown, setShowModeDropdown] = useState(false);
   const inputRef = useRef(null);
+  const modeDropdownRef = useRef(null);
 
   // Focus input when component becomes visible
   useEffect(() => {
     if (isVisible && inputRef.current) {
-      inputRef.current.focus();
+      // Small delay to ensure DOM is ready
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
     }
   }, [isVisible]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (modeDropdownRef.current && !modeDropdownRef.current.contains(event.target)) {
+        setShowModeDropdown(false);
+      }
+    };
+
+    if (showModeDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [showModeDropdown]);
 
   const handleKeyDown = (e) => {
     if (e.key === 'Escape') {
       e.preventDefault();
-      onClose();
+      if (showModeDropdown) {
+        setShowModeDropdown(false);
+      } else {
+        onClose();
+      }
     } else if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       if (input.trim() && !isProcessing) {
-        onExecute(input.trim());
+        onExecute(input.trim(), mode);
       }
     }
   };
 
   const handleExecute = useCallback(() => {
     if (input.trim() && !isProcessing) {
-      onExecute(input.trim());
+      const command = input.trim();
+      const selectedMode = mode;
+      setInput(''); // Clear input after execution
+      onExecute(command, selectedMode);
     }
-  }, [input, isProcessing, onExecute]);
+  }, [input, mode, isProcessing, onExecute]);
 
   // Debug log
   useEffect(() => {
@@ -53,8 +82,101 @@ export const TerminalAICommandInput = memo(function TerminalAICommandInput({
   return (
     <div className="terminal-ai-command-input">
       <div className="ai-input-group">
-        <div className="ai-input-label">
-          <span style={{ color: '#00ff41', fontSize: '12px', fontWeight: '600' }}>AI:</span>
+        <div style={{ position: 'relative', display: 'inline-block' }}>
+          <button
+            type="button"
+            onClick={() => setShowModeDropdown(!showModeDropdown)}
+            disabled={isProcessing}
+            style={{
+              padding: '6px 24px 6px 12px',
+              background: '#1a1a1a',
+              border: '1px solid rgba(0, 255, 65, 0.3)',
+              borderRadius: '4px',
+              color: '#00ff41',
+              fontSize: '12px',
+              fontWeight: '600',
+              cursor: isProcessing ? 'not-allowed' : 'pointer',
+              fontFamily: 'var(--ui-font-family)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              opacity: isProcessing ? 0.6 : 1,
+              position: 'relative',
+              minWidth: '80px'
+            }}
+            title="Select AI mode: ask (simple) or agent (multi-step)"
+          >
+            <span>{mode === 'ask' ? 'ask' : 'agent'}</span>
+            <span style={{
+              fontSize: '10px',
+              position: 'absolute',
+              right: '6px',
+              top: '50%',
+              transform: 'translateY(-50%)'
+            }}>▲</span>
+          </button>
+          {showModeDropdown && (
+            <div
+              ref={modeDropdownRef}
+              style={{
+                position: 'absolute',
+                bottom: '100%',
+                left: 0,
+                marginBottom: '4px',
+                background: '#1a1a1a',
+                border: '1px solid #2a2a2a',
+                borderRadius: '4px',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)',
+                zIndex: 1000,
+                minWidth: '100px'
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('ask');
+                  setShowModeDropdown(false);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  background: mode === 'ask' ? 'rgba(0, 255, 65, 0.15)' : 'transparent',
+                  border: 'none',
+                  color: '#00ff41',
+                  fontSize: '12px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  transition: 'background 0.15s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0, 255, 65, 0.1)'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = mode === 'ask' ? 'rgba(0, 255, 65, 0.15)' : 'transparent'}
+              >
+                ask
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('agent');
+                  setShowModeDropdown(false);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  background: mode === 'agent' ? 'rgba(0, 255, 65, 0.15)' : 'transparent',
+                  border: 'none',
+                  color: '#00ff41',
+                  fontSize: '12px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  transition: 'background 0.15s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0, 255, 65, 0.1)'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = mode === 'agent' ? 'rgba(0, 255, 65, 0.15)' : 'transparent'}
+              >
+                agent
+              </button>
+            </div>
+          )}
         </div>
         <input
           ref={inputRef}

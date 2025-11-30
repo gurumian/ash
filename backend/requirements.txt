@@ -1,0 +1,8 @@
+fastapi>=0.119.0
+uvicorn[standard]>=0.37.0
+qwen-agent>=0.0.31
+pydantic>=2.12.3
+python-dateutil>=2.9.0.post0
+python-multipart>=0.0.20
+requests>=2.31.0
+

@@ -291,21 +291,9 @@ export function useTerminalManagement({
           return false;
         }
       }
-      // Ctrl+Shift+A or Cmd+Shift+A - open AI command input
-      if ((event.ctrlKey || event.metaKey) && event.shiftKey && (event.key === 'a' || event.key === 'A')) {
-        console.log('=== Terminal: Ctrl+Shift+A detected ===');
-        console.log('sessionId:', sessionId, 'activeSessionId:', activeSessionId);
-        console.log('setShowAICommandInput exists:', !!setShowAICommandInput);
-        if (activeSessionId === sessionId && setShowAICommandInput) {
-          console.log('Terminal: Opening AI Command Input');
-          setShowAICommandInput(true);
-          event.preventDefault();
-          event.stopPropagation();
-          return false;
-        } else {
-          console.log('Terminal: Conditions not met - sessionId match:', activeSessionId === sessionId, 'setShowAICommandInput:', !!setShowAICommandInput);
-        }
-      }
+      // Ctrl+Shift+A or Cmd+Shift+A - open AI Chat Sidebar
+      // Note: This is handled by useKeyboardShortcuts, but we keep it here for terminal-specific handling
+      // The terminal handler will be overridden by window-level handler
       // Escape - close AI input if open
       if (event.key === 'Escape' && showAICommandInput && activeSessionId === sessionId) {
         console.log('Terminal: ESC detected, closing AI input');
