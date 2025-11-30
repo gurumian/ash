@@ -145,16 +145,8 @@ export function initializeSSHHandlers() {
     return { success: false };
   });
 
-  // SFTP file upload
-  ipcMain.handle('ssh-upload-file', async (event, { connectionId, localPath, remotePath }) => {
-    const conn = sshConnections.get(connectionId);
-    if (!conn) {
-      throw new Error('SSH connection not found');
-    }
-
-    const fs = require('fs');
-    const path = require('path');
-
+  // Helper: Upload file via SFTP
+  async function uploadViaSFTP(conn, localPath, remotePath, webContents, connectionId) {
     return new Promise((resolve, reject) => {
       conn.sftp((err, sftp) => {
         if (err) {
@@ -162,17 +154,10 @@ export function initializeSSHHandlers() {
           return;
         }
 
-        // Check if local file exists
-        if (!fs.existsSync(localPath)) {
-          reject(new Error(`Local file not found: ${localPath}`));
-          return;
-        }
-
-        // Get file stats for progress tracking
+        const fs = require('fs');
         const stats = fs.statSync(localPath);
         const fileSize = stats.size;
 
-        // Use fastPut for efficient file transfer
         sftp.fastPut(
           localPath,
           remotePath,
@@ -180,34 +165,242 @@ export function initializeSSHHandlers() {
             concurrency: 64,
             chunkSize: 32768,
             step: (totalTransferred, chunk, total) => {
-              // Send progress updates
               const progress = (totalTransferred / total) * 100;
-              const webContents = event.sender;
               if (!webContents.isDestroyed()) {
                 webContents.send('ssh-upload-progress', {
                   connectionId,
                   progress,
                   transferred: totalTransferred,
-                  total: total
+                  total: total,
+                  method: 'SFTP'
                 });
               }
             }
           },
           (err) => {
             if (err) {
-              reject(new Error(`Upload failed: ${err.message}`));
+              reject(new Error(`SFTP upload failed: ${err.message}`));
             } else {
               resolve({
                 success: true,
                 localPath,
                 remotePath,
-                fileSize
+                fileSize,
+                method: 'SFTP'
               });
             }
           }
         );
       });
     });
+  }
+
+  // Helper: Upload file via SCP
+  async function uploadViaSCP(conn, localPath, remotePath, webContents, connectionId) {
+    return new Promise((resolve, reject) => {
+      const fs = require('fs');
+      const path = require('path');
+      
+      // Check if local file exists
+      if (!fs.existsSync(localPath)) {
+        reject(new Error(`Local file not found: ${localPath}`));
+        return;
+      }
+
+      const stats = fs.statSync(localPath);
+      const fileSize = stats.size;
+      const fileName = path.basename(remotePath);
+      const remoteDir = path.dirname(remotePath);
+
+      // Use scp command on remote server
+      // Note: This requires scp to be available on the remote server
+      const scpCommand = `scp -t ${remoteDir}`;
+      
+      conn.exec(scpCommand, (err, stream) => {
+        if (err) {
+          reject(new Error(`SCP exec failed: ${err.message}`));
+          return;
+        }
+
+        let errorOutput = '';
+        stream.stderr.on('data', (data) => {
+          errorOutput += data.toString();
+        });
+
+        stream.on('close', (code) => {
+          if (code !== 0) {
+            reject(new Error(`SCP upload failed: ${errorOutput || `Exit code ${code}`}`));
+          } else {
+            resolve({
+              success: true,
+              localPath,
+              remotePath,
+              fileSize,
+              method: 'SCP'
+            });
+          }
+        });
+
+        // SCP protocol: C0644 <size> <filename>\n
+        const fileMode = stats.mode & 0o777;
+        stream.write(`C0${fileMode.toString(8).padStart(3, '0')} ${fileSize} ${fileName}\n`);
+        
+        // Send file data
+        const fileStream = fs.createReadStream(localPath);
+        let transferred = 0;
+        
+        fileStream.on('data', (chunk) => {
+          stream.write(chunk);
+          transferred += chunk.length;
+          const progress = (transferred / fileSize) * 100;
+          if (!webContents.isDestroyed()) {
+            webContents.send('ssh-upload-progress', {
+              connectionId,
+              progress,
+              transferred,
+              total: fileSize,
+              method: 'SCP'
+            });
+          }
+        });
+
+        fileStream.on('end', () => {
+          stream.write('\x00'); // SCP protocol: send null byte to confirm
+          stream.end();
+        });
+
+        fileStream.on('error', (err) => {
+          stream.end();
+          reject(new Error(`File read error: ${err.message}`));
+        });
+      });
+    });
+  }
+
+  // Helper: Upload file via CAT (most compatible method)
+  async function uploadViaCAT(conn, localPath, remotePath, webContents, connectionId) {
+    return new Promise((resolve, reject) => {
+      const fs = require('fs');
+      
+      // Check if local file exists
+      if (!fs.existsSync(localPath)) {
+        reject(new Error(`Local file not found: ${localPath}`));
+        return;
+      }
+
+      const stats = fs.statSync(localPath);
+      const fileSize = stats.size;
+
+      // Escape remote path for shell
+      const escapedRemotePath = remotePath.replace(/'/g, "'\"'\"'");
+      const catCommand = `cat > '${escapedRemotePath}'`;
+
+      conn.exec(catCommand, (err, stream) => {
+        if (err) {
+          reject(new Error(`CAT exec failed: ${err.message}`));
+          return;
+        }
+
+        let errorOutput = '';
+        stream.stderr.on('data', (data) => {
+          errorOutput += data.toString();
+        });
+
+        stream.on('close', (code) => {
+          if (code !== 0) {
+            reject(new Error(`CAT upload failed: ${errorOutput || `Exit code ${code}`}`));
+          } else {
+            resolve({
+              success: true,
+              localPath,
+              remotePath,
+              fileSize,
+              method: 'CAT'
+            });
+          }
+        });
+
+        // Send file data
+        const fileStream = fs.createReadStream(localPath);
+        let transferred = 0;
+        
+        fileStream.on('data', (chunk) => {
+          stream.write(chunk);
+          transferred += chunk.length;
+          const progress = (transferred / fileSize) * 100;
+          if (!webContents.isDestroyed()) {
+            webContents.send('ssh-upload-progress', {
+              connectionId,
+              progress,
+              transferred,
+              total: fileSize,
+              method: 'CAT'
+            });
+          }
+        });
+
+        fileStream.on('end', () => {
+          stream.end();
+        });
+
+        fileStream.on('error', (err) => {
+          stream.end();
+          reject(new Error(`File read error: ${err.message}`));
+        });
+      });
+    });
+  }
+
+  // File upload with fallback: SFTP → SCP → CAT
+  ipcMain.handle('ssh-upload-file', async (event, { connectionId, localPath, remotePath }) => {
+    const conn = sshConnections.get(connectionId);
+    if (!conn) {
+      throw new Error('SSH connection not found');
+    }
+
+    const fs = require('fs');
+    const webContents = event.sender;
+
+    // Check if local file exists
+    if (!fs.existsSync(localPath)) {
+      throw new Error(`Local file not found: ${localPath}`);
+    }
+
+    // Try methods in order: SFTP → SCP → CAT
+    let lastError = null;
+
+    // Method 1: Try SFTP
+    try {
+      console.log(`[SSH Upload] Attempting SFTP upload: ${localPath} → ${remotePath}`);
+      const result = await uploadViaSFTP(conn, localPath, remotePath, webContents, connectionId);
+      console.log(`[SSH Upload] SFTP upload successful`);
+      return result;
+    } catch (err) {
+      console.log(`[SSH Upload] SFTP failed: ${err.message}, trying SCP...`);
+      lastError = err;
+    }
+
+    // Method 2: Try SCP
+    try {
+      console.log(`[SSH Upload] Attempting SCP upload: ${localPath} → ${remotePath}`);
+      const result = await uploadViaSCP(conn, localPath, remotePath, webContents, connectionId);
+      console.log(`[SSH Upload] SCP upload successful`);
+      return result;
+    } catch (err) {
+      console.log(`[SSH Upload] SCP failed: ${err.message}, trying CAT...`);
+      lastError = err;
+    }
+
+    // Method 3: Try CAT (most compatible, should always work if SSH works)
+    try {
+      console.log(`[SSH Upload] Attempting CAT upload: ${localPath} → ${remotePath}`);
+      const result = await uploadViaCAT(conn, localPath, remotePath, webContents, connectionId);
+      console.log(`[SSH Upload] CAT upload successful`);
+      return result;
+    } catch (err) {
+      console.error(`[SSH Upload] All methods failed. Last error: ${err.message}`);
+      throw new Error(`All upload methods failed. Last error: ${err.message}. Previous errors: ${lastError?.message || 'none'}`);
+    }
   });
 }
 
