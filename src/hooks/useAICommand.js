@@ -98,13 +98,12 @@ export function useAICommand({
         await qwenAgent.executeTask(
           naturalLanguage,
           connectionId,
-          (chunk) => {
-            // Collect chunks for sidebar (not terminal)
-            // This includes reasoning (thinking process) and regular content
-            // chunk is already a delta from qwen-agent-service
-            assistantContent += chunk;
+          (fullContent) => {
+            // qwen-agent-service now sends full accumulated content, not delta
+            // We should replace the entire message content, not append
+            assistantContent = fullContent; // Replace, not accumulate
             
-            // Update assistant message in sidebar (replace entire message, not append)
+            // Update assistant message in sidebar (replace entire message)
             const updatedMessages = [...collectedMessages];
             
             // Find or create assistant message
@@ -117,10 +116,10 @@ export function useAICommand({
               });
               lastAssistantMessageIndex = updatedMessages.length - 1;
             } else {
-              // Replace entire assistant message with accumulated content (not append)
+              // Replace entire assistant message with full content (refresh, not append)
               updatedMessages[lastAssistantMessageIndex] = { 
                 role: 'assistant', 
-                content: assistantContent, // Full accumulated content, not +=
+                content: assistantContent, // Full content from backend
                 id: messageId
               };
             }

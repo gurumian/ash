@@ -85,51 +85,61 @@ class QwenAgentService {
                 const data = JSON.parse(line.substring(6));
                 
                 if (data.type === 'content' && data.content) {
-                  // Qwen-Agent may send accumulated content, so we need to extract delta
-                  const currentContent = data.content;
-                  const delta = currentContent.length > lastContentLength 
-                    ? currentContent.substring(lastContentLength)
-                    : currentContent; // If length decreased, it's a new response
+                  // Backend sends full accumulated content - we should replace, not append
+                  let currentContent = data.content;
                   
-                  // Update full response with delta only
-                  fullResponse += delta;
-                  lastContentLength = currentContent.length;
+                  // Filter out [function]: {...} patterns from full content
+                  const functionPattern = /\[function\]:\s*\{[^}]*"success"[^}]*\}/g;
+                  const functionPattern2 = /\[function\]:\s*\{[^}]+\}/g;
+                  const jsonPattern = /\{"success":\s*(?:true|false)[^}]+\}/g;
                   
-                  // Display only the delta (new content)
-                  if (onChunk && delta) {
-                    onChunk(delta);
+                  currentContent = currentContent.replace(functionPattern, '');
+                  currentContent = currentContent.replace(functionPattern2, '');
+                  currentContent = currentContent.replace(jsonPattern, '');
+                  currentContent = currentContent.replace(/\n\s*\n\s*\n+/g, '\n\n').trim();
+                  
+                  // Update full response with filtered content (for history)
+                  fullResponse = currentContent; // Replace, not append
+                  
+                  // Call onChunk with FULL filtered content - frontend will replace, not append
+                  if (onChunk && currentContent) {
+                    onChunk(currentContent); // Send full content for refresh
                   }
                   
-                  // Track assistant messages for history (keep accumulated content)
+                  // Track assistant messages for history (keep accumulated filtered content)
                   if (!messages.length || messages[messages.length - 1].role !== 'assistant') {
                     messages.push({ role: 'assistant', content: currentContent });
                   } else {
-                    // Update with full accumulated content
+                    // Update with full accumulated filtered content
                     messages[messages.length - 1].content = currentContent;
                   }
                 } else if (data.type === 'reasoning') {
                   // LLM reasoning/thinking process - this is what we want to show prominently
-                  const currentReasoning = data.content || '';
+                  let currentReasoning = data.content || '';
                   
-                  // Extract delta from reasoning (similar to content)
-                  const reasoningDelta = currentReasoning.length > lastReasoningLength
-                    ? currentReasoning.substring(lastReasoningLength)
-                    : currentReasoning; // If length decreased, it's a new reasoning
+                  // Filter out [function]: {...} patterns from reasoning
+                  const functionPattern = /\[function\]:\s*\{[^}]*"success"[^}]*\}/g;
+                  const functionPattern2 = /\[function\]:\s*\{[^}]+\}/g;
+                  const jsonPattern = /\{"success":\s*(?:true|false)[^}]+\}/g;
                   
-                  // Update full response with reasoning delta
-                  fullResponse += reasoningDelta;
-                  lastReasoningLength = currentReasoning.length;
+                  currentReasoning = currentReasoning.replace(functionPattern, '');
+                  currentReasoning = currentReasoning.replace(functionPattern2, '');
+                  currentReasoning = currentReasoning.replace(jsonPattern, '');
+                  currentReasoning = currentReasoning.replace(/\n\s*\n\s*\n+/g, '\n\n').trim();
                   
-                  // Display only the delta (new reasoning content)
-                  if (onChunk && reasoningDelta) {
-                    onChunk(reasoningDelta);
+                  // Update full response with filtered reasoning (for history)
+                  fullResponse = currentReasoning; // Replace, not append
+                  
+                  // Call onChunk with FULL filtered reasoning - frontend will replace, not append
+                  if (onChunk && currentReasoning) {
+                    onChunk(currentReasoning); // Send full content for refresh
                   }
                   
-                  // Track reasoning for history (keep accumulated content)
+                  // Track reasoning for history (keep accumulated filtered content)
                   if (!messages.length || messages[messages.length - 1].role !== 'assistant') {
                     messages.push({ role: 'assistant', content: currentReasoning });
                   } else {
-                    // Update with full accumulated reasoning
+                    // Update with full accumulated filtered reasoning
                     messages[messages.length - 1].content = currentReasoning;
                   }
                 } else if (data.type === 'tool_call') {
