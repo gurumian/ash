@@ -358,41 +358,83 @@ export const AIChatSidebar = memo(function AIChatSidebar({
           flexShrink: 0
         }}
       >
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          {/* Mode selector */}
-          <div style={{ position: 'relative', display: 'inline-block' }}>
-            <button
-              type="button"
-              onClick={() => setShowModeDropdown(!showModeDropdown)}
-              disabled={isProcessing}
-              style={{
-                padding: '6px 24px 6px 12px',
-                background: '#1a1a1a',
-                border: '1px solid rgba(0, 255, 65, 0.3)',
-                borderRadius: '4px',
-                color: '#00ff41',
-                fontSize: '12px',
-                fontWeight: '600',
-                cursor: isProcessing ? 'not-allowed' : 'pointer',
-                fontFamily: 'var(--ui-font-family)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                opacity: isProcessing ? 0.6 : 1,
-                position: 'relative',
-                minWidth: '80px'
-              }}
-              title="Select AI mode: ask (simple) or agent (multi-step)"
-            >
-              <span>{mode === 'ask' ? 'ask' : 'agent'}</span>
-              <span style={{
-                fontSize: '10px',
-                position: 'absolute',
-                right: '6px',
-                top: '50%',
-                transform: 'translateY(-50%)'
-              }}>▲</span>
-            </button>
+        {/* Textarea with controls inside */}
+        <div style={{ position: 'relative' }}>
+          <textarea
+            ref={inputRef}
+            placeholder="Describe what you want to do..."
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={isProcessing}
+            rows={3}
+            style={{
+              width: '100%',
+              padding: '8px 12px 32px 12px', // Bottom padding for controls
+              background: 'transparent',
+              border: '1px solid rgba(0, 255, 65, 0.3)',
+              borderRadius: '4px',
+              color: '#00ff41',
+              fontSize: '13px',
+              fontFamily: 'var(--ui-font-family)',
+              opacity: isProcessing ? 0.6 : 1,
+              resize: 'none',
+              overflowY: 'auto',
+              lineHeight: '1.5',
+              outline: 'none',
+              transition: 'border-color 0.2s'
+            }}
+            onFocus={(e) => {
+              e.target.style.borderColor = '#00ff41';
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = 'rgba(0, 255, 65, 0.3)';
+            }}
+          />
+          
+          {/* Controls at bottom right of textarea */}
+          <div style={{
+            position: 'absolute',
+            bottom: '4px',
+            right: '4px',
+            display: 'flex',
+            gap: '4px',
+            alignItems: 'center'
+          }}>
+            {/* Mode selector - compact */}
+            <div style={{ position: 'relative', display: 'inline-block' }}>
+              <button
+                type="button"
+                onClick={() => setShowModeDropdown(!showModeDropdown)}
+                disabled={isProcessing}
+                style={{
+                  padding: '4px 20px 4px 8px',
+                  background: 'rgba(26, 26, 26, 0.8)',
+                  border: '1px solid rgba(0, 255, 65, 0.3)',
+                  borderRadius: '3px',
+                  color: '#00ff41',
+                  fontSize: '11px',
+                  fontWeight: '600',
+                  cursor: isProcessing ? 'not-allowed' : 'pointer',
+                  fontFamily: 'var(--ui-font-family)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  opacity: isProcessing ? 0.6 : 1,
+                  position: 'relative',
+                  minWidth: '60px'
+                }}
+                title="Select AI mode: ask (simple) or agent (multi-step)"
+              >
+                <span>{mode === 'ask' ? 'ask' : 'agent'}</span>
+                <span style={{
+                  fontSize: '8px',
+                  position: 'absolute',
+                  right: '4px',
+                  top: '50%',
+                  transform: 'translateY(-50%)'
+                }}>▲</span>
+              </button>
             {showModeDropdown && (
               <div
                 ref={modeDropdownRef}
@@ -417,11 +459,11 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                   }}
                   style={{
                     width: '100%',
-                    padding: '8px 12px',
+                    padding: '6px 10px',
                     background: mode === 'ask' ? 'rgba(0, 255, 65, 0.15)' : 'transparent',
                     border: 'none',
                     color: '#00ff41',
-                    fontSize: '12px',
+                    fontSize: '11px',
                     textAlign: 'left',
                     cursor: 'pointer',
                     transition: 'background 0.15s'
@@ -439,11 +481,11 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                   }}
                   style={{
                     width: '100%',
-                    padding: '8px 12px',
+                    padding: '6px 10px',
                     background: mode === 'agent' ? 'rgba(0, 255, 65, 0.15)' : 'transparent',
                     border: 'none',
                     color: '#00ff41',
-                    fontSize: '12px',
+                    fontSize: '11px',
                     textAlign: 'left',
                     cursor: 'pointer',
                     transition: 'background 0.15s'
@@ -455,61 +497,34 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                 </button>
               </div>
             )}
+            </div>
+            
+            {/* Execute button - up arrow */}
+            <button
+              onClick={handleExecute}
+              disabled={!input.trim() || isProcessing}
+              style={{
+                padding: '4px 8px',
+                background: input.trim() && !isProcessing ? 'rgba(0, 255, 65, 0.2)' : 'rgba(26, 26, 26, 0.3)',
+                border: `1px solid ${input.trim() && !isProcessing ? '#00ff41' : 'rgba(0, 255, 65, 0.3)'}`,
+                borderRadius: '3px',
+                color: '#00ff41',
+                cursor: input.trim() && !isProcessing ? 'pointer' : 'not-allowed',
+                fontSize: '14px',
+                lineHeight: '1',
+                width: '24px',
+                height: '24px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s',
+                fontFamily: 'var(--ui-font-family)'
+              }}
+              title="Execute (Enter)"
+            >
+              ▲
+            </button>
           </div>
-          
-          {/* Input field - multiline textarea */}
-          <textarea
-            ref={inputRef}
-            placeholder="Describe what you want to do..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={isProcessing}
-            rows={1}
-            style={{
-              flex: 1,
-              padding: '8px 12px',
-              background: 'transparent',
-              border: '1px solid rgba(0, 255, 65, 0.3)',
-              borderRadius: '4px',
-              color: '#00ff41',
-              fontSize: '13px',
-              fontFamily: 'var(--ui-font-family)',
-              opacity: isProcessing ? 0.6 : 1,
-              resize: 'none',
-              minHeight: '36px',
-              maxHeight: '120px',
-              overflowY: 'auto',
-              lineHeight: '1.5'
-            }}
-            onInput={(e) => {
-              // Auto-resize textarea based on content
-              const textarea = e.target;
-              textarea.style.height = 'auto';
-              textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
-            }}
-          />
-          
-          {/* Execute button */}
-          <button
-            onClick={handleExecute}
-            disabled={!input.trim() || isProcessing}
-            style={{
-              padding: '8px 16px',
-              background: input.trim() && !isProcessing ? 'rgba(0, 255, 65, 0.8)' : 'rgba(26, 26, 26, 0.3)',
-              border: `1px solid ${input.trim() && !isProcessing ? '#00ff41' : 'rgba(0, 255, 65, 0.3)'}`,
-              borderRadius: '4px',
-              color: input.trim() && !isProcessing ? '#000' : '#00ff41',
-              cursor: input.trim() && !isProcessing ? 'pointer' : 'not-allowed',
-              fontSize: '12px',
-              fontWeight: '600',
-              transition: 'all 0.2s',
-              fontFamily: 'var(--ui-font-family)'
-            }}
-            title="Execute (Enter)"
-          >
-            Execute
-          </button>
         </div>
       </div>
     </div>
