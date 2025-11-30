@@ -60,3 +60,4 @@ export const LicensesDialog = ({ isOpen, onClose }) => {
   );
 };
 
+

@@ -137,11 +137,11 @@ def build_system_prompt(connection_id: Optional[str] = None) -> str:
         "- Always execute commands first, then provide analysis based on actual output\n\n"
         
         "RESPONSE FORMAT:\n"
-        "- Always format your responses using Markdown for better readability\n"
-        "- Use code blocks (```) for command examples and terminal output\n"
-        "- Use lists, headers, and formatting to organize information clearly\n"
-        "- Use inline code (`) for file names, paths, and technical terms\n"
-        "- Show actual command output in code blocks after executing commands\n\n"
+        "- Format your responses using Markdown\n"
+        "- Use code blocks (```) for command output and multi-line content\n"
+        "- Use inline code (`) for single values, file names, and paths\n"
+        "- Use lists and headers to organize information\n"
+        "- Show actual command results in code blocks\n\n"
         
         "Important guidelines:\n"
         "1. Plan complex tasks step by step\n"

@@ -1,5 +1,6 @@
 import React, { memo, useState, useEffect, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
+import { visit } from 'unist-util-visit';
 
 /**
  * AI Chat Sidebar - Displays AI conversation history and input
@@ -179,57 +180,97 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                 }}
               >
                 <ReactMarkdown
+                  remarkPlugins={[
+                    // Custom plugin to unwrap code blocks from paragraphs at Markdown AST level
+                    // This prevents <p><pre> hydration errors by removing paragraphs that contain code blocks
+                    () => {
+                      return (tree) => {
+                        visit(tree, 'paragraph', (node, index, parent) => {
+                          if (!parent || typeof index !== 'number' || !parent.children) return;
+                          
+                          // Check if paragraph contains block-like content that shouldn't be in <p>
+                          const hasBlockLike = node.children?.some((child) => {
+                            // Fenced code block (```language)
+                            if (child.type === 'code') return true;
+                            
+                            // HTML content with <pre>, <div>, or <code> tags (defensive check)
+                            if (
+                              child.type === 'html' &&
+                              /<(pre|div|code)[\s>]/i.test(child.value || '')
+                            ) {
+                              return true;
+                            }
+                            
+                            return false;
+                          });
+                          
+                          if (!hasBlockLike) return;
+                          
+                          // Unwrap: remove paragraph and promote its children to parent level
+                          parent.children.splice(index, 1, ...(node.children || []));
+                        });
+                      };
+                    }
+                  ]}
                   components={{
                     // Customize markdown components to match terminal theme
+                    // p component is now simple - remarkPlugins handles unwrapping code blocks from paragraphs
                     p: ({ children, ...props }) => {
-                      // ReactMarkdown should not put code blocks inside p, but if it does, handle it
-                      const childrenArray = React.Children.toArray(children);
-                      const hasBlockElement = childrenArray.some(
-                        child => React.isValidElement(child) && 
-                        (child.type === 'pre' || child.type === 'div' || child.type === 'ul' || child.type === 'ol')
+                      return (
+                        <p style={{ margin: '0 0 8px 0' }} {...props}>
+                          {children}
+                        </p>
                       );
-                      
-                      if (hasBlockElement) {
-                        // If contains block elements, render as div instead of p
-                        return <div style={{ margin: '0 0 8px 0' }}>{children}</div>;
-                      }
-                      return <p style={{ margin: '0 0 8px 0' }}>{children}</p>;
                     },
                     h1: ({ children }) => <h1 style={{ fontSize: '18px', margin: '12px 0 8px 0', fontWeight: '600' }}>{children}</h1>,
                     h2: ({ children }) => <h2 style={{ fontSize: '16px', margin: '10px 0 6px 0', fontWeight: '600' }}>{children}</h2>,
                     h3: ({ children }) => <h3 style={{ fontSize: '14px', margin: '8px 0 4px 0', fontWeight: '600' }}>{children}</h3>,
                     code: ({ inline, className, children, ...props }) => {
-                      // Check if this is a code block (not inline)
-                      const isCodeBlock = !inline && className?.startsWith('language-');
+                      // Check if this is a fenced code block (has language class)
+                      const match = /language-(\w+)/.exec(className || '');
                       
-                      if (inline) {
+                      // ✅ Inline code (``name``) - MUST return only <code>, never <pre> or <div>
+                      if (inline || !match) {
                         return (
-                          <code style={{
-                            background: 'rgba(0, 255, 65, 0.1)',
-                            padding: '2px 4px',
-                            borderRadius: '3px',
-                            fontFamily: 'monospace',
-                            fontSize: '12px'
-                          }}>
+                          <code 
+                            {...props} 
+                            className={className}
+                            style={{
+                              background: 'rgba(0, 255, 65, 0.1)',
+                              padding: '2px 4px',
+                              borderRadius: '3px',
+                              fontFamily: 'monospace',
+                              fontSize: '12px'
+                            }}
+                          >
                             {children}
                           </code>
                         );
                       }
-                      // Code block - return pre directly (ReactMarkdown should not wrap this in p)
+                      
+                      // ✅ Fenced code block (```language) - return <pre><code> directly, no <div> wrapper
+                      // remarkPlugins will handle unwrapping from <p>, so we don't need <div> wrapper
                       return (
-                        <pre style={{
-                          background: 'rgba(0, 255, 65, 0.05)',
-                          border: '1px solid rgba(0, 255, 65, 0.2)',
-                          borderRadius: '4px',
-                          padding: '8px',
-                          overflow: 'auto',
-                          margin: '8px 0'
-                        }}>
-                          <code style={{
-                            fontFamily: 'monospace',
-                            fontSize: '12px',
-                            color: '#00ff41'
-                          }}>
+                        <pre
+                          style={{
+                            background: 'rgba(0, 255, 65, 0.05)',
+                            border: '1px solid rgba(0, 255, 65, 0.2)',
+                            borderRadius: '4px',
+                            padding: '8px',
+                            overflow: 'auto',
+                            margin: '8px 0',
+                            fontSize: '12px'
+                          }}
+                          {...props}
+                        >
+                          <code 
+                            className={className}
+                            style={{
+                              fontFamily: 'monospace',
+                              fontSize: '12px',
+                              color: '#00ff41'
+                            }}
+                          >
                             {children}
                           </code>
                         </pre>
