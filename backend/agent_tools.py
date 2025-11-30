@@ -9,12 +9,13 @@ Tools communicate with ash's main process via HTTP API (internal IPC bridge).
 """
 
 import json
+import os
 import requests
 from qwen_agent.tools.base import BaseTool, register_tool
 from typing import Dict, Any, Optional
 
-# Base URL for ash IPC bridge
-ASH_IPC_URL = "http://127.0.0.1:54112"  # Different port from backend API
+# Base URL for ash IPC bridge - configurable via environment variable
+ASH_IPC_URL = os.getenv('ASH_IPC_URL', 'http://127.0.0.1:54112')
 
 def call_ash_ipc(channel: str, *args) -> Dict[str, Any]:
     """
@@ -110,7 +111,7 @@ class SSHExecuteTool(BaseTool):
             return json.dumps(result, ensure_ascii=False)
         except Exception as e:
             logger.error(f"[ash_ssh_execute] Error: {str(e)}", exc_info=True)
-            return json.dumps({"success": False, "error": str(e)}, ensure_ascii=False)
+            raise
 
 @register_tool('ash_list_connections')
 class ListConnectionsTool(BaseTool):
@@ -130,5 +131,5 @@ class ListConnectionsTool(BaseTool):
             return json.dumps(result, ensure_ascii=False)
         except Exception as e:
             logger.error(f"[ash_list_connections] Error: {str(e)}", exc_info=True)
-            return json.dumps({"success": False, "error": str(e)}, ensure_ascii=False)
+            raise
 

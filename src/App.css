@@ -1799,3 +1799,13 @@ button, a, input, select, textarea, [role="button"] {
   background: var(--theme-hover, #333333);
   color: #00ff41;
 }
+
+/* AI Chat Reasoning Text */
+.reasoning-text {
+  color: #888;
+  font-style: italic;
+  font-size: 12px;
+  padding: 8px 0;
+  margin-bottom: 8px;
+  border-bottom: 1px dashed rgba(0, 255, 65, 0.15);
+}

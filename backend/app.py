@@ -137,6 +137,8 @@ def build_system_prompt(connection_id: Optional[str] = None) -> str:
         "- Always execute commands first, then provide analysis based on actual output\n\n"
         
         "RESPONSE FORMAT:\n"
+        "- **VERY IMPORTANT**: Before providing the final response, you MUST output your internal thoughts, analysis, and step-by-step plan within `<thinking>...</thinking>` tags. This is for the user to see your reasoning process.\n"
+        "- After the `<thinking>` block, present the final, user-facing answer in Markdown.\n"
         "- Format your responses using Markdown\n"
         "- Use code blocks (```) for command output and multi-line content\n"
         "- Use inline code (`) for single values, file names, and paths\n"
@@ -144,7 +146,7 @@ def build_system_prompt(connection_id: Optional[str] = None) -> str:
         "- Show actual command results in code blocks\n\n"
         
         "Important guidelines:\n"
-        "1. Plan complex tasks step by step\n"
+        "1. Plan complex tasks step by step inside the `<thinking>` block.\n"
         "2. EXECUTE commands to get real data, don't just explain\n"
         "3. If a command fails, analyze the error and try alternative approaches\n"
         "4. Detect the OS first, then use appropriate commands for the detected OS/environment\n"
@@ -158,12 +160,14 @@ def build_system_prompt(connection_id: Optional[str] = None) -> str:
 # Default system prompt (will be customized per request if connection_id is provided)
 ash_system_prompt = build_system_prompt()
 
-# Initialize Qwen-Agent (will be recreated with custom LLM config per request)
-ash_assistant = Assistant(
-    llm=model_config,
-    system_message=ash_system_prompt,
-    function_list=ash_tool_names,
-)
+# Cache for assistant instances
+assistant_cache: Dict[str, Assistant] = {
+    "default": Assistant(
+        llm=model_config,
+        system_message=ash_system_prompt,
+        function_list=ash_tool_names,
+    )
+}
 
 # --- Pydantic Models ---
 
@@ -206,67 +210,70 @@ async def execute_task_stream(request: TaskRequest):
     """
     logger.info(f"Streaming task request: {request.message[:100]}...")
     
-    # Build system prompt with connection_id if provided
-    system_prompt = build_system_prompt(request.connection_id)
-    
-    # Use LLM config from request if provided, otherwise use default
+    # Generate a cache key based on LLM config and connection ID
     if request.llm_config:
-        # Build model config from request
-        llm_config = {
-            'model': request.llm_config.model or model_config['model'],
-            'model_server': request.llm_config.base_url or model_config['model_server'],
-            'api_key': request.llm_config.api_key or model_config['api_key'],
-            'generate_cfg': {
-                'temperature': request.llm_config.temperature if request.llm_config.temperature is not None else model_config['generate_cfg']['temperature'],
-                'max_tokens': request.llm_config.max_tokens if request.llm_config.max_tokens is not None else model_config['generate_cfg']['max_tokens'],
-                'top_p': model_config['generate_cfg']['top_p'],
-            }
-        }
-        
-        # Convert Ollama base URL to OpenAI-compatible format
-        if request.llm_config.provider == 'ollama':
-            base_url = request.llm_config.base_url or 'http://localhost:11434'
-            if not base_url.endswith('/v1'):
-                base_url = base_url.rstrip('/') + '/v1'
-            llm_config['model_server'] = base_url
-            llm_config['api_key'] = 'ollama'
-        elif request.llm_config.provider == 'openai':
-            llm_config['model_server'] = request.llm_config.base_url or 'https://api.openai.com/v1'
-            llm_config['api_key'] = request.llm_config.api_key or ''
-        elif request.llm_config.provider == 'anthropic':
-            # Anthropic uses OpenAI-compatible endpoint via proxy or direct API
-            # For Qwen-Agent compatibility, use the base URL (Qwen-Agent will append /chat/completions)
-            base_url = request.llm_config.base_url or 'https://api.anthropic.com'
-            if not base_url.endswith('/v1'):
-                # Anthropic might need /v1, but check if it's already there
-                if '/v1' not in base_url:
-                    base_url = base_url.rstrip('/') + '/v1'
-            llm_config['model_server'] = base_url
-            llm_config['api_key'] = request.llm_config.api_key or ''
-        
-        logger.info(f"Using LLM config: provider={request.llm_config.provider}, model={llm_config['model']}, server={llm_config['model_server']}")
-        if request.connection_id:
-            logger.info(f"Using active connection_id: {request.connection_id}")
-        
-        # Create assistant with custom LLM config and connection_id-aware system prompt
-        assistant = Assistant(
-            llm=llm_config,
-            system_message=system_prompt,
-            function_list=ash_tool_names,
-        )
+        config_dict = request.llm_config.dict()
+        config_dict['connection_id'] = request.connection_id
+        # Sort the dictionary to ensure consistent key format
+        cache_key = json.dumps(config_dict, sort_keys=True)
     else:
-        # Use default assistant but with connection_id-aware system prompt
-        if request.connection_id:
-            logger.info(f"Using default LLM config with active connection_id: {request.connection_id}")
+        # Use a key that also depends on the connection_id for the default config
+        cache_key = f"default_conn_{request.connection_id}" if request.connection_id else "default"
+
+    assistant = assistant_cache.get(cache_key)
+
+    if not assistant:
+        logger.info(f"Creating new assistant for cache key: {cache_key}")
+        system_prompt = build_system_prompt(request.connection_id)
+        
+        if request.llm_config:
+            # Build model config from request
+            llm_config_data = {
+                'model': request.llm_config.model or model_config['model'],
+                'model_server': request.llm_config.base_url or model_config['model_server'],
+                'api_key': request.llm_config.api_key or model_config['api_key'],
+                'generate_cfg': {
+                    'temperature': request.llm_config.temperature if request.llm_config.temperature is not None else model_config['generate_cfg']['temperature'],
+                    'max_tokens': request.llm_config.max_tokens if request.llm_config.max_tokens is not None else model_config['generate_cfg']['max_tokens'],
+                    'top_p': model_config['generate_cfg']['top_p'],
+                }
+            }
+            
+            # Convert provider-specific URLs
+            if request.llm_config.provider == 'ollama':
+                base_url = request.llm_config.base_url or 'http://localhost:11434'
+                if not base_url.endswith('/v1'):
+                    base_url = base_url.rstrip('/') + '/v1'
+                llm_config_data['model_server'] = base_url
+                llm_config_data['api_key'] = 'ollama'
+            elif request.llm_config.provider == 'openai':
+                llm_config_data['model_server'] = request.llm_config.base_url or 'https://api.openai.com/v1'
+            elif request.llm_config.provider == 'anthropic':
+                base_url = request.llm_config.base_url or 'https://api.anthropic.com'
+                if not base_url.endswith('/v1'):
+                     if '/v1' not in base_url:
+                        base_url = base_url.rstrip('/') + '/v1'
+                llm_config_data['model_server'] = base_url
+
+            logger.info(f"Using LLM config: provider={request.llm_config.provider}, model={llm_config_data['model']}, server={llm_config_data['model_server']}")
+            
+            assistant = Assistant(
+                llm=llm_config_data,
+                system_message=system_prompt,
+                function_list=ash_tool_names,
+            )
+        else:
+            # This branch is for the default assistant with a connection_id
             assistant = Assistant(
                 llm=model_config,
                 system_message=system_prompt,
                 function_list=ash_tool_names,
             )
-        else:
-            assistant = ash_assistant
-            logger.info(f"Using default LLM config: model={model_config['model']}, server={model_config['model_server']}")
-    
+        
+        assistant_cache[cache_key] = assistant
+    else:
+        logger.info(f"Using cached assistant for key: {cache_key}")
+
     messages = []
     if request.conversation_history:
         messages.extend(request.conversation_history)
@@ -288,41 +295,24 @@ async def execute_task_stream(request: TaskRequest):
                     # Check for assistant content (thinking/reasoning)
                     if event_type == 'assistant':
                         if content:
-                            # Extract reasoning/thinking from content
-                            # Qwen models often include reasoning in <think>, <reasoning>, or similar tags
+                            import re
                             reasoning_content = None
                             display_content = content
                             
-                            # Try to extract reasoning from various tag formats
-                            import re
-                            reasoning_patterns = [
-                                r'<think>(.*?)</think>',
-                                r'<reasoning>(.*?)</reasoning>',
-                                r'<think>(.*?)</think>',
-                                r'<thought>(.*?)</thought>',
-                            ]
+                            # Extract content within <thinking>...</thinking> tags
+                            match = re.search(r'<thinking>(.*?)</thinking>', content, re.DOTALL)
                             
-                            for pattern in reasoning_patterns:
-                                match = re.search(pattern, content, re.DOTALL | re.IGNORECASE)
-                                if match:
-                                    reasoning_content = match.group(1).strip()
-                                    # Remove reasoning from display content
-                                    display_content = re.sub(pattern, '', content, flags=re.DOTALL | re.IGNORECASE).strip()
-                                    break
-                            
-                            # If no reasoning tags found, check if content itself is reasoning
-                            # (sometimes Qwen sends reasoning without tags before tool calls)
-                            if not reasoning_content and content and not message.get('function_call'):
-                                # If content is substantial and no tool call, treat as reasoning
-                                reasoning_content = content
-                                display_content = ''
-                            
-                            # Stream reasoning separately if found
-                            if reasoning_content:
+                            if match:
+                                reasoning_content = match.group(1).strip()
+                                # The rest of the content is for display
+                                display_content = content.replace(match.group(0), '').strip()
+
+                            # Stream reasoning if found
+                            if reasoning_content and reasoning_content.strip():
                                 yield f"data: {json.dumps({'type': 'reasoning', 'content': reasoning_content})}\n\n"
                             
-                            # Stream display content (if any remains after extracting reasoning)
-                            if display_content:
+                            # Stream display content if it exists
+                            if display_content and display_content.strip():
                                 yield f"data: {json.dumps({'type': 'content', 'content': display_content})}\n\n"
                         
                         # Check for function_call (tool call request) - don't show to user, just log
