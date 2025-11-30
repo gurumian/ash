@@ -23,7 +23,16 @@ class LLMService {
     const prompt = this.buildPrompt(naturalLanguage, context);
     
     try {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('LLM Service - Calling LLM with prompt:', prompt);
+      }
+      
       const response = await this.callLLM(prompt, onChunk);
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log('LLM Service - Raw response:', response);
+      }
+      
       return this.parseResponse(response);
     } catch (error) {
       console.error('LLM Service error:', error);
@@ -36,13 +45,25 @@ class LLMService {
    */
   buildPrompt(naturalLanguage, context) {
     const systemPrompt = `You are a helpful assistant that converts natural language requests into shell commands.
-Rules:
+
+CRITICAL RULES:
 1. Return ONLY the shell command, nothing else
-2. Do not include explanations or comments
-3. Use appropriate commands for the user's request
-4. If the request is ambiguous, use the most common interpretation
-5. For file operations, use relative paths when possible
-6. Return a single command, or multiple commands separated by && if necessary
+2. Do NOT include any prompt symbols like $, >, or # at the beginning or anywhere in the command
+3. Do NOT include explanations, comments, or markdown code blocks
+4. Return the pure command that can be executed directly
+5. Use appropriate commands for the user's request
+6. If the request is ambiguous, use the most common interpretation
+7. For file operations, use relative paths when possible
+8. Return a single command, or multiple commands separated by && if necessary
+
+Examples:
+- User: "find all jpg files"
+  Correct: find . -type f -iname "*.jpg" -o -iname "*.jpeg"
+  Wrong: $ find . -type f $ -iname "*.jpg" $ -print
+
+- User: "list files in current directory"
+  Correct: ls -la
+  Wrong: $ ls -la
 
 Current directory: ${context.currentDirectory || 'unknown'}
 User request: ${naturalLanguage}
@@ -106,33 +127,48 @@ Command:`;
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let fullResponse = '';
+      let buffer = '';
 
       try {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split('\n').filter(line => line.trim());
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          
+          // Keep the last incomplete line in buffer
+          buffer = lines.pop() || '';
 
           for (const line of lines) {
+            if (!line.trim()) continue;
+            
             try {
               const data = JSON.parse(line);
               if (data.response) {
                 const text = data.response;
                 fullResponse += text;
-                onChunk(text);
+                if (onChunk) {
+                  onChunk(text);
+                }
               }
               if (data.done) {
                 break;
               }
             } catch (e) {
               // Skip invalid JSON lines
+              if (process.env.NODE_ENV === 'development') {
+                console.warn('LLM Service - Failed to parse JSON line:', line, e);
+              }
             }
           }
         }
       } finally {
         reader.releaseLock();
+      }
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log('LLM Service - Ollama streaming response length:', fullResponse.length);
       }
 
       return fullResponse;
@@ -160,7 +196,13 @@ Command:`;
       }
 
       const data = await response.json();
-      return data.response || data.text || '';
+      const result = data.response || data.text || '';
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log('LLM Service - Ollama non-streaming response:', result);
+      }
+      
+      return result;
     }
   }
 
@@ -364,7 +406,10 @@ Command:`;
    * Parse LLM response to extract command
    */
   parseResponse(response) {
-    if (!response) {
+    if (!response || (typeof response === 'string' && !response.trim())) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('LLM Service - Empty response received:', response);
+      }
       throw new Error('Empty response from LLM');
     }
 
@@ -381,7 +426,14 @@ Command:`;
     command = command.split('\n')[0].trim();
 
     if (!command) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('LLM Service - No command found after parsing. Original response:', response);
+      }
       throw new Error('No command found in LLM response');
+    }
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log('LLM Service - Parsed command:', command);
     }
 
     return command;
