@@ -81,16 +81,18 @@ export function useAICommand({
           throw new Error('Qwen-Agent backend is not available. Please ensure the backend is running.');
         }
 
-        // Add user message to sidebar
+        // Add user message to sidebar - keep existing messages
         const userMessage = { role: 'user', content: naturalLanguage };
-        setAiMessages(prev => [...prev, userMessage]);
-        if (onAIMessageUpdate) {
-          onAIMessageUpdate([...aiMessages, userMessage]);
-        }
+        setAiMessages(prev => {
+          const updated = [...prev, userMessage];
+          if (onAIMessageUpdate) {
+            onAIMessageUpdate(updated);
+          }
+          return updated;
+        });
 
         // Collect assistant response and tool results
         let assistantContent = '';
-        const collectedMessages = [userMessage];
         let lastAssistantMessageIndex = -1;
         let messageId = Date.now(); // Unique ID for this assistant message
 
@@ -104,30 +106,53 @@ export function useAICommand({
             assistantContent = fullContent; // Replace, not accumulate
             
             // Update assistant message in sidebar (replace entire message)
-            const updatedMessages = [...collectedMessages];
-            
-            // Find or create assistant message
-            if (lastAssistantMessageIndex === -1) {
-              // Create new assistant message with unique ID
-              updatedMessages.push({ 
-                role: 'assistant', 
-                content: assistantContent,
-                id: messageId // Add unique ID for React key stability
-              });
-              lastAssistantMessageIndex = updatedMessages.length - 1;
-            } else {
-              // Replace entire assistant message with full content (refresh, not append)
-              updatedMessages[lastAssistantMessageIndex] = { 
-                role: 'assistant', 
-                content: assistantContent, // Full content from backend
-                id: messageId
-              };
-            }
-            
-            setAiMessages(updatedMessages);
-            if (onAIMessageUpdate) {
-              onAIMessageUpdate(updatedMessages);
-            }
+            // Use functional update to preserve all existing messages
+            setAiMessages(prev => {
+              const updatedMessages = [...prev];
+              
+              // Find or create assistant message
+              if (lastAssistantMessageIndex === -1) {
+                // Find the last assistant message index (after the new user message)
+                // Find the last user message (should be the one we just added)
+                const userMessageIndex = updatedMessages.findLastIndex(msg => 
+                  msg.role === 'user' && msg.content === naturalLanguage
+                );
+                
+                // Check if there's already an assistant message after the user message
+                const existingAssistantIndex = updatedMessages.findIndex((msg, idx) => 
+                  idx > userMessageIndex && msg.role === 'assistant'
+                );
+                
+                if (existingAssistantIndex >= 0) {
+                  lastAssistantMessageIndex = existingAssistantIndex;
+                  updatedMessages[lastAssistantMessageIndex] = { 
+                    role: 'assistant', 
+                    content: assistantContent,
+                    id: messageId
+                  };
+                } else {
+                  // Create new assistant message with unique ID
+                  updatedMessages.push({ 
+                    role: 'assistant', 
+                    content: assistantContent,
+                    id: messageId // Add unique ID for React key stability
+                  });
+                  lastAssistantMessageIndex = updatedMessages.length - 1;
+                }
+              } else {
+                // Replace entire assistant message with full content (refresh, not append)
+                updatedMessages[lastAssistantMessageIndex] = { 
+                  role: 'assistant', 
+                  content: assistantContent, // Full content from backend
+                  id: messageId
+                };
+              }
+              
+              if (onAIMessageUpdate) {
+                onAIMessageUpdate(updatedMessages);
+              }
+              return updatedMessages;
+            });
           },
           llmSettings,
           // Tool result callback
@@ -139,29 +164,52 @@ export function useAICommand({
               toolResult: { name: toolName, content: toolContent },
               id: `tool-${Date.now()}-${Math.random()}` // Unique ID for tool message
             };
-            collectedMessages.push(toolMessage);
             
-            // Update messages with tool result and current assistant content (replace, not append)
-            const updatedMessages = [...collectedMessages];
-            if (lastAssistantMessageIndex >= 0) {
-              updatedMessages[lastAssistantMessageIndex] = { 
-                role: 'assistant', 
-                content: assistantContent, // Full content, not +=
-                id: messageId
-              };
-            } else {
-              updatedMessages.push({ 
-                role: 'assistant', 
-                content: assistantContent,
-                id: messageId
-              });
-              lastAssistantMessageIndex = updatedMessages.length - 1;
-            }
-            
-            setAiMessages(updatedMessages);
-            if (onAIMessageUpdate) {
-              onAIMessageUpdate(updatedMessages);
-            }
+            // Update messages with tool result using functional update to preserve all existing messages
+            setAiMessages(prev => {
+              const updatedMessages = [...prev, toolMessage]; // Add tool message after existing messages
+              
+              // Update assistant message if needed
+              if (lastAssistantMessageIndex >= 0 && lastAssistantMessageIndex < prev.length) {
+                // Assistant message is before the tool message we just added
+                updatedMessages[lastAssistantMessageIndex] = { 
+                  role: 'assistant', 
+                  content: assistantContent,
+                  id: messageId
+                };
+              } else {
+                // Find or create assistant message
+                const userMessageIndex = updatedMessages.findLastIndex(msg => 
+                  msg.role === 'user' && msg.content === naturalLanguage
+                );
+                
+                if (userMessageIndex >= 0) {
+                  const existingAssistantIndex = updatedMessages.findIndex((msg, idx) => 
+                    idx > userMessageIndex && idx < updatedMessages.length - 1 && msg.role === 'assistant'
+                  );
+                  
+                  if (existingAssistantIndex >= 0) {
+                    updatedMessages[existingAssistantIndex] = { 
+                      role: 'assistant', 
+                      content: assistantContent,
+                      id: messageId
+                    };
+                  } else {
+                    // Insert assistant message before tool message
+                    updatedMessages.splice(updatedMessages.length - 1, 0, { 
+                      role: 'assistant', 
+                      content: assistantContent,
+                      id: messageId
+                    });
+                  }
+                }
+              }
+              
+              if (onAIMessageUpdate) {
+                onAIMessageUpdate(updatedMessages);
+              }
+              return updatedMessages;
+            });
           },
           // Tool call callback (when LLM requests to call a tool) - don't display
           (toolName, toolArgs) => {
@@ -170,22 +218,49 @@ export function useAICommand({
           }
         );
 
-        // Final assistant message (ensure it has the ID)
-        const finalAssistantMessage = { 
-          role: 'assistant', 
-          content: assistantContent,
-          id: messageId
-        };
-        const finalMessages = [...collectedMessages];
-        if (lastAssistantMessageIndex >= 0) {
-          finalMessages[lastAssistantMessageIndex] = finalAssistantMessage;
-        } else {
-          finalMessages.push(finalAssistantMessage);
-        }
-        setAiMessages(finalMessages);
-        if (onAIMessageUpdate) {
-          onAIMessageUpdate(finalMessages);
-        }
+        // Final assistant message (ensure it has the ID) - use functional update to preserve all messages
+        setAiMessages(prev => {
+          const updatedMessages = [...prev]; // Keep all existing messages
+          
+          if (lastAssistantMessageIndex >= 0 && lastAssistantMessageIndex < updatedMessages.length) {
+            updatedMessages[lastAssistantMessageIndex] = { 
+              role: 'assistant', 
+              content: assistantContent,
+              id: messageId
+            };
+          } else {
+            // Find the last user message and add assistant message after it
+            const userMessageIndex = updatedMessages.findLastIndex(msg => 
+              msg.role === 'user' && msg.content === naturalLanguage
+            );
+            
+            if (userMessageIndex >= 0) {
+              // Check if assistant message already exists
+              const existingAssistantIndex = updatedMessages.findIndex((msg, idx) => 
+                idx > userMessageIndex && msg.role === 'assistant'
+              );
+              
+              if (existingAssistantIndex >= 0) {
+                updatedMessages[existingAssistantIndex] = { 
+                  role: 'assistant', 
+                  content: assistantContent,
+                  id: messageId
+                };
+              } else {
+                updatedMessages.push({ 
+                  role: 'assistant', 
+                  content: assistantContent,
+                  id: messageId
+                });
+              }
+            }
+          }
+          
+          if (onAIMessageUpdate) {
+            onAIMessageUpdate(updatedMessages);
+          }
+          return updatedMessages;
+        });
 
         if (process.env.NODE_ENV === 'development') {
           console.log('Qwen-Agent task completed');

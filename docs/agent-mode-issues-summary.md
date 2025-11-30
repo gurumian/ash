@@ -13,12 +13,17 @@
 #### UI 떨림 현상 원인 (Regex 기반 `reasoning` 분리)
 
 **문제:**
-- app.py에서 LLM의 응답 중 reasoning을 `<think>...</think>`와 같은 특정 태그를 정규식으로 파싱하여 분리하는 로직이 있었음. 
-- 이 방식은 LLM의 출력 형식이 조금만 달라져도 제대로 작동하지 않아 reasoning과 content가 혼재되거나 불필요한 스트림 이벤트가 프론트엔드로 전송되어 UI 떨림을 유발.
+- app.py에서 LLM의 응답 중 reasoning을 `<thinking>...</thinking>` 태그를 정규식으로 파싱하여 분리하는 로직이 있음. 
+- 이 방식은 LLM의 출력 형식이 조금만 달라져도 제대로 작동하지 않아 reasoning과 content가 혼재되거나 불필요한 스트림 이벤트가 프론트엔드로 전송되어 UI 떨림을 유발할 수 있음.
+- 시스템 프롬프트에서 `<thinking>` 태그 사용을 강제하고, 정규식 `re.search(r'<thinking>(.*?)</thinking>', content, re.DOTALL)`로 파싱하는 방식에 의존.
 
 **해결:**
-- Agent가 `ash_think`라는 전용 도구를 사용해 사고 과정을 명시적으로 전달하는 방식으로 변경. 
-- app.py는 이 도구 호출을 reasoning 이벤트로 해석하여 프론트엔드로 전송. (정규식 파싱 방식 폐기)
+- ✅ **정규식 파싱 제거**: 백엔드에서 정규식으로 `<thinking>` 태그를 파싱하는 방식을 제거하고, LLM 응답 content를 그대로 전송하도록 변경.
+- ✅ **단일 이벤트 전송**: reasoning과 content를 분리하여 2개의 이벤트로 보내는 대신, content 하나로 통합하여 UI 업데이트 단순화.
+- ✅ **시스템 프롬프트 개선**: `<thinking>` 태그를 강제로 요구하는 대신, 자연스럽게 reasoning을 포함하도록 변경.
+- ✅ **안정성 향상**: LLM 출력 형식에 의존하지 않아 태그 형식이 달라져도 문제없이 작동.
+
+이제 프론트엔드에서 Markdown 렌더링 시 `<thinking>` 태그가 자동으로 HTML로 변환되어 표시됨.
 
 #### 비효율적인 Agent 객체 생성
 

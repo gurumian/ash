@@ -114,6 +114,8 @@ class QwenAgentService {
                     messages[messages.length - 1].content = currentContent;
                   }
                 } else if (data.type === 'reasoning') {
+                  // NOTE: This branch is kept for backward compatibility but should not be reached
+                  // Backend now sends all content as 'content' type without parsing <thinking> tags
                   // LLM reasoning/thinking process - this is what we want to show prominently
                   let currentReasoning = data.content || '';
                   

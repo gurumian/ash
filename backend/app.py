@@ -137,8 +137,8 @@ def build_system_prompt(connection_id: Optional[str] = None) -> str:
         "- Always execute commands first, then provide analysis based on actual output\n\n"
         
         "RESPONSE FORMAT:\n"
-        "- **VERY IMPORTANT**: Before providing the final response, you MUST output your internal thoughts, analysis, and step-by-step plan within `<thinking>...</thinking>` tags. This is for the user to see your reasoning process.\n"
-        "- After the `<thinking>` block, present the final, user-facing answer in Markdown.\n"
+        "- Present your responses in clear, well-structured Markdown format.\n"
+        "- You may include your internal thoughts, analysis, and step-by-step plan in your response when helpful for the user to understand your reasoning.\n"
         "- Format your responses using Markdown\n"
         "- Use code blocks (```) for command output and multi-line content\n"
         "- Use inline code (`) for single values, file names, and paths\n"
@@ -146,7 +146,7 @@ def build_system_prompt(connection_id: Optional[str] = None) -> str:
         "- Show actual command results in code blocks\n\n"
         
         "Important guidelines:\n"
-        "1. Plan complex tasks step by step inside the `<thinking>` block.\n"
+        "1. Plan complex tasks step by step and explain your approach clearly.\n"
         "2. EXECUTE commands to get real data, don't just explain\n"
         "3. If a command fails, analyze the error and try alternative approaches\n"
         "4. Detect the OS first, then use appropriate commands for the detected OS/environment\n"
@@ -292,28 +292,13 @@ async def execute_task_stream(request: TaskRequest):
                     event_type = message.get('role', 'unknown')
                     content = message.get('content', '')
                     
-                    # Check for assistant content (thinking/reasoning)
+                    # Check for assistant content
                     if event_type == 'assistant':
                         if content:
-                            import re
-                            reasoning_content = None
-                            display_content = content
-                            
-                            # Extract content within <thinking>...</thinking> tags
-                            match = re.search(r'<thinking>(.*?)</thinking>', content, re.DOTALL)
-                            
-                            if match:
-                                reasoning_content = match.group(1).strip()
-                                # The rest of the content is for display
-                                display_content = content.replace(match.group(0), '').strip()
-
-                            # Stream reasoning if found
-                            if reasoning_content and reasoning_content.strip():
-                                yield f"data: {json.dumps({'type': 'reasoning', 'content': reasoning_content})}\n\n"
-                            
-                            # Stream display content if it exists
-                            if display_content and display_content.strip():
-                                yield f"data: {json.dumps({'type': 'content', 'content': display_content})}\n\n"
+                            # Stream content directly without parsing
+                            # Frontend will handle <thinking> tags in markdown rendering
+                            # This avoids brittle regex parsing that breaks when LLM output format varies
+                            yield f"data: {json.dumps({'type': 'content', 'content': content})}\n\n"
                         
                         # Check for function_call (tool call request) - don't show to user, just log
                         function_call = message.get('function_call')
