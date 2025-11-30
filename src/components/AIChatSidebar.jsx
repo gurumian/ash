@@ -1,4 +1,5 @@
 import React, { memo, useState, useEffect, useRef, useCallback } from 'react';
+import ReactMarkdown from 'react-markdown';
 
 /**
  * AI Chat Sidebar - Displays AI conversation history and input
@@ -60,11 +61,13 @@ export const AIChatSidebar = memo(function AIChatSidebar({
         setShowModeDropdown(false);
       }
     } else if (e.key === 'Enter' && !e.shiftKey) {
+      // Enter without Shift: execute command
       e.preventDefault();
       if (input.trim() && !isProcessing) {
         handleExecute();
       }
     }
+    // Shift+Enter: new line (default behavior for textarea)
   };
 
   const handleExecute = useCallback(() => {
@@ -147,7 +150,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
         ) : (
           messages.map((msg, index) => (
             <div
-              key={index}
+              key={msg.id || `${msg.role}-${index}`}
               style={{
                 padding: '12px',
                 background: msg.role === 'user' ? 'rgba(0, 255, 65, 0.05)' : 'rgba(0, 255, 65, 0.02)',
@@ -172,11 +175,128 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                   color: '#00ff41',
                   fontSize: '13px',
                   lineHeight: '1.6',
-                  whiteSpace: 'pre-wrap',
                   fontFamily: 'var(--ui-font-family)'
                 }}
               >
-                {msg.content}
+                <ReactMarkdown
+                  components={{
+                    // Customize markdown components to match terminal theme
+                    p: ({ children, ...props }) => {
+                      // ReactMarkdown should not put code blocks inside p, but if it does, handle it
+                      const childrenArray = React.Children.toArray(children);
+                      const hasBlockElement = childrenArray.some(
+                        child => React.isValidElement(child) && 
+                        (child.type === 'pre' || child.type === 'div' || child.type === 'ul' || child.type === 'ol')
+                      );
+                      
+                      if (hasBlockElement) {
+                        // If contains block elements, render as div instead of p
+                        return <div style={{ margin: '0 0 8px 0' }}>{children}</div>;
+                      }
+                      return <p style={{ margin: '0 0 8px 0' }}>{children}</p>;
+                    },
+                    h1: ({ children }) => <h1 style={{ fontSize: '18px', margin: '12px 0 8px 0', fontWeight: '600' }}>{children}</h1>,
+                    h2: ({ children }) => <h2 style={{ fontSize: '16px', margin: '10px 0 6px 0', fontWeight: '600' }}>{children}</h2>,
+                    h3: ({ children }) => <h3 style={{ fontSize: '14px', margin: '8px 0 4px 0', fontWeight: '600' }}>{children}</h3>,
+                    code: ({ inline, className, children, ...props }) => {
+                      // Check if this is a code block (not inline)
+                      const isCodeBlock = !inline && className?.startsWith('language-');
+                      
+                      if (inline) {
+                        return (
+                          <code style={{
+                            background: 'rgba(0, 255, 65, 0.1)',
+                            padding: '2px 4px',
+                            borderRadius: '3px',
+                            fontFamily: 'monospace',
+                            fontSize: '12px'
+                          }}>
+                            {children}
+                          </code>
+                        );
+                      }
+                      // Code block - return pre directly (ReactMarkdown should not wrap this in p)
+                      return (
+                        <pre style={{
+                          background: 'rgba(0, 255, 65, 0.05)',
+                          border: '1px solid rgba(0, 255, 65, 0.2)',
+                          borderRadius: '4px',
+                          padding: '8px',
+                          overflow: 'auto',
+                          margin: '8px 0'
+                        }}>
+                          <code style={{
+                            fontFamily: 'monospace',
+                            fontSize: '12px',
+                            color: '#00ff41'
+                          }}>
+                            {children}
+                          </code>
+                        </pre>
+                      );
+                    },
+                    ul: ({ children }) => <ul style={{ margin: '4px 0', paddingLeft: '20px' }}>{children}</ul>,
+                    ol: ({ children }) => <ol style={{ margin: '4px 0', paddingLeft: '20px' }}>{children}</ol>,
+                    li: ({ children }) => <li style={{ margin: '2px 0' }}>{children}</li>,
+                    blockquote: ({ children }) => (
+                      <blockquote style={{
+                        borderLeft: '3px solid rgba(0, 255, 65, 0.3)',
+                        paddingLeft: '12px',
+                        margin: '8px 0',
+                        color: '#888'
+                      }}>
+                        {children}
+                      </blockquote>
+                    ),
+                    a: ({ href, children }) => (
+                      <a
+                        href={href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          color: '#00ff41',
+                          textDecoration: 'underline',
+                          textDecorationColor: 'rgba(0, 255, 65, 0.5)'
+                        }}
+                      >
+                        {children}
+                      </a>
+                    ),
+                    strong: ({ children }) => <strong style={{ fontWeight: '600' }}>{children}</strong>,
+                    em: ({ children }) => <em style={{ fontStyle: 'italic' }}>{children}</em>,
+                    hr: () => <hr style={{ border: 'none', borderTop: '1px solid rgba(0, 255, 65, 0.2)', margin: '12px 0' }} />,
+                    table: ({ children }) => (
+                      <table style={{
+                        borderCollapse: 'collapse',
+                        width: '100%',
+                        margin: '8px 0',
+                        border: '1px solid rgba(0, 255, 65, 0.2)'
+                      }}>
+                        {children}
+                      </table>
+                    ),
+                    th: ({ children }) => (
+                      <th style={{
+                        border: '1px solid rgba(0, 255, 65, 0.2)',
+                        padding: '6px',
+                        background: 'rgba(0, 255, 65, 0.1)',
+                        textAlign: 'left'
+                      }}>
+                        {children}
+                      </th>
+                    ),
+                    td: ({ children }) => (
+                      <td style={{
+                        border: '1px solid rgba(0, 255, 65, 0.2)',
+                        padding: '6px'
+                      }}>
+                        {children}
+                      </td>
+                    )
+                  }}
+                >
+                  {msg.content}
+                </ReactMarkdown>
               </div>
               {msg.toolResult && (
                 <div
@@ -337,15 +457,15 @@ export const AIChatSidebar = memo(function AIChatSidebar({
             )}
           </div>
           
-          {/* Input field */}
-          <input
+          {/* Input field - multiline textarea */}
+          <textarea
             ref={inputRef}
-            type="text"
             placeholder="Describe what you want to do..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             disabled={isProcessing}
+            rows={1}
             style={{
               flex: 1,
               padding: '8px 12px',
@@ -355,7 +475,18 @@ export const AIChatSidebar = memo(function AIChatSidebar({
               color: '#00ff41',
               fontSize: '13px',
               fontFamily: 'var(--ui-font-family)',
-              opacity: isProcessing ? 0.6 : 1
+              opacity: isProcessing ? 0.6 : 1,
+              resize: 'none',
+              minHeight: '36px',
+              maxHeight: '120px',
+              overflowY: 'auto',
+              lineHeight: '1.5'
+            }}
+            onInput={(e) => {
+              // Auto-resize textarea based on content
+              const textarea = e.target;
+              textarea.style.height = 'auto';
+              textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
             }}
           />
           

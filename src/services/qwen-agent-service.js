@@ -64,6 +64,7 @@ class QwenAgentService {
       let buffer = '';
       const messages = []; // Collect all messages for conversation history
       let lastContentLength = 0; // Track last content length to extract delta
+      let lastReasoningLength = 0; // Track last reasoning length to extract delta
 
       try {
         while (true) {
@@ -108,19 +109,28 @@ class QwenAgentService {
                   }
                 } else if (data.type === 'reasoning') {
                   // LLM reasoning/thinking process - this is what we want to show prominently
-                  const reasoningContent = data.content || '';
+                  const currentReasoning = data.content || '';
                   
-                  // Display reasoning content (thinking process)
-                  if (onChunk && reasoningContent) {
-                    onChunk(reasoningContent);
+                  // Extract delta from reasoning (similar to content)
+                  const reasoningDelta = currentReasoning.length > lastReasoningLength
+                    ? currentReasoning.substring(lastReasoningLength)
+                    : currentReasoning; // If length decreased, it's a new reasoning
+                  
+                  // Update full response with reasoning delta
+                  fullResponse += reasoningDelta;
+                  lastReasoningLength = currentReasoning.length;
+                  
+                  // Display only the delta (new reasoning content)
+                  if (onChunk && reasoningDelta) {
+                    onChunk(reasoningDelta);
                   }
                   
-                  // Track reasoning for history
+                  // Track reasoning for history (keep accumulated content)
                   if (!messages.length || messages[messages.length - 1].role !== 'assistant') {
-                    messages.push({ role: 'assistant', content: reasoningContent });
+                    messages.push({ role: 'assistant', content: currentReasoning });
                   } else {
-                    // Append reasoning to existing assistant message
-                    messages[messages.length - 1].content = (messages[messages.length - 1].content || '') + reasoningContent;
+                    // Update with full accumulated reasoning
+                    messages[messages.length - 1].content = currentReasoning;
                   }
                 } else if (data.type === 'tool_call') {
                   // Tool call request - LLM is requesting to call a tool
@@ -186,9 +196,12 @@ class QwenAgentService {
       // Qwen-Agent format: tool results are included as { role: 'tool', name: ..., content: ... }
       updatedHistory.push(...messages);
       
-      // Keep last 30 messages to maintain context (increased from 20 for multi-step tasks)
-      const trimmedHistory = updatedHistory.slice(-30);
+      // Keep last 50 messages to maintain full context (increased from 30 for better context retention)
+      // This ensures all previous commands, results, and OS detection are preserved
+      const trimmedHistory = updatedHistory.slice(-50);
       this.conversationHistory.set(historyKey, trimmedHistory);
+      
+      console.debug(`Updated conversation history for ${historyKey}: ${trimmedHistory.length} messages (kept last 50 for context)`);
       
       console.debug(`Updated conversation history for ${historyKey}: ${trimmedHistory.length} messages`);
       

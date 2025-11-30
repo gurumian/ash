@@ -91,6 +91,8 @@ export function useAICommand({
         // Collect assistant response and tool results
         let assistantContent = '';
         const collectedMessages = [userMessage];
+        let lastAssistantMessageIndex = -1;
+        let messageId = Date.now(); // Unique ID for this assistant message
 
         // Execute task with streaming
         await qwenAgent.executeTask(
@@ -99,11 +101,30 @@ export function useAICommand({
           (chunk) => {
             // Collect chunks for sidebar (not terminal)
             // This includes reasoning (thinking process) and regular content
+            // chunk is already a delta from qwen-agent-service
             assistantContent += chunk;
             
-            // Update assistant message in sidebar
-            const assistantMessage = { role: 'assistant', content: assistantContent };
-            const updatedMessages = [...collectedMessages, assistantMessage];
+            // Update assistant message in sidebar (replace entire message, not append)
+            const updatedMessages = [...collectedMessages];
+            
+            // Find or create assistant message
+            if (lastAssistantMessageIndex === -1) {
+              // Create new assistant message with unique ID
+              updatedMessages.push({ 
+                role: 'assistant', 
+                content: assistantContent,
+                id: messageId // Add unique ID for React key stability
+              });
+              lastAssistantMessageIndex = updatedMessages.length - 1;
+            } else {
+              // Replace entire assistant message with accumulated content (not append)
+              updatedMessages[lastAssistantMessageIndex] = { 
+                role: 'assistant', 
+                content: assistantContent, // Full accumulated content, not +=
+                id: messageId
+              };
+            }
+            
             setAiMessages(updatedMessages);
             if (onAIMessageUpdate) {
               onAIMessageUpdate(updatedMessages);
@@ -113,10 +134,31 @@ export function useAICommand({
           // Tool result callback
           (toolName, toolContent) => {
             // Add tool result as a message (but don't show it prominently - just in tool result section)
-            const toolMessage = { role: 'tool', content: toolContent, toolResult: { name: toolName, content: toolContent } };
+            const toolMessage = { 
+              role: 'tool', 
+              content: toolContent, 
+              toolResult: { name: toolName, content: toolContent },
+              id: `tool-${Date.now()}-${Math.random()}` // Unique ID for tool message
+            };
             collectedMessages.push(toolMessage);
-            // Update messages with tool result
-            const updatedMessages = [...collectedMessages, { role: 'assistant', content: assistantContent }];
+            
+            // Update messages with tool result and current assistant content (replace, not append)
+            const updatedMessages = [...collectedMessages];
+            if (lastAssistantMessageIndex >= 0) {
+              updatedMessages[lastAssistantMessageIndex] = { 
+                role: 'assistant', 
+                content: assistantContent, // Full content, not +=
+                id: messageId
+              };
+            } else {
+              updatedMessages.push({ 
+                role: 'assistant', 
+                content: assistantContent,
+                id: messageId
+              });
+              lastAssistantMessageIndex = updatedMessages.length - 1;
+            }
+            
             setAiMessages(updatedMessages);
             if (onAIMessageUpdate) {
               onAIMessageUpdate(updatedMessages);
@@ -129,9 +171,18 @@ export function useAICommand({
           }
         );
 
-        // Final assistant message
-        const finalAssistantMessage = { role: 'assistant', content: assistantContent };
-        const finalMessages = [...collectedMessages, finalAssistantMessage];
+        // Final assistant message (ensure it has the ID)
+        const finalAssistantMessage = { 
+          role: 'assistant', 
+          content: assistantContent,
+          id: messageId
+        };
+        const finalMessages = [...collectedMessages];
+        if (lastAssistantMessageIndex >= 0) {
+          finalMessages[lastAssistantMessageIndex] = finalAssistantMessage;
+        } else {
+          finalMessages.push(finalAssistantMessage);
+        }
         setAiMessages(finalMessages);
         if (onAIMessageUpdate) {
           onAIMessageUpdate(finalMessages);
