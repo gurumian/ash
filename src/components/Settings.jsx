@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import React, { memo, useState, useEffect, useRef } from 'react';
 
 /**
  * Settings component - Modal for application settings
@@ -21,6 +21,91 @@ export const Settings = memo(function Settings({
   onClose,
   onShowAbout
 }) {
+  const [ollamaModels, setOllamaModels] = useState([]);
+  const [isLoadingModels, setIsLoadingModels] = useState(false);
+  const [showModelDropdown, setShowModelDropdown] = useState(false);
+  const [filteredModels, setFilteredModels] = useState([]);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const modelInputRef = useRef(null);
+  const modelDropdownRef = useRef(null);
+
+  // Fetch Ollama models when provider is ollama and baseURL is set
+  useEffect(() => {
+    const fetchOllamaModels = async () => {
+      if (llmSettings?.provider === 'ollama' && llmSettings?.baseURL && llmSettings?.enabled) {
+        setIsLoadingModels(true);
+        try {
+          const url = `${llmSettings.baseURL}/api/tags`;
+          const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+            }
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.models && Array.isArray(data.models)) {
+              const modelNames = data.models.map(model => model.name || model.model || model).filter(Boolean);
+              setOllamaModels(modelNames);
+              setFilteredModels(modelNames);
+            }
+          } else {
+            // Silently fail - user might not have Ollama running
+            setOllamaModels([]);
+            setFilteredModels([]);
+          }
+        } catch (error) {
+          // Silently fail - user might not have Ollama running
+          setOllamaModels([]);
+          setFilteredModels([]);
+        } finally {
+          setIsLoadingModels(false);
+        }
+      } else {
+        setOllamaModels([]);
+        setFilteredModels([]);
+      }
+    };
+
+    // Debounce the fetch
+    const timeoutId = setTimeout(fetchOllamaModels, 500);
+    return () => clearTimeout(timeoutId);
+  }, [llmSettings?.provider, llmSettings?.baseURL, llmSettings?.enabled]);
+
+  // Filter models based on input
+  useEffect(() => {
+    if (llmSettings?.model && ollamaModels.length > 0) {
+      const filter = llmSettings.model.toLowerCase();
+      const filtered = ollamaModels.filter(model => 
+        model.toLowerCase().includes(filter)
+      );
+      setFilteredModels(filtered);
+    } else {
+      setFilteredModels(ollamaModels);
+    }
+  }, [llmSettings?.model, ollamaModels]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        modelDropdownRef.current &&
+        !modelDropdownRef.current.contains(event.target) &&
+        modelInputRef.current &&
+        !modelInputRef.current.contains(event.target)
+      ) {
+        setShowModelDropdown(false);
+        setHighlightedIndex(-1);
+      }
+    };
+
+    if (showModelDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showModelDropdown]);
+
   if (!showSettings) return null;
 
   return (
@@ -243,16 +328,28 @@ export const Settings = memo(function Settings({
                     onChange={(e) => {
                       const provider = e.target.value;
                       const updates = { provider };
-                      // Set default baseURL and model for ollama
+                      // Set default baseURL and model only if not already set
                       if (provider === 'ollama') {
-                        updates.baseURL = 'http://localhost:11434';
-                        updates.model = 'llama3.2';
+                        if (!llmSettings?.baseURL) {
+                          updates.baseURL = 'http://localhost:11434';
+                        }
+                        if (!llmSettings?.model) {
+                          updates.model = 'llama3.2';
+                        }
                       } else if (provider === 'openai') {
-                        updates.baseURL = 'https://api.openai.com/v1';
-                        updates.model = 'gpt-4o-mini';
+                        if (!llmSettings?.baseURL || llmSettings?.baseURL === 'http://localhost:11434') {
+                          updates.baseURL = 'https://api.openai.com/v1';
+                        }
+                        if (!llmSettings?.model || llmSettings?.model === 'llama3.2') {
+                          updates.model = 'gpt-4o-mini';
+                        }
                       } else if (provider === 'anthropic') {
-                        updates.baseURL = 'https://api.anthropic.com/v1';
-                        updates.model = 'claude-3-5-sonnet-20241022';
+                        if (!llmSettings?.baseURL || llmSettings?.baseURL === 'http://localhost:11434') {
+                          updates.baseURL = 'https://api.anthropic.com/v1';
+                        }
+                        if (!llmSettings?.model || llmSettings?.model === 'llama3.2') {
+                          updates.model = 'claude-3-5-sonnet-20241022';
+                        }
                       }
                       onChangeLlmSettings?.(updates);
                     }}
@@ -298,16 +395,145 @@ export const Settings = memo(function Settings({
                 </div>
 
                 <div className="setting-group">
-                  <label>Model</label>
-                  <input
-                    type="text"
-                    value={llmSettings?.model || ''}
-                    onChange={(e) => onChangeLlmSettings?.({ model: e.target.value })}
-                    placeholder={llmSettings?.provider === 'ollama' ? 'llama3.2' : llmSettings?.provider === 'openai' ? 'gpt-4o-mini' : 'claude-3-5-sonnet-20241022'}
-                    style={{ width: '300px', padding: '8px 12px', background: '#1a1a1a', border: '1px solid #1a1a1a', borderRadius: '4px', color: '#00ff41', fontSize: '13px' }}
-                  />
+                  <label>
+                    Model
+                    {llmSettings?.provider === 'ollama' && ollamaModels.length > 0 && (
+                      <span style={{ marginLeft: '8px', fontSize: '11px', color: '#888', fontWeight: 'normal' }}>
+                        ({ollamaModels.length} available)
+                      </span>
+                    )}
+                    {llmSettings?.provider === 'ollama' && isLoadingModels && (
+                      <span style={{ marginLeft: '8px', fontSize: '11px', color: '#888', fontWeight: 'normal' }}>
+                        (loading...)
+                      </span>
+                    )}
+                  </label>
+                  <div style={{ position: 'relative', display: 'inline-block', width: '300px' }}>
+                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                      <input
+                        ref={modelInputRef}
+                        type="text"
+                        value={llmSettings?.model ?? ''}
+                        onChange={(e) => {
+                          const newValue = e.target.value;
+                          onChangeLlmSettings?.({ model: newValue });
+                          if (llmSettings?.provider === 'ollama' && ollamaModels.length > 0) {
+                            setShowModelDropdown(true);
+                            setHighlightedIndex(-1);
+                          }
+                        }}
+                        onFocus={() => {
+                          if (llmSettings?.provider === 'ollama' && ollamaModels.length > 0) {
+                            setShowModelDropdown(true);
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (llmSettings?.provider === 'ollama' && ollamaModels.length > 0 && showModelDropdown) {
+                            if (e.key === 'ArrowDown') {
+                              e.preventDefault();
+                              setHighlightedIndex(prev => 
+                                prev < filteredModels.length - 1 ? prev + 1 : prev
+                              );
+                            } else if (e.key === 'ArrowUp') {
+                              e.preventDefault();
+                              setHighlightedIndex(prev => prev > 0 ? prev - 1 : -1);
+                            } else if (e.key === 'Enter' && highlightedIndex >= 0) {
+                              e.preventDefault();
+                              onChangeLlmSettings?.({ model: filteredModels[highlightedIndex] });
+                              setShowModelDropdown(false);
+                              setHighlightedIndex(-1);
+                            } else if (e.key === 'Escape') {
+                              setShowModelDropdown(false);
+                              setHighlightedIndex(-1);
+                            }
+                          }
+                        }}
+                        placeholder={llmSettings?.provider === 'ollama' ? 'llama3.2' : llmSettings?.provider === 'openai' ? 'gpt-4o-mini' : 'claude-3-5-sonnet-20241022'}
+                        style={{ 
+                          width: '100%', 
+                          padding: '8px 32px 8px 12px', 
+                          background: '#1a1a1a', 
+                          border: '1px solid #1a1a1a', 
+                          borderRadius: '4px', 
+                          color: '#00ff41', 
+                          fontSize: '13px',
+                          boxSizing: 'border-box'
+                        }}
+                      />
+                      {llmSettings?.provider === 'ollama' && (
+                        <button
+                          type="button"
+                          onClick={() => setShowModelDropdown(!showModelDropdown)}
+                          style={{
+                            position: 'absolute',
+                            right: '4px',
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#00ff41',
+                            cursor: 'pointer',
+                            padding: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '12px'
+                          }}
+                        >
+                          ▼
+                        </button>
+                      )}
+                    </div>
+                    {llmSettings?.provider === 'ollama' && showModelDropdown && filteredModels.length > 0 && (
+                      <div
+                        ref={modelDropdownRef}
+                        style={{
+                          position: 'absolute',
+                          top: '100%',
+                          left: 0,
+                          right: 0,
+                          marginTop: '4px',
+                          background: '#1a1a1a',
+                          border: '1px solid #2a2a2a',
+                          borderRadius: '4px',
+                          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)',
+                          maxHeight: '200px',
+                          overflowY: 'auto',
+                          zIndex: 1000
+                        }}
+                      >
+                        {filteredModels.map((model, index) => (
+                          <button
+                            key={index}
+                            type="button"
+                            onClick={() => {
+                              onChangeLlmSettings?.({ model });
+                              setShowModelDropdown(false);
+                              setHighlightedIndex(-1);
+                              modelInputRef.current?.focus();
+                            }}
+                            onMouseEnter={() => setHighlightedIndex(index)}
+                            style={{
+                              width: '100%',
+                              padding: '8px 12px',
+                              background: highlightedIndex === index ? 'rgba(0, 255, 65, 0.15)' : 'transparent',
+                              border: 'none',
+                              color: '#00ff41',
+                              fontSize: '13px',
+                              textAlign: 'left',
+                              cursor: 'pointer',
+                              transition: 'background 0.15s'
+                            }}
+                          >
+                            {model}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <p className="setting-description">
-                    Model name to use. For Ollama, use models you have installed (e.g., llama3.2, qwen2.5).
+                    {llmSettings?.provider === 'ollama' 
+                      ? `Model name to use. ${ollamaModels.length > 0 ? 'Available models loaded from Ollama. Use arrow keys to navigate.' : 'Type model name or wait for available models to load.'}`
+                      : 'Model name to use for the selected provider.'
+                    }
                   </p>
                 </div>
 

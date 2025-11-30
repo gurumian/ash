@@ -54,14 +54,9 @@ export function useLLMSettings() {
   const updateLlmSettings = (updates) => {
     setLlmSettings(prev => {
       const updated = { ...prev, ...updates };
-      // Auto-update baseURL for ollama if not set
-      if (updated.provider === 'ollama' && !updated.baseURL) {
-        updated.baseURL = 'http://localhost:11434';
-      }
-      // Auto-update model for ollama if not set
-      if (updated.provider === 'ollama' && !updated.model) {
-        updated.model = 'llama3.2';
-      }
+      // Only auto-update baseURL/model when provider changes, not when user clears the field
+      // Provider change is handled in Settings.jsx, so we don't auto-fill here
+      // This allows users to clear and type new values without interference
       return updated;
     });
   };
