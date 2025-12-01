@@ -360,6 +360,10 @@ function App() {
     const saved = localStorage.getItem('ash-ui-font-family');
     return saved || "'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace";
   });
+  const [autoReconnect, setAutoReconnect] = useState(() => {
+    const saved = localStorage.getItem('ash-auto-reconnect');
+    return saved !== null ? saved === 'true' : true; // Default: enabled
+  });
   const [reconnectRetry, setReconnectRetry] = useState(() => {
     const saved = localStorage.getItem('ash-reconnect-retry');
     if (saved) {
@@ -378,6 +382,9 @@ function App() {
   
   // Theme hook - call first, but pass ref that will be updated
   const { theme, setTheme: changeTheme, currentTheme, themes } = useTheme(terminalInstancesRef);
+  
+  // Create ref for onSshClose callback to avoid circular dependency
+  const onSshCloseRef = useRef(null);
   
   // Terminal management hook - now can use theme and themes
   const {
@@ -403,7 +410,8 @@ function App() {
     setContextMenu,
     setShowSearchBar,
     setShowAICommandInput,
-    showAICommandInput
+    showAICommandInput,
+    onSshClose: onSshCloseRef.current
   });
   
   // Update ref for useTheme after terminalInstances is available
@@ -458,6 +466,99 @@ function App() {
     setErrorDialog,
     reconnectRetry
   });
+
+  // Handle SSH close for auto-reconnect (must be after useConnectionManagement to access reconnectSession)
+  const handleSshCloseForReconnect = useCallback((sessionId, connectionId) => {
+    console.log('[Auto-reconnect] handleSshCloseForReconnect called, sessionId:', sessionId, 'connectionId:', connectionId, 'autoReconnect:', autoReconnect);
+    
+    // Find session by sessionId
+    const foundSession = sessions.find(s => s.id === sessionId);
+    
+    if (!foundSession) {
+      console.log('[Auto-reconnect] Session not found for sessionId:', sessionId);
+      return;
+    }
+    
+    console.log('[Auto-reconnect] Found session:', foundSession.id, foundSession.name);
+    
+    // Update session state to disconnected
+    setSessions(prev => prev.map(s => 
+      s.id === foundSession.id ? { ...s, isConnected: false } : s
+    ));
+    
+    // Auto-reconnect only if enabled in Settings
+    if (!autoReconnect) {
+      console.log('[Auto-reconnect] Auto-reconnect is disabled in Settings, skipping');
+      return;
+    }
+    
+    if (reconnectSession) {
+      console.log('[Auto-reconnect] SSH connection closed, will attempt reconnect for session:', foundSession.id);
+      
+      // Small delay before attempting reconnect
+      setTimeout(async () => {
+        // Check if already reconnecting
+        setReconnectingSessions(prev => {
+          if (prev.has(foundSession.id)) {
+            console.log('[Auto-reconnect] Already reconnecting, skipping');
+            return prev; // Already reconnecting
+          }
+          
+          // Mark as reconnecting (this will make the refresh button spin)
+          const next = new Map(prev);
+          next.set(foundSession.id, true);
+          
+          console.log('[Auto-reconnect] Starting reconnection for session:', foundSession.id);
+          
+          // Get current session state
+          let sessionToReconnect = null;
+          setSessions(currentSessions => {
+            const currentSession = currentSessions.find(s => s.id === foundSession.id);
+            if (currentSession && !currentSession.isConnected) {
+              sessionToReconnect = currentSession;
+            }
+            return currentSessions;
+          });
+          
+          if (!sessionToReconnect) {
+            console.log('[Auto-reconnect] Session already connected or not found');
+            setReconnectingSessions(prev => {
+              const next = new Map(prev);
+              next.delete(foundSession.id);
+              return next;
+            });
+            return next;
+          }
+          
+          // Start reconnection (this will show "Attempting 1/60..." in terminal)
+          reconnectSession(sessionToReconnect).then(() => {
+            console.log('[Auto-reconnect] Reconnection successful');
+            // Update connectionId map after reconnection
+            if (updateConnectionIdMap) {
+              updateConnectionIdMap();
+            }
+          }).catch((error) => {
+            // Error is already handled by reconnectSession (shows error dialog)
+            console.error('[Auto-reconnect] Reconnection failed:', error);
+          }).finally(() => {
+            // Remove from reconnecting map
+            setReconnectingSessions(prev => {
+              const next = new Map(prev);
+              next.delete(foundSession.id);
+              return next;
+            });
+          });
+          
+          return next;
+        });
+      }, 500); // 500ms delay before auto-reconnect
+    }
+  }, [autoReconnect, reconnectSession, sessions, setSessions, setReconnectingSessions, updateConnectionIdMap]);
+
+  // Update onSshClose ref when handleSshCloseForReconnect changes
+  useEffect(() => {
+    onSshCloseRef.current = handleSshCloseForReconnect;
+  }, [handleSshCloseForReconnect]);
 
   // Drag and drop hook
   const {
@@ -623,12 +724,69 @@ function App() {
 
 
   // Serial data handling is now in useTerminalManagement hook
-  // Handle serial close to update session state
+  // Handle serial close to update session state and auto-reconnect
   useEffect(() => {
-    const handleSerialClose = (event, receivedSessionId) => {
+    const handleSerialClose = async (event, receivedSessionId) => {
       setSessions(prev => prev.map(s => 
         s.id === receivedSessionId ? { ...s, isConnected: false } : s
       ));
+      
+      // Auto-reconnect only if enabled in Settings
+      if (!autoReconnect) {
+        console.log('[Auto-reconnect] Auto-reconnect is disabled in Settings, skipping');
+        return;
+      }
+      
+      if (reconnectSession) {
+        console.log('[Auto-reconnect] Serial connection closed, will attempt reconnect for session:', receivedSessionId);
+        
+        // Small delay before attempting reconnect
+        setTimeout(async () => {
+          // Get current session state
+          let sessionToReconnect = null;
+          setSessions(currentSessions => {
+            const currentSession = currentSessions.find(s => s.id === receivedSessionId);
+            if (currentSession && !currentSession.isConnected) {
+              sessionToReconnect = currentSession;
+            }
+            return currentSessions;
+          });
+          
+          if (!sessionToReconnect) {
+            console.log('[Auto-reconnect] Session already connected or not found');
+            return;
+          }
+          
+          // Check if already reconnecting
+          setReconnectingSessions(prev => {
+            if (prev.has(receivedSessionId)) {
+              console.log('[Auto-reconnect] Already reconnecting, skipping');
+              return prev; // Already reconnecting
+            }
+            
+            // Mark as reconnecting
+            const next = new Map(prev);
+            next.set(receivedSessionId, true);
+            
+            console.log('[Auto-reconnect] Starting reconnection for session:', receivedSessionId);
+            
+            // Start reconnection
+            reconnectSession(sessionToReconnect).catch((error) => {
+              // Error is already handled by reconnectSession (shows error dialog)
+              console.error('[Auto-reconnect] Reconnection failed:', error);
+            }).finally(() => {
+              // Remove from reconnecting map
+              setReconnectingSessions(prev => {
+                const next = new Map(prev);
+                next.delete(receivedSessionId);
+                return next;
+              });
+            });
+            
+            return next;
+          });
+        }, 500); // 500ms delay before auto-reconnect
+      }
     };
 
     window.electronAPI.onSerialClose(handleSerialClose);
@@ -636,30 +794,8 @@ function App() {
     return () => {
       window.electronAPI.offSerialClose(handleSerialClose);
     };
-  }, []);
+  }, [autoReconnect, reconnectSession]);
 
-  // Handle SSH close to update session state
-  useEffect(() => {
-    const handleSshClose = (event, { connectionId }) => {
-      // Find session by connectionId
-      const session = sessions.find(s => {
-        const conn = sshConnections.current[s.id];
-        return conn && conn.connectionId === connectionId;
-      });
-      
-      if (session) {
-        setSessions(prev => prev.map(s => 
-          s.id === session.id ? { ...s, isConnected: false } : s
-        ));
-      }
-    };
-
-    window.electronAPI.onSSHClose(handleSshClose);
-
-    return () => {
-      window.electronAPI.offSSHClose(handleSshClose);
-    };
-  }, [sessions, sshConnections]);
 
 
   // Memoize active session connection status to avoid repeated find() calls
@@ -1154,6 +1290,7 @@ function App() {
         terminalFontFamily={terminalFontFamily}
         uiFontFamily={uiFontFamily}
         llmSettings={llmSettings}
+        autoReconnect={autoReconnect}
         reconnectRetry={reconnectRetry}
         onChangeTheme={changeTheme}
         onChangeScrollbackLines={handleScrollbackChange}
@@ -1161,6 +1298,10 @@ function App() {
         onChangeTerminalFontFamily={handleTerminalFontFamilyChange}
         onChangeUiFontFamily={handleUiFontFamilyChange}
         onChangeLlmSettings={updateLlmSettings}
+        onChangeAutoReconnect={(enabled) => {
+          setAutoReconnect(enabled);
+          localStorage.setItem('ash-auto-reconnect', String(enabled));
+        }}
         onChangeReconnectRetry={(updates) => {
           const newRetry = { ...reconnectRetry, ...updates };
           setReconnectRetry(newRetry);

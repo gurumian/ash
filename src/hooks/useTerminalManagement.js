@@ -20,7 +20,8 @@ export function useTerminalManagement({
   setContextMenu,
   setShowSearchBar,
   setShowAICommandInput,
-  showAICommandInput
+  showAICommandInput,
+  onSshClose
 }) {
   const terminalRefs = useRef({});
   const terminalInstances = useRef({});
@@ -31,6 +32,8 @@ export function useTerminalManagement({
   const pendingResizeRef = useRef(null);
   // Cache connectionId -> sessionId mapping for O(1) lookup
   const connectionIdMapRef = useRef(new Map());
+  // Ref for onSshClose callback to allow dynamic updates
+  const onSshCloseRef = useRef(onSshClose);
 
   // Update connectionId map when connections change
   // This function rebuilds the entire map from current sshConnections
@@ -52,6 +55,11 @@ export function useTerminalManagement({
     // and rely on explicit updates in key places (connect/disconnect)
     updateConnectionIdMap();
   }, [updateConnectionIdMap]);
+
+  // Update onSshClose ref when prop changes
+  useEffect(() => {
+    onSshCloseRef.current = onSshClose;
+  }, [onSshClose]);
 
   // Execute post-processing commands
   const executePostProcessing = useCallback((sessionId, session, connection) => {
@@ -599,6 +607,12 @@ export function useTerminalManagement({
       connectionIdMapRef.current.delete(connectionId);
       // Rebuild map to ensure it's in sync with actual connections
       updateConnectionIdMap();
+      
+      // Call callback if provided (for auto-reconnect)
+      // Use ref to get latest callback
+      if (onSshCloseRef.current && sessionId) {
+        onSshCloseRef.current(sessionId, connectionId);
+      }
     };
 
     window.electronAPI.onSSHData(handleSshData);
@@ -608,7 +622,7 @@ export function useTerminalManagement({
       window.electronAPI.offSSHData(handleSshData);
       window.electronAPI.offSSHClose(handleSshClose);
     };
-  }, [updateConnectionIdMap]); // Update map when connections change
+  }, [updateConnectionIdMap]); // Update map when connections change - onSshClose is handled via ref
 
   // Handle Serial data events - register only once
   useEffect(() => {

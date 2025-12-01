@@ -47,6 +47,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onSerialClose: (callback) => ipcRenderer.on('serial-close', callback),
   onSerialError: (callback) => ipcRenderer.on('serial-error', callback),
   
+  // Remove Serial event listeners
+  offSerialData: (callback) => ipcRenderer.off('serial-data', callback),
+  offSerialClose: (callback) => ipcRenderer.off('serial-close', callback),
+  offSerialError: (callback) => ipcRenderer.off('serial-error', callback),
+  
   // Remove event listeners
   removeAllListeners: (channel) => ipcRenderer.removeAllListeners(channel),
   
