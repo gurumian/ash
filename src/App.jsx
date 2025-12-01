@@ -360,6 +360,17 @@ function App() {
     const saved = localStorage.getItem('ash-ui-font-family');
     return saved || "'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace";
   });
+  const [reconnectRetry, setReconnectRetry] = useState(() => {
+    const saved = localStorage.getItem('ash-reconnect-retry');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return { enabled: true, interval: 1000, maxAttempts: 60 };
+      }
+    }
+    return { enabled: true, interval: 1000, maxAttempts: 60 }; // Default: enabled, 1s interval, 60 attempts
+  });
   
   
   // Create a ref for terminalInstances that useTheme can use
@@ -444,7 +455,8 @@ function App() {
     addSessionToGroup,
     initializeTerminal,
     cleanupLog,
-    setErrorDialog
+    setErrorDialog,
+    reconnectRetry
   });
 
   // Drag and drop hook
@@ -1002,11 +1014,6 @@ function App() {
               return next;
             });
             
-            // Show reconnecting message
-            if (terminalInstances.current[sessionId]) {
-              terminalInstances.current[sessionId].write('\r\n\x1b[90mReconnecting...\x1b[0m\r\n');
-            }
-            
             try {
               await reconnectSession(session);
               
@@ -1015,10 +1022,7 @@ function App() {
                 updateConnectionIdMap();
               }
               
-              // Success message
-              if (terminalInstances.current[sessionId]) {
-                terminalInstances.current[sessionId].write('\r\n\x1b[90mReconnected successfully.\x1b[0m\r\n');
-              }
+              // Success message is already shown in reconnectSSHSession
             } catch (error) {
               // Error is already handled by reconnectSession (shows error dialog)
               console.error('Reconnection failed:', error);
@@ -1150,12 +1154,18 @@ function App() {
         terminalFontFamily={terminalFontFamily}
         uiFontFamily={uiFontFamily}
         llmSettings={llmSettings}
+        reconnectRetry={reconnectRetry}
         onChangeTheme={changeTheme}
         onChangeScrollbackLines={handleScrollbackChange}
         onChangeTerminalFontSize={handleTerminalFontSizeChange}
         onChangeTerminalFontFamily={handleTerminalFontFamilyChange}
         onChangeUiFontFamily={handleUiFontFamilyChange}
         onChangeLlmSettings={updateLlmSettings}
+        onChangeReconnectRetry={(updates) => {
+          const newRetry = { ...reconnectRetry, ...updates };
+          setReconnectRetry(newRetry);
+          localStorage.setItem('ash-reconnect-retry', JSON.stringify(newRetry));
+        }}
         onClose={handleCloseSettings}
         onShowAbout={async () => {
           try {

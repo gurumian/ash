@@ -12,12 +12,14 @@ export const Settings = memo(function Settings({
   terminalFontFamily,
   uiFontFamily,
   llmSettings,
+  reconnectRetry,
   onChangeTheme,
   onChangeScrollbackLines,
   onChangeTerminalFontSize,
   onChangeTerminalFontFamily,
   onChangeUiFontFamily,
   onChangeLlmSettings,
+  onChangeReconnectRetry,
   onClose,
   onShowAbout
 }) {
@@ -266,6 +268,100 @@ export const Settings = memo(function Settings({
                 Allow marking connections as favorites
               </p>
             </div>
+
+            <div className="setting-group">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                <label style={{ margin: 0, flex: 1, cursor: 'pointer' }} onClick={() => onChangeReconnectRetry?.({ enabled: !reconnectRetry?.enabled })}>
+                  Enable reconnect retry
+                </label>
+                <div 
+                  className="toggle-switch"
+                  style={{
+                    position: 'relative',
+                    width: '48px',
+                    height: '24px',
+                    backgroundColor: reconnectRetry?.enabled !== false ? '#00ff41' : '#2a2a2a',
+                    borderRadius: '12px',
+                    cursor: 'pointer',
+                    transition: 'background-color 0.2s',
+                    border: '1px solid',
+                    borderColor: reconnectRetry?.enabled !== false ? '#00ff41' : '#1a1a1a'
+                  }}
+                  onClick={() => onChangeReconnectRetry?.({ enabled: !reconnectRetry?.enabled })}
+                >
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '2px',
+                      left: reconnectRetry?.enabled !== false ? '26px' : '2px',
+                      width: '18px',
+                      height: '18px',
+                      backgroundColor: '#000000',
+                      borderRadius: '50%',
+                      transition: 'left 0.2s',
+                      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
+                    }}
+                  />
+                </div>
+                <span style={{ 
+                  fontSize: '12px', 
+                  color: reconnectRetry?.enabled !== false ? '#00ff41' : '#555',
+                  fontWeight: '600',
+                  minWidth: '40px'
+                }}>
+                  {reconnectRetry?.enabled !== false ? 'ON' : 'OFF'}
+                </span>
+              </div>
+              <p className="setting-description">
+                Automatically retry connection when reconnecting (useful after reboot)
+              </p>
+            </div>
+
+            {reconnectRetry?.enabled !== false && (
+              <>
+                <div className="setting-group">
+                  <label>Retry Interval (ms)</label>
+                  <input
+                    type="number"
+                    min="100"
+                    max="10000"
+                    step="100"
+                    value={reconnectRetry?.interval || 1000}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value, 10);
+                      if (!isNaN(value) && value >= 100 && value <= 10000) {
+                        onChangeReconnectRetry?.({ interval: value });
+                      }
+                    }}
+                    style={{ width: '150px', padding: '8px 12px', background: '#1a1a1a', border: '1px solid #1a1a1a', borderRadius: '4px', color: '#00ff41', fontSize: '13px' }}
+                  />
+                  <p className="setting-description">
+                    Time to wait between retry attempts (default: 1000ms)
+                  </p>
+                </div>
+
+                <div className="setting-group">
+                  <label>Max Retry Attempts</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="300"
+                    step="1"
+                    value={reconnectRetry?.maxAttempts || 60}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value, 10);
+                      if (!isNaN(value) && value >= 1 && value <= 300) {
+                        onChangeReconnectRetry?.({ maxAttempts: value });
+                      }
+                    }}
+                    style={{ width: '150px', padding: '8px 12px', background: '#1a1a1a', border: '1px solid #1a1a1a', borderRadius: '4px', color: '#00ff41', fontSize: '13px' }}
+                  />
+                  <p className="setting-description">
+                    Maximum number of retry attempts (default: 60)
+                  </p>
+                </div>
+              </>
+            )}
           </div>
 
           <div className="settings-section">

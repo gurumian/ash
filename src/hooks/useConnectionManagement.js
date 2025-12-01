@@ -28,7 +28,8 @@ export function useConnectionManagement({
   initializeTerminal,
   cleanupLog,
   cleanupTerminal,
-  setErrorDialog
+  setErrorDialog,
+  reconnectRetry
 }) {
   // Helper function to format connection errors
   const formatConnectionError = useCallback((error) => {
@@ -324,24 +325,8 @@ export function useConnectionManagement({
     }, 500);
   }, []);
 
-  // Helper: Reconnect SSH session
-  const reconnectSSHSession = useCallback(async (session) => {
-    // Disconnect old connection if it exists
-    if (sshConnections.current[session.id]) {
-      try {
-        sshConnections.current[session.id].disconnect();
-      } catch (error) {
-        // Ignore errors when disconnecting old connection
-        console.log('Error disconnecting old SSH connection:', error);
-      }
-      delete sshConnections.current[session.id];
-    }
-    
-    const password = findPasswordFromHistory(session);
-    const connection = new SSHConnection();
-    await connection.connect(session.host, session.port, session.user, password);
-    sshConnections.current[session.id] = connection;
-
+  // Helper: Complete SSH session setup after successful connection
+  const completeSSHSessionSetup = useCallback(async (session, connection) => {
     // Initialize terminal if not already initialized
     if (!terminalInstances.current[session.id]) {
       setTimeout(() => {
@@ -357,7 +342,80 @@ export function useConnectionManagement({
     setSessions(prev => prev.map(s => 
       s.id === session.id ? { ...s, isConnected: true } : s
     ));
-  }, [findPasswordFromHistory, initializeTerminal, executePostProcessing, setSessions]);
+  }, [initializeTerminal, executePostProcessing, setSessions, terminalInstances]);
+
+  // Helper: Reconnect SSH session with retry
+  const reconnectSSHSession = useCallback(async (session) => {
+    // Disconnect old connection if it exists
+    if (sshConnections.current[session.id]) {
+      try {
+        sshConnections.current[session.id].disconnect();
+      } catch (error) {
+        // Ignore errors when disconnecting old connection
+        console.log('Error disconnecting old SSH connection:', error);
+      }
+      delete sshConnections.current[session.id];
+    }
+    
+    const password = findPasswordFromHistory(session);
+    const retryEnabled = reconnectRetry?.enabled !== false;
+    const retryInterval = reconnectRetry?.interval || 1000;
+    const maxAttempts = reconnectRetry?.maxAttempts || 60;
+    
+    // Get terminal instance for status messages
+    const terminal = terminalInstances.current[session.id];
+    
+    let connection = null;
+    
+    if (!retryEnabled) {
+      // No retry - single attempt
+      connection = new SSHConnection();
+      await connection.connect(session.host, session.port, session.user, password);
+      sshConnections.current[session.id] = connection;
+    } else {
+      // Retry logic
+      let lastError = null;
+      
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        // Update terminal with attempt status
+        if (terminal) {
+          // Clear previous attempt line and show new one
+          terminal.write(`\r\x1b[K\x1b[90mAttempting ${attempt}/${maxAttempts}...\x1b[0m`);
+        }
+        
+        try {
+          connection = new SSHConnection();
+          await connection.connect(session.host, session.port, session.user, password);
+          sshConnections.current[session.id] = connection;
+          
+          // Success - clear attempt message
+          if (terminal) {
+            terminal.write(`\r\x1b[K\x1b[90mConnected successfully.\x1b[0m\r\n`);
+          }
+          break; // Exit retry loop on success
+        } catch (error) {
+          lastError = error;
+          console.log(`SSH reconnection attempt ${attempt}/${maxAttempts} failed:`, error.message);
+          
+          if (attempt < maxAttempts) {
+            // Wait before next attempt
+            await new Promise(resolve => setTimeout(resolve, retryInterval));
+          } else {
+            // All attempts failed
+            if (terminal) {
+              terminal.write(`\r\x1b[K\x1b[90mDisconnected. Max retry attempts (${maxAttempts}) reached.\x1b[0m\r\n`);
+            }
+            throw lastError || new Error(`SSH reconnection failed after ${maxAttempts} attempts`);
+          }
+        }
+      }
+    }
+    
+    // Complete session setup after successful connection
+    if (connection) {
+      await completeSSHSessionSetup(session, connection);
+    }
+  }, [findPasswordFromHistory, reconnectRetry, terminalInstances, completeSSHSessionSetup]);
 
   // Helper: Reconnect Serial session
   const reconnectSerialSession = useCallback(async (session) => {
@@ -399,8 +457,19 @@ export function useConnectionManagement({
       }
     } catch (error) {
       console.error(`Failed to reconnect session ${session.id}:`, error);
-      // Use error dialog instead of alert
-      if (setErrorDialog) {
+      
+      // Show error dialog for max retry attempts reached
+      const isMaxRetriesReached = error.message?.includes('Max retry attempts') || error.message?.includes('after');
+      if (setErrorDialog && isMaxRetriesReached) {
+        const formattedError = formatConnectionError(error);
+        setErrorDialog({
+          isOpen: true,
+          title: 'Reconnection Failed',
+          message: `Failed to reconnect after maximum retry attempts`,
+          detail: `Unable to reconnect to ${session.name}.\n\n${formattedError.detail || error.message}`,
+          error: error
+        });
+      } else if (setErrorDialog) {
         const formattedError = formatConnectionError(error);
         setErrorDialog({
           isOpen: true,
