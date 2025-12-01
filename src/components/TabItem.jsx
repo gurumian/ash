@@ -56,6 +56,7 @@ export const TabItem = memo(function TabItem({
     onDisconnect(session.id);
   }, [session.id, onDisconnect]);
 
+
   return (
     <div 
       className={`tab ${isActive ? 'active' : ''}`}

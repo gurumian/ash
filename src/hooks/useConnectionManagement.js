@@ -326,6 +326,17 @@ export function useConnectionManagement({
 
   // Helper: Reconnect SSH session
   const reconnectSSHSession = useCallback(async (session) => {
+    // Disconnect old connection if it exists
+    if (sshConnections.current[session.id]) {
+      try {
+        sshConnections.current[session.id].disconnect();
+      } catch (error) {
+        // Ignore errors when disconnecting old connection
+        console.log('Error disconnecting old SSH connection:', error);
+      }
+      delete sshConnections.current[session.id];
+    }
+    
     const password = findPasswordFromHistory(session);
     const connection = new SSHConnection();
     await connection.connect(session.host, session.port, session.user, password);
@@ -388,9 +399,22 @@ export function useConnectionManagement({
       }
     } catch (error) {
       console.error(`Failed to reconnect session ${session.id}:`, error);
-      alert(`Failed to reconnect ${session.name}: ${error.message}`);
+      // Use error dialog instead of alert
+      if (setErrorDialog) {
+        const formattedError = formatConnectionError(error);
+        setErrorDialog({
+          isOpen: true,
+          title: formattedError.title,
+          message: formattedError.message,
+          detail: formattedError.detail,
+          error: error
+        });
+      } else {
+        alert(`Failed to reconnect ${session.name}: ${error.message}`);
+      }
+      throw error; // Re-throw to let caller handle it
     }
-  }, [reconnectSSHSession, reconnectSerialSession]);
+  }, [reconnectSSHSession, reconnectSerialSession, formatConnectionError, setErrorDialog]);
 
   // Helper: Prepare connection form data from saved session
   const prepareConnectionFormData = useCallback((savedSession) => {
@@ -622,7 +646,8 @@ export function useConnectionManagement({
     createNewSessionWithData,
     disconnectSession,
     connectGroup,
-    handleDetachTab
+    handleDetachTab,
+    reconnectSession
   };
 }
 

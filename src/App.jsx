@@ -44,6 +44,7 @@ function App() {
   // Session management state
   const [sessions, setSessions] = useState([]);
   const [activeSessionId, setActiveSessionId] = useState(null);
+  const [reconnectingSessions, setReconnectingSessions] = useState(new Map());
   
   // Connection refs
   const sshConnections = useRef({});
@@ -375,7 +376,8 @@ function App() {
     searchAddons,
     initializeTerminal,
     resizeTerminal,
-    cleanupTerminal
+    cleanupTerminal,
+    updateConnectionIdMap
   } = useTerminalManagement({
     theme,
     themes,
@@ -420,7 +422,8 @@ function App() {
     createNewSessionWithData,
     disconnectSession,
     connectGroup,
-    handleDetachTab
+    handleDetachTab,
+    reconnectSession
   } = useConnectionManagement({
     sessions,
     setSessions,
@@ -622,6 +625,29 @@ function App() {
       window.electronAPI.offSerialClose(handleSerialClose);
     };
   }, []);
+
+  // Handle SSH close to update session state
+  useEffect(() => {
+    const handleSshClose = (event, { connectionId }) => {
+      // Find session by connectionId
+      const session = sessions.find(s => {
+        const conn = sshConnections.current[s.id];
+        return conn && conn.connectionId === connectionId;
+      });
+      
+      if (session) {
+        setSessions(prev => prev.map(s => 
+          s.id === session.id ? { ...s, isConnected: false } : s
+        ));
+      }
+    };
+
+    window.electronAPI.onSSHClose(handleSshClose);
+
+    return () => {
+      window.electronAPI.offSSHClose(handleSshClose);
+    };
+  }, [sessions, sshConnections]);
 
 
   // Memoize active session connection status to avoid repeated find() calls
@@ -965,6 +991,47 @@ function App() {
           }}
           onExecuteAICommand={executeAICommand}
           isAIProcessing={isAIProcessing}
+          onReconnectSession={async (sessionId) => {
+            const session = sessions.find(s => s.id === sessionId);
+            if (!session) return;
+            
+            // Mark as reconnecting
+            setReconnectingSessions(prev => {
+              const next = new Map(prev);
+              next.set(sessionId, true);
+              return next;
+            });
+            
+            // Show reconnecting message
+            if (terminalInstances.current[sessionId]) {
+              terminalInstances.current[sessionId].write('\r\n\x1b[90mReconnecting...\x1b[0m\r\n');
+            }
+            
+            try {
+              await reconnectSession(session);
+              
+              // Update connectionId map after reconnection
+              if (updateConnectionIdMap) {
+                updateConnectionIdMap();
+              }
+              
+              // Success message
+              if (terminalInstances.current[sessionId]) {
+                terminalInstances.current[sessionId].write('\r\n\x1b[90mReconnected successfully.\x1b[0m\r\n');
+              }
+            } catch (error) {
+              // Error is already handled by reconnectSession (shows error dialog)
+              console.error('Reconnection failed:', error);
+            } finally {
+              // Remove from reconnecting map
+              setReconnectingSessions(prev => {
+                const next = new Map(prev);
+                next.delete(sessionId);
+                return next;
+              });
+            }
+          }}
+          reconnectingSessions={reconnectingSessions}
         />
         
         {/* Terminal Context Menu */}

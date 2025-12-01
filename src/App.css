@@ -469,6 +469,38 @@ button, a, input, select, textarea, [role="button"] {
   cursor: grabbing;
 }
 
+.tab-reconnect {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 2px;
+  font-size: 12px;
+  margin-left: 4px;
+  opacity: 0.7;
+  color: #00ff41 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s;
+}
+
+.tab-reconnect:hover:not(:disabled) {
+  opacity: 1;
+  background: rgba(0, 255, 65, 0.1);
+}
+
+.tab-reconnect:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 .tab-close {
   background: none;
   border: none;
@@ -1212,6 +1244,15 @@ button, a, input, select, textarea, [role="button"] {
 .log-btn:disabled {
   opacity: 0.3;
   cursor: not-allowed;
+}
+
+.reconnect-btn {
+  font-weight: 500;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .log-btn.logging {

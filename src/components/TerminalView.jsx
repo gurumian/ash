@@ -31,7 +31,9 @@ export const TerminalView = memo(function TerminalView({
   onExecuteAICommand,
   isAIProcessing,
   onToggleAICommandInput,
-  onFileDrop
+  onFileDrop,
+  onReconnectSession,
+  reconnectingSessions
 }) {
   // Track previous value for change detection (debug only)
   const prevShowAICommandInput = useRef(showAICommandInput);
@@ -110,6 +112,62 @@ export const TerminalView = memo(function TerminalView({
             </div>
             {activeSessionId && (
               <div className="log-controls">
+                {activeSession && !activeSession.isConnected && onReconnectSession && (
+                  <button
+                    className="log-btn reconnect-btn"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (onReconnectSession && !(reconnectingSessions?.get(activeSessionId))) {
+                        onReconnectSession(activeSessionId);
+                      }
+                    }}
+                    disabled={reconnectingSessions?.get(activeSessionId) || false}
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                    }}
+                    title={reconnectingSessions?.get(activeSessionId) ? "Reconnecting..." : "Reconnect"}
+                    style={{
+                      marginRight: '8px',
+                      padding: '4px 8px',
+                      fontSize: '11px',
+                      background: '#1a1a1a',
+                      border: '1px solid #00ff41',
+                      color: '#00ff41',
+                      borderRadius: '4px',
+                      cursor: reconnectingSessions?.get(activeSessionId) ? 'not-allowed' : 'pointer',
+                      opacity: reconnectingSessions?.get(activeSessionId) ? 0.6 : 1,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      minWidth: '28px',
+                      width: '28px',
+                      height: '28px',
+                      zIndex: 10000,
+                      position: 'relative'
+                    }}
+                  >
+                    <svg 
+                      width="14" 
+                      height="14" 
+                      viewBox="0 0 24 24" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      strokeWidth="2" 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round"
+                      style={{
+                        animation: reconnectingSessions?.get(activeSessionId) ? 'spin 1s linear infinite' : 'none',
+                        display: 'inline-block'
+                      }}
+                    >
+                      <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                      <path d="M21 3v5h-5" />
+                      <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+                      <path d="M3 21v-5h5" />
+                    </svg>
+                  </button>
+                )}
                 <button
                   className="log-btn"
                   onClick={(e) => {

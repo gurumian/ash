@@ -657,7 +657,8 @@ export function useTerminalManagement({
     searchAddons,
     initializeTerminal,
     resizeTerminal,
-    cleanupTerminal
+    cleanupTerminal,
+    updateConnectionIdMap
   };
 }
 
