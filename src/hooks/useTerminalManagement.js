@@ -600,6 +600,9 @@ export function useTerminalManagement({
       if (sessionId && terminalInstances.current[sessionId]) {
         // Use grey color for connection status messages
         terminalInstances.current[sessionId].write('\r\n\x1b[90mSSH connection closed.\x1b[0m\r\n');
+        // Add F5 reconnect hint with keyboard-style key representation
+        // Using box drawing characters to make it look like a keyboard key in one line: ┌─F5─┐
+        terminalInstances.current[sessionId].write('\x1b[90mPress \x1b[0m\x1b[92m┌─F5─┐\x1b[0m\x1b[90m to reconnect.\x1b[0m\r\n');
       }
       
       // Remove from map when connection closes

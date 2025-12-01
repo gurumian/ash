@@ -13,11 +13,32 @@ export function useKeyboardShortcuts({
   terminalInstances,
   terminalFontSize,
   setTerminalFontSize,
-  resizeTerminal
+  resizeTerminal,
+  onReconnectSession,
+  sessions,
+  reconnectingSessions
 }) {
   useEffect(() => {
     const handleKeyDown = (event) => {
-      // Allow standard text editing shortcuts in input/textarea fields (must be first check)
+      // F5 - manual reconnect for disconnected sessions (check FIRST, before anything else)
+      // This must be handled globally before terminal can intercept it
+      if (event.key === 'F5') {
+        if (activeSessionId && onReconnectSession && sessions) {
+          const activeSession = sessions.find(s => s.id === activeSessionId);
+          if (activeSession && !activeSession.isConnected && !(reconnectingSessions?.get(activeSessionId))) {
+            onReconnectSession(activeSessionId);
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+            return;
+          }
+        }
+        // If conditions not met, still prevent default to avoid browser refresh
+        event.preventDefault();
+        return;
+      }
+
+      // Allow standard text editing shortcuts in input/textarea fields
       // This includes Ctrl+Z (undo), Ctrl+Y (redo), Ctrl+A (select all), etc.
       if (event.target.matches('input, textarea')) {
         const isStandardEditShortcut = (event.ctrlKey || event.metaKey) && 
@@ -53,7 +74,8 @@ export function useKeyboardShortcuts({
 
       // Don't handle other shortcuts when typing in input fields (but allow Ctrl+Shift+A above)
       // Exception: don't block Ctrl+Shift+A even in input fields
-      if (event.target.matches('input, textarea') && !((event.ctrlKey || event.metaKey) && event.shiftKey && (event.key === 'a' || event.key === 'A'))) {
+      if (event.target.matches('input, textarea') && 
+          !((event.ctrlKey || event.metaKey) && event.shiftKey && (event.key === 'a' || event.key === 'A'))) {
         return;
       }
 
@@ -125,6 +147,6 @@ export function useKeyboardShortcuts({
       window.removeEventListener('keydown', handleKeyDown, true);
       document.removeEventListener('keydown', handleKeyDown, true);
     };
-  }, [activeSessionId, showSearchBar, setShowSearchBar, showAICommandInput, setShowAICommandInput, llmSettings, terminalInstances, terminalFontSize, setTerminalFontSize, resizeTerminal]);
+  }, [activeSessionId, showSearchBar, setShowSearchBar, showAICommandInput, setShowAICommandInput, llmSettings, terminalInstances, terminalFontSize, setTerminalFontSize, resizeTerminal, onReconnectSession, sessions, reconnectingSessions]);
 }
 

@@ -422,20 +422,6 @@ function App() {
   // Window controls hook
   const { isMaximized, handleMinimize, handleMaximize, handleClose } = useWindowControls(isWindows);
   
-  // Keyboard shortcuts hook
-  useKeyboardShortcuts({
-    activeSessionId,
-    showSearchBar,
-    setShowSearchBar,
-    showAICommandInput,
-    setShowAICommandInput,
-    llmSettings,
-    terminalInstances,
-    terminalFontSize,
-    setTerminalFontSize,
-    resizeTerminal
-  });
-  
   // Connection management hook
   const {
     createNewSessionWithData,
@@ -465,6 +451,54 @@ function App() {
     cleanupLog,
     setErrorDialog,
     reconnectRetry
+  });
+
+  // Keyboard shortcuts hook (must be after useConnectionManagement to access reconnectSession)
+  useKeyboardShortcuts({
+    activeSessionId,
+    showSearchBar,
+    setShowSearchBar,
+    showAICommandInput,
+    setShowAICommandInput,
+    llmSettings,
+    terminalInstances,
+    terminalFontSize,
+    setTerminalFontSize,
+    resizeTerminal,
+    onReconnectSession: async (sessionId) => {
+      const session = sessions.find(s => s.id === sessionId);
+      if (!session) return;
+      
+      // Mark as reconnecting
+      setReconnectingSessions(prev => {
+        const next = new Map(prev);
+        next.set(sessionId, true);
+        return next;
+      });
+      
+      try {
+        await reconnectSession(session);
+        
+        // Update connectionId map after reconnection
+        if (updateConnectionIdMap) {
+          updateConnectionIdMap();
+        }
+        
+        // Success message is already shown in reconnectSSHSession
+      } catch (error) {
+        // Error is already handled by reconnectSession (shows error dialog)
+        console.error('Reconnection failed:', error);
+      } finally {
+        // Remove from reconnecting map
+        setReconnectingSessions(prev => {
+          const next = new Map(prev);
+          next.delete(sessionId);
+          return next;
+        });
+      }
+    },
+    sessions,
+    reconnectingSessions
   });
 
   // Handle SSH close for auto-reconnect (must be after useConnectionManagement to access reconnectSession)
