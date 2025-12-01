@@ -1324,7 +1324,6 @@ function App() {
         terminalFontFamily={terminalFontFamily}
         uiFontFamily={uiFontFamily}
         llmSettings={llmSettings}
-        autoReconnect={autoReconnect}
         reconnectRetry={reconnectRetry}
         onChangeTheme={changeTheme}
         onChangeScrollbackLines={handleScrollbackChange}
@@ -1332,10 +1331,6 @@ function App() {
         onChangeTerminalFontFamily={handleTerminalFontFamilyChange}
         onChangeUiFontFamily={handleUiFontFamilyChange}
         onChangeLlmSettings={updateLlmSettings}
-        onChangeAutoReconnect={(enabled) => {
-          setAutoReconnect(enabled);
-          localStorage.setItem('ash-auto-reconnect', String(enabled));
-        }}
         onChangeReconnectRetry={(updates) => {
           const newRetry = { ...reconnectRetry, ...updates };
           setReconnectRetry(newRetry);

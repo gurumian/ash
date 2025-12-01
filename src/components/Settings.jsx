@@ -12,7 +12,6 @@ export const Settings = memo(function Settings({
   terminalFontFamily,
   uiFontFamily,
   llmSettings,
-  autoReconnect,
   reconnectRetry,
   onChangeTheme,
   onChangeScrollbackLines,
@@ -20,7 +19,6 @@ export const Settings = memo(function Settings({
   onChangeTerminalFontFamily,
   onChangeUiFontFamily,
   onChangeLlmSettings,
-  onChangeAutoReconnect,
   onChangeReconnectRetry,
   onClose,
   onShowAbout
@@ -268,54 +266,6 @@ export const Settings = memo(function Settings({
               </label>
               <p className="setting-description">
                 Allow marking connections as favorites
-              </p>
-            </div>
-
-            <div className="setting-group">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                <label style={{ margin: 0, flex: 1, cursor: 'pointer' }} onClick={() => onChangeAutoReconnect?.(!autoReconnect)}>
-                  Auto-reconnect
-                </label>
-                <div 
-                  className="toggle-switch"
-                  style={{
-                    position: 'relative',
-                    width: '48px',
-                    height: '24px',
-                    backgroundColor: autoReconnect !== false ? '#00ff41' : '#2a2a2a',
-                    borderRadius: '12px',
-                    cursor: 'pointer',
-                    transition: 'background-color 0.2s',
-                    border: '1px solid',
-                    borderColor: autoReconnect !== false ? '#00ff41' : '#1a1a1a'
-                  }}
-                  onClick={() => onChangeAutoReconnect?.(!autoReconnect)}
-                >
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: '2px',
-                      left: autoReconnect !== false ? '26px' : '2px',
-                      width: '18px',
-                      height: '18px',
-                      backgroundColor: '#000000',
-                      borderRadius: '50%',
-                      transition: 'left 0.2s',
-                      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
-                    }}
-                  />
-                </div>
-                <span style={{ 
-                  fontSize: '12px', 
-                  color: autoReconnect !== false ? '#00ff41' : '#555',
-                  fontWeight: '600',
-                  minWidth: '40px'
-                }}>
-                  {autoReconnect !== false ? 'ON' : 'OFF'}
-                </span>
-              </div>
-              <p className="setting-description">
-                Automatically reconnect when connection is lost
               </p>
             </div>
 
