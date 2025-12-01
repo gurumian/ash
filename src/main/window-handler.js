@@ -80,6 +80,73 @@ export function initializeWindowHandlers() {
         return { success: false, error: 'Session not found' };
       }
       
+      // Helper function to get preload path with fallback
+      const getPreloadPath = () => {
+        if (app.isPackaged) {
+          const resourcesPath = process.resourcesPath || app.getAppPath();
+          const appPath = app.getAppPath();
+          
+          const possiblePaths = [
+            path.join(resourcesPath, 'app', '.vite', 'build', 'preload.js'),
+            path.join(appPath, '.vite', 'build', 'preload.js'),
+            path.join(__dirname, 'preload.js'),
+            path.join(__dirname, '../preload.js'),
+            path.join(__dirname, '../../preload.js'),
+            path.join(__dirname, '../../../preload.js'),
+            path.join(process.cwd(), '.vite', 'build', 'preload.js'),
+          ];
+          
+          for (const possiblePath of possiblePaths) {
+            try {
+              if (fs.existsSync(possiblePath)) {
+                return possiblePath;
+              }
+            } catch (e) {
+              // Continue to next path
+            }
+          }
+        }
+        const devPath = path.join(__dirname, 'preload.js');
+        if (fs.existsSync(devPath)) {
+          return devPath;
+        }
+        return devPath; // Final fallback
+      };
+      
+      // Helper function to get index.html path with fallback
+      const getIndexHtmlPath = () => {
+        const rendererName = typeof MAIN_WINDOW_VITE_NAME !== 'undefined' ? MAIN_WINDOW_VITE_NAME : 'main_window';
+        
+        if (app.isPackaged) {
+          const resourcesPath = process.resourcesPath || app.getAppPath();
+          const appPath = app.getAppPath();
+          
+          const possiblePaths = [
+            path.join(resourcesPath, 'app', '.vite', 'renderer', rendererName, 'index.html'),
+            path.join(appPath, '.vite', 'renderer', rendererName, 'index.html'),
+            path.join(__dirname, `../renderer/${rendererName}/index.html`),
+            path.join(__dirname, `../../renderer/${rendererName}/index.html`),
+            path.join(__dirname, `../../../renderer/${rendererName}/index.html`),
+            path.join(process.cwd(), '.vite', 'renderer', rendererName, 'index.html'),
+          ];
+          
+          for (const possiblePath of possiblePaths) {
+            try {
+              if (fs.existsSync(possiblePath)) {
+                return possiblePath;
+              }
+            } catch (e) {
+              // Continue to next path
+            }
+          }
+        }
+        const devPath = path.join(__dirname, `../renderer/${rendererName}/index.html`);
+        if (fs.existsSync(devPath)) {
+          return devPath;
+        }
+        return devPath; // Final fallback
+      };
+      
       // Create new window
       const newWindow = new BrowserWindow({
         width: 800,
@@ -105,7 +172,7 @@ export function initializeWindowHandlers() {
             }
         ),
         webPreferences: {
-          preload: path.join(__dirname, 'preload.js'),
+          preload: getPreloadPath(),
         },
       });
       
@@ -113,7 +180,7 @@ export function initializeWindowHandlers() {
       if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
         newWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
       } else {
-        newWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
+        newWindow.loadFile(getIndexHtmlPath());
       }
       
       // Wait for window to be ready, then send session data

@@ -145,7 +145,7 @@ export function initializeSSHHandlers() {
     return { success: false };
   });
 
-  // SFTP file upload
+  // SFTP file upload with fallback to cat method
   ipcMain.handle('ssh-upload-file', async (event, { connectionId, localPath, remotePath }) => {
     const conn = sshConnections.get(connectionId);
     if (!conn) {
@@ -155,59 +155,189 @@ export function initializeSSHHandlers() {
     const fs = require('fs');
     const path = require('path');
 
-    return new Promise((resolve, reject) => {
-      conn.sftp((err, sftp) => {
-        if (err) {
-          reject(new Error(`SFTP error: ${err.message}`));
-          return;
-        }
+    // Check if local file exists
+    if (!fs.existsSync(localPath)) {
+      throw new Error(`Local file not found: ${localPath}`);
+    }
 
-        // Check if local file exists
-        if (!fs.existsSync(localPath)) {
-          reject(new Error(`Local file not found: ${localPath}`));
-          return;
-        }
+    // Get file stats for progress tracking
+    const stats = fs.statSync(localPath);
+    const fileSize = stats.size;
 
-        // Get file stats for progress tracking
-        const stats = fs.statSync(localPath);
-        const fileSize = stats.size;
+    // Try SFTP first
+    try {
+      return await new Promise((resolve, reject) => {
+        conn.sftp((err, sftp) => {
+          if (err) {
+            // SFTP failed, try fallback method
+            console.warn(`SFTP failed: ${err.message}, trying fallback method...`);
+            reject(err); // Reject to trigger fallback
+            return;
+          }
 
-        // Use fastPut for efficient file transfer
-        sftp.fastPut(
-          localPath,
-          remotePath,
-          {
-            concurrency: 64,
-            chunkSize: 32768,
-            step: (totalTransferred, chunk, total) => {
-              // Send progress updates
-              const progress = (totalTransferred / total) * 100;
+          // Use fastPut for efficient file transfer
+          sftp.fastPut(
+            localPath,
+            remotePath,
+            {
+              concurrency: 64,
+              chunkSize: 32768,
+              step: (totalTransferred, chunk, total) => {
+                // Send progress updates
+                const progress = (totalTransferred / total) * 100;
+                const webContents = event.sender;
+                if (!webContents.isDestroyed()) {
+                  webContents.send('ssh-upload-progress', {
+                    connectionId,
+                    progress,
+                    transferred: totalTransferred,
+                    total: total
+                  });
+                }
+              }
+            },
+            (err) => {
+              if (err) {
+                reject(err);
+              } else {
+                resolve({
+                  success: true,
+                  localPath,
+                  remotePath,
+                  fileSize,
+                  method: 'sftp'
+                });
+              }
+            }
+          );
+        });
+      });
+    } catch (sftpError) {
+      // SFTP failed, try fallback: cat via SSH exec
+      console.log('SFTP not available, using cat fallback method...');
+      
+      try {
+        return await new Promise((resolve, reject) => {
+          // Create remote directory if needed
+          const remoteDir = path.dirname(remotePath);
+          
+          // Use cat to write file directly via stdin
+          // This is simpler and more efficient than base64 encoding
+          const command = `mkdir -p "${remoteDir}" && cat > "${remotePath}"`;
+          
+          console.log(`[SSH Upload] Starting cat fallback: ${localPath} -> ${remotePath}`);
+          
+          // Execute command via SSH
+          conn.exec(command, (err, stream) => {
+            if (err) {
+              console.error(`[SSH Upload] Exec failed:`, err);
+              reject(new Error(`Fallback upload failed: ${err.message}`));
+              return;
+            }
+            
+            let errorOutput = '';
+            let stdoutOutput = '';
+            let transferred = 0;
+            let isComplete = false;
+            let fileStreamEnded = false;
+            
+            // Read file as stream
+            const fileStream = fs.createReadStream(localPath);
+            
+            console.log(`[SSH Upload] File stream created, size: ${fileSize} bytes`);
+            
+            // Track progress
+            const sendProgress = () => {
+              const progress = Math.min(100, (transferred / fileSize) * 100);
               const webContents = event.sender;
               if (!webContents.isDestroyed()) {
                 webContents.send('ssh-upload-progress', {
                   connectionId,
                   progress,
-                  transferred: totalTransferred,
-                  total: total
+                  transferred,
+                  total: fileSize
                 });
               }
-            }
-          },
-          (err) => {
-            if (err) {
-              reject(new Error(`Upload failed: ${err.message}`));
-            } else {
-              resolve({
-                success: true,
-                localPath,
-                remotePath,
-                fileSize
-              });
-            }
-          }
-        );
-      });
-    });
+            };
+            
+            // Track transferred bytes and write to stream
+            fileStream.on('data', (chunk) => {
+              transferred += chunk.length;
+              sendProgress();
+              
+              // Write chunk to SSH stream
+              const canContinue = stream.write(chunk);
+              if (!canContinue) {
+                // Buffer is full, pause file stream
+                fileStream.pause();
+                stream.once('drain', () => {
+                  fileStream.resume();
+                });
+              }
+            });
+            
+            fileStream.on('end', () => {
+              console.log(`[SSH Upload] File stream ended, transferred: ${transferred}/${fileSize}`);
+              fileStreamEnded = true;
+              // End the SSH stream after all data is written
+              stream.end();
+            });
+            
+            fileStream.on('error', (err) => {
+              console.error(`[SSH Upload] File stream error:`, err);
+              if (!isComplete) {
+                reject(new Error(`File read error: ${err.message}`));
+              }
+            });
+            
+            stream.stdout.on('data', (data) => {
+              stdoutOutput += data.toString();
+            });
+            
+            stream.stderr.on('data', (data) => {
+              errorOutput += data.toString();
+              console.log(`[SSH Upload] stderr:`, data.toString());
+            });
+            
+            stream.on('close', (code, signal) => {
+              console.log(`[SSH Upload] Stream closed, code: ${code}, signal: ${signal}`);
+              console.log(`[SSH Upload] stdout:`, stdoutOutput);
+              console.log(`[SSH Upload] stderr:`, errorOutput);
+              
+              isComplete = true;
+              transferred = fileSize;
+              sendProgress();
+              
+              if (code === 0) {
+                console.log(`[SSH Upload] Upload completed successfully`);
+                resolve({
+                  success: true,
+                  localPath,
+                  remotePath,
+                  fileSize,
+                  method: 'cat'
+                });
+              } else {
+                console.error(`[SSH Upload] Upload failed with exit code ${code}`);
+                reject(new Error(`Fallback upload failed with exit code ${code}: ${errorOutput || stdoutOutput || 'Unknown error'}`));
+              }
+            });
+            
+            stream.on('error', (err) => {
+              console.error(`[SSH Upload] Stream error:`, err);
+              if (!isComplete) {
+                reject(new Error(`Fallback upload error: ${err.message}`));
+              }
+            });
+          });
+        });
+      } catch (fallbackError) {
+        // If fallback also fails, provide helpful error message
+        const sftpErrorMsg = sftpError.message || String(sftpError);
+        const fallbackErrorMsg = fallbackError.message || String(fallbackError);
+        throw new Error(`File upload failed. SFTP error: ${sftpErrorMsg}. Fallback error: ${fallbackErrorMsg}. The remote system may not support SFTP.`);
+      }
+    }
   });
 }
 

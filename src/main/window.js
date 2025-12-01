@@ -1,5 +1,87 @@
-import { BrowserWindow } from 'electron';
+import { BrowserWindow, app } from 'electron';
 import path from 'node:path';
+import fs from 'fs';
+
+/**
+ * Get preload script path with fallback handling
+ */
+function getPreloadPath() {
+  if (app.isPackaged) {
+    // In production, try multiple possible locations
+    const resourcesPath = process.resourcesPath || app.getAppPath();
+    const appPath = app.getAppPath();
+    
+    const possiblePaths = [
+      path.join(resourcesPath, 'app', '.vite', 'build', 'preload.js'),
+      path.join(appPath, '.vite', 'build', 'preload.js'),
+      path.join(__dirname, 'preload.js'),
+      path.join(__dirname, '../preload.js'),
+      path.join(__dirname, '../../preload.js'),
+      path.join(__dirname, '../../../preload.js'),
+      path.join(process.cwd(), '.vite', 'build', 'preload.js'),
+    ];
+    
+    for (const possiblePath of possiblePaths) {
+      try {
+        if (fs.existsSync(possiblePath)) {
+          return possiblePath;
+        }
+      } catch (e) {
+        // Continue to next path
+      }
+    }
+  }
+  
+  // In development or fallback
+  const devPath = path.join(__dirname, 'preload.js');
+  if (fs.existsSync(devPath)) {
+    return devPath;
+  }
+  
+  // Final fallback - return even if doesn't exist (let Electron handle the error)
+  return devPath;
+}
+
+/**
+ * Get index.html path with fallback handling
+ */
+function getIndexHtmlPath() {
+  const rendererName = typeof MAIN_WINDOW_VITE_NAME !== 'undefined' ? MAIN_WINDOW_VITE_NAME : 'main_window';
+  
+  if (app.isPackaged) {
+    // In production, try multiple possible locations
+    const resourcesPath = process.resourcesPath || app.getAppPath();
+    const appPath = app.getAppPath();
+    
+    const possiblePaths = [
+      path.join(resourcesPath, 'app', '.vite', 'renderer', rendererName, 'index.html'),
+      path.join(appPath, '.vite', 'renderer', rendererName, 'index.html'),
+      path.join(__dirname, `../renderer/${rendererName}/index.html`),
+      path.join(__dirname, `../../renderer/${rendererName}/index.html`),
+      path.join(__dirname, `../../../renderer/${rendererName}/index.html`),
+      path.join(process.cwd(), '.vite', 'renderer', rendererName, 'index.html'),
+    ];
+    
+    for (const possiblePath of possiblePaths) {
+      try {
+        if (fs.existsSync(possiblePath)) {
+          return possiblePath;
+        }
+      } catch (e) {
+        // Continue to next path
+      }
+    }
+  }
+  
+  // In development or fallback
+  const devPath = path.join(__dirname, `../renderer/${rendererName}/index.html`);
+  if (fs.existsSync(devPath)) {
+    return devPath;
+  }
+  
+  // Final fallback - return even if doesn't exist (let Electron handle the error)
+  return devPath;
+}
 
 /**
  * Create the main application window
@@ -32,7 +114,7 @@ export function createWindow() {
         }
     ),
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: getPreloadPath(),
     },
   });
 
@@ -64,7 +146,8 @@ export function createWindow() {
     // Open the DevTools only in development mode
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
+    const indexPath = getIndexHtmlPath();
+    mainWindow.loadFile(indexPath);
   }
 
   return mainWindow;
