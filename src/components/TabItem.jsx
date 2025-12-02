@@ -1,4 +1,5 @@
 import React, { memo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ConnectionStatusIcon } from './ConnectionStatusIcon';
 
 /**
@@ -56,6 +57,7 @@ export const TabItem = memo(function TabItem({
     onDisconnect(session.id);
   }, [session.id, onDisconnect]);
 
+  const { t } = useTranslation('common');
 
   return (
     <div 
@@ -75,7 +77,7 @@ export const TabItem = memo(function TabItem({
       <button 
         className="tab-close"
         onClick={handleClose}
-        title="Close"
+        title={t('common:close')}
       >
         ×
       </button>

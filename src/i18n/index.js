@@ -9,6 +9,7 @@ import enMenu from '../locales/en/menu.json';
 import enSettings from '../locales/en/settings.json';
 import enDialog from '../locales/en/dialog.json';
 import enStatus from '../locales/en/status.json';
+import enServer from '../locales/en/server.json';
 
 import koCommon from '../locales/ko/common.json';
 import koConnection from '../locales/ko/connection.json';
@@ -16,6 +17,7 @@ import koMenu from '../locales/ko/menu.json';
 import koSettings from '../locales/ko/settings.json';
 import koDialog from '../locales/ko/dialog.json';
 import koStatus from '../locales/ko/status.json';
+import koServer from '../locales/ko/server.json';
 
 const resources = {
   en: {
@@ -25,6 +27,7 @@ const resources = {
     settings: enSettings,
     dialog: enDialog,
     status: enStatus,
+    server: enServer,
   },
   ko: {
     common: koCommon,
@@ -33,6 +36,7 @@ const resources = {
     settings: koSettings,
     dialog: koDialog,
     status: koStatus,
+    server: koServer,
   },
 };
 
@@ -79,7 +83,7 @@ i18n
     resources,
     fallbackLng: 'en',
     defaultNS: 'common',
-    ns: ['common', 'connection', 'menu', 'settings', 'dialog', 'status'],
+    ns: ['common', 'connection', 'menu', 'settings', 'dialog', 'status', 'server'],
     
     interpolation: {
       escapeValue: false, // React already escapes values

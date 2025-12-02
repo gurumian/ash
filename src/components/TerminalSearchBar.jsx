@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Terminal Search Bar component - Search functionality for terminal content
@@ -17,6 +18,7 @@ export const TerminalSearchBar = memo(function TerminalSearchBar({
   const [regex, setRegex] = useState(false);
   const inputRef = useRef(null);
   const currentMatchRef = useRef(0);
+  const { t } = useTranslation('common');
 
   // Focus input when search bar becomes visible
   useEffect(() => {
@@ -162,7 +164,7 @@ export const TerminalSearchBar = memo(function TerminalSearchBar({
           ref={inputRef}
           type="text"
           className="search-input"
-          placeholder="Search..."
+          placeholder={t('common:search')}
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -171,21 +173,21 @@ export const TerminalSearchBar = memo(function TerminalSearchBar({
           <button
             className={`search-option-btn ${caseSensitive ? 'active' : ''}`}
             onClick={() => setCaseSensitive(!caseSensitive)}
-            title="Match case (Aa)"
+            title={t('common:matchCase')}
           >
             Aa
           </button>
           <button
             className={`search-option-btn ${wholeWord ? 'active' : ''}`}
             onClick={() => setWholeWord(!wholeWord)}
-            title="Match whole word"
+            title={t('common:matchWholeWord')}
           >
             W
           </button>
           <button
             className={`search-option-btn ${regex ? 'active' : ''}`}
             onClick={() => setRegex(!regex)}
-            title="Regular expression"
+            title={t('common:regularExpression')}
           >
             .*
           </button>
@@ -195,7 +197,7 @@ export const TerminalSearchBar = memo(function TerminalSearchBar({
             className="search-nav-btn"
             onClick={handleFindPrevious}
             disabled={!searchTerm}
-            title="Previous (Shift+Enter)"
+            title={`${t('common:previous')} (Shift+Enter)`}
           >
             ↑
           </button>
@@ -203,7 +205,7 @@ export const TerminalSearchBar = memo(function TerminalSearchBar({
             className="search-nav-btn"
             onClick={handleFindNext}
             disabled={!searchTerm}
-            title="Next (Enter)"
+            title={`${t('common:next')} (Enter)`}
           >
             ↓
           </button>
@@ -216,7 +218,7 @@ export const TerminalSearchBar = memo(function TerminalSearchBar({
         <button
           className="search-close-btn"
           onClick={onClose}
-          title="Close (Esc)"
+          title={`${t('common:close')} (Esc)`}
         >
           ×
         </button>

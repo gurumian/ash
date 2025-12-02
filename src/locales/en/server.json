@@ -1,0 +1,52 @@
+{
+  "tftp": {
+    "title": "TFTP Server",
+    "status": "Status",
+    "running": "Running",
+    "stopped": "Stopped",
+    "starting": "Starting...",
+    "stopping": "Stopping...",
+    "port": "Port",
+    "host": "Host",
+    "accessibleEndpoints": "Accessible Endpoints",
+    "outputDirectory": "Output Directory",
+    "selectDirectory": "Select Directory",
+    "copyEndpoint": "Copy endpoint",
+    "copyPath": "Copy path",
+    "openDirectory": "Open directory",
+    "loading": "Loading..."
+  },
+  "web": {
+    "title": "Web Server",
+    "status": "Status",
+    "running": "Running",
+    "stopped": "Stopped",
+    "starting": "Starting...",
+    "stopping": "Stopping...",
+    "port": "Port",
+    "host": "Host",
+    "rootDirectory": "Root Directory",
+    "accessibleEndpoints": "Accessible Endpoints",
+    "selectDirectory": "Select Directory",
+    "copyEndpoint": "Copy endpoint",
+    "copyPath": "Copy path",
+    "openDirectory": "Open directory",
+    "loading": "Loading..."
+  },
+  "iperf": {
+    "title": "iperf3 Server",
+    "status": "Status",
+    "running": "Running",
+    "stopped": "Stopped",
+    "starting": "Starting...",
+    "stopping": "Stopping...",
+    "port": "Port",
+    "host": "Host",
+    "accessibleEndpoints": "Accessible Endpoints",
+    "copyEndpoint": "Copy endpoint",
+    "loading": "Loading...",
+    "notAvailable": "iperf3 is not available",
+    "installMessage": "Please install iperf3 to use this feature"
+  }
+}
+

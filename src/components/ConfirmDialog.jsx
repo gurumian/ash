@@ -1,7 +1,9 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import './ConfirmDialog.css';
 
 export const ConfirmDialog = ({ isOpen, onClose, onConfirm, title, message }) => {
+  const { t } = useTranslation(['dialog', 'common']);
   if (!isOpen) return null;
 
   const handleConfirm = () => {
@@ -13,12 +15,12 @@ export const ConfirmDialog = ({ isOpen, onClose, onConfirm, title, message }) =>
     <div className="confirm-dialog-overlay" onClick={onClose}>
       <div className="confirm-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="confirm-dialog-header">
-          <h3>{title || 'Confirm'}</h3>
+          <h3>{title || t('dialog:confirm.title')}</h3>
           <button className="confirm-dialog-close" onClick={onClose}>×</button>
         </div>
         
         <div className="confirm-dialog-content">
-          <p>{message}</p>
+          <p>{message || t('dialog:confirm.defaultMessage')}</p>
         </div>
 
         <div className="confirm-dialog-footer">
@@ -27,14 +29,14 @@ export const ConfirmDialog = ({ isOpen, onClose, onConfirm, title, message }) =>
             onClick={onClose}
             className="confirm-dialog-cancel"
           >
-            Cancel
+            {t('common:cancel')}
           </button>
           <button
             type="button"
             onClick={handleConfirm}
             className="confirm-dialog-confirm"
           >
-            Confirm
+            {t('dialog:confirm.yes')}
           </button>
         </div>
       </div>

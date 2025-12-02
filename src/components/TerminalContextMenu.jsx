@@ -1,7 +1,9 @@
 import React, { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import './TerminalContextMenu.css';
 
 export function TerminalContextMenu({ visible, x, y, onCopy, onPaste, onSelectAll, onUpload, isSSHSession, onClose }) {
+  const { t } = useTranslation('common');
   const menuRef = useRef(null);
 
   useEffect(() => {
@@ -66,7 +68,7 @@ export function TerminalContextMenu({ visible, x, y, onCopy, onPaste, onSelectAl
         }}
         disabled={!onCopy}
       >
-        <span className="context-menu-label">Copy</span>
+        <span className="context-menu-label">{t('common:copy')}</span>
         <span className="context-menu-shortcut">Ctrl+Shift+C</span>
       </button>
       <button 
@@ -78,7 +80,7 @@ export function TerminalContextMenu({ visible, x, y, onCopy, onPaste, onSelectAl
           onClose();
         }}
       >
-        <span className="context-menu-label">Paste</span>
+        <span className="context-menu-label">{t('common:paste')}</span>
         <span className="context-menu-shortcut">Ctrl+V</span>
       </button>
       <div className="context-menu-separator"></div>
@@ -91,7 +93,7 @@ export function TerminalContextMenu({ visible, x, y, onCopy, onPaste, onSelectAl
           onClose();
         }}
       >
-        <span className="context-menu-label">Select All</span>
+        <span className="context-menu-label">{t('common:selectAll')}</span>
         <span className="context-menu-shortcut">Ctrl+A</span>
       </button>
       {isSSHSession && (
@@ -106,7 +108,7 @@ export function TerminalContextMenu({ visible, x, y, onCopy, onPaste, onSelectAl
               onClose();
             }}
           >
-            <span className="context-menu-label">Upload...</span>
+            <span className="context-menu-label">{t('common:upload')}</span>
           </button>
         </>
       )}

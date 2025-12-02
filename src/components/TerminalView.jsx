@@ -1,4 +1,5 @@
 import React, { memo, useCallback, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { TabItem } from './TabItem';
 import { TerminalSearchBar } from './TerminalSearchBar';
 import { TerminalAICommandInput } from './TerminalAICommandInput';
@@ -35,6 +36,7 @@ export const TerminalView = memo(function TerminalView({
   onReconnectSession,
   reconnectingSessions
 }) {
+  const { t } = useTranslation('common');
   // Track previous value for change detection (debug only)
   const prevShowAICommandInput = useRef(showAICommandInput);
   useEffect(() => {
@@ -126,7 +128,7 @@ export const TerminalView = memo(function TerminalView({
                     onMouseDown={(e) => {
                       e.stopPropagation();
                     }}
-                    title={reconnectingSessions?.get(activeSessionId) ? "Reconnecting..." : "Reconnect"}
+                    title={reconnectingSessions?.get(activeSessionId) ? t('common:reconnecting') : t('common:reconnect')}
                     style={{
                       marginRight: '8px',
                       padding: '4px 8px',
@@ -182,7 +184,7 @@ export const TerminalView = memo(function TerminalView({
                   onMouseDown={(e) => {
                     e.stopPropagation();
                   }}
-                  title={window.electronAPI?.platform === 'darwin' ? 'AI Command (⌘⇧A)' : 'AI Command (Ctrl+Shift+A)'}
+                  title={window.electronAPI?.platform === 'darwin' ? `${t('common:aiCommand')} (⌘⇧A)` : `${t('common:aiCommand')} (Ctrl+Shift+A)`}
                   style={{
                     marginRight: '8px',
                     padding: '4px 8px',
@@ -211,8 +213,8 @@ export const TerminalView = memo(function TerminalView({
                     }
                   }}
                   title={logStates[activeSessionId]?.isLogging 
-                    ? 'Recording - Automatically saving logs to file. Click to stop.' 
-                    : 'Start Recording - Begin automatically saving logs to file'}
+                    ? t('common:recordingDesc')
+                    : t('common:startRecordingDesc')}
                 >
                   ●
                 </button>
@@ -220,7 +222,7 @@ export const TerminalView = memo(function TerminalView({
                   className="log-btn save-log"
                   onClick={() => onSaveLog(activeSessionId)}
                   disabled={!sessionLogs.current[activeSessionId]?.content && !sessionLogs.current[activeSessionId]?.contentArray?.length}
-                  title="Save Log - Save current buffer to file (appends to existing file)"
+                  title={t('common:saveLogDesc')}
                 >
                   <svg 
                     width="16" 
@@ -241,7 +243,7 @@ export const TerminalView = memo(function TerminalView({
                   className="log-btn clear-log"
                   onClick={() => onClearLog(activeSessionId)}
                   disabled={!sessionLogs.current[activeSessionId]?.content && !sessionLogs.current[activeSessionId]?.contentArray?.length}
-                  title="Clear Log - Clear current buffer (saved logs remain in file)"
+                  title={t('common:clearLogDesc')}
                 >
                   <svg 
                     width="16" 
@@ -261,7 +263,7 @@ export const TerminalView = memo(function TerminalView({
                   </svg>
                 </button>
                 <span className="log-status">
-                  {logStates[activeSessionId]?.isLogging ? 'Recording' : 'Not Recording'}
+                  {logStates[activeSessionId]?.isLogging ? t('common:recording') : t('common:notRecording')}
                 </span>
               </div>
             )}
@@ -300,13 +302,13 @@ export const TerminalView = memo(function TerminalView({
         </div>
       ) : (
         <div className="welcome-screen">
-          <h2>Welcome to ash SSH Client</h2>
-          <p>Create a new session to get started</p>
+          <h2>{t('common:welcomeToAsh')}</h2>
+          <p>{t('common:createNewSessionToStart')}</p>
           <button 
             className="welcome-connect-btn"
             onClick={onShowConnectionForm}
           >
-            New Session
+            {t('common:newSession')}
           </button>
         </div>
       )}

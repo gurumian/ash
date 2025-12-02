@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, memo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Terminal AI Command Input component - Natural language to shell command conversion
@@ -12,6 +13,7 @@ export const TerminalAICommandInput = memo(function TerminalAICommandInput({
 }) {
   const [input, setInput] = useState('');
   const inputRef = useRef(null);
+  const { t } = useTranslation('common');
 
   // Focus input when component becomes visible
   useEffect(() => {
@@ -60,7 +62,7 @@ export const TerminalAICommandInput = memo(function TerminalAICommandInput({
           ref={inputRef}
           type="text"
           className="ai-input"
-          placeholder="Describe what you want to do... (e.g., 'find all jpg files in current directory')"
+          placeholder={t('common:aiCommandPlaceholder')}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -95,7 +97,7 @@ export const TerminalAICommandInput = memo(function TerminalAICommandInput({
               borderRadius: '50%',
               animation: 'spin 1s linear infinite'
             }} />
-            Processing...
+            {t('common:processing')}
           </div>
         )}
         <button
@@ -116,9 +118,9 @@ export const TerminalAICommandInput = memo(function TerminalAICommandInput({
             backdropFilter: 'blur(3px)',
             WebkitBackdropFilter: 'blur(3px)'
           }}
-          title="Execute (Enter)"
+          title={`${t('common:execute')} (Enter)`}
         >
-          Execute
+          {t('common:execute')}
         </button>
         <button
           className="ai-close-btn"
@@ -141,7 +143,7 @@ export const TerminalAICommandInput = memo(function TerminalAICommandInput({
             backdropFilter: 'blur(3px)',
             WebkitBackdropFilter: 'blur(3px)'
           }}
-          title="Close (Esc)"
+          title={`${t('common:close')} (Esc)`}
         >
           ×
         </button>

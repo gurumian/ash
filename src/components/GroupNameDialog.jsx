@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Group Name Dialog component - Modal for creating a new group with a name
@@ -12,13 +13,14 @@ export function GroupNameDialog({
   onNameChange,
   onKeyDown
 }) {
+  const { t } = useTranslation(['common']);
   if (!showGroupNameDialog) return null;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="connection-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>Create New Group</h3>
+          <h3>{t('common:createGroup')}</h3>
           <button 
             className="modal-close"
             onClick={onClose}
@@ -28,13 +30,13 @@ export function GroupNameDialog({
         </div>
         <div className="modal-body">
           <div className="form-group">
-            <label>Group Name</label>
+            <label>{t('common:groupName')}</label>
             <input
               type="text"
               value={newGroupName}
               onChange={onNameChange}
               onKeyDown={onKeyDown}
-              placeholder={`Group ${groups.length + 1}`}
+              placeholder={`${t('common:groups')} ${groups.length + 1}`}
               autoFocus
             />
           </div>
@@ -44,13 +46,13 @@ export function GroupNameDialog({
             className="cancel-btn"
             onClick={onClose}
           >
-            Cancel
+            {t('common:cancel')}
           </button>
           <button 
             className="connect-btn"
             onClick={onCreate}
           >
-            Create Group
+            {t('common:createGroup')}
           </button>
         </div>
       </div>
