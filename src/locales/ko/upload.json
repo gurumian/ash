@@ -1,0 +1,17 @@
+{
+  "title": "파일 업로드",
+  "localFile": "로컬 파일",
+  "remotePath": "원격 경로",
+  "noFileSelected": "파일이 선택되지 않았습니다",
+  "browse": "찾아보기...",
+  "executeAfterUpload": "업로드 후 명령 실행",
+  "selectLibrary": "라이브러리 선택...",
+  "none": "없음",
+  "noLibrariesAvailable": "사용 가능한 라이브러리가 없습니다. 먼저 라이브러리를 생성하세요.",
+  "uploading": "업로드 중...",
+  "upload": "업로드",
+  "pleaseSelectFile": "파일을 선택하세요",
+  "uploadFailed": "업로드 실패",
+  "failedToSelectFile": "파일 선택 실패"
+}
+

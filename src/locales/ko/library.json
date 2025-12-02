@@ -1,0 +1,27 @@
+{
+  "title": "라이브러리: {{name}}",
+  "libraryName": "라이브러리 이름",
+  "libraryNamePlaceholder": "라이브러리 이름 입력 (예: U-Boot TFTP)",
+  "description": "설명",
+  "descriptionPlaceholder": "이 라이브러리에 대한 설명 입력 (예: U-Boot TFTP 다운로드 절차)",
+  "commands": "명령",
+  "commandsDescription": "라이브러리 보기에서 명령을 하나씩 실행할 수 있습니다. 아래 나열된 순서대로 실행됩니다.",
+  "noCommandsAdded": "추가된 명령이 없습니다",
+  "commandPlaceholder": "명령 입력",
+  "descriptionPlaceholderOptional": "설명 입력 (선택사항)",
+  "addCommand": "+ 명령 추가",
+  "importTitle": "라이브러리 가져오기",
+  "fromClipboard": "클립보드에서",
+  "fromFile": "파일에서",
+  "importJSON": "라이브러리 JSON 가져오기",
+  "importJSONPlaceholder": "라이브러리 JSON을 여기에 붙여넣거나 입력하세요...",
+  "pleaseProvideJSON": "라이브러리 JSON을 제공하세요",
+  "invalidFormat": "잘못된 라이브러리 형식입니다. 라이브러리에는 이름 또는 명령이 있어야 합니다.",
+  "invalidJSON": "잘못된 JSON",
+  "failedToImport": "라이브러리 가져오기 실패",
+  "import": "가져오기",
+  "export": "내보내기",
+  "manualInput": "수동 입력",
+  "importJSONDescription": "라이브러리 JSON에는 다음이 포함되어야 합니다: name, description (선택사항), commands 배열"
+}
+

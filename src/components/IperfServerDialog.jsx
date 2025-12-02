@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import './IperfServerDialog.css';
 
 export function IperfServerDialog({ isOpen, onClose }) {
+  const { t } = useTranslation(['server', 'common']);
   const [status, setStatus] = useState({ running: false, port: null, host: null, protocol: 'tcp', streams: 1, bandwidth: null });
   const [host, setHost] = useState('0.0.0.0');
   const [port, setPort] = useState(5201);
@@ -303,7 +305,7 @@ export function IperfServerDialog({ isOpen, onClose }) {
     <div className="iperf-dialog-overlay" onClick={onClose}>
       <div className="iperf-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="iperf-dialog-header">
-          <h2>iperf3 Server</h2>
+          <h2>{t('server:iperf.title')}</h2>
           <button className="iperf-dialog-close" onClick={onClose}>×</button>
         </div>
         
@@ -313,14 +315,14 @@ export function IperfServerDialog({ isOpen, onClose }) {
               className={`iperf-status-card ${status.running ? 'running' : 'stopped'} ${loading ? 'loading' : ''}`}
             >
               <div className="iperf-status-item">
-                <span className="iperf-status-label">Status</span>
+                <span className="iperf-status-label">{t('server:iperf.status')}</span>
                 <div 
                   className="iperf-status-control"
                   onClick={status.running ? handleStop : handleStart}
                   style={{ cursor: loading ? 'not-allowed' : 'pointer' }}
                 >
                   <span className={`iperf-status-badge ${status.running ? 'running' : 'stopped'}`}>
-                    {loading ? (status.running ? 'Stopping...' : 'Starting...') : (status.running ? 'Running' : 'Stopped')}
+                    {loading ? (status.running ? t('server:iperf.stopping') : t('server:iperf.starting')) : (status.running ? t('server:iperf.running') : t('server:iperf.stopped'))}
                   </span>
                   <span className="iperf-status-icon">
                     {loading ? '⏳' : (status.running ? '⏹' : '▶')}
@@ -331,31 +333,31 @@ export function IperfServerDialog({ isOpen, onClose }) {
               {status.running && (
                 <>
                   <div className="iperf-status-item">
-                    <span className="iperf-status-label">Host</span>
+                    <span className="iperf-status-label">{t('server:iperf.host')}</span>
                     <span className="iperf-status-value">{status.host || host}</span>
                   </div>
                   <div className="iperf-status-item">
-                    <span className="iperf-status-label">Port</span>
+                    <span className="iperf-status-label">{t('server:iperf.port')}</span>
                     <span className="iperf-status-value">
                       {(effectiveProtocol === 'udp' ? 'UDP' : 'TCP')}/{status.port || port}
                     </span>
                   </div>
                   <div className="iperf-status-item">
-                    <span className="iperf-status-label">Streams</span>
+                    <span className="iperf-status-label">{t('server:iperf.streams')}</span>
                     <span className="iperf-status-value">
                       {effectiveStreams || 1}
                     </span>
                   </div>
                   {effectiveProtocol === 'udp' && (
                     <div className="iperf-status-item">
-                      <span className="iperf-status-label">Bandwidth</span>
+                      <span className="iperf-status-label">{t('server:iperf.bandwidth')}</span>
                       <span className="iperf-status-value">
-                        {effectiveBandwidth || 'Default'}
+                        {effectiveBandwidth || t('server:iperf.default')}
                       </span>
                     </div>
                   )}
                   <div className="iperf-status-item">
-                    <span className="iperf-status-label">Accessible Commands</span>
+                    <span className="iperf-status-label">{t('server:iperf.accessibleEndpoints')}</span>
                     <div className="iperf-endpoints-list">
                       {endpoints.length > 0 ? (
                         endpoints.map((item, index) => (
@@ -376,7 +378,7 @@ export function IperfServerDialog({ isOpen, onClose }) {
                                 e.stopPropagation();
                                 handlePathCopy(e, item.command);
                               }}
-                              title="Copy command"
+                              title={t('server:iperf.copyEndpoint')}
                             >
                               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M4 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" stroke="currentColor" strokeWidth="1.5" fill="none"/>
@@ -386,7 +388,7 @@ export function IperfServerDialog({ isOpen, onClose }) {
                           </div>
                         ))
                       ) : (
-                        <span className="iperf-endpoint-value">Loading...</span>
+                        <span className="iperf-endpoint-value">{t('server:iperf.loading')}</span>
                       )}
                     </div>
                   </div>
@@ -398,7 +400,7 @@ export function IperfServerDialog({ isOpen, onClose }) {
           {!status.running && (
             <div className="iperf-config-section">
               <div className="iperf-config-item">
-                <label htmlFor="iperf-host">Host:</label>
+                <label htmlFor="iperf-host">{t('server:iperf.host')}:</label>
                 <input
                   id="iperf-host"
                   type="text"
@@ -409,7 +411,7 @@ export function IperfServerDialog({ isOpen, onClose }) {
                 />
               </div>
               <div className="iperf-config-item">
-                <label htmlFor="iperf-port">Port:</label>
+                <label htmlFor="iperf-port">{t('server:iperf.port')}:</label>
                 <input
                   id="iperf-port"
                   type="number"
@@ -422,7 +424,7 @@ export function IperfServerDialog({ isOpen, onClose }) {
                 />
               </div>
               <div className="iperf-config-item">
-                <label htmlFor="iperf-protocol">Protocol:</label>
+                <label htmlFor="iperf-protocol">{t('server:iperf.protocol')}:</label>
                 <div className="iperf-protocol-toggle" id="iperf-protocol">
                   <button
                     type="button"
@@ -443,7 +445,7 @@ export function IperfServerDialog({ isOpen, onClose }) {
                 </div>
               </div>
               <div className="iperf-config-item">
-                <label htmlFor="iperf-streams">Parallel Streams:</label>
+                <label htmlFor="iperf-streams">{t('server:iperf.parallelStreams')}:</label>
                 <input
                   id="iperf-streams"
                   type="number"
@@ -456,13 +458,13 @@ export function IperfServerDialog({ isOpen, onClose }) {
                 />
               </div>
               <div className="iperf-config-item">
-                <label htmlFor="iperf-bandwidth">Bandwidth (UDP only, e.g. 100M, 1G):</label>
+                <label htmlFor="iperf-bandwidth">{t('server:iperf.bandwidthLabel')}:</label>
                 <input
                   id="iperf-bandwidth"
                   type="text"
                   value={bandwidth}
                   onChange={(e) => setBandwidth(e.target.value)}
-                  placeholder="(optional, e.g. 100M)"
+                  placeholder={t('server:iperf.bandwidthPlaceholder')}
                   disabled={loading || protocol !== 'udp'}
                 />
               </div>

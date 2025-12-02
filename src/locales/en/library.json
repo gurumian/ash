@@ -1,0 +1,27 @@
+{
+  "title": "Library: {{name}}",
+  "libraryName": "Library Name",
+  "libraryNamePlaceholder": "Enter library name (e.g., U-Boot TFTP)",
+  "description": "Description",
+  "descriptionPlaceholder": "Enter description for this library (e.g., U-Boot TFTP download procedure)",
+  "commands": "Commands",
+  "commandsDescription": "Commands can be executed one by one in the library view. They will be executed in the order listed below.",
+  "noCommandsAdded": "No commands added yet",
+  "commandPlaceholder": "Enter command",
+  "descriptionPlaceholderOptional": "Enter description (optional)",
+  "addCommand": "+ Add Command",
+  "importTitle": "Import Library",
+  "fromClipboard": "From Clipboard",
+  "fromFile": "From File",
+  "importJSON": "Import Library JSON",
+  "importJSONPlaceholder": "Paste or enter library JSON here...",
+  "pleaseProvideJSON": "Please provide library JSON",
+  "invalidFormat": "Invalid library format. Library must have name or commands.",
+  "invalidJSON": "Invalid JSON",
+  "failedToImport": "Failed to import library",
+  "import": "Import",
+  "export": "Export",
+  "manualInput": "Manual Input",
+  "importJSONDescription": "Library JSON should contain: name, description (optional), and commands array"
+}
+

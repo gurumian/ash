@@ -27,11 +27,14 @@
     "host": "호스트",
     "rootDirectory": "루트 디렉토리",
     "accessibleEndpoints": "접근 가능한 엔드포인트",
+    "accessibleUrls": "접근 가능한 URL",
     "selectDirectory": "디렉토리 선택",
     "copyEndpoint": "엔드포인트 복사",
     "copyPath": "경로 복사",
     "openDirectory": "디렉토리 열기",
-    "loading": "로딩 중..."
+    "openInBrowser": "브라우저에서 열기",
+    "loading": "로딩 중...",
+    "useDefaultDirectory": "기본 디렉토리 사용"
   },
   "iperf": {
     "title": "iperf3 서버",
@@ -42,11 +45,18 @@
     "stopping": "중지 중...",
     "port": "포트",
     "host": "호스트",
-    "accessibleEndpoints": "접근 가능한 엔드포인트",
-    "copyEndpoint": "엔드포인트 복사",
+    "accessibleEndpoints": "접근 가능한 명령",
+    "copyEndpoint": "명령 복사",
     "loading": "로딩 중...",
     "notAvailable": "iperf3를 사용할 수 없습니다",
-    "installMessage": "이 기능을 사용하려면 iperf3를 설치하세요"
+    "installMessage": "이 기능을 사용하려면 iperf3를 설치하세요",
+    "streams": "스트림",
+    "bandwidth": "대역폭",
+    "protocol": "프로토콜",
+    "parallelStreams": "병렬 스트림",
+    "bandwidthLabel": "대역폭 (UDP만, 예: 100M, 1G)",
+    "bandwidthPlaceholder": "(선택사항, 예: 100M)",
+    "default": "기본값"
   }
 }
 

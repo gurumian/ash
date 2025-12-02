@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Library Dialog component - Modal for managing library/cheat-sheet commands
@@ -32,6 +33,8 @@ export function LibraryDialog({
       setEditingCommandDesc('');
     }
   }, [showDialog, library]);
+
+  const { t } = useTranslation(['library', 'common']);
 
   if (!showDialog || !library) return null;
 
@@ -138,7 +141,7 @@ export function LibraryDialog({
     <div className="modal-overlay" onClick={onClose}>
       <div className="connection-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>Library: {library.name}</h3>
+          <h3>{t('library:title', { name: library.name })}</h3>
           <button 
             className="modal-close"
             onClick={onClose}
@@ -151,13 +154,13 @@ export function LibraryDialog({
           {/* Library Name */}
           <div className="form-group" style={{ marginBottom: '16px' }}>
             <label style={{ display: 'block', marginBottom: '8px', color: '#00ff41' }}>
-              Library Name
+              {t('library:libraryName')}
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Enter library name (e.g., U-Boot TFTP)"
+              placeholder={t('library:libraryNamePlaceholder')}
               style={{
                 width: '100%',
                 padding: '8px 12px',
@@ -173,12 +176,12 @@ export function LibraryDialog({
           {/* Library Description */}
           <div className="form-group" style={{ marginBottom: '16px' }}>
             <label style={{ display: 'block', marginBottom: '8px', color: '#00ff41' }}>
-              Description
+              {t('library:description')}
             </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Enter description for this library (e.g., U-Boot TFTP download procedure)"
+              placeholder={t('library:descriptionPlaceholder')}
               rows={3}
               style={{
                 width: '100%',
@@ -201,7 +204,7 @@ export function LibraryDialog({
                 <span style={{ fontSize: '12px', color: '#00ff41', userSelect: 'none' }}>
                   {isExpanded ? '▼' : '▶'}
                 </span>
-                <label style={{ margin: 0, cursor: 'pointer' }}>Commands</label>
+                <label style={{ margin: 0, cursor: 'pointer' }}>{t('library:commands')}</label>
               </div>
             </div>
             {isExpanded && (
@@ -213,7 +216,7 @@ export function LibraryDialog({
                   marginBottom: '12px',
                   marginTop: '4px'
                 }}>
-                  Commands can be executed one by one in the library view. They will be executed in the order listed below.
+                  {t('library:commandsDescription')}
                 </p>
                 
                 {/* Command list */}
@@ -233,7 +236,7 @@ export function LibraryDialog({
                       color: '#00ff41', 
                       opacity: 0.5 
                     }}>
-                      No commands added yet
+                      {t('library:noCommandsAdded')}
                     </div>
                   ) : (
                     commands.map((cmd, index) => {
@@ -265,7 +268,7 @@ export function LibraryDialog({
                                   type="text"
                                   value={editingCommand}
                                   onChange={(e) => setEditingCommand(e.target.value)}
-                                  placeholder="Enter command"
+                                  placeholder={t('library:commandPlaceholder')}
                                   style={{
                                     width: '100%',
                                     padding: '6px 8px',
@@ -291,7 +294,7 @@ export function LibraryDialog({
                                   type="text"
                                   value={editingCommandDesc}
                                   onChange={(e) => setEditingCommandDesc(e.target.value)}
-                                  placeholder="Enter description (optional)"
+                                  placeholder={t('library:descriptionPlaceholderOptional')}
                                   style={{
                                     width: '100%',
                                     padding: '6px 8px',
@@ -326,7 +329,7 @@ export function LibraryDialog({
                                     borderRadius: '4px'
                                   }}
                                 >
-                                  Cancel
+                                  {t('common:cancel')}
                                 </button>
                                 <button
                                   type="button"
@@ -343,7 +346,7 @@ export function LibraryDialog({
                                     opacity: editingCommand.trim() ? 1 : 0.5
                                   }}
                                 >
-                                  Save
+                                  {t('common:save')}
                                 </button>
                               </div>
                             </>
@@ -426,7 +429,7 @@ export function LibraryDialog({
                     value={newCommand}
                     onChange={(e) => setNewCommand(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Enter command (e.g., tftpboot 0x80000000 image.bin)"
+                    placeholder={t('library:commandPlaceholder')}
                     style={{
                       width: '100%',
                       padding: '8px 12px',
@@ -443,7 +446,7 @@ export function LibraryDialog({
                     value={newCommandDescription}
                     onChange={(e) => setNewCommandDescription(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Enter description (optional, e.g., Download image via TFTP)"
+                    placeholder={t('library:descriptionPlaceholderOptional')}
                     style={{
                       width: '100%',
                       padding: '8px 12px',
@@ -468,7 +471,7 @@ export function LibraryDialog({
                       opacity: newCommand.trim() ? 1 : 0.5
                     }}
                   >
-                    + Add Command
+                    {t('library:addCommand')}
                   </button>
                 </div>
               </>
@@ -495,7 +498,7 @@ export function LibraryDialog({
               cursor: 'pointer'
             }}
           >
-            Cancel
+            {t('common:cancel')}
           </button>
           <button
             type="button"
@@ -509,7 +512,7 @@ export function LibraryDialog({
               cursor: 'pointer'
             }}
           >
-            Save
+            {t('common:save')}
           </button>
         </div>
       </div>

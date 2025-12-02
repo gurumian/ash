@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import './WebServerDialog.css';
 
 export function WebServerDialog({ isOpen, onClose }) {
+  const { t } = useTranslation(['server', 'common']);
   const [status, setStatus] = useState({ running: false, port: null, rootDir: null });
   const [host, setHost] = useState('0.0.0.0');
   const [port, setPort] = useState(8080);
@@ -208,7 +210,7 @@ export function WebServerDialog({ isOpen, onClose }) {
     <div className="web-dialog-overlay" onClick={onClose}>
       <div className="web-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="web-dialog-header">
-          <h2>Web Server</h2>
+          <h2>{t('server:web.title')}</h2>
           <button className="web-dialog-close" onClick={onClose}>×</button>
         </div>
         
@@ -218,14 +220,14 @@ export function WebServerDialog({ isOpen, onClose }) {
               className={`web-status-card ${status.running ? 'running' : 'stopped'} ${loading ? 'loading' : ''}`}
             >
               <div className="web-status-item">
-                <span className="web-status-label">Status</span>
+                <span className="web-status-label">{t('server:web.status')}</span>
                 <div 
                   className="web-status-control"
                   onClick={status.running ? handleStop : handleStart}
                   style={{ cursor: loading ? 'not-allowed' : 'pointer' }}
                 >
                   <span className={`web-status-badge ${status.running ? 'running' : 'stopped'}`}>
-                    {loading ? (status.running ? 'Stopping...' : 'Starting...') : (status.running ? 'Running' : 'Stopped')}
+                    {loading ? (status.running ? t('server:web.stopping') : t('server:web.starting')) : (status.running ? t('server:web.running') : t('server:web.stopped'))}
                   </span>
                   <span className="web-status-icon">
                     {loading ? '⏳' : (status.running ? '⏹' : '▶')}
@@ -236,7 +238,7 @@ export function WebServerDialog({ isOpen, onClose }) {
               {status.running && (
                 <>
                   <div className="web-status-item">
-                    <span className="web-status-label">Accessible URLs</span>
+                    <span className="web-status-label">{t('server:web.accessibleUrls')}</span>
                     <div className="web-urls-list">
                       {accessibleUrls.length > 0 ? (
                         accessibleUrls.map((item, index) => (
@@ -257,7 +259,7 @@ export function WebServerDialog({ isOpen, onClose }) {
                                 e.stopPropagation();
                                 handlePathCopy(e, item.url);
                               }}
-                              title="Copy URL"
+                              title={t('server:web.copyEndpoint')}
                             >
                               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M4 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" stroke="currentColor" strokeWidth="1.5" fill="none"/>
@@ -270,7 +272,7 @@ export function WebServerDialog({ isOpen, onClose }) {
                                 e.stopPropagation();
                                 handleOpenURL(item.url);
                               }}
-                              title="Open in browser"
+                              title={t('server:web.openInBrowser')}
                             >
                               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M6 2h8v8M14 2l-8 8M10 2h4v4" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
@@ -279,21 +281,21 @@ export function WebServerDialog({ isOpen, onClose }) {
                           </div>
                         ))
                       ) : (
-                        <span className="web-url-value">Loading...</span>
+                        <span className="web-url-value">{t('server:web.loading')}</span>
                       )}
                     </div>
                   </div>
                   <div className="web-status-item">
-                    <span className="web-status-label">Port</span>
+                    <span className="web-status-label">{t('server:web.port')}</span>
                     <span className="web-status-value">HTTP/{status.port}</span>
                   </div>
                   <div className="web-status-item">
-                    <span className="web-status-label">Host</span>
+                    <span className="web-status-label">{t('server:web.host')}</span>
                     <span className="web-status-value">{host}</span>
                   </div>
                   {status.rootDir && (
                     <div className="web-status-item">
-                      <span className="web-status-label">Root Directory</span>
+                      <span className="web-status-label">{t('server:web.rootDirectory')}</span>
                       <div 
                         className="web-root-dir"
                         onClick={(e) => e.stopPropagation()}
@@ -311,7 +313,7 @@ export function WebServerDialog({ isOpen, onClose }) {
                             e.stopPropagation();
                             handlePathCopy(e, status.rootDir);
                           }}
-                          title="Copy path"
+                          title={t('server:web.copyPath')}
                         >
                           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M4 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" stroke="currentColor" strokeWidth="1.5" fill="none"/>
@@ -324,7 +326,7 @@ export function WebServerDialog({ isOpen, onClose }) {
                             e.stopPropagation();
                             handleOpenRootDir();
                           }}
-                          title="Open directory"
+                          title={t('server:web.openDirectory')}
                         >
                           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M2 3h5l1 2h6v8H2V3z" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
@@ -341,7 +343,7 @@ export function WebServerDialog({ isOpen, onClose }) {
           {!status.running && (
             <div className="web-config-section">
               <div className="web-config-item">
-                <label htmlFor="web-host">Host:</label>
+                <label htmlFor="web-host">{t('server:web.host')}:</label>
                 <input
                   id="web-host"
                   type="text"
@@ -352,7 +354,7 @@ export function WebServerDialog({ isOpen, onClose }) {
                 />
               </div>
               <div className="web-config-item">
-                <label htmlFor="web-port">Port:</label>
+                <label htmlFor="web-port">{t('server:web.port')}:</label>
                 <input
                   id="web-port"
                   type="number"
@@ -365,7 +367,7 @@ export function WebServerDialog({ isOpen, onClose }) {
                 />
               </div>
               <div className="web-config-item">
-                <label htmlFor="web-root-dir">Root Directory:</label>
+                <label htmlFor="web-root-dir">{t('server:web.rootDirectory')}:</label>
                 <div className="web-dir-selector">
                   <input
                     id="web-root-dir"
@@ -384,7 +386,7 @@ export function WebServerDialog({ isOpen, onClose }) {
                         handlePathCopy(e, rootDir);
                       }}
                       disabled={loading}
-                      title="Copy path"
+                      title={t('server:web.copyPath')}
                     >
                       <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M4 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" stroke="currentColor" strokeWidth="1.5" fill="none"/>
@@ -396,7 +398,7 @@ export function WebServerDialog({ isOpen, onClose }) {
                     className="web-select-dir-btn"
                     onClick={handleSelectDirectory}
                     disabled={loading}
-                    title="Select directory"
+                    title={t('server:web.selectDirectory')}
                   >
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M2 3h5l1 2h6v8H2V3z" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
@@ -407,7 +409,7 @@ export function WebServerDialog({ isOpen, onClose }) {
                       className="web-clear-dir-btn"
                       onClick={() => setRootDir(null)}
                       disabled={loading}
-                      title="Use default directory"
+                      title={t('server:web.useDefaultDirectory')}
                     >
                       ✕
                     </button>

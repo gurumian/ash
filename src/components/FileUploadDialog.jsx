@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export function FileUploadDialog({ 
   isOpen, 
@@ -17,6 +18,7 @@ export function FileUploadDialog({
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState(null);
   const [showLibraryDropdown, setShowLibraryDropdown] = useState(false);
+  const { t } = useTranslation(['upload', 'common']);
 
   // Update selected file when initialFilePath changes (for drag and drop)
   useEffect(() => {
@@ -93,13 +95,13 @@ export function FileUploadDialog({
         }
       }
     } catch (err) {
-      setError(`Failed to select file: ${err.message}`);
+      setError(`${t('upload:failedToSelectFile')}: ${err.message}`);
     }
   };
 
   const handleUpload = async () => {
     if (!selectedFile || !connectionId) {
-      setError('Please select a file');
+      setError(t('upload:pleaseSelectFile'));
       return;
     }
 
@@ -156,10 +158,10 @@ export function FileUploadDialog({
 
         onClose();
       } else {
-        setError(result?.error || 'Upload failed');
+        setError(result?.error || t('upload:uploadFailed'));
       }
     } catch (err) {
-      setError(`Upload failed: ${err.message}`);
+      setError(`${t('upload:uploadFailed')}: ${err.message}`);
     } finally {
       setUploading(false);
       setProgress(0);
@@ -214,7 +216,7 @@ export function FileUploadDialog({
           padding: '16px 20px',
           borderBottom: '1px solid #1a1a1a'
         }}>
-          <h3 style={{ margin: 0, color: '#00ff41', fontSize: '16px' }}>Upload File</h3>
+          <h3 style={{ margin: 0, color: '#00ff41', fontSize: '16px' }}>{t('upload:title')}</h3>
           <button 
             className="modal-close"
             onClick={onClose}
@@ -238,12 +240,12 @@ export function FileUploadDialog({
           {/* File Selection */}
           <div style={{ marginBottom: '16px' }}>
             <label style={{ display: 'block', marginBottom: '8px', color: '#00ff41', fontSize: '13px' }}>
-              Local File
+              {t('upload:localFile')}
             </label>
             <div style={{ display: 'flex', gap: '8px' }}>
               <input
                 type="text"
-                value={fileName || 'No file selected'}
+                value={fileName || t('upload:noFileSelected')}
                 readOnly
                 style={{
                   flex: 1,
@@ -269,7 +271,7 @@ export function FileUploadDialog({
                   opacity: uploading ? 0.5 : 1
                 }}
               >
-                Browse...
+                {t('upload:browse')}
               </button>
             </div>
           </div>
@@ -277,7 +279,7 @@ export function FileUploadDialog({
           {/* Remote Path */}
           <div style={{ marginBottom: '16px' }}>
             <label style={{ display: 'block', marginBottom: '8px', color: '#00ff41', fontSize: '13px' }}>
-              Remote Path
+              {t('upload:remotePath')}
             </label>
             <input
               type="text"
@@ -321,7 +323,7 @@ export function FileUploadDialog({
                 }}
               />
               <span style={{ color: '#00ff41', fontSize: '13px' }}>
-                Execute command after upload
+                {t('upload:executeAfterUpload')}
               </span>
             </label>
             {autoExecute && libraries.length > 0 && (
@@ -349,8 +351,8 @@ export function FileUploadDialog({
                   <span>
                     {selectedLibraryId ? (() => {
                       const selectedLib = libraries.find(lib => lib.id === selectedLibraryId);
-                      return selectedLib ? selectedLib.name : 'Select Library...';
-                    })() : 'Select Library...'}
+                      return selectedLib ? selectedLib.name : t('upload:selectLibrary');
+                    })() : t('upload:selectLibrary')}
                   </span>
                   <span style={{ fontSize: '10px', opacity: 0.7 }}>
                     {showLibraryDropdown ? '▲' : '▼'}
@@ -403,7 +405,7 @@ export function FileUploadDialog({
                         }}
                       >
                         <span style={{ opacity: 0.5 }}>—</span>
-                        <span>None</span>
+                        <span>{t('upload:none')}</span>
                       </button>
                       {libraries.map(lib => {
                         const isSelected = selectedLibraryId === lib.id;
@@ -493,7 +495,7 @@ export function FileUploadDialog({
                 color: '#ffaa00', 
                 opacity: 0.7 
               }}>
-                No libraries available. Create a library first.
+                {t('upload:noLibrariesAvailable')}
               </div>
             )}
           </div>
@@ -509,7 +511,7 @@ export function FileUploadDialog({
                 color: '#00ff41',
                 opacity: 0.7
               }}>
-                <span>Uploading...</span>
+                <span>{t('upload:uploading')}</span>
                 <span>{Math.round(progress)}%</span>
               </div>
               <div style={{
@@ -566,7 +568,7 @@ export function FileUploadDialog({
               opacity: uploading ? 0.5 : 1
             }}
           >
-            Cancel
+            {t('common:cancel')}
           </button>
           <button
             type="button"
@@ -583,7 +585,7 @@ export function FileUploadDialog({
               opacity: (!selectedFile || uploading) ? 0.5 : 1
             }}
           >
-            {uploading ? 'Uploading...' : 'Upload'}
+            {uploading ? t('upload:uploading') : t('upload:upload')}
           </button>
         </div>
       </div>

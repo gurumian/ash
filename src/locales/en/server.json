@@ -27,11 +27,14 @@
     "host": "Host",
     "rootDirectory": "Root Directory",
     "accessibleEndpoints": "Accessible Endpoints",
+    "accessibleUrls": "Accessible URLs",
     "selectDirectory": "Select Directory",
     "copyEndpoint": "Copy endpoint",
     "copyPath": "Copy path",
     "openDirectory": "Open directory",
-    "loading": "Loading..."
+    "openInBrowser": "Open in browser",
+    "loading": "Loading...",
+    "useDefaultDirectory": "Use default directory"
   },
   "iperf": {
     "title": "iperf3 Server",
@@ -42,11 +45,18 @@
     "stopping": "Stopping...",
     "port": "Port",
     "host": "Host",
-    "accessibleEndpoints": "Accessible Endpoints",
-    "copyEndpoint": "Copy endpoint",
+    "accessibleEndpoints": "Accessible Commands",
+    "copyEndpoint": "Copy command",
     "loading": "Loading...",
     "notAvailable": "iperf3 is not available",
-    "installMessage": "Please install iperf3 to use this feature"
+    "installMessage": "Please install iperf3 to use this feature",
+    "streams": "Streams",
+    "bandwidth": "Bandwidth",
+    "protocol": "Protocol",
+    "parallelStreams": "Parallel Streams",
+    "bandwidthLabel": "Bandwidth (UDP only, e.g. 100M, 1G)",
+    "bandwidthPlaceholder": "(optional, e.g. 100M)",
+    "default": "Default"
   }
 }
 

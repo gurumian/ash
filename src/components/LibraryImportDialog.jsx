@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Library Import Dialog component - Modal for importing library from various sources
@@ -15,6 +16,7 @@ export function LibraryImportDialog({
   const textareaRef = useRef(null);
   const historyRef = useRef([]);
   const historyIndexRef = useRef(-1);
+  const { t } = useTranslation(['library', 'common']);
 
   useEffect(() => {
     if (showDialog) {
@@ -155,17 +157,17 @@ export function LibraryImportDialog({
         setImportSource('file');
         setError(null);
       } else if (!result.canceled) {
-        setError('Failed to import library: ' + (result.error || 'Invalid library file'));
+        setError(t('library:failedToImport') + ': ' + (result.error || t('library:invalidFormat')));
       }
     } catch (error) {
-      setError('Failed to import library: ' + error.message);
+      setError(t('library:failedToImport') + ': ' + error.message);
     }
   };
 
   const handleImport = () => {
     try {
       if (!jsonText.trim()) {
-        setError('Please provide library JSON');
+        setError(t('library:pleaseProvideJSON'));
         return;
       }
 
@@ -173,14 +175,14 @@ export function LibraryImportDialog({
       
       // Validate it's a library object
       if (!libraryData || (!libraryData.name && !libraryData.commands)) {
-        setError('Invalid library format. Library must have name or commands.');
+        setError(t('library:invalidFormat'));
         return;
       }
 
       onImport(libraryData);
       onClose();
     } catch (error) {
-      setError('Invalid JSON: ' + error.message);
+      setError(t('library:invalidJSON') + ': ' + error.message);
     }
   };
 
@@ -190,7 +192,7 @@ export function LibraryImportDialog({
     <div className="modal-overlay" onClick={onClose}>
       <div className="connection-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>Import Library</h3>
+          <h3>{t('library:importTitle')}</h3>
           <button 
             className="modal-close"
             onClick={onClose}
@@ -222,7 +224,7 @@ export function LibraryImportDialog({
                 <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                 <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
               </svg>
-              From Clipboard
+              {t('library:fromClipboard')}
             </button>
             <button
               type="button"
@@ -245,7 +247,7 @@ export function LibraryImportDialog({
                 <polyline points="7 10 12 15 17 10"></polyline>
                 <line x1="12" y1="15" x2="12" y2="3"></line>
               </svg>
-              From File
+              {t('library:fromFile')}
             </button>
             <button
               type="button"
@@ -260,14 +262,14 @@ export function LibraryImportDialog({
                 borderRadius: '4px'
               }}
             >
-              Manual Input
+              {t('library:manualInput')}
             </button>
           </div>
 
           {/* JSON Text Area */}
           <div className="form-group" style={{ marginBottom: '16px' }}>
             <label style={{ display: 'block', marginBottom: '8px', color: '#00ff41' }}>
-              Library JSON
+              {t('library:importJSON')}
             </label>
             <textarea
               ref={textareaRef}
@@ -280,7 +282,7 @@ export function LibraryImportDialog({
                   setImportSource('manual');
                 }
               }}
-              placeholder="Paste or type library JSON here..."
+              placeholder={t('library:importJSONPlaceholder')}
               rows={12}
               style={{
                 width: '100%',
@@ -325,7 +327,7 @@ export function LibraryImportDialog({
             fontSize: '11px',
             opacity: 0.7
           }}>
-            Library JSON should contain: name, description (optional), and commands array
+            {t('library:importJSONDescription')}
           </div>
         </div>
 
@@ -348,7 +350,7 @@ export function LibraryImportDialog({
               cursor: 'pointer'
             }}
           >
-            Cancel
+            {t('common:cancel')}
           </button>
           <button
             type="button"
@@ -364,7 +366,7 @@ export function LibraryImportDialog({
               opacity: jsonText.trim() ? 1 : 0.5
             }}
           >
-            Import
+            {t('library:import')}
           </button>
         </div>
       </div>

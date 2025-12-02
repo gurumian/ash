@@ -1,0 +1,17 @@
+{
+  "title": "Upload File",
+  "localFile": "Local File",
+  "remotePath": "Remote Path",
+  "noFileSelected": "No file selected",
+  "browse": "Browse...",
+  "executeAfterUpload": "Execute command after upload",
+  "selectLibrary": "Select Library...",
+  "none": "None",
+  "noLibrariesAvailable": "No libraries available. Create a library first.",
+  "uploading": "Uploading...",
+  "upload": "Upload",
+  "pleaseSelectFile": "Please select a file",
+  "uploadFailed": "Upload failed",
+  "failedToSelectFile": "Failed to select file"
+}
+

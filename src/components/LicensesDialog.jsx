@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import './LicensesDialog.css';
 
 export const LicensesDialog = ({ isOpen, onClose }) => {
+  const { t } = useTranslation(['dialog', 'common']);
   const [licensesContent, setLicensesContent] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -38,22 +40,22 @@ export const LicensesDialog = ({ isOpen, onClose }) => {
     <div className="licenses-dialog-overlay" onClick={onClose}>
       <div className="licenses-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="licenses-dialog-header">
-          <h2>Third-Party Licenses</h2>
+          <h2>{t('dialog:about.licenses')}</h2>
           <button className="licenses-dialog-close" onClick={onClose}>×</button>
         </div>
         
         <div className="licenses-dialog-content">
           {loading ? (
-            <div className="licenses-loading">Loading licenses...</div>
+            <div className="licenses-loading">{t('common:loading')}</div>
           ) : error ? (
-            <div className="licenses-error">Error: {error}</div>
+            <div className="licenses-error">{t('common:error')}: {error}</div>
           ) : (
             <pre className="licenses-text">{licensesContent}</pre>
           )}
         </div>
         
         <div className="licenses-dialog-actions">
-          <button className="licenses-ok-button" onClick={onClose}>Close</button>
+          <button className="licenses-ok-button" onClick={onClose}>{t('common:close')}</button>
         </div>
       </div>
     </div>
