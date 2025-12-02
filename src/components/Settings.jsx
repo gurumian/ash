@@ -148,7 +148,7 @@ export const Settings = memo(function Settings({
                 ))}
               </div>
               <p className="setting-description">
-                Changes both UI and terminal appearance
+                {t('settings:themeDesc')}
               </p>
             </div>
 
@@ -171,10 +171,10 @@ export const Settings = memo(function Settings({
           </div>
 
           <div className="settings-section">
-            <h4>Terminal</h4>
+            <h4>{t('settings:terminal')}</h4>
             
             <div className="setting-group">
-              <label>Scrollback Lines</label>
+              <label>{t('settings:scrollbackLines')}</label>
               <input
                 type="number"
                 min="100"
@@ -185,14 +185,13 @@ export const Settings = memo(function Settings({
                 style={{ width: '150px', padding: '8px 12px', background: '#1a1a1a', border: '1px solid #1a1a1a', borderRadius: '4px', color: '#00ff41', fontSize: '13px' }}
               />
               <p className="setting-description">
-                Number of lines to keep in terminal buffer (ring buffer). 
-                Higher values use more memory. Recommended: 2000-10000 for multiple concurrent sessions.
-                Current: ~{Math.round(scrollbackLines * 80 * 10 / 1024 / 1024 * 10) / 10}MB per session
+                {t('settings:scrollbackLinesDesc')}
+                {' '}{t('settings:scrollbackLinesCurrent')}: ~{Math.round(scrollbackLines * 80 * 10 / 1024 / 1024 * 10) / 10}{t('settings:scrollbackLinesMB')}
               </p>
             </div>
 
             <div className="setting-group">
-              <label>Font Size</label>
+              <label>{t('settings:terminalFontSize')}</label>
               <input
                 type="number"
                 min="8"
@@ -203,12 +202,12 @@ export const Settings = memo(function Settings({
                 style={{ width: '100px', padding: '8px 12px', background: '#1a1a1a', border: '1px solid #1a1a1a', borderRadius: '4px', color: '#00ff41', fontSize: '13px' }}
               />
               <p className="setting-description">
-                Terminal font size in pixels. Range: 8-32px. Changes apply to all terminals.
+                {t('settings:fontSizeDesc')}
               </p>
             </div>
 
             <div className="setting-group">
-              <label>Terminal Font Family</label>
+              <label>{t('settings:terminalFontFamily')}</label>
               <select
                 value={terminalFontFamily}
                 onChange={onChangeTerminalFontFamily}
@@ -225,12 +224,12 @@ export const Settings = memo(function Settings({
                 <option value="monospace">System Monospace</option>
               </select>
               <p className="setting-description">
-                Terminal font family. Changes apply to all terminals. Requires page refresh for some fonts.
+                {t('settings:terminalFontFamilyDesc')}
               </p>
             </div>
 
             <div className="setting-group">
-              <label>UI Font Family</label>
+              <label>{t('settings:uiFontFamily')}</label>
               <select
                 value={uiFontFamily}
                 onChange={onChangeUiFontFamily}
@@ -253,13 +252,13 @@ export const Settings = memo(function Settings({
                 <option value="monospace">System Monospace</option>
               </select>
               <p className="setting-description">
-                UI font family for menus, buttons, and other interface elements. Changes apply immediately.
+                {t('settings:uiFontFamilyDesc')}
               </p>
             </div>
           </div>
 
           <div className="settings-section">
-            <h4>Connection</h4>
+            <h4>{t('settings:connection')}</h4>
             
             <div className="setting-group">
               <label>
@@ -268,10 +267,10 @@ export const Settings = memo(function Settings({
                   checked={true}
                   readOnly
                 />
-                Save connection history
+                {t('settings:saveConnectionHistory')}
               </label>
               <p className="setting-description">
-                Automatically save recent connections for quick access
+                {t('settings:saveConnectionHistoryDesc')}
               </p>
             </div>
 
@@ -282,17 +281,17 @@ export const Settings = memo(function Settings({
                   checked={true}
                   readOnly
                 />
-                Enable favorites
+                {t('settings:enableFavorites')}
               </label>
               <p className="setting-description">
-                Allow marking connections as favorites
+                {t('settings:enableFavoritesDesc')}
               </p>
             </div>
 
             <div className="setting-group">
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
                 <label style={{ margin: 0, flex: 1, cursor: 'pointer' }} onClick={() => onChangeReconnectRetry?.({ enabled: !reconnectRetry?.enabled })}>
-                  Enable reconnect retry
+                  {t('settings:reconnectEnabled')}
                 </label>
                 <div 
                   className="toggle-switch"
@@ -333,14 +332,14 @@ export const Settings = memo(function Settings({
                 </span>
               </div>
               <p className="setting-description">
-                Automatically retry connection when reconnecting (useful after reboot)
+                {t('settings:reconnectRetryDesc')}
               </p>
             </div>
 
             {reconnectRetry?.enabled !== false && (
               <>
                 <div className="setting-group">
-                  <label>Retry Interval (ms)</label>
+                  <label>{t('settings:reconnectInterval')}</label>
                   <input
                     type="number"
                     min="100"
@@ -356,12 +355,12 @@ export const Settings = memo(function Settings({
                     style={{ width: '150px', padding: '8px 12px', background: '#1a1a1a', border: '1px solid #1a1a1a', borderRadius: '4px', color: '#00ff41', fontSize: '13px' }}
                   />
                   <p className="setting-description">
-                    Time to wait between retry attempts (default: 1000ms)
+                    {t('settings:reconnectIntervalDesc')}
                   </p>
                 </div>
 
                 <div className="setting-group">
-                  <label>Max Retry Attempts</label>
+                  <label>{t('settings:reconnectMaxAttempts')}</label>
                   <input
                     type="number"
                     min="1"
@@ -377,7 +376,7 @@ export const Settings = memo(function Settings({
                     style={{ width: '150px', padding: '8px 12px', background: '#1a1a1a', border: '1px solid #1a1a1a', borderRadius: '4px', color: '#00ff41', fontSize: '13px' }}
                   />
                   <p className="setting-description">
-                    Maximum number of retry attempts (default: 60)
+                    {t('settings:reconnectMaxAttemptsDesc')}
                   </p>
                 </div>
               </>
@@ -385,12 +384,12 @@ export const Settings = memo(function Settings({
           </div>
 
           <div className="settings-section">
-            <h4>AI / LLM</h4>
+            <h4>{t('settings:llm')}</h4>
             
             <div className="setting-group">
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
                 <label style={{ margin: 0, flex: 1, cursor: 'pointer' }} onClick={() => onChangeLlmSettings?.({ enabled: !llmSettings?.enabled })}>
-                  Enable AI command assistance
+                  {t('settings:enableAI')}
                 </label>
                 <div 
                   className="toggle-switch"
@@ -431,14 +430,14 @@ export const Settings = memo(function Settings({
                 </span>
               </div>
               <p className="setting-description">
-                Convert natural language to shell commands using LLM
+                {t('settings:enableAIDesc')}
               </p>
             </div>
 
             {llmSettings?.enabled && (
               <>
                 <div className="setting-group">
-                  <label>Provider</label>
+                  <label>{t('settings:provider')}</label>
                   <select
                     value={llmSettings?.provider || 'ollama'}
                     onChange={(e) => {
@@ -476,13 +475,13 @@ export const Settings = memo(function Settings({
                     <option value="anthropic">Anthropic (Claude)</option>
                   </select>
                   <p className="setting-description">
-                    LLM provider. Ollama runs locally, others require API keys.
+                    {t('settings:providerDesc')}
                   </p>
                 </div>
 
                 {llmSettings?.provider !== 'ollama' && (
                   <div className="setting-group">
-                    <label>API Key</label>
+                    <label>{t('settings:apiKey')}</label>
                     <input
                       type="password"
                       value={llmSettings?.apiKey || ''}
@@ -491,13 +490,13 @@ export const Settings = memo(function Settings({
                       style={{ width: '400px', padding: '8px 12px', background: '#1a1a1a', border: '1px solid #1a1a1a', borderRadius: '4px', color: '#00ff41', fontSize: '13px' }}
                     />
                     <p className="setting-description">
-                      API key for {llmSettings?.provider === 'openai' ? 'OpenAI' : 'Anthropic'}. Keep this secure.
+                      {t('settings:apiKeyDesc', { provider: llmSettings?.provider === 'openai' ? 'OpenAI' : 'Anthropic' })}
                     </p>
                   </div>
                 )}
 
                 <div className="setting-group">
-                  <label>Base URL</label>
+                  <label>{t('settings:baseURL')}</label>
                   <input
                     type="text"
                     value={llmSettings?.baseURL || ''}
@@ -506,21 +505,21 @@ export const Settings = memo(function Settings({
                     style={{ width: '400px', padding: '8px 12px', background: '#1a1a1a', border: '1px solid #1a1a1a', borderRadius: '4px', color: '#00ff41', fontSize: '13px' }}
                   />
                   <p className="setting-description">
-                    API endpoint URL. For Ollama, default is http://localhost:11434
+                    {t('settings:baseURLDesc')}
                   </p>
                 </div>
 
                 <div className="setting-group">
                   <label>
-                    Model
+                    {t('settings:model')}
                     {llmSettings?.provider === 'ollama' && ollamaModels.length > 0 && (
                       <span style={{ marginLeft: '8px', fontSize: '11px', color: '#888', fontWeight: 'normal' }}>
-                        ({ollamaModels.length} available)
+                        ({ollamaModels.length} {t('settings:available')})
                       </span>
                     )}
                     {llmSettings?.provider === 'ollama' && isLoadingModels && (
                       <span style={{ marginLeft: '8px', fontSize: '11px', color: '#888', fontWeight: 'normal' }}>
-                        (loading...)
+                        ({t('settings:loading')})
                       </span>
                     )}
                   </label>
@@ -647,14 +646,16 @@ export const Settings = memo(function Settings({
                   </div>
                   <p className="setting-description">
                     {llmSettings?.provider === 'ollama' 
-                      ? `Model name to use. ${ollamaModels.length > 0 ? 'Available models loaded from Ollama. Use arrow keys to navigate.' : 'Type model name or wait for available models to load.'}`
-                      : 'Model name to use for the selected provider.'
+                      ? ollamaModels.length > 0 
+                        ? t('settings:modelDescOllama')
+                        : t('settings:modelDescOllamaLoading')
+                      : t('settings:modelDesc')
                     }
                   </p>
                 </div>
 
                 <div className="setting-group">
-                  <label>Temperature</label>
+                  <label>{t('settings:temperature')}</label>
                   <input
                     type="number"
                     min="0"
@@ -665,12 +666,12 @@ export const Settings = memo(function Settings({
                     style={{ width: '100px', padding: '8px 12px', background: '#1a1a1a', border: '1px solid #1a1a1a', borderRadius: '4px', color: '#00ff41', fontSize: '13px' }}
                   />
                   <p className="setting-description">
-                    Controls randomness (0.0 = deterministic, 2.0 = very creative). Recommended: 0.7
+                    {t('settings:temperatureDesc')}
                   </p>
                 </div>
 
                 <div className="setting-group">
-                  <label>Max Tokens</label>
+                  <label>{t('settings:maxTokens')}</label>
                   <input
                     type="number"
                     min="100"
@@ -681,7 +682,7 @@ export const Settings = memo(function Settings({
                     style={{ width: '100px', padding: '8px 12px', background: '#1a1a1a', border: '1px solid #1a1a1a', borderRadius: '4px', color: '#00ff41', fontSize: '13px' }}
                   />
                   <p className="setting-description">
-                    Maximum tokens in response. Higher values allow longer commands but cost more.
+                    {t('settings:maxTokensDesc')}
                   </p>
                 </div>
               </>
@@ -689,10 +690,10 @@ export const Settings = memo(function Settings({
           </div>
 
           <div className="settings-section">
-            <h4>About</h4>
+            <h4>{t('settings:about')}</h4>
             <div className="about-info">
-              <p><strong>ash</strong></p>
-              <p>A modern SSH and Serial terminal client</p>
+              <p><strong>{t('common:appName')}</strong></p>
+              <p>{t('settings:appDescription')}</p>
               {onShowAbout && (
                 <button 
                   className="about-button"
@@ -715,7 +716,7 @@ export const Settings = memo(function Settings({
                   onMouseEnter={(e) => e.target.style.backgroundColor = '#00cc35'}
                   onMouseLeave={(e) => e.target.style.backgroundColor = '#00ff41'}
                 >
-                  Show About
+                  {t('settings:showAbout')}
                 </button>
               )}
             </div>
@@ -727,7 +728,7 @@ export const Settings = memo(function Settings({
             className="close-btn"
             onClick={onClose}
           >
-            Close
+            {t('settings:close')}
           </button>
         </div>
       </div>
