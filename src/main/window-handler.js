@@ -265,6 +265,28 @@ export function initializeWindowHandlers() {
     }
   });
 
+  // Get system locale
+  ipcMain.handle('get-system-locale', async () => {
+    const app = require('electron').app;
+    try {
+      const locale = app.getLocale();
+      // Convert locale to language code (e.g., 'ko-KR' -> 'ko', 'en-US' -> 'en')
+      const language = locale.split('-')[0].toLowerCase();
+      
+      // Only return supported languages
+      const supportedLanguages = ['en', 'ko'];
+      if (supportedLanguages.includes(language)) {
+        return { success: true, locale, language };
+      }
+      
+      // Return 'en' as default for unsupported languages
+      return { success: true, locale, language: 'en' };
+    } catch (error) {
+      console.error('Failed to get system locale:', error);
+      return { success: false, error: error.message, language: 'en' };
+    }
+  });
+
   // Get app info (version, author, etc.)
   ipcMain.handle('get-app-info', async () => {
     const app = require('electron').app;

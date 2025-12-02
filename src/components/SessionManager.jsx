@@ -1,4 +1,5 @@
 import React, { memo, useMemo, useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { SessionItem } from './SessionItem';
 import { FavoriteItem } from './FavoriteItem';
 import { ConnectionHistoryItem } from './ConnectionHistoryItem';
@@ -109,6 +110,8 @@ export const SessionManager = memo(function SessionManager({
     });
   }, [groups, sessions]);
 
+  const { t } = useTranslation(['common', 'connection']);
+  
   // Section expansion state
   const [isFavoritesExpanded, setIsFavoritesExpanded] = useState(true);
   const [isSessionListExpanded, setIsSessionListExpanded] = useState(true);
@@ -122,12 +125,12 @@ export const SessionManager = memo(function SessionManager({
       style={{ width: showSessionManager ? `${sessionManagerWidth}px` : '0' }}
     >
       <div className="session-manager-header">
-        <h3>Sessions</h3>
+        <h3>{t('status:sessions')}</h3>
         <div className="header-buttons">
           <button 
             className="new-session-btn"
             onClick={onShowConnectionForm}
-            title="New Session"
+            title={t('common:newSession')}
           >
             +
           </button>
@@ -149,11 +152,11 @@ export const SessionManager = memo(function SessionManager({
                 e.stopPropagation();
                 setIsFavoritesExpanded(!isFavoritesExpanded);
               }}
-              title={isFavoritesExpanded ? 'Collapse' : 'Expand'}
+              title={isFavoritesExpanded ? t('common:collapse') : t('common:expand')}
             >
               {isFavoritesExpanded ? '▼' : '▶'}
             </button>
-            Favorites
+            {t('common:favorites')}
           </div>
           {isFavoritesExpanded && favorites.map((fav, index) => (
             <FavoriteItem
@@ -180,11 +183,11 @@ export const SessionManager = memo(function SessionManager({
                 e.stopPropagation();
                 setIsSessionListExpanded(!isSessionListExpanded);
               }}
-              title={isSessionListExpanded ? 'Collapse' : 'Expand'}
+              title={isSessionListExpanded ? t('common:collapse') : t('common:expand')}
             >
               {isSessionListExpanded ? '▼' : '▶'}
             </button>
-            Session List
+            {t('common:history')}
           </div>
           {isSessionListExpanded && connectionHistory.map((conn, index) => (
             <ConnectionHistoryItem
@@ -204,7 +207,7 @@ export const SessionManager = memo(function SessionManager({
       {/* Groups */}
       {groups.length > 0 && (
         <div className="section">
-          <div className="section-header">Groups</div>
+          <div className="section-header">{t('common:groups')}</div>
           {groupCalculations.map(({ group, groupSessions, savedSessions, totalSessions, allConnected, hasConnectedSessions }) => {
             return (
               <div key={group.id} className="group-container">
@@ -226,7 +229,7 @@ export const SessionManager = memo(function SessionManager({
                       e.stopPropagation();
                       onToggleGroupExpanded(group.id);
                     }}
-                    title={group.isExpanded ? 'Collapse' : 'Expand'}
+                    title={group.isExpanded ? t('common:collapse') : t('common:expand')}
                   >
                     {group.isExpanded ? '▼' : '▶'}
                   </button>
@@ -251,7 +254,7 @@ export const SessionManager = memo(function SessionManager({
                     <span 
                       className="group-name"
                       onDoubleClick={() => onStartEditingGroupName(group.id)}
-                      title="Double-click to rename"
+                      title={t('common:doubleClickToRename')}
                     >
                       {group.name}
                     </span>
@@ -267,7 +270,7 @@ export const SessionManager = memo(function SessionManager({
                         onConnectGroup(group.id);
                       }
                     }}
-                    title={allConnected ? "Disconnect All Sessions in Group" : "Connect All Sessions in Group"}
+                    title={allConnected ? t('common:disconnectAll') : t('common:connectAll')}
                     disabled={totalSessions === 0}
                   >
                     {allConnected ? "⏹" : "▶"}
@@ -278,7 +281,7 @@ export const SessionManager = memo(function SessionManager({
                       e.stopPropagation();
                       onDeleteGroup(group.id);
                     }}
-                    title="Delete Group"
+                    title={t('common:deleteGroup')}
                   >
                     🗑
                   </button>
@@ -326,7 +329,7 @@ export const SessionManager = memo(function SessionManager({
                             className="session-item group-session-item saved-session"
                           >
                             <span className="session-name">
-                              {displayName} (not connected)
+                              {displayName} ({t('common:notConnected')})
                             </span>
                             <ConnectionStatusIcon 
                               isConnected={false}
@@ -338,7 +341,7 @@ export const SessionManager = memo(function SessionManager({
                                 e.stopPropagation();
                                 onRemoveSessionFromGroup(savedSession.id, group.id);
                               }}
-                              title="Remove from Group"
+                              title={t('common:removeFromGroup')}
                             >
                               🗑
                             </button>
@@ -346,7 +349,7 @@ export const SessionManager = memo(function SessionManager({
                         );
                       })}
                     {savedSessions.length === 0 && (
-                      <div className="group-empty">Drag sessions here</div>
+                      <div className="group-empty">{t('common:dragSessionsHere')}</div>
                     )}
                   </div>
                 )}
@@ -384,11 +387,11 @@ export const SessionManager = memo(function SessionManager({
                 e.stopPropagation();
                 setIsActiveSessionsExpanded(!isActiveSessionsExpanded);
               }}
-              title={isActiveSessionsExpanded ? 'Collapse' : 'Expand'}
+              title={isActiveSessionsExpanded ? t('common:collapse') : t('common:expand')}
             >
               {isActiveSessionsExpanded ? '▼' : '▶'}
             </button>
-            Active Sessions
+            {t('common:activeSessions')}
           </div>
           {isActiveSessionsExpanded && ungroupedSessions.map(session => (
             <SessionItem
@@ -418,11 +421,11 @@ export const SessionManager = memo(function SessionManager({
                 e.stopPropagation();
                 setIsRecentExpanded(!isRecentExpanded);
               }}
-              title={isRecentExpanded ? 'Collapse' : 'Expand'}
+              title={isRecentExpanded ? t('common:collapse') : t('common:expand')}
             >
               {isRecentExpanded ? '▼' : '▶'}
             </button>
-            Recent
+            {t('common:recent')}
           </div>
           {isRecentExpanded && connectionHistory.slice(0, 10).map((conn, index) => (
             <ConnectionHistoryItem
@@ -452,11 +455,11 @@ export const SessionManager = memo(function SessionManager({
               e.stopPropagation();
               setIsLibrariesExpanded(!isLibrariesExpanded);
             }}
-            title={isLibrariesExpanded ? 'Collapse' : 'Expand'}
+            title={isLibrariesExpanded ? t('common:collapse') : t('common:expand')}
           >
             {isLibrariesExpanded ? '▼' : '▶'}
           </button>
-          Libraries
+          {t('common:libraries')}
         </div>
         {isLibrariesExpanded && (
           <>
@@ -483,7 +486,7 @@ export const SessionManager = memo(function SessionManager({
                 opacity: 0.5,
                 fontSize: '12px'
               }}>
-                No libraries yet
+                {t('common:noLibrariesYet')}
               </div>
             )}
             <div style={{ display: 'flex', gap: '8px', flexDirection: 'column' }}>

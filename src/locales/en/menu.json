@@ -1,0 +1,22 @@
+{
+  "file": "File",
+  "view": "View",
+  "tools": "Tools",
+  "help": "Help",
+  "newSession": "New Session",
+  "closeSession": "Close Session",
+  "quit": "Quit",
+  "toggleDevTools": "Toggle Developer Tools",
+  "appearance": "Appearance",
+  "primarySidebar": "Primary Side Bar",
+  "tftpServer": "TFTP Server",
+  "webServer": "Web Server",
+  "iperf3Server": "iperf3 Server",
+  "iperf3NotAvailable": "Install iperf3 to enable",
+  "checkForUpdates": "Check for Updates",
+  "aboutAsh": "About ash",
+  "minimize": "Minimize",
+  "maximize": "Maximize",
+  "restore": "Restore"
+}
+

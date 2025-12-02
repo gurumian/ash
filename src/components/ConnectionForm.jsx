@@ -1,4 +1,5 @@
 import React, { memo, useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Connection Form component - Modal for creating new SSH/Serial connections
@@ -17,6 +18,7 @@ export const ConnectionForm = memo(function ConnectionForm({
   onLoadSerialPorts,
   onPostProcessingChange
 }) {
+  const { t } = useTranslation(['connection', 'common']);
   const [postProcessing, setPostProcessing] = useState([]);
   const [postProcessingEnabled, setPostProcessingEnabled] = useState(true);
   const [newCommand, setNewCommand] = useState('');
@@ -102,7 +104,7 @@ export const ConnectionForm = memo(function ConnectionForm({
     <div className="modal-overlay">
       <div className="connection-modal">
         <div className="modal-header">
-          <h3>{connectionForm.sessionName || connectionForm.host || connectionForm.serialPort ? 'Edit Session' : 'New Session'}</h3>
+          <h3>{connectionForm.sessionName || connectionForm.host || connectionForm.serialPort ? t('connection:editSession') : t('connection:newSession')}</h3>
           <button 
             className="modal-close"
             onClick={onClose}
@@ -113,7 +115,7 @@ export const ConnectionForm = memo(function ConnectionForm({
         
         <form onSubmit={onSubmit} noValidate>
           <div className="form-group">
-            <label>Connection Type</label>
+            <label>{t('connection:connectionType')}</label>
             <div className="connection-type-selector">
               <button
                 type="button"
@@ -147,68 +149,68 @@ export const ConnectionForm = memo(function ConnectionForm({
           )}
 
           <div className="form-group">
-            <label htmlFor="sessionName">Session Name</label>
+            <label htmlFor="sessionName">{t('connection:sessionName')}</label>
             <input
               type="text"
               id="sessionName"
               name="sessionName"
               value={connectionForm.sessionName}
               onChange={onInputChange}
-              placeholder={connectionForm.connectionType === 'ssh' ? "My Server" : "My Serial Device"}
+              placeholder={connectionForm.connectionType === 'ssh' ? t('connection:sessionNamePlaceholderSSH') : t('connection:sessionNamePlaceholderSerial')}
             />
           </div>
 
           {connectionForm.connectionType === 'ssh' && (
             <>
               <div className="form-group">
-                <label htmlFor="host">Host</label>
+                <label htmlFor="host">{t('connection:host')}</label>
                 <input
                   type="text"
                   id="host"
                   name="host"
                   value={connectionForm.host}
                   onChange={onInputChange}
-                  placeholder="192.168.1.100 or server.example.com"
+                  placeholder={t('connection:hostPlaceholder')}
                   required
                 />
               </div>
 
               <div className="form-group">
-                <label htmlFor="port">Port</label>
+                <label htmlFor="port">{t('connection:port')}</label>
                 <input
                   type="number"
                   id="port"
                   name="port"
                   value={connectionForm.port}
                   onChange={onInputChange}
-                  placeholder="22"
+                  placeholder={t('connection:portPlaceholder')}
                   min="1"
                   max="65535"
                 />
               </div>
 
               <div className="form-group">
-                <label htmlFor="user">Username</label>
+                <label htmlFor="user">{t('connection:username')}</label>
                 <input
                   type="text"
                   id="user"
                   name="user"
                   value={connectionForm.user}
                   onChange={onInputChange}
-                  placeholder="root, admin, ubuntu"
+                  placeholder={t('connection:usernamePlaceholder')}
                   required
                 />
               </div>
 
               <div className="form-group">
-                <label htmlFor="password">Password</label>
+                <label htmlFor="password">{t('connection:password')}</label>
                 <input
                   type="password"
                   id="password"
                   name="password"
                   value={connectionForm.password}
                   onChange={onInputChange}
-                  placeholder="Password"
+                  placeholder={t('connection:passwordPlaceholder')}
                 />
               </div>
             </>
@@ -217,7 +219,7 @@ export const ConnectionForm = memo(function ConnectionForm({
           {connectionForm.connectionType === 'serial' && (
             <>
               <div className="form-group">
-                <label htmlFor="serialPort">Serial Port</label>
+                <label htmlFor="serialPort">{t('connection:serialPort')}</label>
                 <div className="serial-port-selector">
                   <select
                     id="serialPort"
@@ -226,7 +228,7 @@ export const ConnectionForm = memo(function ConnectionForm({
                     onChange={onInputChange}
                     required
                   >
-                    <option value="">Select a port</option>
+                    <option value="">{t('connection:selectPort')}</option>
                     {availableSerialPorts.map((port, index) => (
                       <option key={index} value={port.path}>
                         {port.path} {port.manufacturer ? `(${port.manufacturer})` : ''}
@@ -237,7 +239,7 @@ export const ConnectionForm = memo(function ConnectionForm({
                     type="button"
                     className="refresh-ports-btn"
                     onClick={onLoadSerialPorts}
-                    title="Refresh ports"
+                    title={t('connection:refreshPorts')}
                   >
                     <svg 
                       width="16" 
@@ -260,7 +262,7 @@ export const ConnectionForm = memo(function ConnectionForm({
 
               <div className="form-row">
                 <div className="form-group">
-                  <label htmlFor="baudRate">Baud Rate</label>
+                  <label htmlFor="baudRate">{t('connection:baudRate')}</label>
                   <select
                     id="baudRate"
                     name="baudRate"
@@ -289,7 +291,7 @@ export const ConnectionForm = memo(function ConnectionForm({
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="dataBits">Data Bits</label>
+                  <label htmlFor="dataBits">{t('connection:dataBits')}</label>
                   <select
                     id="dataBits"
                     name="dataBits"
@@ -304,7 +306,7 @@ export const ConnectionForm = memo(function ConnectionForm({
 
               <div className="form-row">
                 <div className="form-group">
-                  <label htmlFor="stopBits">Stop Bits</label>
+                  <label htmlFor="stopBits">{t('connection:stopBits')}</label>
                   <select
                     id="stopBits"
                     name="stopBits"
@@ -317,31 +319,31 @@ export const ConnectionForm = memo(function ConnectionForm({
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="parity">Parity</label>
+                  <label htmlFor="parity">{t('connection:parity')}</label>
                   <select
                     id="parity"
                     name="parity"
                     value={connectionForm.parity}
                     onChange={onInputChange}
                   >
-                    <option value="none">None</option>
-                    <option value="even">Even</option>
-                    <option value="odd">Odd</option>
+                    <option value="none">{t('connection:parityNone')}</option>
+                    <option value="even">{t('connection:parityEven')}</option>
+                    <option value="odd">{t('connection:parityOdd')}</option>
                   </select>
                 </div>
               </div>
 
               <div className="form-group">
-                <label htmlFor="flowControl">Flow Control</label>
+                <label htmlFor="flowControl">{t('connection:flowControl')}</label>
                 <select
                   id="flowControl"
                   name="flowControl"
                   value={connectionForm.flowControl}
                   onChange={onInputChange}
                 >
-                  <option value="none">None</option>
-                  <option value="xon">XON/XOFF</option>
-                  <option value="rts">RTS/CTS</option>
+                  <option value="none">{t('connection:flowControlNone')}</option>
+                  <option value="xon">{t('connection:flowControlXon')}</option>
+                  <option value="rts">{t('connection:flowControlRts')}</option>
                 </select>
               </div>
             </>
@@ -356,10 +358,10 @@ export const ConnectionForm = memo(function ConnectionForm({
                   checked={connectionForm.savePassword}
                   onChange={onSavePasswordChange}
                 />
-                <span className="checkbox-text">Save password</span>
+                <span className="checkbox-text">{t('connection:savePassword')}</span>
               </label>
               <div className="checkbox-help">
-                ⚠️ Passwords are stored locally and not encrypted
+                {t('connection:passwordWarning')}
               </div>
             </div>
           )}
@@ -371,7 +373,7 @@ export const ConnectionForm = memo(function ConnectionForm({
                 <span style={{ fontSize: '12px', color: '#00ff41', userSelect: 'none' }}>
                   {isPostProcessingExpanded ? '▼' : '▶'}
                 </span>
-                <label style={{ margin: 0, cursor: 'pointer' }}>Post-Processing Commands</label>
+                <label style={{ margin: 0, cursor: 'pointer' }}>{t('connection:postProcessing')}</label>
               </div>
               <button
                 type="button"
@@ -389,9 +391,9 @@ export const ConnectionForm = memo(function ConnectionForm({
                   borderRadius: '3px',
                   fontWeight: 'bold'
                 }}
-                title={postProcessingEnabled ? 'Disable all post-processing' : 'Enable all post-processing'}
+                title={postProcessingEnabled ? t('common:disabled') : t('common:enabled')}
               >
-                {postProcessingEnabled ? '● Enabled' : '○ Disabled'}
+                {postProcessingEnabled ? `● ${t('common:enabled')}` : `○ ${t('common:disabled')}`}
               </button>
             </div>
             {isPostProcessingExpanded && (
@@ -403,7 +405,7 @@ export const ConnectionForm = memo(function ConnectionForm({
                   marginBottom: '8px',
                   marginTop: '4px'
                 }}>
-                  Commands will be executed automatically after connection is established.
+                  {t('connection:postProcessingDesc')}
                 </p>
                 
                 {/* Command list */}
@@ -424,7 +426,7 @@ export const ConnectionForm = memo(function ConnectionForm({
                   opacity: 0.5,
                   fontSize: '11px'
                 }}>
-                  No commands added yet
+                  {t('connection:postProcessingEmpty')}
                 </div>
               ) : (
                 postProcessing.map((cmd, index) => (
@@ -478,7 +480,7 @@ export const ConnectionForm = memo(function ConnectionForm({
                         cursor: 'pointer',
                         borderRadius: '3px'
                       }}
-                      title="Remove"
+                      title={t('connection:postProcessingRemove')}
                     >
                       ×
                     </button>
@@ -494,7 +496,7 @@ export const ConnectionForm = memo(function ConnectionForm({
                 value={newCommand}
                 onChange={(e) => setNewCommand(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Enter command (e.g., logread -f)"
+                placeholder={t('connection:postProcessingPlaceholder')}
                 style={{
                   flex: 1,
                   padding: '6px 10px',
@@ -535,14 +537,14 @@ export const ConnectionForm = memo(function ConnectionForm({
               className="cancel-btn"
               onClick={onClose}
             >
-              Cancel
+              {t('common:cancel')}
             </button>
             <button 
               type="submit" 
               className="connect-btn"
               disabled={isConnecting}
             >
-              {isConnecting ? 'Connecting...' : 'Connect'}
+              {isConnecting ? t('connection:connecting') : t('connection:connect')}
             </button>
           </div>
         </form>

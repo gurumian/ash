@@ -1,0 +1,20 @@
+{
+  "title": "Settings",
+  "theme": "Theme",
+  "terminal": "Terminal",
+  "scrollbackLines": "Scrollback Lines",
+  "terminalFontSize": "Terminal Font Size",
+  "terminalFontFamily": "Terminal Font Family",
+  "uiFontFamily": "UI Font Family",
+  "llm": "LLM Settings",
+  "autoReconnect": "Auto Reconnect",
+  "reconnectRetry": "Reconnect Retry",
+  "reconnectEnabled": "Enabled",
+  "reconnectInterval": "Interval (ms)",
+  "reconnectMaxAttempts": "Max Attempts",
+  "language": "Language",
+  "languageDesc": "Select the language for the user interface",
+  "english": "English",
+  "korean": "Korean"
+}
+

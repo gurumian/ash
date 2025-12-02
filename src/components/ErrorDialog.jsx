@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import './ErrorDialog.css';
 
 export const ErrorDialog = ({ isOpen, onClose, title, message, detail, error }) => {
+  const { t } = useTranslation(['dialog', 'common']);
   const [showDetails, setShowDetails] = useState(false);
   const isDev = process.env.NODE_ENV === 'development';
   
@@ -28,7 +30,7 @@ export const ErrorDialog = ({ isOpen, onClose, title, message, detail, error }) 
     <div className="error-dialog-overlay" onClick={onClose}>
       <div className="error-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="error-dialog-header">
-          <h2>{title || 'Error'}</h2>
+          <h2>{title || t('dialog:error.title')}</h2>
           <button className="error-dialog-close" onClick={onClose}>×</button>
         </div>
         

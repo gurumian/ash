@@ -1,0 +1,13 @@
+{
+  "ready": "Ready",
+  "connectedTo": "Connected to",
+  "connectedToSerial": "Connected to Serial",
+  "sessions": "Sessions",
+  "tftpServer": "TFTP Server",
+  "tftpServerTooltip": "TFTP Server: UDP/{{port}}\nClick to open TFTP dialog",
+  "webServer": "Web Server",
+  "webServerTooltip": "Web Server: HTTP/{{port}}\nClick to open Web Server dialog",
+  "iperf3Server": "iperf3 Server",
+  "iperf3ServerTooltip": "iperf3 Server: TCP/{{port}}\nClick to open iperf3 dialog"
+}
+

@@ -1,4 +1,6 @@
 import React, { memo, useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import { changeLanguage } from '../i18n';
 
 /**
  * Settings component - Modal for application settings
@@ -30,6 +32,7 @@ export const Settings = memo(function Settings({
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const modelInputRef = useRef(null);
   const modelDropdownRef = useRef(null);
+  const { t, i18n } = useTranslation(['settings', 'common']);
 
   // Fetch Ollama models when provider is ollama and baseURL is set
   useEffect(() => {
@@ -114,7 +117,7 @@ export const Settings = memo(function Settings({
     <div className="modal-overlay">
       <div className="settings-modal">
         <div className="modal-header">
-          <h3>Settings</h3>
+          <h3>{t('settings:title')}</h3>
           <button 
             className="modal-close"
             onClick={onClose}
@@ -125,10 +128,10 @@ export const Settings = memo(function Settings({
         
         <div className="settings-content">
           <div className="settings-section">
-            <h4>Appearance</h4>
+            <h4>{t('settings:theme')}</h4>
             
             <div className="setting-group">
-              <label>Theme</label>
+              <label>{t('settings:theme')}</label>
               <div className="theme-options">
                 {Object.entries(themes).map(([key, themeData]) => (
                   <button
@@ -146,6 +149,23 @@ export const Settings = memo(function Settings({
               </div>
               <p className="setting-description">
                 Changes both UI and terminal appearance
+              </p>
+            </div>
+
+            <div className="setting-group">
+              <label>{t('settings:language')}</label>
+              <select
+                value={i18n.language || 'en'}
+                onChange={(e) => {
+                  changeLanguage(e.target.value);
+                }}
+                style={{ width: '200px', padding: '8px 12px', background: '#1a1a1a', border: '1px solid #1a1a1a', borderRadius: '4px', color: '#00ff41', fontSize: '13px' }}
+              >
+                <option value="en">{t('settings:english')}</option>
+                <option value="ko">{t('settings:korean')}</option>
+              </select>
+              <p className="setting-description">
+                {t('settings:languageDesc')}
               </p>
             </div>
           </div>

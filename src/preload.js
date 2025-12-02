@@ -130,6 +130,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // App info
   getAppInfo: () => ipcRenderer.invoke('get-app-info'),
   
+  // System locale
+  getSystemLocale: () => ipcRenderer.invoke('get-system-locale'),
+  
   // Settings
   getSettings: () => ipcRenderer.invoke('get-settings'),
   saveSettings: (settings) => ipcRenderer.invoke('save-settings', settings),

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import './CustomTitleBar.css';
 
 /**
@@ -22,6 +23,7 @@ export function CustomTitleBar({
   onToggleSessionManager,
   iperfAvailable = true,
 }) {
+  const { t } = useTranslation(['menu', 'common']);
   const [activeMenu, setActiveMenu] = useState(null);
   const [activeSubmenu, setActiveSubmenu] = useState(null);
   const menuRef = useRef(null);
@@ -58,24 +60,24 @@ export function CustomTitleBar({
 
   const menus = [
     {
-      name: 'File',
+      name: t('menu:file'),
       items: [
-        { label: 'New Session', shortcut: 'Ctrl+N', onClick: onNewSession },
-        { label: 'Close Session', shortcut: 'Ctrl+W', onClick: onCloseSession },
+        { label: t('menu:newSession'), shortcut: 'Ctrl+N', onClick: onNewSession },
+        { label: t('menu:closeSession'), shortcut: 'Ctrl+W', onClick: onCloseSession },
         { type: 'separator' },
-        { label: 'Quit', shortcut: 'Ctrl+Q', onClick: onClose },
+        { label: t('menu:quit'), shortcut: 'Ctrl+Q', onClick: onClose },
       ],
     },
     {
-      name: 'View',
+      name: t('menu:view'),
       items: [
-        { label: 'Toggle Developer Tools', shortcut: 'Ctrl+Shift+I', onClick: onToggleDevTools },
+        { label: t('menu:toggleDevTools'), shortcut: 'Ctrl+Shift+I', onClick: onToggleDevTools },
         { type: 'separator' },
         {
-          label: 'Appearance',
+          label: t('menu:appearance'),
           submenu: [
             {
-              label: 'Primary Side Bar',
+              label: t('menu:primarySidebar'),
               type: 'checkbox',
               checked: showSessionManager !== false,
               onClick: () => {
@@ -87,29 +89,29 @@ export function CustomTitleBar({
           ]
         },
         { type: 'separator' },
-        { label: 'Settings', shortcut: 'Ctrl+,', onClick: onSettings },
+        { label: t('menu:settings'), shortcut: 'Ctrl+,', onClick: onSettings },
       ],
     },
     {
-      name: 'Tools',
+      name: t('menu:tools'),
       items: [
-        { label: 'TFTP Server', shortcut: 'Ctrl+Shift+T', onClick: onTftpServer },
-        { label: 'Web Server', shortcut: 'Ctrl+Shift+W', onClick: onWebServer },
+        { label: t('menu:tftpServer'), shortcut: 'Ctrl+Shift+T', onClick: onTftpServer },
+        { label: t('menu:webServer'), shortcut: 'Ctrl+Shift+W', onClick: onWebServer },
         { 
-          label: 'iperf3 Server', 
+          label: t('menu:iperf3Server'), 
           shortcut: 'Ctrl+Shift+I', 
           onClick: iperfAvailable ? onIperfServer : null,
           disabled: !iperfAvailable,
-          sublabel: iperfAvailable ? '' : 'Install iperf3 to enable'
+          sublabel: iperfAvailable ? '' : t('menu:iperf3NotAvailable')
         },
       ],
     },
     {
-      name: 'Help',
+      name: t('menu:help'),
       items: [
-        { label: 'Check for Updates', onClick: onCheckForUpdates },
+        { label: t('menu:checkForUpdates'), onClick: onCheckForUpdates },
         { type: 'separator' },
-        { label: 'About ash', onClick: onAbout },
+        { label: t('menu:aboutAsh'), onClick: onAbout },
       ],
     },
   ];
@@ -222,21 +224,21 @@ export function CustomTitleBar({
         <button 
           className="titlebar-button minimize-button"
           onClick={onMinimize}
-          title="Minimize"
+          title={t('menu:minimize')}
         >
           <span>−</span>
         </button>
         <button 
           className="titlebar-button maximize-button"
           onClick={onMaximize}
-          title={isMaximized ? "Restore" : "Maximize"}
+          title={isMaximized ? t('menu:restore') : t('menu:maximize')}
         >
           <span>{isMaximized ? '❐' : '□'}</span>
         </button>
         <button 
           className="titlebar-button close-button"
           onClick={onClose}
-          title="Close"
+          title={t('common:close')}
         >
           <span>×</span>
         </button>

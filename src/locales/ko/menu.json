@@ -1,0 +1,22 @@
+{
+  "file": "파일",
+  "view": "보기",
+  "tools": "도구",
+  "help": "도움말",
+  "newSession": "새 세션",
+  "closeSession": "세션 닫기",
+  "quit": "종료",
+  "toggleDevTools": "개발자 도구 전환",
+  "appearance": "모양",
+  "primarySidebar": "기본 사이드바",
+  "tftpServer": "TFTP 서버",
+  "webServer": "웹 서버",
+  "iperf3Server": "iperf3 서버",
+  "iperf3NotAvailable": "iperf3를 설치하여 활성화",
+  "checkForUpdates": "업데이트 확인",
+  "aboutAsh": "ash 정보",
+  "minimize": "최소화",
+  "maximize": "최대화",
+  "restore": "복원"
+}
+

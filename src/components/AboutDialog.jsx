@@ -1,20 +1,22 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import './AboutDialog.css';
 
 export const AboutDialog = ({ isOpen, onClose, appVersion, author, onShowLicenses }) => {
+  const { t } = useTranslation(['dialog', 'common']);
   if (!isOpen) return null;
 
   return (
     <div className="about-dialog-overlay" onClick={onClose}>
       <div className="about-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="about-dialog-header">
-          <h2>ash</h2>
+          <h2>{t('common:appName')}</h2>
           <button className="about-dialog-close" onClick={onClose}>×</button>
         </div>
         
         <div className="about-dialog-content">
           <div className="about-app-info">
-            <p className="about-version">Version {appVersion}</p>
+            <p className="about-version">{t('dialog:about.version')} {appVersion}</p>
             <p className="about-description">
               A modern SSH and Serial terminal client
             </p>
@@ -33,7 +35,7 @@ export const AboutDialog = ({ isOpen, onClose, appVersion, author, onShowLicense
           <div className="about-separator"></div>
           
           <div className="about-developer">
-            <p className="about-label">Developer</p>
+            <p className="about-label">{t('dialog:about.author')}</p>
             <p className="about-value">{author?.name || 'Bryce Ghim'}</p>
             {author?.email && (
               <p className="about-email">{author.email}</p>
@@ -59,7 +61,7 @@ export const AboutDialog = ({ isOpen, onClose, appVersion, author, onShowLicense
                 }
               }}
             >
-              Third-Party Licenses
+              {t('dialog:about.licenses')}
             </button>
           </div>
         </div>

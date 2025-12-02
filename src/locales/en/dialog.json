@@ -1,0 +1,19 @@
+{
+  "about": {
+    "title": "About ash",
+    "version": "Version",
+    "author": "Author",
+    "licenses": "Licenses"
+  },
+  "error": {
+    "title": "Error",
+    "defaultTitle": "An error occurred"
+  },
+  "confirm": {
+    "title": "Confirm",
+    "defaultMessage": "Are you sure?",
+    "yes": "Yes",
+    "no": "No"
+  }
+}
+

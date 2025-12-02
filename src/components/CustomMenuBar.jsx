@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import './CustomMenuBar.css';
 
 export function CustomMenuBar({
@@ -7,6 +8,7 @@ export function CustomMenuBar({
   onSettings,
   onAbout,
 }) {
+  const { t } = useTranslation(['menu', 'common']);
   const [activeMenu, setActiveMenu] = useState(null);
   const menuRef = useRef(null);
 
@@ -39,24 +41,24 @@ export function CustomMenuBar({
 
   const menus = [
     {
-      name: 'File',
+      name: t('menu:file'),
       items: [
-        { label: 'New Session', shortcut: 'Ctrl+N', onClick: onNewSession },
-        { label: 'Close Session', shortcut: 'Ctrl+W', onClick: onCloseSession },
+        { label: t('menu:newSession'), shortcut: 'Ctrl+N', onClick: onNewSession },
+        { label: t('menu:closeSession'), shortcut: 'Ctrl+W', onClick: onCloseSession },
         { type: 'separator' },
-        { label: 'Quit', shortcut: 'Ctrl+Q', onClick: () => window.electronAPI?.windowClose?.() },
+        { label: t('menu:quit'), shortcut: 'Ctrl+Q', onClick: () => window.electronAPI?.windowClose?.() },
       ],
     },
     {
-      name: 'View',
+      name: t('menu:view'),
       items: [
-        { label: 'Settings', shortcut: 'Ctrl+,', onClick: onSettings },
+        { label: t('menu:settings'), shortcut: 'Ctrl+,', onClick: onSettings },
       ],
     },
     {
-      name: 'Help',
+      name: t('menu:help'),
       items: [
-        { label: 'About ash', onClick: onAbout },
+        { label: t('menu:aboutAsh'), onClick: onAbout },
       ],
     },
   ];

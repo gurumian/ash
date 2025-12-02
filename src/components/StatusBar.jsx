@@ -1,4 +1,5 @@
 import React, { memo } from 'react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Status Bar component - Bottom status bar showing connection info, servers, and session count
@@ -13,15 +14,17 @@ export const StatusBar = memo(function StatusBar({
   onWebClick,
   onIperfClick,
 }) {
+  const { t } = useTranslation(['status', 'common']);
+
   const getConnectionText = () => {
     if (!activeSession) {
-      return 'Ready';
+      return t('status:ready');
     }
     
     if (activeSession.connectionType === 'serial') {
-      return `Connected to Serial: ${activeSession.serialPort}`;
+      return `${t('status:connectedToSerial')}: ${activeSession.serialPort}`;
     } else {
-      return `Connected to ${activeSession.user}@${activeSession.host}:${activeSession.port}`;
+      return `${t('status:connectedTo')} ${activeSession.user}@${activeSession.host}:${activeSession.port}`;
     }
   };
 
@@ -33,35 +36,35 @@ export const StatusBar = memo(function StatusBar({
           <button 
             type="button"
             className="status-indicator status-tftp-indicator" 
-            title={`TFTP Server: UDP/${tftpStatus.port}\nClick to open TFTP dialog`}
+            title={t('status:tftpServerTooltip', { port: tftpStatus.port })}
             onClick={onTftpClick}
           >
-            • TFTP: UDP/{tftpStatus.port}
+            • {t('status:tftpServer')}: UDP/{tftpStatus.port}
           </button>
         )}
         {webStatus?.running && (
           <button 
             type="button"
             className="status-indicator status-web-indicator" 
-            title={`Web Server: HTTP/${webStatus.port}\nClick to open Web Server dialog`}
+            title={t('status:webServerTooltip', { port: webStatus.port })}
             onClick={onWebClick}
           >
-            • Web: HTTP/{webStatus.port}
+            • {t('status:webServer')}: HTTP/{webStatus.port}
           </button>
         )}
         {iperfStatus?.running && (
           <button 
             type="button"
             className="status-indicator status-iperf-indicator" 
-            title={`iperf3 Server: TCP/${iperfStatus.port}\nClick to open iperf3 dialog`}
+            title={t('status:iperf3ServerTooltip', { port: iperfStatus.port })}
             onClick={onIperfClick}
           >
-            • iperf3: TCP/{iperfStatus.port}
+            • {t('status:iperf3Server')}: TCP/{iperfStatus.port}
           </button>
         )}
       </div>
       <div className="status-right">
-        <span>Sessions: {sessionsCount}</span>
+        <span>{t('status:sessions')}: {sessionsCount}</span>
       </div>
     </div>
   );

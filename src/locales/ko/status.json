@@ -1,0 +1,13 @@
+{
+  "ready": "준비됨",
+  "connectedTo": "연결됨",
+  "connectedToSerial": "시리얼 연결됨",
+  "sessions": "세션",
+  "tftpServer": "TFTP 서버",
+  "tftpServerTooltip": "TFTP 서버: UDP/{{port}}\n클릭하여 TFTP 대화상자 열기",
+  "webServer": "웹 서버",
+  "webServerTooltip": "웹 서버: HTTP/{{port}}\n클릭하여 웹 서버 대화상자 열기",
+  "iperf3Server": "iperf3 서버",
+  "iperf3ServerTooltip": "iperf3 서버: TCP/{{port}}\n클릭하여 iperf3 대화상자 열기"
+}
+

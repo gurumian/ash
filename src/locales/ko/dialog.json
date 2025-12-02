@@ -1,0 +1,19 @@
+{
+  "about": {
+    "title": "ash 정보",
+    "version": "버전",
+    "author": "작성자",
+    "licenses": "라이선스"
+  },
+  "error": {
+    "title": "오류",
+    "defaultTitle": "오류가 발생했습니다"
+  },
+  "confirm": {
+    "title": "확인",
+    "defaultMessage": "정말로 하시겠습니까?",
+    "yes": "예",
+    "no": "아니오"
+  }
+}
+
