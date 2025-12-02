@@ -39,6 +39,12 @@
   "usernamePlaceholder": "root, admin, ubuntu",
   "passwordPlaceholder": "Password",
   "sessionNamePlaceholderSSH": "My Server",
-  "sessionNamePlaceholderSerial": "My Serial Device"
+  "sessionNamePlaceholderSerial": "My Serial Device",
+  "sessionSettings": "Session Settings: {{name}}",
+  "disablePostProcessing": "Disable all post-processing",
+  "enablePostProcessing": "Enable all post-processing",
+  "noCommandsAdded": "No commands added yet",
+  "enterCommandPlaceholder": "Enter command (e.g., logread -f)",
+  "postProcessingDescription": "Commands will be executed automatically after connection is established, in the order listed below."
 }
 

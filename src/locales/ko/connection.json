@@ -39,6 +39,12 @@
   "usernamePlaceholder": "root, admin, ubuntu",
   "passwordPlaceholder": "비밀번호",
   "sessionNamePlaceholderSSH": "내 서버",
-  "sessionNamePlaceholderSerial": "내 시리얼 장치"
+  "sessionNamePlaceholderSerial": "내 시리얼 장치",
+  "sessionSettings": "세션 설정: {{name}}",
+  "disablePostProcessing": "모든 후처리 비활성화",
+  "enablePostProcessing": "모든 후처리 활성화",
+  "noCommandsAdded": "추가된 명령이 없습니다",
+  "enterCommandPlaceholder": "명령 입력 (예: logread -f)",
+  "postProcessingDescription": "아래 순서대로 연결이 설정된 후 자동으로 실행될 명령입니다."
 }
 

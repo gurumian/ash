@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Session Dialog component - Modal for managing session post-processing commands
@@ -13,6 +14,7 @@ export function SessionDialog({
   const [newCommand, setNewCommand] = useState('');
   const [enabled, setEnabled] = useState(true);
   const [isExpanded, setIsExpanded] = useState(false);
+  const { t } = useTranslation(['connection', 'common']);
 
   useEffect(() => {
     if (showDialog && session) {
@@ -85,7 +87,7 @@ export function SessionDialog({
     <div className="modal-overlay" onClick={onClose}>
       <div className="connection-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>Session Settings: {session.name}</h3>
+          <h3>{t('connection:sessionSettings', { name: session.name })}</h3>
           <button 
             className="modal-close"
             onClick={onClose}
@@ -101,7 +103,7 @@ export function SessionDialog({
                 <span style={{ fontSize: '12px', color: '#00ff41', userSelect: 'none' }}>
                   {isExpanded ? '▼' : '▶'}
                 </span>
-                <label style={{ margin: 0, cursor: 'pointer' }}>Post-Processing Commands</label>
+                <label style={{ margin: 0, cursor: 'pointer' }}>{t('connection:postProcessing')}</label>
               </div>
               <button
                 type="button"
@@ -119,9 +121,9 @@ export function SessionDialog({
                   borderRadius: '4px',
                   fontWeight: 'bold'
                 }}
-                title={enabled ? 'Disable all post-processing' : 'Enable all post-processing'}
+                title={enabled ? t('connection:disablePostProcessing') : t('connection:enablePostProcessing')}
               >
-                {enabled ? '● Enabled' : '○ Disabled'}
+                {enabled ? `● ${t('common:enabled')}` : `○ ${t('common:disabled')}`}
               </button>
             </div>
             {isExpanded && (
@@ -133,7 +135,7 @@ export function SessionDialog({
                   marginBottom: '12px',
                   marginTop: '4px'
                 }}>
-                  Commands will be executed automatically after connection is established, in the order listed below.
+                  {t('connection:postProcessingDescription')}
                 </p>
                 
                 {/* Command list */}
@@ -153,7 +155,7 @@ export function SessionDialog({
                   color: '#00ff41', 
                   opacity: 0.5 
                 }}>
-                  No commands added yet
+                  {t('connection:noCommandsAdded')}
                 </div>
               ) : (
                 postProcessing.map((cmd, index) => {
@@ -208,7 +210,7 @@ export function SessionDialog({
                         color: '#ff4444',
                         cursor: 'pointer'
                       }}
-                      title="Remove"
+                      title={t('connection:postProcessingRemove')}
                     >
                       ×
                     </button>
@@ -225,7 +227,7 @@ export function SessionDialog({
                 value={newCommand}
                 onChange={(e) => setNewCommand(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Enter command (e.g., logread -f)"
+                placeholder={t('connection:enterCommandPlaceholder')}
                 style={{
                   flex: 1,
                   padding: '8px 12px',
@@ -279,7 +281,7 @@ export function SessionDialog({
               cursor: 'pointer'
             }}
           >
-            Cancel
+            {t('common:cancel')}
           </button>
           <button
             type="button"
@@ -294,7 +296,7 @@ export function SessionDialog({
               fontWeight: 'bold'
             }}
           >
-            Save
+            {t('common:save')}
           </button>
         </div>
       </div>
