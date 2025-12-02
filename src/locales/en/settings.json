@@ -17,6 +17,7 @@
   "languageDesc": "Select the language for the user interface",
   "english": "English",
   "korean": "Korean",
+  "japanese": "Japanese",
   "about": "About",
   "close": "Close",
   "themeDesc": "Changes both UI and terminal appearance",

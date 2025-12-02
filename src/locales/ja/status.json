@@ -1,0 +1,13 @@
+{
+  "ready": "準備完了",
+  "connectedTo": "接続先",
+  "connectedToSerial": "シリアルに接続済み",
+  "sessions": "セッション",
+  "tftpServer": "TFTPサーバー",
+  "tftpServerTooltip": "TFTPサーバー: UDP/{{port}}\nクリックしてTFTPダイアログを開く",
+  "webServer": "Webサーバー",
+  "webServerTooltip": "Webサーバー: HTTP/{{port}}\nクリックしてWebサーバーダイアログを開く",
+  "iperf3Server": "iperf3サーバー",
+  "iperf3ServerTooltip": "iperf3サーバー: TCP/{{port}}\nクリックしてiperf3ダイアログを開く"
+}
+

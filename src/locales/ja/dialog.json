@@ -1,0 +1,19 @@
+{
+  "about": {
+    "title": "ashについて",
+    "version": "バージョン",
+    "author": "作成者",
+    "licenses": "ライセンス"
+  },
+  "error": {
+    "title": "エラー",
+    "defaultTitle": "エラーが発生しました"
+  },
+  "confirm": {
+    "title": "確認",
+    "defaultMessage": "よろしいですか？",
+    "yes": "はい",
+    "no": "いいえ"
+  }
+}
+

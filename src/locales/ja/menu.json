@@ -1,0 +1,22 @@
+{
+  "file": "ファイル",
+  "view": "表示",
+  "tools": "ツール",
+  "help": "ヘルプ",
+  "newSession": "新しいセッション",
+  "closeSession": "セッションを閉じる",
+  "quit": "終了",
+  "toggleDevTools": "開発者ツールを切り替え",
+  "appearance": "外観",
+  "primarySidebar": "プライマリサイドバー",
+  "tftpServer": "TFTPサーバー",
+  "webServer": "Webサーバー",
+  "iperf3Server": "iperf3サーバー",
+  "iperf3NotAvailable": "iperf3をインストールして有効化",
+  "checkForUpdates": "更新を確認",
+  "aboutAsh": "ashについて",
+  "minimize": "最小化",
+  "maximize": "最大化",
+  "restore": "復元"
+}
+

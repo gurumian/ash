@@ -1,0 +1,27 @@
+{
+  "title": "ライブラリ: {{name}}",
+  "libraryName": "ライブラリ名",
+  "libraryNamePlaceholder": "ライブラリ名を入力（例：U-Boot TFTP）",
+  "description": "説明",
+  "descriptionPlaceholder": "このライブラリの説明を入力（例：U-Boot TFTPダウンロード手順）",
+  "commands": "コマンド",
+  "commandsDescription": "ライブラリビューでコマンドを1つずつ実行できます。下にリストされた順序で実行されます。",
+  "noCommandsAdded": "コマンドがまだ追加されていません",
+  "commandPlaceholder": "コマンドを入力",
+  "descriptionPlaceholderOptional": "説明を入力（オプション）",
+  "addCommand": "+ コマンドを追加",
+  "importTitle": "ライブラリをインポート",
+  "fromClipboard": "クリップボードから",
+  "fromFile": "ファイルから",
+  "importJSON": "ライブラリJSONをインポート",
+  "importJSONPlaceholder": "ライブラリJSONをここに貼り付けるか入力してください...",
+  "pleaseProvideJSON": "ライブラリJSONを提供してください",
+  "invalidFormat": "無効なライブラリ形式です。ライブラリには名前またはコマンドが必要です。",
+  "invalidJSON": "無効なJSON",
+  "failedToImport": "ライブラリのインポートに失敗しました",
+  "import": "インポート",
+  "export": "エクスポート",
+  "manualInput": "手動入力",
+  "importJSONDescription": "ライブラリJSONには以下が含まれている必要があります：name、description（オプション）、commands配列"
+}
+

@@ -1,0 +1,17 @@
+{
+  "title": "ファイルをアップロード",
+  "localFile": "ローカルファイル",
+  "remotePath": "リモートパス",
+  "noFileSelected": "ファイルが選択されていません",
+  "browse": "参照...",
+  "executeAfterUpload": "アップロード後にコマンドを実行",
+  "selectLibrary": "ライブラリを選択...",
+  "none": "なし",
+  "noLibrariesAvailable": "利用可能なライブラリがありません。まずライブラリを作成してください。",
+  "uploading": "アップロード中...",
+  "upload": "アップロード",
+  "pleaseSelectFile": "ファイルを選択してください",
+  "uploadFailed": "アップロードに失敗しました",
+  "failedToSelectFile": "ファイルの選択に失敗しました"
+}
+

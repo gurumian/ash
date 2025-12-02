@@ -23,6 +23,16 @@ import koServer from '../locales/ko/server.json';
 import koUpload from '../locales/ko/upload.json';
 import koLibrary from '../locales/ko/library.json';
 
+import jaCommon from '../locales/ja/common.json';
+import jaConnection from '../locales/ja/connection.json';
+import jaMenu from '../locales/ja/menu.json';
+import jaSettings from '../locales/ja/settings.json';
+import jaDialog from '../locales/ja/dialog.json';
+import jaStatus from '../locales/ja/status.json';
+import jaServer from '../locales/ja/server.json';
+import jaUpload from '../locales/ja/upload.json';
+import jaLibrary from '../locales/ja/library.json';
+
 const resources = {
   en: {
     common: enCommon,
@@ -46,13 +56,24 @@ const resources = {
     upload: koUpload,
     library: koLibrary,
   },
+  ja: {
+    common: jaCommon,
+    connection: jaConnection,
+    menu: jaMenu,
+    settings: jaSettings,
+    dialog: jaDialog,
+    status: jaStatus,
+    server: jaServer,
+    upload: jaUpload,
+    library: jaLibrary,
+  },
 };
 
 // Get saved language preference from localStorage
 const getSavedLanguage = () => {
   try {
     const saved = localStorage.getItem('ash-language');
-    if (saved && (saved === 'en' || saved === 'ko')) {
+    if (saved && (saved === 'en' || saved === 'ko' || saved === 'ja')) {
       return saved;
     }
   } catch (e) {
@@ -67,7 +88,7 @@ const getBrowserLanguage = () => {
     const browserLanguage = navigator.language || navigator.languages?.[0];
     if (browserLanguage) {
       const langCode = browserLanguage.split('-')[0].toLowerCase();
-      if (langCode === 'en' || langCode === 'ko') {
+      if (langCode === 'en' || langCode === 'ko' || langCode === 'ja') {
         return langCode;
       }
     }
@@ -120,7 +141,7 @@ const updateWithSystemLanguage = () => {
       if (result.success && result.language) {
         const systemLanguage = result.language;
         // Only update if system language is different and supported
-        if (systemLanguage !== i18n.language && (systemLanguage === 'en' || systemLanguage === 'ko')) {
+        if (systemLanguage !== i18n.language && (systemLanguage === 'en' || systemLanguage === 'ko' || systemLanguage === 'ja')) {
           i18n.changeLanguage(systemLanguage);
           // Save system language preference
           try {
