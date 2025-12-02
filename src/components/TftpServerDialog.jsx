@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import './TftpServerDialog.css';
 
 export function TftpServerDialog({ isOpen, onClose }) {
+  const { t } = useTranslation(['server', 'common']);
   const [status, setStatus] = useState({ running: false, port: null, outputDir: null });
   const [host, setHost] = useState('0.0.0.0');
   const [port, setPort] = useState(69);
@@ -189,7 +191,7 @@ export function TftpServerDialog({ isOpen, onClose }) {
     <div className="tftp-dialog-overlay" onClick={onClose}>
       <div className="tftp-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="tftp-dialog-header">
-          <h2>TFTP Server</h2>
+          <h2>{t('server:tftp.title')}</h2>
           <button className="tftp-dialog-close" onClick={onClose}>×</button>
         </div>
         
@@ -199,14 +201,14 @@ export function TftpServerDialog({ isOpen, onClose }) {
               className={`tftp-status-card ${status.running ? 'running' : 'stopped'} ${loading ? 'loading' : ''}`}
             >
               <div className="tftp-status-item">
-                <span className="tftp-status-label">Status</span>
+                <span className="tftp-status-label">{t('server:tftp.status')}</span>
                 <div 
                   className="tftp-status-control"
                   onClick={status.running ? handleStop : handleStart}
                   style={{ cursor: loading ? 'not-allowed' : 'pointer' }}
                 >
                   <span className={`tftp-status-badge ${status.running ? 'running' : 'stopped'}`}>
-                    {loading ? (status.running ? 'Stopping...' : 'Starting...') : (status.running ? 'Running' : 'Stopped')}
+                    {loading ? (status.running ? t('server:tftp.stopping') : t('server:tftp.starting')) : (status.running ? t('server:tftp.running') : t('server:tftp.stopped'))}
                   </span>
                   <span className="tftp-status-icon">
                     {loading ? '⏳' : (status.running ? '⏹' : '▶')}
@@ -217,15 +219,15 @@ export function TftpServerDialog({ isOpen, onClose }) {
               {status.running && (
                 <>
                   <div className="tftp-status-item">
-                    <span className="tftp-status-label">Port</span>
+                    <span className="tftp-status-label">{t('server:tftp.port')}</span>
                     <span className="tftp-status-value">UDP/{status.port}</span>
                   </div>
                   <div className="tftp-status-item">
-                    <span className="tftp-status-label">Host</span>
+                    <span className="tftp-status-label">{t('server:tftp.host')}</span>
                     <span className="tftp-status-value">{host}</span>
                   </div>
                   <div className="tftp-status-item">
-                    <span className="tftp-status-label">Accessible Endpoints</span>
+                    <span className="tftp-status-label">{t('server:tftp.accessibleEndpoints')}</span>
                     <div className="tftp-endpoints-list">
                       {endpoints.length > 0 ? (
                         endpoints.map((item, index) => (
@@ -246,7 +248,7 @@ export function TftpServerDialog({ isOpen, onClose }) {
                                 e.stopPropagation();
                                 handlePathCopy(e, item.endpoint);
                               }}
-                              title="Copy endpoint"
+                              title={t('server:tftp.copyEndpoint')}
                             >
                               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M4 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" stroke="currentColor" strokeWidth="1.5" fill="none"/>
@@ -256,13 +258,13 @@ export function TftpServerDialog({ isOpen, onClose }) {
                           </div>
                         ))
                       ) : (
-                        <span className="tftp-endpoint-value">Loading...</span>
+                        <span className="tftp-endpoint-value">{t('server:tftp.loading')}</span>
                       )}
                     </div>
                   </div>
                   {status.outputDir && (
                     <div className="tftp-status-item">
-                      <span className="tftp-status-label">Output Directory</span>
+                      <span className="tftp-status-label">{t('server:tftp.outputDirectory')}</span>
                       <div 
                         className="tftp-output-dir"
                         onClick={(e) => e.stopPropagation()}
@@ -280,7 +282,7 @@ export function TftpServerDialog({ isOpen, onClose }) {
                             e.stopPropagation();
                             handlePathCopy(e, status.outputDir);
                           }}
-                          title="Copy path"
+                          title={t('server:tftp.copyPath')}
                         >
                           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M4 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" stroke="currentColor" strokeWidth="1.5" fill="none"/>
@@ -293,7 +295,7 @@ export function TftpServerDialog({ isOpen, onClose }) {
                             e.stopPropagation();
                             handleOpenOutputDir();
                           }}
-                          title="Open directory"
+                          title={t('server:tftp.openDirectory')}
                         >
                           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M2 3h5l1 2h6v8H2V3z" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
@@ -310,7 +312,7 @@ export function TftpServerDialog({ isOpen, onClose }) {
           {!status.running && (
             <div className="tftp-config-section">
               <div className="tftp-config-item">
-                <label htmlFor="tftp-host">Host:</label>
+                <label htmlFor="tftp-host">{t('server:tftp.host')}:</label>
                 <input
                   id="tftp-host"
                   type="text"
@@ -321,7 +323,7 @@ export function TftpServerDialog({ isOpen, onClose }) {
                 />
               </div>
               <div className="tftp-config-item">
-                <label htmlFor="tftp-port">Port:</label>
+                <label htmlFor="tftp-port">{t('server:tftp.port')}:</label>
                 <input
                   id="tftp-port"
                   type="number"
@@ -334,7 +336,7 @@ export function TftpServerDialog({ isOpen, onClose }) {
                 />
               </div>
               <div className="tftp-config-item">
-                <label htmlFor="tftp-output-dir">Output Directory:</label>
+                <label htmlFor="tftp-output-dir">{t('server:tftp.outputDirectory')}:</label>
                 <div className="tftp-dir-selector">
                   <input
                     id="tftp-output-dir"
@@ -353,7 +355,7 @@ export function TftpServerDialog({ isOpen, onClose }) {
                         handlePathCopy(e, outputDir);
                       }}
                       disabled={loading}
-                      title="Copy path"
+                      title={t('server:tftp.copyPath')}
                     >
                       <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M4 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" stroke="currentColor" strokeWidth="1.5" fill="none"/>
@@ -365,7 +367,7 @@ export function TftpServerDialog({ isOpen, onClose }) {
                     className="tftp-select-dir-btn"
                     onClick={handleSelectDirectory}
                     disabled={loading}
-                    title="Select directory"
+                    title={t('server:tftp.selectDirectory')}
                   >
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M2 3h5l1 2h6v8H2V3z" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
@@ -376,7 +378,7 @@ export function TftpServerDialog({ isOpen, onClose }) {
                       className="tftp-clear-dir-btn"
                       onClick={() => setOutputDir(null)}
                       disabled={loading}
-                      title="Use default directory"
+                      title={t('server:tftp.useDefaultDirectory')}
                     >
                       ✕
                     </button>
