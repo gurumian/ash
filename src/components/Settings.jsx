@@ -161,10 +161,10 @@ export const Settings = memo(function Settings({
                 }}
                 style={{ width: '200px', padding: '8px 12px', background: '#1a1a1a', border: '1px solid #1a1a1a', borderRadius: '4px', color: '#00ff41', fontSize: '13px' }}
               >
-                <option value="en">{t('settings:english')}</option>
-                <option value="ko">{t('settings:korean')}</option>
-                <option value="ja">{t('settings:japanese')}</option>
-                <option value="vi">{t('settings:vietnamese')}</option>
+                <option value="en">English</option>
+                <option value="ko">한국어</option>
+                <option value="ja">日本語</option>
+                <option value="vi">Tiếng Việt</option>
               </select>
               <p className="setting-description">
                 {t('settings:languageDesc')}
