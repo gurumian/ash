@@ -1,0 +1,13 @@
+{
+  "ready": "就绪",
+  "connectedTo": "已连接到",
+  "connectedToSerial": "已连接到串口",
+  "sessions": "会话",
+  "tftpServer": "TFTP服务器",
+  "tftpServerTooltip": "TFTP服务器: UDP/{{port}}\n点击打开TFTP对话框",
+  "webServer": "Web服务器",
+  "webServerTooltip": "Web服务器: HTTP/{{port}}\n点击打开Web服务器对话框",
+  "iperf3Server": "iperf3服务器",
+  "iperf3ServerTooltip": "iperf3服务器: TCP/{{port}}\n点击打开iperf3对话框"
+}
+

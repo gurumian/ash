@@ -43,6 +43,16 @@ import viServer from '../locales/vi/server.json';
 import viUpload from '../locales/vi/upload.json';
 import viLibrary from '../locales/vi/library.json';
 
+import zhCommon from '../locales/zh/common.json';
+import zhConnection from '../locales/zh/connection.json';
+import zhMenu from '../locales/zh/menu.json';
+import zhSettings from '../locales/zh/settings.json';
+import zhDialog from '../locales/zh/dialog.json';
+import zhStatus from '../locales/zh/status.json';
+import zhServer from '../locales/zh/server.json';
+import zhUpload from '../locales/zh/upload.json';
+import zhLibrary from '../locales/zh/library.json';
+
 const resources = {
   en: {
     common: enCommon,
@@ -88,13 +98,24 @@ const resources = {
     upload: viUpload,
     library: viLibrary,
   },
+  zh: {
+    common: zhCommon,
+    connection: zhConnection,
+    menu: zhMenu,
+    settings: zhSettings,
+    dialog: zhDialog,
+    status: zhStatus,
+    server: zhServer,
+    upload: zhUpload,
+    library: zhLibrary,
+  },
 };
 
 // Get saved language preference from localStorage
 const getSavedLanguage = () => {
   try {
     const saved = localStorage.getItem('ash-language');
-    if (saved && (saved === 'en' || saved === 'ko' || saved === 'ja' || saved === 'vi')) {
+    if (saved && (saved === 'en' || saved === 'ko' || saved === 'ja' || saved === 'vi' || saved === 'zh')) {
       return saved;
     }
   } catch (e) {
@@ -109,7 +130,7 @@ const getBrowserLanguage = () => {
     const browserLanguage = navigator.language || navigator.languages?.[0];
     if (browserLanguage) {
       const langCode = browserLanguage.split('-')[0].toLowerCase();
-      if (langCode === 'en' || langCode === 'ko' || langCode === 'ja' || langCode === 'vi') {
+      if (langCode === 'en' || langCode === 'ko' || langCode === 'ja' || langCode === 'vi' || langCode === 'zh') {
         return langCode;
       }
     }
@@ -162,7 +183,7 @@ const updateWithSystemLanguage = () => {
       if (result.success && result.language) {
         const systemLanguage = result.language;
         // Only update if system language is different and supported
-        if (systemLanguage !== i18n.language && (systemLanguage === 'en' || systemLanguage === 'ko' || systemLanguage === 'ja' || systemLanguage === 'vi')) {
+        if (systemLanguage !== i18n.language && (systemLanguage === 'en' || systemLanguage === 'ko' || systemLanguage === 'ja' || systemLanguage === 'vi' || systemLanguage === 'zh')) {
           i18n.changeLanguage(systemLanguage);
           // Save system language preference
           try {

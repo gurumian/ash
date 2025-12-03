@@ -274,7 +274,7 @@ export function initializeWindowHandlers() {
       const language = locale.split('-')[0].toLowerCase();
       
       // Only return supported languages
-      const supportedLanguages = ['en', 'ko', 'ja', 'vi'];
+      const supportedLanguages = ['en', 'ko', 'ja', 'vi', 'zh'];
       if (supportedLanguages.includes(language)) {
         return { success: true, locale, language };
       }

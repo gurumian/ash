@@ -1,0 +1,19 @@
+{
+  "about": {
+    "title": "关于 ash",
+    "version": "版本",
+    "author": "作者",
+    "licenses": "许可证"
+  },
+  "error": {
+    "title": "错误",
+    "defaultTitle": "发生错误"
+  },
+  "confirm": {
+    "title": "确认",
+    "defaultMessage": "您确定吗？",
+    "yes": "是",
+    "no": "否"
+  }
+}
+

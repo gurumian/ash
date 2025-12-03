@@ -1,0 +1,17 @@
+{
+  "title": "上传文件",
+  "localFile": "本地文件",
+  "remotePath": "远程路径",
+  "noFileSelected": "未选择文件",
+  "browse": "浏览...",
+  "executeAfterUpload": "上传后执行命令",
+  "selectLibrary": "选择库...",
+  "none": "无",
+  "noLibrariesAvailable": "没有可用的库。请先创建一个库。",
+  "uploading": "上传中...",
+  "upload": "上传",
+  "pleaseSelectFile": "请选择文件",
+  "uploadFailed": "上传失败",
+  "failedToSelectFile": "选择文件失败"
+}
+

@@ -1,0 +1,22 @@
+{
+  "file": "文件",
+  "view": "查看",
+  "tools": "工具",
+  "help": "帮助",
+  "newSession": "新会话",
+  "closeSession": "关闭会话",
+  "quit": "退出",
+  "toggleDevTools": "切换开发者工具",
+  "appearance": "外观",
+  "primarySidebar": "主侧边栏",
+  "tftpServer": "TFTP服务器",
+  "webServer": "Web服务器",
+  "iperf3Server": "iperf3服务器",
+  "iperf3NotAvailable": "安装iperf3以启用",
+  "checkForUpdates": "检查更新",
+  "aboutAsh": "关于 ash",
+  "minimize": "最小化",
+  "maximize": "最大化",
+  "restore": "还原"
+}
+

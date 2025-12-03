@@ -1,0 +1,27 @@
+{
+  "title": "库: {{name}}",
+  "libraryName": "库名称",
+  "libraryNamePlaceholder": "输入库名称（例如：U-Boot TFTP）",
+  "description": "描述",
+  "descriptionPlaceholder": "输入此库的描述（例如：U-Boot TFTP下载过程）",
+  "commands": "命令",
+  "commandsDescription": "可以在库视图中逐个执行命令。它们将按下面列出的顺序执行。",
+  "noCommandsAdded": "尚未添加命令",
+  "commandPlaceholder": "输入命令",
+  "descriptionPlaceholderOptional": "输入描述（可选）",
+  "addCommand": "+ 添加命令",
+  "importTitle": "导入库",
+  "fromClipboard": "从剪贴板",
+  "fromFile": "从文件",
+  "importJSON": "导入库JSON",
+  "importJSONPlaceholder": "在此处粘贴或输入库JSON...",
+  "pleaseProvideJSON": "请提供库JSON",
+  "invalidFormat": "无效的库格式。库必须具有名称或命令。",
+  "invalidJSON": "无效的JSON",
+  "failedToImport": "导入库失败",
+  "import": "导入",
+  "export": "导出",
+  "manualInput": "手动输入",
+  "importJSONDescription": "库JSON应包含：name、description（可选）和commands数组"
+}
+
