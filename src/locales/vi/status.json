@@ -1,0 +1,12 @@
+{
+  "ready": "Sẵn sàng",
+  "connectedTo": "Đã kết nối đến",
+  "connectedToSerial": "Đã kết nối Serial",
+  "sessions": "Phiên",
+  "tftpServer": "Máy chủ TFTP",
+  "tftpServerTooltip": "Máy chủ TFTP: UDP/{{port}}\nNhấp để mở hộp thoại TFTP",
+  "webServer": "Máy chủ Web",
+  "webServerTooltip": "Máy chủ Web: HTTP/{{port}}\nNhấp để mở hộp thoại Máy chủ Web",
+  "iperf3Server": "Máy chủ iperf3",
+  "iperf3ServerTooltip": "Máy chủ iperf3: TCP/{{port}}\nNhấp để mở hộp thoại iperf3"
+}

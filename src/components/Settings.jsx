@@ -164,6 +164,7 @@ export const Settings = memo(function Settings({
                 <option value="en">{t('settings:english')}</option>
                 <option value="ko">{t('settings:korean')}</option>
                 <option value="ja">{t('settings:japanese')}</option>
+                <option value="vi">{t('settings:vietnamese')}</option>
               </select>
               <p className="setting-description">
                 {t('settings:languageDesc')}

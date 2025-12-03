@@ -1,0 +1,17 @@
+{
+  "title": "Tải tệp lên",
+  "localFile": "Tệp cục bộ",
+  "remotePath": "Đường dẫn từ xa",
+  "noFileSelected": "Chưa chọn tệp",
+  "browse": "Duyệt...",
+  "executeAfterUpload": "Thực thi lệnh sau khi tải lên",
+  "selectLibrary": "Chọn Thư viện...",
+  "none": "Không có",
+  "noLibrariesAvailable": "Không có thư viện nào. Hãy tạo thư viện trước.",
+  "uploading": "Đang tải lên...",
+  "upload": "Tải lên",
+  "pleaseSelectFile": "Vui lòng chọn tệp",
+  "uploadFailed": "Tải lên thất bại",
+  "failedToSelectFile": "Chọn tệp thất bại"
+}
+

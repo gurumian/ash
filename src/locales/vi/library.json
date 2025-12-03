@@ -1,0 +1,27 @@
+{
+  "title": "Thư viện: {{name}}",
+  "libraryName": "Tên thư viện",
+  "libraryNamePlaceholder": "Nhập tên thư viện (ví dụ: U-Boot TFTP)",
+  "description": "Mô tả",
+  "descriptionPlaceholder": "Nhập mô tả cho thư viện này (ví dụ: Quy trình tải U-Boot TFTP)",
+  "commands": "Lệnh",
+  "commandsDescription": "Lệnh có thể được thực thi từng cái một trong chế độ xem thư viện. Chúng sẽ được thực thi theo thứ tự được liệt kê bên dưới.",
+  "noCommandsAdded": "Chưa có lệnh nào được thêm",
+  "commandPlaceholder": "Nhập lệnh",
+  "descriptionPlaceholderOptional": "Nhập mô tả (tùy chọn)",
+  "addCommand": "+ Thêm lệnh",
+  "importTitle": "Nhập thư viện",
+  "fromClipboard": "Từ Clipboard",
+  "fromFile": "Từ Tệp",
+  "importJSON": "Nhập JSON thư viện",
+  "importJSONPlaceholder": "Dán hoặc nhập JSON thư viện tại đây...",
+  "pleaseProvideJSON": "Vui lòng cung cấp JSON thư viện",
+  "invalidFormat": "Định dạng thư viện không hợp lệ. Thư viện phải có tên hoặc lệnh.",
+  "invalidJSON": "JSON không hợp lệ",
+  "failedToImport": "Nhập thư viện thất bại",
+  "import": "Nhập",
+  "export": "Xuất",
+  "manualInput": "Nhập thủ công",
+  "importJSONDescription": "JSON thư viện phải chứa: name, description (tùy chọn) và mảng commands"
+}
+
