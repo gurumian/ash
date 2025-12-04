@@ -188,7 +188,7 @@ export function TftpServerDialog({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   return (
-    <div className="tftp-dialog-overlay" onClick={onClose}>
+    <div className="tftp-dialog-overlay">
       <div className="tftp-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="tftp-dialog-header">
           <h2>{t('server:tftp.title')}</h2>

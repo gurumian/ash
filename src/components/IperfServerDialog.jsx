@@ -302,7 +302,7 @@ export function IperfServerDialog({ isOpen, onClose }) {
   const clientCommand = commandParts.join(' ');
 
   return (
-    <div className="iperf-dialog-overlay" onClick={onClose}>
+    <div className="iperf-dialog-overlay">
       <div className="iperf-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="iperf-dialog-header">
           <h2>{t('server:iperf.title')}</h2>

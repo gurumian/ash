@@ -138,7 +138,7 @@ export function LibraryDialog({
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <div className="connection-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h3>{t('library:title', { name: library.name })}</h3>

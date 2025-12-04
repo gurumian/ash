@@ -37,7 +37,7 @@ export const LicensesDialog = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="licenses-dialog-overlay" onClick={onClose}>
+    <div className="licenses-dialog-overlay">
       <div className="licenses-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="licenses-dialog-header">
           <h2>{t('dialog:about.licenses')}</h2>

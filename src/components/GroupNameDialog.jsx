@@ -17,7 +17,7 @@ export function GroupNameDialog({
   if (!showGroupNameDialog) return null;
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <div className="connection-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h3>{t('common:createGroup')}</h3>

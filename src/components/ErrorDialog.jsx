@@ -27,7 +27,7 @@ export const ErrorDialog = ({ isOpen, onClose, title, message, detail, error }) 
   const systemInfoStr = systemInfo.length > 0 ? systemInfo.join(' | ') : null;
 
   return (
-    <div className="error-dialog-overlay" onClick={onClose}>
+    <div className="error-dialog-overlay">
       <div className="error-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="error-dialog-header">
           <h2>{title || t('dialog:error.title')}</h2>

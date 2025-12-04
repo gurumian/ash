@@ -7,7 +7,7 @@ export const AboutDialog = ({ isOpen, onClose, appVersion, author, onShowLicense
   if (!isOpen) return null;
 
   return (
-    <div className="about-dialog-overlay" onClick={onClose}>
+    <div className="about-dialog-overlay">
       <div className="about-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="about-dialog-header">
           <h2>{t('common:appName')}</h2>

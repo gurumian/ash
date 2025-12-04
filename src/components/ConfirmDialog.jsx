@@ -12,7 +12,7 @@ export const ConfirmDialog = ({ isOpen, onClose, onConfirm, title, message }) =>
   };
 
   return (
-    <div className="confirm-dialog-overlay" onClick={onClose}>
+    <div className="confirm-dialog-overlay">
       <div className="confirm-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="confirm-dialog-header">
           <h3>{title || t('dialog:confirm.title')}</h3>

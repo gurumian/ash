@@ -207,7 +207,7 @@ export function WebServerDialog({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   return (
-    <div className="web-dialog-overlay" onClick={onClose}>
+    <div className="web-dialog-overlay">
       <div className="web-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="web-dialog-header">
           <h2>{t('server:web.title')}</h2>

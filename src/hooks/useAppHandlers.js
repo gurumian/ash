@@ -134,12 +134,8 @@ export function useAppHandlers({
   const handleGroupDialogKeyDown = useCallback((e) => {
     if (e.key === 'Enter') {
       handleCreateGroupFromDialog();
-    } else if (e.key === 'Escape') {
-      setShowGroupNameDialog(false);
-      setNewGroupName('');
-      setPendingSessionForGroup(null);
     }
-  }, [handleCreateGroupFromDialog, setShowGroupNameDialog, setNewGroupName, setPendingSessionForGroup]);
+  }, [handleCreateGroupFromDialog]);
 
   // Settings handlers
   const handleScrollbackChange = useCallback((e) => {
