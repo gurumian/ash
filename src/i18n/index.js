@@ -2,7 +2,7 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 
-// Import translation files
+// Only import English translations synchronously (fallback language)
 import enCommon from '../locales/en/common.json';
 import enConnection from '../locales/en/connection.json';
 import enMenu from '../locales/en/menu.json';
@@ -13,46 +13,7 @@ import enServer from '../locales/en/server.json';
 import enUpload from '../locales/en/upload.json';
 import enLibrary from '../locales/en/library.json';
 
-import koCommon from '../locales/ko/common.json';
-import koConnection from '../locales/ko/connection.json';
-import koMenu from '../locales/ko/menu.json';
-import koSettings from '../locales/ko/settings.json';
-import koDialog from '../locales/ko/dialog.json';
-import koStatus from '../locales/ko/status.json';
-import koServer from '../locales/ko/server.json';
-import koUpload from '../locales/ko/upload.json';
-import koLibrary from '../locales/ko/library.json';
-
-import jaCommon from '../locales/ja/common.json';
-import jaConnection from '../locales/ja/connection.json';
-import jaMenu from '../locales/ja/menu.json';
-import jaSettings from '../locales/ja/settings.json';
-import jaDialog from '../locales/ja/dialog.json';
-import jaStatus from '../locales/ja/status.json';
-import jaServer from '../locales/ja/server.json';
-import jaUpload from '../locales/ja/upload.json';
-import jaLibrary from '../locales/ja/library.json';
-
-import viCommon from '../locales/vi/common.json';
-import viConnection from '../locales/vi/connection.json';
-import viMenu from '../locales/vi/menu.json';
-import viSettings from '../locales/vi/settings.json';
-import viDialog from '../locales/vi/dialog.json';
-import viStatus from '../locales/vi/status.json';
-import viServer from '../locales/vi/server.json';
-import viUpload from '../locales/vi/upload.json';
-import viLibrary from '../locales/vi/library.json';
-
-import zhCommon from '../locales/zh/common.json';
-import zhConnection from '../locales/zh/connection.json';
-import zhMenu from '../locales/zh/menu.json';
-import zhSettings from '../locales/zh/settings.json';
-import zhDialog from '../locales/zh/dialog.json';
-import zhStatus from '../locales/zh/status.json';
-import zhServer from '../locales/zh/server.json';
-import zhUpload from '../locales/zh/upload.json';
-import zhLibrary from '../locales/zh/library.json';
-
+// Initial resources with only English (other languages will be loaded on demand)
 const resources = {
   en: {
     common: enCommon,
@@ -64,50 +25,6 @@ const resources = {
     server: enServer,
     upload: enUpload,
     library: enLibrary,
-  },
-  ko: {
-    common: koCommon,
-    connection: koConnection,
-    menu: koMenu,
-    settings: koSettings,
-    dialog: koDialog,
-    status: koStatus,
-    server: koServer,
-    upload: koUpload,
-    library: koLibrary,
-  },
-  ja: {
-    common: jaCommon,
-    connection: jaConnection,
-    menu: jaMenu,
-    settings: jaSettings,
-    dialog: jaDialog,
-    status: jaStatus,
-    server: jaServer,
-    upload: jaUpload,
-    library: jaLibrary,
-  },
-  vi: {
-    common: viCommon,
-    connection: viConnection,
-    menu: viMenu,
-    settings: viSettings,
-    dialog: viDialog,
-    status: viStatus,
-    server: viServer,
-    upload: viUpload,
-    library: viLibrary,
-  },
-  zh: {
-    common: zhCommon,
-    connection: zhConnection,
-    menu: zhMenu,
-    settings: zhSettings,
-    dialog: zhDialog,
-    status: zhStatus,
-    server: zhServer,
-    upload: zhUpload,
-    library: zhLibrary,
   },
 };
 
@@ -147,6 +64,46 @@ const browserLanguage = getBrowserLanguage();
 // Start with saved language or browser language, fallback to English
 const initialLanguage = savedLanguage || browserLanguage || 'en';
 
+// Function to load language resources dynamically
+const loadLanguageResources = async (lng) => {
+  if (lng === 'en' || i18n.hasResourceBundle(lng, 'common')) {
+    // English is already loaded, or language is already loaded
+    return;
+  }
+
+  try {
+    // Dynamically import the language resources
+    const [common, connection, menu, settings, dialog, status, server, upload, library] = await Promise.all([
+      import(`../locales/${lng}/common.json`),
+      import(`../locales/${lng}/connection.json`),
+      import(`../locales/${lng}/menu.json`),
+      import(`../locales/${lng}/settings.json`),
+      import(`../locales/${lng}/dialog.json`),
+      import(`../locales/${lng}/status.json`),
+      import(`../locales/${lng}/server.json`),
+      import(`../locales/${lng}/upload.json`),
+      import(`../locales/${lng}/library.json`),
+    ]);
+
+    // Add resources to i18n
+    i18n.addResourceBundle(lng, 'common', common.default, true, true);
+    i18n.addResourceBundle(lng, 'connection', connection.default, true, true);
+    i18n.addResourceBundle(lng, 'menu', menu.default, true, true);
+    i18n.addResourceBundle(lng, 'settings', settings.default, true, true);
+    i18n.addResourceBundle(lng, 'dialog', dialog.default, true, true);
+    i18n.addResourceBundle(lng, 'status', status.default, true, true);
+    i18n.addResourceBundle(lng, 'server', server.default, true, true);
+    i18n.addResourceBundle(lng, 'upload', upload.default, true, true);
+    i18n.addResourceBundle(lng, 'library', library.default, true, true);
+  } catch (error) {
+    console.warn(`Failed to load language resources for ${lng}:`, error);
+    // Fallback to English if language loading fails
+    if (lng !== 'en') {
+      i18n.changeLanguage('en');
+    }
+  }
+};
+
 i18n
   .use(LanguageDetector)
   .use(initReactI18next)
@@ -175,15 +132,30 @@ i18n
     },
   });
 
+// Load initial language resources asynchronously (non-blocking)
+// Only load the language that will be used initially
+if (initialLanguage !== 'en') {
+  loadLanguageResources(initialLanguage).catch((error) => {
+    console.warn('Failed to load initial language resources:', error);
+  });
+}
+
 // Update language with system locale if no saved preference exists
 // Wait for window and electronAPI to be ready
 const updateWithSystemLanguage = () => {
+  // Only check system locale if we don't have a saved preference
+  // and the initial language was from browser (not saved)
   if (!savedLanguage && window.electronAPI && window.electronAPI.getSystemLocale) {
-    window.electronAPI.getSystemLocale().then((result) => {
+    window.electronAPI.getSystemLocale().then(async (result) => {
       if (result.success && result.language) {
         const systemLanguage = result.language;
-        // Only update if system language is different and supported
-        if (systemLanguage !== i18n.language && (systemLanguage === 'en' || systemLanguage === 'ko' || systemLanguage === 'ja' || systemLanguage === 'vi' || systemLanguage === 'zh')) {
+        // Only update if system language is different from current and supported
+        // and if it's different from the browser language we already used
+        if (systemLanguage !== i18n.language && 
+            systemLanguage !== browserLanguage &&
+            (systemLanguage === 'en' || systemLanguage === 'ko' || systemLanguage === 'ja' || systemLanguage === 'vi' || systemLanguage === 'zh')) {
+          // Load language resources before changing language
+          await loadLanguageResources(systemLanguage);
           i18n.changeLanguage(systemLanguage);
           // Save system language preference
           try {
@@ -212,7 +184,9 @@ if (typeof window !== 'undefined') {
 }
 
 // Function to change language programmatically
-export const changeLanguage = (lng) => {
+export const changeLanguage = async (lng) => {
+  // Load language resources before changing language
+  await loadLanguageResources(lng);
   i18n.changeLanguage(lng);
   localStorage.setItem('ash-language', lng);
 };

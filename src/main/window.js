@@ -93,6 +93,7 @@ export function createWindow() {
     height: 600,
     title: 'ash',
     backgroundColor: '#000000',
+    show: false, // Don't show until ready-to-show event
     // macOS: hidden title bar with black overlay for traffic lights area
     // Windows/Linux: frame false for fully custom titlebar (like macOS)
     ...(process.platform === 'darwin' 
@@ -116,6 +117,11 @@ export function createWindow() {
     webPreferences: {
       preload: getPreloadPath(),
     },
+  });
+
+  // Show window when ready to prevent black screen
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.show();
   });
 
   // Listen for window maximize/unmaximize events (Windows/Linux only)
