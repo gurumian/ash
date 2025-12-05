@@ -1326,7 +1326,6 @@ button, a, input, select, textarea, [role="button"] {
 .stopwatch-time {
   font-size: 12px;
   color: var(--theme-text, #00ff41);
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace;
   opacity: 0.8;
   white-space: nowrap;
   min-width: 50px;
