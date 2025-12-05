@@ -233,10 +233,13 @@ export function useLogging(sessions, groups) {
       sessionLogs.current[sessionId].filePath = result.success ? result.filePath : null;
     }
     
-    // Update UI state
+    // Update UI state with startTime
     setLogStates(prev => ({
       ...prev,
-      [sessionId]: { isLogging: true }
+      [sessionId]: { 
+        isLogging: true,
+        startTime: sessionLogs.current[sessionId]?.startTime || new Date().toISOString()
+      }
     }));
   };
 

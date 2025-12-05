@@ -1315,6 +1315,66 @@ button, a, input, select, textarea, [role="button"] {
   opacity: 0.7;
 }
 
+.stopwatch-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  padding-left: 12px;
+}
+
+.stopwatch-time {
+  font-size: 12px;
+  color: var(--theme-text, #00ff41);
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace;
+  opacity: 0.8;
+  white-space: nowrap;
+  min-width: 50px;
+}
+
+.stopwatch-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.stopwatch-btn {
+  background: rgba(0, 255, 65, 0.1);
+  border: 1px solid rgba(0, 255, 65, 0.3);
+  color: var(--theme-text, #00ff41);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 20px;
+  line-height: 1;
+}
+
+.stopwatch-btn:hover:not(:disabled) {
+  background: rgba(0, 255, 65, 0.2);
+  border-color: rgba(0, 255, 65, 0.5);
+}
+
+.stopwatch-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.stopwatch-btn.play-btn:hover:not(:disabled) {
+  background: rgba(0, 255, 65, 0.2);
+}
+
+.stopwatch-btn.stop-btn:hover:not(:disabled) {
+  background: rgba(255, 68, 68, 0.2);
+  border-color: rgba(255, 68, 68, 0.5);
+  color: #ff4444;
+}
+
 /* Group Styles */
 .group-container {
   margin-bottom: 4px;

@@ -1,8 +1,125 @@
-import React, { memo, useCallback, useRef, useEffect } from 'react';
+import React, { memo, useCallback, useRef, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { TabItem } from './TabItem';
 import { TerminalSearchBar } from './TerminalSearchBar';
 import { TerminalAICommandInput } from './TerminalAICommandInput';
+
+/**
+ * Stopwatch component - independent timer with play, stop, reset controls
+ */
+function Stopwatch() {
+  const [isRunning, setIsRunning] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const [startTime, setStartTime] = useState(null);
+  const intervalRef = useRef(null);
+
+  useEffect(() => {
+    if (isRunning) {
+      const updateElapsed = () => {
+        if (startTime) {
+          const now = Date.now();
+          const diff = Math.floor((now - startTime) / 1000); // seconds
+          setElapsed(diff);
+        }
+      };
+
+      // Update immediately
+      updateElapsed();
+
+      // Update every second
+      intervalRef.current = setInterval(updateElapsed, 1000);
+    } else {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [isRunning, startTime]);
+
+  const handlePlay = () => {
+    if (!isRunning) {
+      // Resume from current elapsed time
+      const now = Date.now();
+      const baseTime = now - (elapsed * 1000);
+      setStartTime(baseTime);
+      setIsRunning(true);
+    }
+  };
+
+  const handleStop = () => {
+    setIsRunning(false);
+  };
+
+  const handleReset = () => {
+    setIsRunning(false);
+    setElapsed(0);
+    setStartTime(null);
+  };
+
+  const formatTime = (seconds) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+
+    if (hours > 0) {
+      return `${hours}h ${minutes.toString().padStart(2, '0')}' ${secs.toString().padStart(2, '0')}"`;
+    }
+    return `${minutes}' ${secs.toString().padStart(2, '0')}"`;
+  };
+
+  return (
+    <div className="stopwatch-container">
+      <span className="stopwatch-time">⏱ {formatTime(elapsed)}</span>
+      <div className="stopwatch-controls">
+        {!isRunning ? (
+          <button 
+            className="stopwatch-btn play-btn"
+            onClick={handlePlay}
+            title="Start timer"
+          >
+            ▶
+          </button>
+        ) : (
+          <button 
+            className="stopwatch-btn stop-btn"
+            onClick={handleStop}
+            title="Stop timer"
+          >
+            ⏸
+          </button>
+        )}
+        <button 
+          className="stopwatch-btn reset-btn"
+          onClick={handleReset}
+          title="Reset timer"
+          disabled={elapsed === 0}
+        >
+          <svg 
+            width="12" 
+            height="12" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth="2" 
+            strokeLinecap="round" 
+            strokeLinejoin="round"
+          >
+            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+            <path d="M21 3v5h-5" />
+            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+            <path d="M3 21v-5h5" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
 
 /**
  * Terminal View component - Right side terminal area with tabs and terminal content
@@ -265,6 +382,7 @@ export const TerminalView = memo(function TerminalView({
                 <span className="log-status">
                   {logStates[activeSessionId]?.isLogging ? t('common:recording') : t('common:notRecording')}
                 </span>
+                <Stopwatch />
               </div>
             )}
           </div>
