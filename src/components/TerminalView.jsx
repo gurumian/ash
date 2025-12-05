@@ -2,7 +2,7 @@ import React, { memo, useCallback, useRef, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { TabItem } from './TabItem';
 import { TerminalSearchBar } from './TerminalSearchBar';
-import { TerminalAICommandInput } from './TerminalAICommandInput';
+// AI Command Input is now in AIChatSidebar, not here
 
 /**
  * Stopwatch component - independent timer with play, stop, reset controls
@@ -144,24 +144,15 @@ export const TerminalView = memo(function TerminalView({
   searchAddons,
   showSearchBar,
   onCloseSearchBar,
-  showAICommandInput,
-  onCloseAICommandInput,
-  onExecuteAICommand,
-  isAIProcessing,
-  onToggleAICommandInput,
+  showAICommandInput, // For button state (toggles AIChatSidebar)
+  onToggleAICommandInput, // Toggles AIChatSidebar
   onFileDrop,
   onReconnectSession,
   reconnectingSessions
 }) {
   const { t } = useTranslation('common');
   // Track previous value for change detection (debug only)
-  const prevShowAICommandInput = useRef(showAICommandInput);
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development' && prevShowAICommandInput.current !== showAICommandInput) {
-      console.log('TerminalView - showAICommandInput changed from', prevShowAICommandInput.current, 'to', showAICommandInput);
-    }
-    prevShowAICommandInput.current = showAICommandInput;
-  }, [showAICommandInput]);
+  // showAICommandInput is now used for button state (toggles AIChatSidebar)
   const handleTabDragOver = useCallback((e, index) => {
     // Visual feedback can be added here if needed
   }, []);
@@ -407,13 +398,7 @@ export const TerminalView = memo(function TerminalView({
                   isVisible={showSearchBar}
                   onClose={onCloseSearchBar}
                 />
-                <TerminalAICommandInput
-                  terminal={terminalInstances.current[activeSessionId]}
-                  isVisible={showAICommandInput || false}
-                  onClose={onCloseAICommandInput}
-                  onExecute={onExecuteAICommand}
-                  isProcessing={isAIProcessing}
-                />
+                {/* AI Command Input is now in AIChatSidebar, not here */}
               </>
             )}
           </div>

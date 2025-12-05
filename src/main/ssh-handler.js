@@ -342,6 +342,57 @@ export function initializeSSHHandlers() {
 }
 
 /**
+ * Get SSH connections Map (for IPC bridge)
+ */
+export function getSSHConnections() {
+  return sshConnections;
+}
+
+/**
+ * Execute command on SSH connection (for IPC bridge)
+ */
+export async function executeSSHCommand(connectionId, command) {
+  const conn = sshConnections.get(connectionId);
+  if (!conn) {
+    const availableIds = Array.from(sshConnections.keys());
+    throw new Error(`SSH connection not found: ${connectionId}. Available: ${availableIds.join(', ')}`);
+  }
+  
+  return new Promise((resolve, reject) => {
+    conn.exec(command, (err, stream) => {
+      if (err) {
+        reject(new Error(`Failed to execute command: ${err.message}`));
+        return;
+      }
+      
+      let output = '';
+      let errorOutput = '';
+      
+      stream.on('data', (data) => {
+        output += data.toString();
+      });
+      
+      stream.stderr.on('data', (data) => {
+        errorOutput += data.toString();
+      });
+      
+      stream.on('close', (code) => {
+        resolve({
+          success: code === 0,
+          output: output.trim(),
+          error: errorOutput.trim(),
+          exitCode: code
+        });
+      });
+      
+      stream.on('error', (error) => {
+        reject(new Error(`Command execution error: ${error.message}`));
+      });
+    });
+  });
+}
+
+/**
  * Cleanup SSH connections
  */
 export function cleanupSSHConnections() {

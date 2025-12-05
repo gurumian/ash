@@ -2,6 +2,7 @@ const { FusesPlugin } = require('@electron-forge/plugin-fuses');
 const { FuseV1Options, FuseVersion } = require('@electron/fuses');
 
 const path = require('path');
+const fs = require('fs');
 const packageJson = require('./package.json');
 
 // Platform-specific makers
@@ -57,9 +58,40 @@ module.exports = {
     appBundleId: 'com.gurumlab.ash',
     executableName: 'ash',
     icon: path.resolve(__dirname, 'assets/icons/icon'), // Icon path without extension
-    extraResource: [
-      path.resolve(__dirname, 'app-update.yml'), // Auto-updater configuration (like FAC1)
-    ],
+    extraResource: (() => {
+      const resources = [
+        path.resolve(__dirname, 'app-update.yml'), // Auto-updater configuration
+      ];
+      
+      // Platform-specific backend executable path
+      const backendExe = process.platform === 'win32' 
+        ? 'backend/dist/ash-backend.exe'
+        : 'backend/dist/ash-backend';
+      const backendPath = path.resolve(__dirname, backendExe);
+      
+      // Check if file exists, if not try alternative paths
+      if (fs.existsSync(backendPath)) {
+        resources.push(backendPath);
+        return resources;
+      }
+      
+      // Fallback: try without extension or with different extensions
+      const alternatives = [
+        path.resolve(__dirname, 'backend/dist/ash-backend.exe'),
+        path.resolve(__dirname, 'backend/dist/ash-backend'),
+      ];
+      
+      for (const altPath of alternatives) {
+        if (fs.existsSync(altPath)) {
+          resources.push(altPath);
+          return resources;
+        }
+      }
+      
+      console.warn(`⚠️ Warning: Backend executable not found at ${backendPath}`);
+      console.warn('⚠️ Backend will not be included in the package. Run "npm run build-backend" first.');
+      return resources;
+    })(),
     // macOS entitlements for network permissions (SSH, TFTP)
     // This is required for the built app to access network, especially SSH connections.
     // Entitlements require code signing.

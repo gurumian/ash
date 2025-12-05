@@ -9,6 +9,8 @@ import { initializeUpdateHandlers, cleanupUpdateHandlers, scheduleStartupCheck }
 import { initializeTftpHandlers, cleanupTftpServer, setMainWindow as setTftpMainWindow } from './main/tftp-handler.js';
 import { initializeWebHandlers, cleanupWebServer, setMainWindow as setWebMainWindow } from './main/web-handler.js';
 import { initializeIperfHandlers, cleanupIperfServer, setMainWindow as setIperfMainWindow, initializeIperfClientHandlers, cleanupIperfClient } from './main/iperf-handler.js';
+import { startBackend, stopBackend } from './main/backend-handler.js';
+import { startIPCBridge, stopIPCBridge } from './main/ipc-bridge-handler.js';
 
 // Set app name
 app.setName('ash');
@@ -30,7 +32,19 @@ initializeIperfClientHandlers();
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  // Start IPC Bridge first (backend needs it)
+  startIPCBridge();
+  
+  // Start Python backend
+  try {
+    await startBackend();
+    console.log('✅ Backend started successfully');
+  } catch (error) {
+    console.error('❌ Failed to start backend:', error);
+    // Continue anyway - backend might be started manually
+  }
+  
   createMenu(); // Create system menu
   const mainWindow = createWindow();
   
@@ -57,7 +71,15 @@ app.on('window-all-closed', () => {
 });
 
 // Cleanup on app quit
-app.on('before-quit', () => {
+app.on('before-quit', async () => {
+  // Stop backend and IPC bridge
+  try {
+    await stopBackend();
+    stopIPCBridge();
+  } catch (error) {
+    console.error('Error stopping backend/IPC bridge:', error);
+  }
+  
   cleanupSSHConnections();
   cleanupSerialConnections();
   cleanupUpdateHandlers();

@@ -31,7 +31,8 @@ import { LicensesDialog } from './components/LicensesDialog';
 import { ErrorDialog } from './components/ErrorDialog';
 import { TerminalContextMenu } from './components/TerminalContextMenu';
 import { TerminalSearchBar } from './components/TerminalSearchBar';
-import { TerminalAICommandInput } from './components/TerminalAICommandInput';
+// TerminalAICommandInput is now replaced by AIChatSidebar
+import { AIChatSidebar } from './components/AIChatSidebar';
 import { SessionDialog } from './components/SessionDialog';
 import { LibraryDialog } from './components/LibraryDialog';
 import { LibraryImportDialog } from './components/LibraryImportDialog';
@@ -330,7 +331,10 @@ function App() {
   const [showSearchBar, setShowSearchBar] = useState(false);
   // AI Command input state
   const [showAICommandInput, setShowAICommandInput] = useState(false);
+  const [showAIChatSidebar, setShowAIChatSidebar] = useState(false);
+  const [aiChatSidebarWidth, setAiChatSidebarWidth] = useState(400);
   const [isAIProcessing, setIsAIProcessing] = useState(false);
+  const [aiMessages, setAiMessages] = useState([]);
   // Error dialog state
   const [errorDialog, setErrorDialog] = useState({
     isOpen: false,
@@ -462,6 +466,8 @@ function App() {
     setShowSearchBar,
     showAICommandInput,
     setShowAICommandInput,
+    showAIChatSidebar,
+    setShowAIChatSidebar,
     llmSettings,
     terminalInstances,
     terminalFontSize,
@@ -619,14 +625,21 @@ function App() {
   });
 
   // AI Command hook
-  const { executeAICommand } = useAICommand({
+  const { executeAICommand, aiMessages: hookAiMessages, clearAIMessages, streamingToolResult } = useAICommand({
     activeSessionId,
     terminalInstances,
     sshConnections,
     llmSettings,
     setErrorDialog,
     setIsAIProcessing,
-    setShowAICommandInput
+    setShowAICommandInput,
+    onAIMessageUpdate: (messages) => {
+      setAiMessages(messages);
+      // Auto-show sidebar when messages arrive
+      if (messages.length > 0 && !showAIChatSidebar) {
+        setShowAIChatSidebar(true);
+      }
+    }
   });
 
   // Resize handle refs
@@ -1155,28 +1168,11 @@ function App() {
           searchAddons={searchAddons}
           showSearchBar={showSearchBar}
           onCloseSearchBar={() => setShowSearchBar(false)}
-          showAICommandInput={showAICommandInput || false}
-          onCloseAICommandInput={() => {
-            if (process.env.NODE_ENV === 'development') {
-              console.log('Closing AI Command Input');
-            }
-            setShowAICommandInput(false);
-          }}
+          showAICommandInput={showAIChatSidebar || false} // Button state (toggles AIChatSidebar)
           onToggleAICommandInput={() => {
-            if (process.env.NODE_ENV === 'development') {
-              console.log('=== onToggleAICommandInput called ===');
-              console.log('Current showAICommandInput:', showAICommandInput);
-            }
-            setShowAICommandInput(prev => {
-              const newValue = !prev;
-              if (process.env.NODE_ENV === 'development') {
-                console.log('Setting showAICommandInput from', prev, 'to', newValue);
-              }
-              return newValue;
-            });
+            // Toggle AI Chat Sidebar
+            setShowAIChatSidebar(prev => !prev);
           }}
-          onExecuteAICommand={executeAICommand}
-          isAIProcessing={isAIProcessing}
           onReconnectSession={async (sessionId) => {
             const session = sessions.find(s => s.id === sessionId);
             if (!session) return;
@@ -1210,6 +1206,58 @@ function App() {
             }
           }}
           reconnectingSessions={reconnectingSessions}
+        />
+
+        {/* Resize handle for AI Chat Sidebar */}
+        {showAIChatSidebar && (
+          <div 
+            className="resize-handle"
+            style={{
+              width: '4px',
+              background: 'transparent',
+              cursor: 'col-resize',
+              flexShrink: 0,
+              transition: 'background 0.2s'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = '#4a90e2'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              const startX = e.clientX;
+              const startWidth = aiChatSidebarWidth;
+              
+              const handleMouseMove = (e) => {
+                const diff = startX - e.clientX; // Reverse because it's on the right
+                const newWidth = Math.max(300, Math.min(800, startWidth + diff));
+                setAiChatSidebarWidth(newWidth);
+              };
+              
+              const handleMouseUp = () => {
+                document.removeEventListener('mousemove', handleMouseMove);
+                document.removeEventListener('mouseup', handleMouseUp);
+              };
+              
+              document.addEventListener('mousemove', handleMouseMove);
+              document.addEventListener('mouseup', handleMouseUp);
+            }}
+          />
+        )}
+
+        {/* AI Chat Sidebar */}
+        <AIChatSidebar
+          isVisible={showAIChatSidebar}
+          width={aiChatSidebarWidth}
+          messages={aiMessages}
+          isProcessing={isAIProcessing}
+          streamingToolResult={streamingToolResult}
+          terminal={activeSessionId ? terminalInstances.current[activeSessionId] : null}
+          onExecuteAICommand={executeAICommand}
+          onClose={() => {
+            setShowAIChatSidebar(false);
+            if (clearAIMessages) {
+              clearAIMessages();
+            }
+          }}
         />
         
         {/* Terminal Context Menu */}

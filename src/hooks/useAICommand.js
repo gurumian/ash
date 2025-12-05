@@ -1,12 +1,13 @@
-import { useCallback } from 'react';
+import { useCallback, useState, useEffect, useRef } from 'react';
 import LLMService from '../services/llm-service';
+import QwenAgentService from '../services/qwen-agent-service';
+import chatHistoryService from '../services/chatHistory/ChatHistoryService';
 import { formatAICommandError } from '../utils/errorFormatter';
 
 /**
  * Custom hook for AI command execution
  * 
- * This hook extracts AI command handling logic from App.jsx.
- * It can be used alongside existing code without breaking changes.
+ * Supports both 'ask' mode (simple command generation) and 'agent' mode (multi-step task execution).
  * 
  * @param {Object} options - Configuration options
  * @param {string} options.activeSessionId - Currently active session ID
@@ -16,7 +17,8 @@ import { formatAICommandError } from '../utils/errorFormatter';
  * @param {Function} options.setErrorDialog - Function to set error dialog state
  * @param {Function} options.setIsAIProcessing - Function to set AI processing state
  * @param {Function} options.setShowAICommandInput - Function to control AI command input visibility
- * @returns {Object} Object containing executeAICommand function
+ * @param {Function} options.onAIMessageUpdate - Callback to update AI messages in sidebar (optional)
+ * @returns {Object} Object containing executeAICommand function, aiMessages, and clearAIMessages
  */
 export function useAICommand({
   activeSessionId,
@@ -25,49 +27,390 @@ export function useAICommand({
   llmSettings,
   setErrorDialog,
   setIsAIProcessing,
-  setShowAICommandInput
+  setShowAICommandInput,
+  onAIMessageUpdate = null
 }) {
+  const [aiMessages, setAiMessages] = useState([]);
+  const [conversationId, setConversationId] = useState(null);
+  const [streamingToolResult, setStreamingToolResult] = useState(null); // Current executing tool result
+  const onAIMessageUpdateRef = useRef(onAIMessageUpdate);
+  const lastConnectionIdRef = useRef(null);
+  const assistantMessageRef = useRef(null); // Stable reference to current assistant message
+  
+  // Keep ref updated
+  useEffect(() => {
+    onAIMessageUpdateRef.current = onAIMessageUpdate;
+  }, [onAIMessageUpdate]);
+
+  // Load conversation history when activeSessionId changes
+  useEffect(() => {
+    if (!activeSessionId) {
+      setAiMessages([]);
+      setConversationId(null);
+      lastConnectionIdRef.current = null;
+      if (onAIMessageUpdateRef.current) {
+        onAIMessageUpdateRef.current([]);
+      }
+      return;
+    }
+
+    // Get connection ID from SSH connection
+    const connection = sshConnections.current[activeSessionId];
+    if (!connection) {
+      setAiMessages([]);
+      setConversationId(null);
+      lastConnectionIdRef.current = null;
+      if (onAIMessageUpdateRef.current) {
+        onAIMessageUpdateRef.current([]);
+      }
+      return;
+    }
+
+    const connectionId = connection.connectionId || activeSessionId;
+    
+    // Only load if connection ID changed
+    if (connectionId === lastConnectionIdRef.current) {
+      return;
+    }
+    
+    lastConnectionIdRef.current = connectionId;
+
+    // Load conversation history for this connection
+    (async () => {
+      try {
+        const conversation = await chatHistoryService.getOrCreateConversation(connectionId);
+        setConversationId(conversation.id);
+        
+        const history = await chatHistoryService.getConversationHistory(conversation.id);
+        
+        // Convert back to display format
+        const displayMessages = history.map(msg => ({
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          toolResult: msg.toolResults && msg.toolResults[0] ? {
+            name: msg.toolResults[0].name,
+            success: msg.toolResults[0].success,
+            exitCode: msg.toolResults[0].exitCode,
+            stdout: msg.toolResults[0].stdout,
+            stderr: msg.toolResults[0].stderr
+          } : null
+        }));
+        
+        setAiMessages(displayMessages);
+        if (onAIMessageUpdateRef.current) {
+          onAIMessageUpdateRef.current(displayMessages);
+        }
+      } catch (error) {
+        console.error('Failed to load conversation history:', error);
+        setAiMessages([]);
+        setConversationId(null);
+        if (onAIMessageUpdateRef.current) {
+          onAIMessageUpdateRef.current([]);
+        }
+      }
+    })();
+  }, [activeSessionId]); // Only depend on activeSessionId
+
   /**
    * Execute AI command from natural language input
    * @param {string} naturalLanguage - Natural language command description
+   * @param {string} mode - AI mode: 'ask' (simple) or 'agent' (multi-step)
    */
-  const executeAICommand = useCallback(async (naturalLanguage) => {
+  const executeAICommand = useCallback(async (naturalLanguage, mode = 'ask') => {
     setIsAIProcessing(true);
     try {
       if (process.env.NODE_ENV === 'development') {
-        console.log('AI Command requested:', naturalLanguage);
+        console.log('AI Command requested:', naturalLanguage, 'mode:', mode);
       }
       
       if (!llmSettings?.enabled) {
         throw new Error('LLM is not enabled. Please enable it in Settings.');
       }
 
-      // Show AI request in terminal (grey color)
-      if (activeSessionId && terminalInstances.current[activeSessionId]) {
-        terminalInstances.current[activeSessionId].write(`\r\n\x1b[90m# AI: ${naturalLanguage}\x1b[0m\r\n`);
+      // Handle agent mode with Qwen-Agent
+      if (mode === 'agent') {
+        if (!activeSessionId || !sshConnections.current[activeSessionId]) {
+          throw new Error('No active session');
+        }
+
+        const connection = sshConnections.current[activeSessionId];
+        if (!connection.isConnected) {
+          throw new Error('Session is not connected');
+        }
+
+        // Get connection ID from SSHConnection object
+        const connectionId = connection.connectionId || activeSessionId;
+        
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Agent mode - connectionId:', connectionId, 'activeSessionId:', activeSessionId);
+        }
+        
+        // Ensure conversation exists
+        if (!conversationId) {
+          const conversation = await chatHistoryService.getOrCreateConversation(connectionId);
+          setConversationId(conversation.id);
+        }
+        
+        // Create Qwen-Agent service
+        const qwenAgent = new QwenAgentService();
+        
+        // Check backend health
+        const isHealthy = await qwenAgent.checkHealth();
+        if (!isHealthy) {
+          throw new Error('Qwen-Agent backend is not available. Please ensure the backend is running.');
+        }
+
+        // Add user message to sidebar
+        const userMessage = { 
+          id: `msg-${Date.now()}-user`,
+          role: 'user', 
+          content: naturalLanguage 
+        };
+        setAiMessages(prev => {
+          const updated = [...prev, userMessage];
+          if (onAIMessageUpdateRef.current) {
+            onAIMessageUpdateRef.current(updated);
+          }
+          return updated;
+        });
+
+        // Save user message to history
+        await chatHistoryService.saveMessage(conversationId, 'user', naturalLanguage);
+
+        // Collect assistant response and tool results
+        let assistantContent = '';
+        let lastAssistantMessageIndex = -1;
+        const messageId = `msg-${Date.now()}-assistant`;
+        const toolResults = []; // Store all tool results for this assistant message
+        
+        // Initialize assistant message ref
+        assistantMessageRef.current = {
+          id: messageId,
+          role: 'assistant',
+          content: '',
+          toolResults: [],
+          thinking: '' // Separate thinking/reasoning from final content
+        };
+
+        // Execute task with streaming
+        await qwenAgent.executeTask(
+          naturalLanguage,
+          connectionId,
+          (fullContent) => {
+            // qwen-agent-service sends full accumulated content
+            assistantContent = fullContent;
+            
+            // Update only content, don't touch toolResults to avoid flickering
+            // Use functional update with stable reference
+            setAiMessages(prev => {
+              const updatedMessages = [...prev];
+              
+              // Find or create assistant message
+              if (lastAssistantMessageIndex === -1) {
+                const userMessageIndex = updatedMessages.findLastIndex(msg => 
+                  msg.role === 'user' && msg.content === naturalLanguage
+                );
+                
+                const existingAssistantIndex = updatedMessages.findIndex((msg, idx) => 
+                  idx > userMessageIndex && msg.role === 'assistant' && msg.id === messageId
+                );
+                
+                if (existingAssistantIndex >= 0) {
+                  lastAssistantMessageIndex = existingAssistantIndex;
+                } else {
+                  // Create new assistant message with stable ID
+                  updatedMessages.push({ 
+                    role: 'assistant', 
+                    content: assistantContent,
+                    id: messageId,
+                    toolResults: [],
+                    thinking: ''
+                  });
+                  lastAssistantMessageIndex = updatedMessages.length - 1;
+                }
+              }
+              
+              // Update only content, preserve toolResults and thinking
+              if (lastAssistantMessageIndex >= 0 && lastAssistantMessageIndex < updatedMessages.length) {
+                const existing = updatedMessages[lastAssistantMessageIndex];
+                updatedMessages[lastAssistantMessageIndex] = { 
+                  ...existing, // Preserve all existing properties
+                  content: assistantContent, // Only update content
+                  id: messageId // Ensure stable ID
+                };
+              }
+              
+              // Update ref
+              if (assistantMessageRef.current) {
+                assistantMessageRef.current.content = assistantContent;
+              }
+              
+              if (onAIMessageUpdateRef.current) {
+                onAIMessageUpdateRef.current(updatedMessages);
+              }
+              return updatedMessages;
+            });
+          },
+          llmSettings,
+          // Tool result callback
+          async (toolName, toolResult) => {
+            // Add tool result to the array (preserve all previous results)
+            const toolResultData = typeof toolResult === 'object' ? toolResult : { 
+              name: toolName, 
+              content: toolResult,
+              success: true,
+              exitCode: 0
+            };
+            
+            // Show stdout in "AI is thinking" area while processing
+            if (toolResultData.stdout) {
+              setStreamingToolResult({
+                name: toolName,
+                stdout: toolResultData.stdout,
+                stderr: toolResultData.stderr || ''
+              });
+            }
+            
+            toolResults.push(toolResultData);
+            
+            // Update assistant message with all tool results (separate from content updates)
+            // This prevents flickering by updating toolResults independently
+            setAiMessages(prev => {
+              const updatedMessages = [...prev];
+              
+              // Find assistant message by stable ID
+              let targetIndex = -1;
+              if (lastAssistantMessageIndex >= 0 && lastAssistantMessageIndex < updatedMessages.length) {
+                if (updatedMessages[lastAssistantMessageIndex].id === messageId) {
+                  targetIndex = lastAssistantMessageIndex;
+                }
+              }
+              
+              if (targetIndex === -1) {
+                // Find by ID
+                targetIndex = updatedMessages.findIndex(msg => msg.id === messageId && msg.role === 'assistant');
+              }
+              
+              if (targetIndex >= 0) {
+                // Update only toolResults, preserve content and other properties
+                const existing = updatedMessages[targetIndex];
+                updatedMessages[targetIndex] = { 
+                  ...existing, // Preserve all existing properties (content, thinking, etc.)
+                  toolResults: [...toolResults] // Only update toolResults
+                };
+              } else {
+                // Create new if not found (shouldn't happen, but safety check)
+                const userMessageIndex = updatedMessages.findLastIndex(msg => 
+                  msg.role === 'user' && msg.content === naturalLanguage
+                );
+                
+                if (userMessageIndex >= 0) {
+                  updatedMessages.splice(userMessageIndex + 1, 0, {
+                    role: 'assistant',
+                    content: assistantContent,
+                    id: messageId,
+                    toolResults: [...toolResults],
+                    thinking: ''
+                  });
+                  lastAssistantMessageIndex = userMessageIndex + 1;
+                }
+              }
+              
+              // Update ref
+              if (assistantMessageRef.current) {
+                assistantMessageRef.current.toolResults = [...toolResults];
+              }
+              
+              if (onAIMessageUpdateRef.current) {
+                onAIMessageUpdateRef.current(updatedMessages);
+              }
+              return updatedMessages;
+            });
+
+            // Save tool result to history
+            if (conversationId) {
+              await chatHistoryService.saveMessage(
+                conversationId,
+                'tool',
+                typeof toolResult === 'string' ? toolResult : JSON.stringify(toolResult),
+                typeof toolResult === 'object' ? [toolResult] : null
+              );
+            }
+          },
+          // Tool call callback (when LLM requests to call a tool) - don't display
+          (toolName, toolArgs) => {
+            // Don't display tool calls to user
+          }
+        );
+
+        // Save assistant message to history
+        if (conversationId && assistantContent) {
+          await chatHistoryService.saveMessage(conversationId, 'assistant', assistantContent);
+        }
+
+        // Final update (preserve all tool results and content)
+        setAiMessages(prev => {
+          const updatedMessages = [...prev];
+          
+          // Find by stable ID
+          let targetIndex = updatedMessages.findIndex(msg => msg.id === messageId && msg.role === 'assistant');
+          
+          if (targetIndex >= 0) {
+            // Final update with all accumulated data
+            const existing = updatedMessages[targetIndex];
+            updatedMessages[targetIndex] = { 
+              ...existing, // Preserve all existing properties
+              content: assistantContent, // Final content
+              toolResults: [...toolResults] // Final tool results
+            };
+          }
+          
+          // Clear ref
+          assistantMessageRef.current = null;
+          
+          if (onAIMessageUpdateRef.current) {
+            onAIMessageUpdateRef.current(updatedMessages);
+          }
+          return updatedMessages;
+        });
+
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Qwen-Agent task completed');
+        }
+
+        return; // Agent mode completed
       }
 
-      // Create LLM service instance
+      // Ask mode: Simple command generation
       const llmService = new LLMService(llmSettings);
       
-      // Get current directory context (if available)
       const context = {
         currentDirectory: 'unknown' // TODO: Get actual current directory from terminal
       };
 
-      // Convert natural language to command with streaming
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Calling LLM service...');
+      // Add user message to sidebar
+      const userMessage = { 
+        id: `msg-${Date.now()}-user`,
+        role: 'user', 
+        content: naturalLanguage 
+      };
+      setAiMessages(prev => {
+        const updated = [...prev, userMessage];
+        if (onAIMessageUpdateRef.current) {
+          onAIMessageUpdateRef.current(updated);
+        }
+        return updated;
+      });
+
+      // Save user message to history
+      if (conversationId) {
+        await chatHistoryService.saveMessage(conversationId, 'user', naturalLanguage);
       }
-      
-      // Optimized: Use array for efficient string building
+
+      // Collect assistant response for sidebar
+      let assistantContent = '';
       const streamingChunks = [];
-      const terminal = activeSessionId && terminalInstances.current[activeSessionId];
-      
-      // Show streaming indicator
-      if (terminal) {
-        terminal.write(`\r\n\x1b[90m# Generating command...\x1b[0m\r\n`);
-      }
       
       const command = await llmService.convertToCommand(
         naturalLanguage, 
@@ -75,14 +418,27 @@ export function useAICommand({
         // Streaming callback
         (chunk) => {
           streamingChunks.push(chunk);
-          // Show streaming text in terminal (grey color, overwrite previous line)
-          if (terminal) {
-            // Join array efficiently only for display
-            const streamingText = streamingChunks.join('');
-            // Clear previous line and show current text
-            // Use carriage return to overwrite the line
-            terminal.write(`\r\x1b[K\x1b[90m# Generating: ${streamingText}\x1b[0m`);
-          }
+          assistantContent += chunk;
+          
+          // Update assistant message in sidebar
+          const assistantMessage = { 
+            id: `msg-${Date.now()}-assistant`,
+            role: 'assistant', 
+            content: `Generating command: ${assistantContent}` 
+          };
+          setAiMessages(prev => {
+            const updated = [...prev];
+            const lastIndex = updated.length - 1;
+            if (lastIndex >= 0 && updated[lastIndex].role === 'assistant' && updated[lastIndex].content.startsWith('Generating command:')) {
+              updated[lastIndex] = assistantMessage;
+            } else {
+              updated.push(assistantMessage);
+            }
+            if (onAIMessageUpdateRef.current) {
+              onAIMessageUpdateRef.current(updated);
+            }
+            return updated;
+          });
         }
       );
       
@@ -90,18 +446,35 @@ export function useAICommand({
         console.log('LLM returned command:', command);
       }
 
-      // Clear streaming line and show final command
-      if (terminal) {
-        // Clear the streaming line and move to new line
-        terminal.write(`\r\x1b[K`); // Clear to end of line
-        terminal.write(`\x1b[90m# Generated command: ${command}\x1b[0m\r\n`);
+      // Final assistant message with command
+      const finalAssistantMessage = { 
+        id: `msg-${Date.now()}-assistant`,
+        role: 'assistant', 
+        content: `Generated command: \`${command}\`` 
+      };
+      setAiMessages(prev => {
+        const updated = [...prev];
+        const lastIndex = updated.length - 1;
+        if (lastIndex >= 0 && updated[lastIndex].role === 'assistant') {
+          updated[lastIndex] = finalAssistantMessage;
+        } else {
+          updated.push(finalAssistantMessage);
+        }
+        if (onAIMessageUpdateRef.current) {
+          onAIMessageUpdateRef.current(updated);
+        }
+        return updated;
+      });
+
+      // Save assistant message to history
+      if (conversationId) {
+        await chatHistoryService.saveMessage(conversationId, 'assistant', `Generated command: ${command}`);
       }
 
       // Execute command in active session
       if (activeSessionId && sshConnections.current[activeSessionId]) {
         const connection = sshConnections.current[activeSessionId];
         if (connection.isConnected) {
-          // Write command to terminal
           connection.write(command + '\r\n');
           if (process.env.NODE_ENV === 'development') {
             console.log('Command executed:', command);
@@ -115,10 +488,8 @@ export function useAICommand({
     } catch (error) {
       console.error('AI Command error:', error);
       
-      // Use error formatter utility
       const formattedError = formatAICommandError(error, { llmSettings });
       
-      // Show error dialog
       setErrorDialog({
         isOpen: true,
         ...formattedError
@@ -126,6 +497,7 @@ export function useAICommand({
     } finally {
       setIsAIProcessing(false);
       setShowAICommandInput(false);
+      setStreamingToolResult(null); // Clear streaming tool result when done
     }
   }, [
     activeSessionId,
@@ -134,11 +506,27 @@ export function useAICommand({
     llmSettings,
     setErrorDialog,
     setIsAIProcessing,
-    setShowAICommandInput
+    setShowAICommandInput,
+    conversationId
   ]);
 
+  const clearAIMessages = useCallback(() => {
+    setAiMessages([]);
+    if (onAIMessageUpdateRef.current) {
+      onAIMessageUpdateRef.current([]);
+    }
+    // Clear conversation history
+    if (conversationId) {
+      chatHistoryService.deleteConversation(conversationId);
+      setConversationId(null);
+    }
+    lastConnectionIdRef.current = null;
+  }, [conversationId]);
+
   return {
-    executeAICommand
+    executeAICommand,
+    aiMessages,
+    clearAIMessages,
+    streamingToolResult // Expose current streaming tool result
   };
 }
-

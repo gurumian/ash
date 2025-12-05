@@ -9,6 +9,8 @@ export function useKeyboardShortcuts({
   setShowSearchBar,
   showAICommandInput,
   setShowAICommandInput,
+  showAIChatSidebar,
+  setShowAIChatSidebar,
   llmSettings,
   terminalInstances,
   terminalFontSize,
@@ -87,13 +89,26 @@ export function useKeyboardShortcuts({
           event.preventDefault();
         }
       }
-      // Escape - close search bar or AI input
+      // Ctrl+Shift+I or Cmd+Shift+I - toggle AI Chat Sidebar
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && (event.key === 'i' || event.key === 'I')) {
+        if (activeSessionId) {
+          setShowAIChatSidebar(prev => !prev);
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
+      }
+
+      // Escape - close search bar, AI input, or AI Chat Sidebar
       if (event.key === 'Escape') {
         if (showSearchBar) {
           setShowSearchBar(false);
           event.preventDefault();
         } else if (showAICommandInput) {
           setShowAICommandInput(false);
+          event.preventDefault();
+        } else if (showAIChatSidebar) {
+          setShowAIChatSidebar(false);
           event.preventDefault();
         }
       }
