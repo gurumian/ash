@@ -133,18 +133,26 @@ export function FileUploadDialog({
         const pathParts = selectedFile.split(/[/\\]/);
         const fileName = pathParts[pathParts.length - 1];
         
-        // If auto-execute is enabled, execute library command
+        // If auto-execute is enabled, execute all library commands
         if (autoExecute && selectedLibraryId) {
           const library = libraries.find(lib => lib.id === selectedLibraryId);
           if (library && library.commands && library.commands.length > 0) {
-            // Use first command from library
-            const command = library.commands[0].command;
-            // Replace {filename} variable if present
-            const finalCommand = command.replace(/{filename}/g, fileName)
-                                       .replace(/{remotePath}/g, remotePath);
-            
-            // Execute command via SSH write
-            await window.electronAPI?.sshWrite?.(connectionId, finalCommand + '\r\n');
+            // Execute all commands in the library sequentially
+            for (const cmd of library.commands) {
+              // Skip disabled commands
+              if (cmd.enabled === false) continue;
+              
+              // Replace {filename} and {remotePath} variables if present
+              const finalCommand = cmd.command
+                .replace(/{filename}/g, fileName)
+                .replace(/{remotePath}/g, remotePath);
+              
+              // Execute command via SSH write
+              await window.electronAPI?.sshWrite?.(connectionId, finalCommand + '\r\n');
+              
+              // Add a small delay between commands to ensure proper execution
+              await new Promise(resolve => setTimeout(resolve, 100));
+            }
           }
         }
 
