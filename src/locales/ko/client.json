@@ -1,0 +1,22 @@
+{
+  "iperf": {
+    "title": "iperf3 클라이언트",
+    "status": "상태",
+    "running": "실행 중",
+    "stopped": "중지됨",
+    "starting": "시작 중...",
+    "stopping": "중지 중...",
+    "port": "포트",
+    "host": "호스트",
+    "protocol": "프로토콜",
+    "parallelStreams": "병렬 스트림",
+    "bandwidthLabel": "대역폭 (UDP만, 예: 100M, 1G)",
+    "bandwidthPlaceholder": "(선택사항, 예: 100M)",
+    "duration": "지속 시간 (초)",
+    "durationHint": "테스트 지속 시간(초)",
+    "output": "출력",
+    "clear": "지우기",
+    "waitingForOutput": "출력 대기 중..."
+  }
+}
+

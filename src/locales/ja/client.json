@@ -1,0 +1,22 @@
+{
+  "iperf": {
+    "title": "iperf3クライアント",
+    "status": "状態",
+    "running": "実行中",
+    "stopped": "停止",
+    "starting": "開始中...",
+    "stopping": "停止中...",
+    "port": "ポート",
+    "host": "ホスト",
+    "protocol": "プロトコル",
+    "parallelStreams": "並列ストリーム",
+    "bandwidthLabel": "帯域幅 (UDPのみ、例: 100M, 1G)",
+    "bandwidthPlaceholder": "(オプション、例: 100M)",
+    "duration": "継続時間 (秒)",
+    "durationHint": "テスト継続時間（秒）",
+    "output": "出力",
+    "clear": "クリア",
+    "waitingForOutput": "出力待機中..."
+  }
+}
+

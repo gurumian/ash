@@ -12,6 +12,7 @@
   "tftpServer": "TFTP 서버",
   "webServer": "웹 서버",
   "iperf3Server": "iperf3 서버",
+  "iperf3Client": "iperf3 클라이언트",
   "iperf3NotAvailable": "iperf3를 설치하여 활성화",
   "checkForUpdates": "업데이트 확인",
   "aboutAsh": "ash 정보",

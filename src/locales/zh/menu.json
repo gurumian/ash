@@ -12,6 +12,7 @@
   "tftpServer": "TFTP服务器",
   "webServer": "Web服务器",
   "iperf3Server": "iperf3服务器",
+  "iperf3Client": "iperf3客户端",
   "iperf3NotAvailable": "安装iperf3以启用",
   "checkForUpdates": "检查更新",
   "aboutAsh": "关于 ash",

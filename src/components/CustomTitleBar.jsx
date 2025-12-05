@@ -19,6 +19,7 @@ export function CustomTitleBar({
   onTftpServer,
   onWebServer,
   onIperfServer,
+  onIperfClient,
   showSessionManager,
   onToggleSessionManager,
   iperfAvailable = true,
@@ -101,6 +102,13 @@ export function CustomTitleBar({
           label: t('menu:iperf3Server'), 
           shortcut: 'Ctrl+Shift+I', 
           onClick: iperfAvailable ? onIperfServer : null,
+          disabled: !iperfAvailable,
+          sublabel: iperfAvailable ? '' : t('menu:iperf3NotAvailable')
+        },
+        { 
+          label: t('menu:iperf3Client'), 
+          shortcut: 'Ctrl+Shift+K', 
+          onClick: iperfAvailable ? onIperfClient : null,
           disabled: !iperfAvailable,
           sublabel: iperfAvailable ? '' : t('menu:iperf3NotAvailable')
         },

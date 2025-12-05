@@ -8,7 +8,7 @@ import { initializeWindowHandlers } from './main/window-handler.js';
 import { initializeUpdateHandlers, cleanupUpdateHandlers, scheduleStartupCheck } from './main/update-handler.js';
 import { initializeTftpHandlers, cleanupTftpServer, setMainWindow as setTftpMainWindow } from './main/tftp-handler.js';
 import { initializeWebHandlers, cleanupWebServer, setMainWindow as setWebMainWindow } from './main/web-handler.js';
-import { initializeIperfHandlers, cleanupIperfServer, setMainWindow as setIperfMainWindow } from './main/iperf-handler.js';
+import { initializeIperfHandlers, cleanupIperfServer, setMainWindow as setIperfMainWindow, initializeIperfClientHandlers, cleanupIperfClient } from './main/iperf-handler.js';
 
 // Set app name
 app.setName('ash');
@@ -25,6 +25,7 @@ initializeWindowHandlers();
 initializeTftpHandlers();
 initializeWebHandlers();
 initializeIperfHandlers();
+initializeIperfClientHandlers();
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
@@ -63,4 +64,5 @@ app.on('before-quit', () => {
   cleanupTftpServer();
   cleanupWebServer();
   cleanupIperfServer();
+  cleanupIperfClient();
 });

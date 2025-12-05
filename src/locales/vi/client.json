@@ -1,0 +1,22 @@
+{
+  "iperf": {
+    "title": "Máy khách iperf3",
+    "status": "Trạng thái",
+    "running": "Đang chạy",
+    "stopped": "Đã dừng",
+    "starting": "Đang khởi động...",
+    "stopping": "Đang dừng...",
+    "port": "Cổng",
+    "host": "Máy chủ",
+    "protocol": "Giao thức",
+    "parallelStreams": "Luồng song song",
+    "bandwidthLabel": "Băng thông (chỉ UDP, ví dụ: 100M, 1G)",
+    "bandwidthPlaceholder": "(tùy chọn, ví dụ: 100M)",
+    "duration": "Thời lượng (giây)",
+    "durationHint": "Thời lượng kiểm tra (giây)",
+    "output": "Đầu ra",
+    "clear": "Xóa",
+    "waitingForOutput": "Đang chờ đầu ra..."
+  }
+}
+

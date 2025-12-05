@@ -12,6 +12,7 @@
   "tftpServer": "TFTPサーバー",
   "webServer": "Webサーバー",
   "iperf3Server": "iperf3サーバー",
+  "iperf3Client": "iperf3クライアント",
   "iperf3NotAvailable": "iperf3をインストールして有効化",
   "checkForUpdates": "更新を確認",
   "aboutAsh": "ashについて",

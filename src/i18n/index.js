@@ -10,6 +10,7 @@ import enSettings from '../locales/en/settings.json';
 import enDialog from '../locales/en/dialog.json';
 import enStatus from '../locales/en/status.json';
 import enServer from '../locales/en/server.json';
+import enClient from '../locales/en/client.json';
 import enUpload from '../locales/en/upload.json';
 import enLibrary from '../locales/en/library.json';
 
@@ -23,6 +24,7 @@ const resources = {
     dialog: enDialog,
     status: enStatus,
     server: enServer,
+    client: enClient,
     upload: enUpload,
     library: enLibrary,
   },
@@ -73,7 +75,7 @@ const loadLanguageResources = async (lng) => {
 
   try {
     // Dynamically import the language resources
-    const [common, connection, menu, settings, dialog, status, server, upload, library] = await Promise.all([
+    const [common, connection, menu, settings, dialog, status, server, client, upload, library] = await Promise.all([
       import(`../locales/${lng}/common.json`),
       import(`../locales/${lng}/connection.json`),
       import(`../locales/${lng}/menu.json`),
@@ -81,6 +83,7 @@ const loadLanguageResources = async (lng) => {
       import(`../locales/${lng}/dialog.json`),
       import(`../locales/${lng}/status.json`),
       import(`../locales/${lng}/server.json`),
+      import(`../locales/${lng}/client.json`),
       import(`../locales/${lng}/upload.json`),
       import(`../locales/${lng}/library.json`),
     ]);
@@ -93,6 +96,7 @@ const loadLanguageResources = async (lng) => {
     i18n.addResourceBundle(lng, 'dialog', dialog.default, true, true);
     i18n.addResourceBundle(lng, 'status', status.default, true, true);
     i18n.addResourceBundle(lng, 'server', server.default, true, true);
+    i18n.addResourceBundle(lng, 'client', client.default, true, true);
     i18n.addResourceBundle(lng, 'upload', upload.default, true, true);
     i18n.addResourceBundle(lng, 'library', library.default, true, true);
   } catch (error) {
@@ -111,7 +115,7 @@ i18n
     resources,
     fallbackLng: 'en',
     defaultNS: 'common',
-    ns: ['common', 'connection', 'menu', 'settings', 'dialog', 'status', 'server', 'upload', 'library'],
+    ns: ['common', 'connection', 'menu', 'settings', 'dialog', 'status', 'server', 'client', 'upload', 'library'],
     
     interpolation: {
       escapeValue: false, // React already escapes values

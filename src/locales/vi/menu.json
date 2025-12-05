@@ -12,6 +12,7 @@
   "tftpServer": "Máy chủ TFTP",
   "webServer": "Máy chủ Web",
   "iperf3Server": "Máy chủ iperf3",
+  "iperf3Client": "Máy khách iperf3",
   "iperf3NotAvailable": "Cài đặt iperf3 để bật",
   "checkForUpdates": "Kiểm tra cập nhật",
   "aboutAsh": "Giới thiệu ash",

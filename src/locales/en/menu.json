@@ -12,6 +12,7 @@
   "tftpServer": "TFTP Server",
   "webServer": "Web Server",
   "iperf3Server": "iperf3 Server",
+  "iperf3Client": "iperf3 Client",
   "iperf3NotAvailable": "Install iperf3 to enable",
   "checkForUpdates": "Check for Updates",
   "aboutAsh": "About ash",

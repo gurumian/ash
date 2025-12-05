@@ -61,6 +61,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onMenuToggleSessionManager: (callback) => ipcRenderer.on('menu-toggle-session-manager', callback),
   onMenuSettings: (callback) => ipcRenderer.on('menu-settings', callback),
   onMenuIperfServer: (callback) => ipcRenderer.on('menu-iperf-server', callback),
+  onMenuIperfClient: (callback) => ipcRenderer.on('menu-iperf-client', callback),
   onMenuCheckUpdates: (callback) => ipcRenderer.on('menu-check-updates', callback),
   onMenuAbout: (callback) => ipcRenderer.on('menu-about', callback),
   onMenuThirdPartyLicenses: (callback) => ipcRenderer.on('menu-third-party-licenses', callback),
@@ -185,6 +186,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   offIperfServerError: (callback) => ipcRenderer.off('iperf-server-error', callback),
   onIperfServerStopped: (callback) => ipcRenderer.on('iperf-server-stopped', (event, data) => callback(data)),
   offIperfServerStopped: (callback) => ipcRenderer.off('iperf-server-stopped', callback),
+  
+  // iperf3 Client APIs
+  iperfClientStatus: () => ipcRenderer.invoke('iperf-client-status'),
+  iperfClientStart: (params) => ipcRenderer.invoke('iperf-client-start', params),
+  iperfClientStop: () => ipcRenderer.invoke('iperf-client-stop'),
+  onIperfClientError: (callback) => ipcRenderer.on('iperf-client-error', (event, data) => callback(data)),
+  offIperfClientError: (callback) => ipcRenderer.off('iperf-client-error', callback),
+  onIperfClientOutput: (callback) => ipcRenderer.on('iperf-client-output', (event, data) => callback(data)),
+  offIperfClientOutput: (callback) => ipcRenderer.off('iperf-client-output', callback),
+  onIperfClientStopped: (callback) => ipcRenderer.on('iperf-client-stopped', (event, data) => callback(data)),
+  offIperfClientStopped: (callback) => ipcRenderer.off('iperf-client-stopped', callback),
   
   // TFTP Server error events
   onTftpServerError: (callback) => ipcRenderer.on('tftp-server-error', (event, data) => callback(data)),

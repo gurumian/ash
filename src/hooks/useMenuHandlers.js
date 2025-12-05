@@ -15,6 +15,7 @@ export function useMenuHandlers({
   setShowTftpServerDialog,
   setShowWebServerDialog,
   setShowIperfServerDialog,
+  setShowIperfClientDialog,
   setShowAICommandInput,
   setAppInfo,
   disconnectSession,
@@ -172,6 +173,11 @@ export function useMenuHandlers({
     // iperf3 Server menu event
     window.electronAPI.onMenuIperfServer?.(() => {
       setShowIperfServerDialog(true);
+    });
+
+    // iperf3 Client menu event
+    window.electronAPI.onMenuIperfClient?.(() => {
+      setShowIperfClientDialog(true);
     });
 
     // AI Command menu event

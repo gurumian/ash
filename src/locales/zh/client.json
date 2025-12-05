@@ -1,0 +1,22 @@
+{
+  "iperf": {
+    "title": "iperf3客户端",
+    "status": "状态",
+    "running": "运行中",
+    "stopped": "已停止",
+    "starting": "启动中...",
+    "stopping": "停止中...",
+    "port": "端口",
+    "host": "主机",
+    "protocol": "协议",
+    "parallelStreams": "并行流",
+    "bandwidthLabel": "带宽 (仅UDP，例如: 100M, 1G)",
+    "bandwidthPlaceholder": "(可选，例如: 100M)",
+    "duration": "持续时间 (秒)",
+    "durationHint": "测试持续时间（秒）",
+    "output": "输出",
+    "clear": "清除",
+    "waitingForOutput": "等待输出..."
+  }
+}
+

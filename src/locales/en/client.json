@@ -1,0 +1,22 @@
+{
+  "iperf": {
+    "title": "iperf3 Client",
+    "status": "Status",
+    "running": "Running",
+    "stopped": "Stopped",
+    "starting": "Starting...",
+    "stopping": "Stopping...",
+    "port": "Port",
+    "host": "Host",
+    "protocol": "Protocol",
+    "parallelStreams": "Parallel Streams",
+    "bandwidthLabel": "Bandwidth (UDP only, e.g. 100M, 1G)",
+    "bandwidthPlaceholder": "(optional, e.g. 100M)",
+    "duration": "Duration (seconds)",
+    "durationHint": "Test duration in seconds",
+    "output": "Output",
+    "clear": "Clear",
+    "waitingForOutput": "Waiting for output..."
+  }
+}
+

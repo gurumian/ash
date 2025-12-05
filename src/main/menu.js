@@ -164,6 +164,23 @@ export function createMenu() {
               console.error('Failed to send menu-iperf-server:', error);
             }
           }
+        },
+        {
+          label: 'iperf3 Client',
+          accelerator: 'CmdOrCtrl+Shift+K',
+          enabled: iperfAvailable,
+          // Lightweight hint instead of tooltip
+          sublabel: iperfAvailable ? '' : 'Install iperf3 to enable',
+          click: () => {
+            const focusedWindow = BrowserWindow.getFocusedWindow();
+            try {
+              if (focusedWindow && !focusedWindow.isDestroyed() && !focusedWindow.webContents.isDestroyed()) {
+                focusedWindow.webContents.send('menu-iperf-client');
+              }
+            } catch (error) {
+              console.error('Failed to send menu-iperf-client:', error);
+            }
+          }
         }
       ]
     },

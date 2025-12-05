@@ -13,6 +13,9 @@ let iperfStreams = 1;
 let iperfBandwidth = null;
 let mainWindow = null;
 
+// iperf3 client management
+let iperfClientProcess = null;
+
 // Cache for found iperf3 full path (from isIperf3Available check)
 let cachedIperf3FullPath = null;
 
@@ -494,6 +497,188 @@ export function cleanupIperfServer() {
       // Ignore errors during cleanup
     }
     iperfProcess = null;
+  }
+}
+
+/**
+ * Initialize iperf3 client handlers
+ */
+export function initializeIperfClientHandlers() {
+  // Get iperf3 client status
+  ipcMain.handle('iperf-client-status', async () => {
+    return { 
+      running: iperfClientProcess !== null && iperfClientProcess.exitCode === null
+    };
+  });
+
+  // Start iperf3 client
+  ipcMain.handle('iperf-client-start', async (_event, params) => {
+    try {
+      if (iperfClientProcess && iperfClientProcess.exitCode === null) {
+        return { success: false, error: 'iperf3 client is already running' };
+      }
+      
+      const targetHost = params?.host || 'localhost';
+      const targetPort = params?.port || 5201;
+      const protocol = (params?.protocol || 'tcp').toString().toLowerCase();
+      const streams = parseInt(params?.streams, 10) || 1;
+      const bandwidth = params?.bandwidth ? String(params.bandwidth).trim() : null;
+      const duration = parseInt(params?.duration, 10) || 10;
+      
+      const binaryPath = getIperf3BinaryPath();
+      
+      // Check if binary exists and is available
+      if (!isIperf3Available(binaryPath)) {
+        let errorMsg;
+        if (process.platform === 'win32') {
+          if (binaryPath !== 'iperf3.exe' && !fs.existsSync(binaryPath)) {
+            errorMsg = `iperf3 binary not found at: ${binaryPath}\n\nPlease run: npm run download-iperf3:all to download Windows binary.`;
+          } else {
+            errorMsg = `iperf3 is not installed on your system.\n\nPlease install iperf3:\n  - Download from https://iperf.fr/iperf-download.php\n  - Or install via package manager (e.g., Chocolatey: choco install iperf3)`;
+          }
+        } else {
+          errorMsg = `iperf3 is not installed on your system.\n\nPlease install it:\n  macOS: brew install iperf3\n  Linux: sudo apt-get install iperf3 (or sudo yum install iperf3)`;
+        }
+        
+        console.error(`[iperf3-client] ${errorMsg}`);
+        
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('iperf-client-error', {
+            title: 'iperf3 Client Error',
+            message: 'iperf3 is not available',
+            detail: errorMsg,
+            error: null
+          });
+        }
+        
+        return { success: false, error: errorMsg };
+      }
+      
+      // Build iperf3 client command
+      const args = ['-c', targetHost, '-p', targetPort.toString(), '-t', duration.toString()];
+      
+      if (protocol === 'udp') {
+        args.push('-u');
+        if (bandwidth) {
+          args.push('-b', bandwidth);
+        }
+      }
+      
+      if (streams > 1) {
+        args.push('-P', streams.toString());
+      }
+      
+      console.log(`[iperf3-client] Starting client: ${binaryPath} ${args.join(' ')}`);
+      
+      iperfClientProcess = spawn(binaryPath, args, {
+        stdio: ['ignore', 'pipe', 'pipe']
+      });
+      
+      let stderrOutput = '';
+      let stdoutOutput = '';
+      
+      // Capture stdout
+      iperfClientProcess.stdout.on('data', (data) => {
+        const output = data.toString();
+        stdoutOutput += output;
+        console.log(`[iperf3-client] stdout: ${output}`);
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('iperf-client-output', { output });
+        }
+      });
+      
+      // Capture stderr
+      iperfClientProcess.stderr.on('data', (data) => {
+        const output = data.toString();
+        stderrOutput += output;
+        console.error(`[iperf3-client] stderr: ${output}`);
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('iperf-client-output', { output });
+        }
+      });
+      
+      // Handle process exit
+      iperfClientProcess.on('exit', (code, signal) => {
+        console.log(`[iperf3-client] Client exited with code ${code}, signal ${signal}`);
+        const finalOutput = stdoutOutput + stderrOutput;
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('iperf-client-stopped', { 
+            code, 
+            signal,
+            output: finalOutput ? `\n[Process exited with code ${code}]\n` : null
+          });
+        }
+        iperfClientProcess = null;
+      });
+      
+      // Handle process error (spawn failure)
+      iperfClientProcess.on('error', (err) => {
+        console.error(`[iperf3-client] Process error:`, err);
+        
+        let errorMsg;
+        if (err.code === 'ENOENT') {
+          if (process.platform === 'win32') {
+            errorMsg = `iperf3 is not installed on your system.\n\nPlease install iperf3:\n  - Download from https://iperf.fr/iperf-download.php\n  - Or install via package manager (e.g., Chocolatey: choco install iperf3)`;
+          } else {
+            errorMsg = `iperf3 is not installed on your system.\n\nPlease install it:\n  macOS: brew install iperf3\n  Linux: sudo apt-get install iperf3 (or sudo yum install iperf3)`;
+          }
+        } else {
+          errorMsg = err.message || `Failed to start iperf3 client: ${err.code || 'Unknown error'}`;
+        }
+        
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('iperf-client-error', {
+            title: 'iperf3 Client Error',
+            message: 'Failed to start iperf3 client',
+            detail: errorMsg,
+            error: { code: err.code, message: err.message }
+          });
+        }
+        
+        iperfClientProcess = null;
+      });
+      
+      return { success: true };
+    } catch (e) {
+      console.error('[iperf3-client] Client creation error:', e);
+      if (iperfClientProcess) {
+        try {
+          iperfClientProcess.kill();
+        } catch (err) {}
+        iperfClientProcess = null;
+      }
+      return { success: false, error: e.message };
+    }
+  });
+
+  // Stop iperf3 client
+  ipcMain.handle('iperf-client-stop', async () => {
+    try {
+      if (iperfClientProcess) {
+        console.log('[iperf3-client] Stopping client...');
+        iperfClientProcess.kill();
+        iperfClientProcess = null;
+        return { success: true };
+      }
+      return { success: true, running: false };
+    } catch (error) {
+      console.error('[iperf3-client] Error stopping client:', error);
+      return { success: false, error: error.message };
+    }
+  });
+}
+
+/**
+ * Cleanup iperf3 client
+ */
+export function cleanupIperfClient() {
+  if (iperfClientProcess) {
+    try {
+      iperfClientProcess.kill();
+    } catch (e) {
+      // Ignore errors during cleanup
+    }
+    iperfClientProcess = null;
   }
 }
 

@@ -38,6 +38,7 @@ import { LibraryImportDialog } from './components/LibraryImportDialog';
 import { TftpServerDialog } from './components/TftpServerDialog';
 import { WebServerDialog } from './components/WebServerDialog';
 import { IperfServerDialog } from './components/IperfServerDialog';
+import { IperfClientDialog } from './components/IperfClientDialog';
 import { FileUploadDialog } from './components/FileUploadDialog';
 
 function App() {
@@ -174,6 +175,7 @@ function App() {
   const [webStatus, setWebStatus] = useState({ running: false, port: null });
   const [iperfStatus, setIperfStatus] = useState({ running: false, port: null });
   const [showIperfServerDialog, setShowIperfServerDialog] = useState(false);
+  const [showIperfClientDialog, setShowIperfClientDialog] = useState(false);
   const [iperfAvailable, setIperfAvailable] = useState(true); // Default to true, will be checked on mount
   const [appInfo, setAppInfo] = useState({ version: '', author: { name: 'Bryce Ghim', email: 'admin@toktoktalk.com' } });
   
@@ -932,6 +934,7 @@ function App() {
     setShowTftpServerDialog,
     setShowWebServerDialog,
     setShowIperfServerDialog,
+    setShowIperfClientDialog,
     setShowAICommandInput,
     setAppInfo,
     disconnectSession,
@@ -1026,6 +1029,7 @@ function App() {
           onTftpServer={() => setShowTftpServerDialog(true)}
           onWebServer={() => setShowWebServerDialog(true)}
           onIperfServer={() => setShowIperfServerDialog(true)}
+          onIperfClient={() => setShowIperfClientDialog(true)}
           iperfAvailable={iperfAvailable}
           showSessionManager={showSessionManager}
           onToggleSessionManager={(checked) => {
@@ -1461,6 +1465,13 @@ function App() {
       <IperfServerDialog
         isOpen={showIperfServerDialog}
         onClose={() => setShowIperfServerDialog(false)}
+      />
+
+      {/* iperf3 Client Dialog */}
+      <IperfClientDialog
+        isOpen={showIperfClientDialog}
+        onClose={() => setShowIperfClientDialog(false)}
+        activeSession={activeSession}
       />
 
       <FileUploadDialog
