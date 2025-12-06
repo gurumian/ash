@@ -66,7 +66,8 @@ export const AIChatSidebar = memo(function AIChatSidebar({
   activeConversationId = null, // Current active conversation ID
   onSwitchConversation = null, // Function to switch conversation
   onCreateNewConversation = null, // Function to create new conversation
-  onDeleteConversation = null // Function to delete a conversation
+  onDeleteConversation = null, // Function to delete a conversation
+  processingConversations = new Set() // Set of conversation IDs currently being processed
 }) {
   const messagesEndRef = useRef(null);
   const sidebarRef = useRef(null);
@@ -76,6 +77,9 @@ export const AIChatSidebar = memo(function AIChatSidebar({
   const [input, setInput] = useState('');
   const [mode, setMode] = useState('ask');
   const [showModeDropdown, setShowModeDropdown] = useState(false);
+  
+  // Check if the active conversation is processing
+  const isActiveProcessing = activeConversationId && processingConversations.has(activeConversationId);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -118,7 +122,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
     } else if (e.key === 'Enter' && !e.shiftKey) {
       // Enter without Shift: execute command
       e.preventDefault();
-      if (input.trim() && !isProcessing) {
+      if (input.trim() && !isActiveProcessing) {
         handleExecute();
       }
     }
@@ -126,13 +130,13 @@ export const AIChatSidebar = memo(function AIChatSidebar({
   };
 
   const handleExecute = useCallback(() => {
-    if (input.trim() && !isProcessing) {
+    if (input.trim() && !isActiveProcessing) {
       const command = input.trim();
       const selectedMode = mode;
       setInput(''); // Clear input after execution
       onExecuteAICommand(command, selectedMode);
     }
-  }, [input, mode, isProcessing, onExecuteAICommand]);
+  }, [input, mode, isActiveProcessing, onExecuteAICommand]);
 
   const handleCopy = useCallback(async (text) => {
     try {
@@ -258,6 +262,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
           >
             {conversations.map((conv) => {
                 const isActive = conv.id === activeConversationId;
+                const isProcessing = processingConversations.has(conv.id);
                 const displayTitle = conv.title && conv.title.length > 15 
                   ? conv.title.substring(0, 15) + '...' 
                   : conv.title || 'New Chat';
@@ -308,10 +313,27 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         flex: 1,
-                        textAlign: 'left'
+                        textAlign: 'left',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
                       }}
                       title={conv.title || 'New Chat'}
                     >
+                      {isProcessing && (
+                        <span
+                          style={{
+                            display: 'inline-block',
+                            width: '8px',
+                            height: '8px',
+                            border: '2px solid #00ff41',
+                            borderTopColor: 'transparent',
+                            borderRadius: '50%',
+                            animation: 'spin 1s linear infinite',
+                            flexShrink: 0
+                          }}
+                        />
+                      )}
                       {displayTitle}
                     </button>
                     <button
@@ -462,7 +484,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
             }
             
             // Check if this is a completed assistant message (not currently processing)
-            const isCompleted = msg.role === 'assistant' && !isProcessing;
+            const isCompleted = msg.role === 'assistant' && !isActiveProcessing;
             const isLastAssistantMessage = msg.role === 'assistant' && 
               (index === messages.length - 1 || 
                messages.slice(index + 1).every(m => m.role !== 'assistant'));
@@ -729,7 +751,8 @@ export const AIChatSidebar = memo(function AIChatSidebar({
             );
           })
         )}
-        {isProcessing && (
+        {/* Show "AI is thinking..." if current active conversation is processing */}
+        {isActiveProcessing && (
           <div
             style={{
               padding: '12px',
@@ -851,7 +874,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
               color: '#00ff41',
               fontSize: '13px',
               fontFamily: 'var(--ui-font-family)',
-              opacity: isProcessing ? 0.6 : 1,
+              opacity: isActiveProcessing ? 0.6 : 1,
               resize: 'none',
               overflowY: 'auto',
               lineHeight: '1.5',
@@ -889,12 +912,12 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                   color: '#00ff41',
                   fontSize: '11px',
                   fontWeight: '600',
-                  cursor: isProcessing ? 'not-allowed' : 'pointer',
+                  cursor: isActiveProcessing ? 'not-allowed' : 'pointer',
                   fontFamily: 'var(--ui-font-family)',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '4px',
-                  opacity: isProcessing ? 0.6 : 1,
+                  opacity: isActiveProcessing ? 0.6 : 1,
                   position: 'relative',
                   minWidth: '60px'
                 }}
@@ -976,7 +999,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
             {/* Execute button */}
             <button
               onClick={handleExecute}
-              disabled={!input.trim() || isProcessing}
+              disabled={!input.trim() || isActiveProcessing}
               style={{
                 padding: '4px 8px',
                 background: input.trim() && !isProcessing ? 'rgba(0, 255, 65, 0.2)' : 'rgba(26, 26, 26, 0.3)',

@@ -36,7 +36,8 @@ export function useAICommand({
   const [conversationId, setConversationId] = useState(null);
   const [conversations, setConversations] = useState([]); // List of all conversations for current connection
   const [streamingToolResult, setStreamingToolResult] = useState(null); // Current executing tool result
-  const [processingConversationId, setProcessingConversationId] = useState(null); // ID of conversation currently being processed
+  const [processingConversationId, setProcessingConversationId] = useState(null); // ID of conversation currently being processed (for active display)
+  const [processingConversations, setProcessingConversations] = useState(new Set()); // Set of conversation IDs currently being processed
   const onAIMessageUpdateRef = useRef(onAIMessageUpdate);
   const lastConnectionIdRef = useRef(null);
   const assistantMessageRef = useRef(null); // Stable reference to current assistant message
@@ -159,6 +160,7 @@ export function useAICommand({
    */
   const executeAICommand = useCallback(async (naturalLanguage, mode = 'ask') => {
     setIsAIProcessing(true);
+    let processingId = null; // Track which conversation is being processed
     try {
       if (process.env.NODE_ENV === 'development') {
         console.log('AI Command requested:', naturalLanguage, 'mode:', mode);
@@ -198,7 +200,9 @@ export function useAICommand({
         }
         
         // Set processing state for this specific conversation
+        processingId = currentConversationId;
         setProcessingConversationId(currentConversationId);
+        setProcessingConversations(prev => new Set(prev).add(currentConversationId));
         
         // Create Qwen-Agent service
         const qwenAgent = new QwenAgentService();
@@ -236,22 +240,24 @@ export function useAICommand({
           }
         }
 
-        // Add user message to sidebar
-        const userMessage = { 
-          id: `msg-${Date.now()}-user`,
-          role: 'user', 
-          content: naturalLanguage 
-        };
-        setAiMessages(prev => {
-          const updated = [...prev, userMessage];
-          if (onAIMessageUpdateRef.current) {
-            onAIMessageUpdateRef.current(updated);
-          }
-          return updated;
-        });
+        // Only add message to sidebar if this is the active conversation
+        if (currentConversationId === conversationId) {
+          const userMessage = { 
+            id: `msg-${Date.now()}-user`,
+            role: 'user', 
+            content: naturalLanguage 
+          };
+          setAiMessages(prev => {
+            const updated = [...prev, userMessage];
+            if (onAIMessageUpdateRef.current) {
+              onAIMessageUpdateRef.current(updated);
+            }
+            return updated;
+          });
+        }
 
         // Save user message to history
-        await chatHistoryService.saveMessage(conversationId, 'user', naturalLanguage);
+        await chatHistoryService.saveMessage(currentConversationId, 'user', naturalLanguage);
 
         // Collect assistant response and tool results
         let assistantContent = '';
@@ -281,6 +287,11 @@ export function useAICommand({
             }
             
             // Update only content, don't touch toolResults to avoid flickering
+            // Only update if this is still the active conversation
+            if (currentConversationId !== conversationId) {
+              return; // Conversation was switched, don't update UI
+            }
+            
             // Use functional update with stable reference
             setAiMessages(prev => {
               const updatedMessages = [...prev];
@@ -408,9 +419,9 @@ export function useAICommand({
             });
 
             // Save tool result to history
-            if (conversationId) {
+            if (currentConversationId) {
               await chatHistoryService.saveMessage(
-                conversationId,
+                currentConversationId,
                 'tool',
                 typeof toolResult === 'string' ? toolResult : JSON.stringify(toolResult),
                 typeof toolResult === 'object' ? [toolResult] : null
@@ -424,16 +435,18 @@ export function useAICommand({
         );
 
         // Save assistant message to history
-        if (conversationId && assistantContent) {
-          await chatHistoryService.saveMessage(conversationId, 'assistant', assistantContent);
+        if (currentConversationId && assistantContent) {
+          await chatHistoryService.saveMessage(currentConversationId, 'assistant', assistantContent);
         }
 
         // Final update (preserve all tool results and content)
-        setAiMessages(prev => {
-          const updatedMessages = [...prev];
-          
-          // Find by stable ID
-          let targetIndex = updatedMessages.findIndex(msg => msg.id === messageId && msg.role === 'assistant');
+        // Only update if this is still the active conversation
+        if (currentConversationId === conversationId) {
+          setAiMessages(prev => {
+            const updatedMessages = [...prev];
+            
+            // Find by stable ID
+            let targetIndex = updatedMessages.findIndex(msg => msg.id === messageId && msg.role === 'assistant');
           
           if (targetIndex >= 0) {
             // Final update with all accumulated data
@@ -453,6 +466,10 @@ export function useAICommand({
           }
           return updatedMessages;
         });
+        } else {
+          // Clear ref if conversation was switched
+          assistantMessageRef.current = null;
+        }
 
         if (process.env.NODE_ENV === 'development') {
           console.log('Qwen-Agent task completed');
@@ -485,26 +502,30 @@ export function useAICommand({
 
       // Set processing state for this specific conversation (ask mode)
       if (currentConversationId) {
+        processingId = currentConversationId;
         setProcessingConversationId(currentConversationId);
+        setProcessingConversations(prev => new Set(prev).add(currentConversationId));
       }
 
-      // Add user message to sidebar
-      const userMessage = { 
-        id: `msg-${Date.now()}-user`,
-        role: 'user', 
-        content: naturalLanguage 
-      };
-      setAiMessages(prev => {
-        const updated = [...prev, userMessage];
-        if (onAIMessageUpdateRef.current) {
-          onAIMessageUpdateRef.current(updated);
-        }
-        return updated;
-      });
+      // Only add message to sidebar if this is the active conversation
+      if (currentConversationId === conversationId) {
+        const userMessage = { 
+          id: `msg-${Date.now()}-user`,
+          role: 'user', 
+          content: naturalLanguage 
+        };
+        setAiMessages(prev => {
+          const updated = [...prev, userMessage];
+          if (onAIMessageUpdateRef.current) {
+            onAIMessageUpdateRef.current(updated);
+          }
+          return updated;
+        });
+      }
 
       // Save user message to history
-      if (conversationId) {
-        await chatHistoryService.saveMessage(conversationId, 'user', naturalLanguage);
+      if (currentConversationId) {
+        await chatHistoryService.saveMessage(currentConversationId, 'user', naturalLanguage);
       }
 
       // Collect assistant response for sidebar
@@ -519,25 +540,28 @@ export function useAICommand({
           streamingChunks.push(chunk);
           assistantContent += chunk;
           
-          // Update assistant message in sidebar
-          const assistantMessage = { 
-            id: `msg-${Date.now()}-assistant`,
-            role: 'assistant', 
-            content: `Generating command: ${assistantContent}` 
-          };
-          setAiMessages(prev => {
-            const updated = [...prev];
-            const lastIndex = updated.length - 1;
-            if (lastIndex >= 0 && updated[lastIndex].role === 'assistant' && updated[lastIndex].content.startsWith('Generating command:')) {
-              updated[lastIndex] = assistantMessage;
-            } else {
-              updated.push(assistantMessage);
-            }
-            if (onAIMessageUpdateRef.current) {
-              onAIMessageUpdateRef.current(updated);
-            }
-            return updated;
-          });
+          // Only update if this is still the active conversation
+          if (currentConversationId === conversationId) {
+            // Update assistant message in sidebar
+            const assistantMessage = { 
+              id: `msg-${Date.now()}-assistant`,
+              role: 'assistant', 
+              content: `Generating command: ${assistantContent}` 
+            };
+            setAiMessages(prev => {
+              const updated = [...prev];
+              const lastIndex = updated.length - 1;
+              if (lastIndex >= 0 && updated[lastIndex].role === 'assistant' && updated[lastIndex].content.startsWith('Generating command:')) {
+                updated[lastIndex] = assistantMessage;
+              } else {
+                updated.push(assistantMessage);
+              }
+              if (onAIMessageUpdateRef.current) {
+                onAIMessageUpdateRef.current(updated);
+              }
+              return updated;
+            });
+          }
         }
       );
       
@@ -546,28 +570,31 @@ export function useAICommand({
       }
 
       // Final assistant message with command
-      const finalAssistantMessage = { 
-        id: `msg-${Date.now()}-assistant`,
-        role: 'assistant', 
-        content: `Generated command: \`${command}\`` 
-      };
-      setAiMessages(prev => {
-        const updated = [...prev];
-        const lastIndex = updated.length - 1;
-        if (lastIndex >= 0 && updated[lastIndex].role === 'assistant') {
-          updated[lastIndex] = finalAssistantMessage;
-        } else {
-          updated.push(finalAssistantMessage);
-        }
-        if (onAIMessageUpdateRef.current) {
-          onAIMessageUpdateRef.current(updated);
-        }
-        return updated;
-      });
+      // Only update if this is still the active conversation
+      if (currentConversationId === conversationId) {
+        const finalAssistantMessage = { 
+          id: `msg-${Date.now()}-assistant`,
+          role: 'assistant', 
+          content: `Generated command: \`${command}\`` 
+        };
+        setAiMessages(prev => {
+          const updated = [...prev];
+          const lastIndex = updated.length - 1;
+          if (lastIndex >= 0 && updated[lastIndex].role === 'assistant') {
+            updated[lastIndex] = finalAssistantMessage;
+          } else {
+            updated.push(finalAssistantMessage);
+          }
+          if (onAIMessageUpdateRef.current) {
+            onAIMessageUpdateRef.current(updated);
+          }
+          return updated;
+        });
+      }
 
       // Save assistant message to history
-      if (conversationId) {
-        await chatHistoryService.saveMessage(conversationId, 'assistant', `Generated command: ${command}`);
+      if (currentConversationId) {
+        await chatHistoryService.saveMessage(currentConversationId, 'assistant', `Generated command: ${command}`);
       }
 
       // Execute command in active session
@@ -597,7 +624,16 @@ export function useAICommand({
       setIsAIProcessing(false);
       setShowAICommandInput(false);
       setStreamingToolResult(null); // Clear streaming tool result when done
-      setProcessingConversationId(null); // Clear processing conversation ID
+      // Clear processing state for the conversation that just finished
+      // Use processingId from the beginning of execution, not from state (which may have changed)
+      if (processingId) {
+        setProcessingConversationId(null);
+        setProcessingConversations(prev => {
+          const next = new Set(prev);
+          next.delete(processingId);
+          return next;
+        });
+      }
       
       // Refresh conversations list after message is saved
       if (lastConnectionIdRef.current && conversationId) {
@@ -770,7 +806,8 @@ export function useAICommand({
     aiMessages,
     clearAIMessages,
     streamingToolResult, // Expose current streaming tool result
-    processingConversationId, // ID of conversation currently being processed
+    processingConversationId, // ID of conversation currently being processed (for active display)
+    processingConversations, // Set of conversation IDs currently being processed
     conversations, // List of all conversations for current connection
     activeConversationId: conversationId, // Current active conversation ID
     switchConversation, // Function to switch to a different conversation

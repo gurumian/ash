@@ -635,6 +635,7 @@ function App() {
     clearAIMessages, 
     streamingToolResult,
     processingConversationId,
+    processingConversations,
     conversations,
     activeConversationId,
     switchConversation,
@@ -1266,6 +1267,7 @@ function App() {
           messages={aiMessages}
           isProcessing={isAIProcessing && processingConversationId === activeConversationId}
           streamingToolResult={processingConversationId === activeConversationId ? streamingToolResult : null}
+          processingConversations={processingConversations}
           backendStatus={backendStatus}
           terminal={activeSessionId ? terminalInstances.current[activeSessionId] : null}
           onExecuteAICommand={executeAICommand}
