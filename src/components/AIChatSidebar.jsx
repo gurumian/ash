@@ -61,6 +61,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
   backendStatus = 'not-ready', // Backend status: 'ready' | 'starting' | 'not-ready'
   onClose,
   onExecuteAICommand,
+  onStopAICommand, // Function to stop/cancel current AI command
   terminal,
   conversations = [], // List of conversations for current connection
   activeConversationId = null, // Current active conversation ID
@@ -146,7 +147,15 @@ export const AIChatSidebar = memo(function AIChatSidebar({
       const command = input.trim();
       const selectedMode = mode;
       setInput(''); // Clear input after execution
-      onExecuteAICommand(command, selectedMode);
+      // Handle promise rejection to avoid unhandled promise warnings
+      onExecuteAICommand(command, selectedMode).catch((error) => {
+        // Silently handle abort errors (user-initiated cancellation)
+        if (error?.name === 'AbortError' || error?.message?.includes('cancelled') || error?.message?.includes('aborted')) {
+          return; // Already handled in executeAICommand
+        }
+        // Other errors are handled by executeAICommand's error dialog
+        console.error('AI command execution error:', error);
+      });
     }
   }, [input, mode, isActiveProcessing, backendStatus, onExecuteAICommand]);
 
@@ -1003,19 +1012,90 @@ export const AIChatSidebar = memo(function AIChatSidebar({
               gap: '8px'
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#888', fontSize: '12px' }}>
-              <span
-                style={{
-                  display: 'inline-block',
-                  width: '12px',
-                  height: '12px',
-                  border: '2px solid #00ff41',
-                  borderTopColor: 'transparent',
-                  borderRadius: '50%',
-                  animation: 'spin 1s linear infinite'
-                }}
-              />
-              AI is thinking...
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#888', fontSize: '12px' }}>
+                <span
+                  style={{
+                    display: 'inline-block',
+                    width: '12px',
+                    height: '12px',
+                    border: '2px solid #00ff41',
+                    borderTopColor: 'transparent',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite'
+                  }}
+                />
+                AI is thinking...
+              </div>
+              {onStopAICommand && (
+                <button
+                  onClick={(e) => {
+                    // Prevent event propagation
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    // Handle stop command - wrap in promise to catch any async rejections
+                    try {
+                      const result = onStopAICommand();
+                      // If stopAICommand returns a promise, catch its rejections
+                      if (result && typeof result.catch === 'function') {
+                        result.catch((error) => {
+                          // Silently ignore abort errors - they're expected
+                          // Other errors are unlikely but if they occur, we log them in dev
+                          if (process.env.NODE_ENV === 'development' && 
+                              error?.name !== 'AbortError' && 
+                              !error?.message?.includes('aborted')) {
+                            console.debug('Unexpected error in stopAICommand:', error);
+                          }
+                        });
+                      }
+                    } catch (error) {
+                      // Ignore synchronous errors - abort is expected to cause errors
+                      // Promise rejections are handled above
+                    }
+                  }}
+                  style={{
+                    padding: '4px',
+                    background: 'rgba(26, 26, 26, 0.8)',
+                    border: '1px solid rgba(0, 255, 65, 0.3)',
+                    borderRadius: '3px',
+                    color: '#00ff41',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '20px',
+                    height: '20px'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(0, 255, 65, 0.1)';
+                    e.currentTarget.style.borderColor = 'rgba(0, 255, 65, 0.5)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(26, 26, 26, 0.8)';
+                    e.currentTarget.style.borderColor = 'rgba(0, 255, 65, 0.3)';
+                  }}
+                  title="Stop AI execution"
+                >
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 12 12"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <rect
+                      x="2"
+                      y="2"
+                      width="8"
+                      height="8"
+                      rx="1"
+                      fill="currentColor"
+                    />
+                  </svg>
+                </button>
+              )}
             </div>
             
             {/* Show streaming tool result stdout/stderr in real-time */}

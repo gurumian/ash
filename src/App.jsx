@@ -630,7 +630,8 @@ function App() {
 
   // AI Command hook
   const { 
-    executeAICommand, 
+    executeAICommand,
+    stopAICommand,
     aiMessages: hookAiMessages, 
     clearAIMessages, 
     streamingToolResult,
@@ -1273,6 +1274,7 @@ function App() {
           backendStatus={backendStatus}
           terminal={activeSessionId ? terminalInstances.current[activeSessionId] : null}
           onExecuteAICommand={executeAICommand}
+          onStopAICommand={stopAICommand}
           conversations={conversations || []}
           activeConversationId={activeConversationId}
           onSwitchConversation={switchConversation}

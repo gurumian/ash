@@ -21,7 +21,7 @@ class QwenAgentService {
    * @param {Function} onToolCall - Callback for tool call requests (optional)
    * @returns {Promise<string>} - Final response
    */
-  async executeTask(message, connectionId = null, onChunk = null, llmSettings = null, onToolResult = null, onToolCall = null) {
+  async executeTask(message, connectionId = null, onChunk = null, llmSettings = null, onToolResult = null, onToolCall = null, abortSignal = null) {
     try {
       // Get conversation history for this connection (or use default)
       const historyKey = connectionId || 'default';
@@ -46,13 +46,23 @@ class QwenAgentService {
         };
       }
       
-      const response = await fetch(`${this.backendUrl}/agent/execute/stream`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody)
-      });
+      let response;
+      try {
+        response = await fetch(`${this.backendUrl}/agent/execute/stream`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody),
+          signal: abortSignal
+        });
+      } catch (fetchError) {
+        // Handle fetch abort errors
+        if (fetchError.name === 'AbortError' || abortSignal?.aborted) {
+          throw new Error('Request cancelled by user');
+        }
+        throw fetchError;
+      }
 
       if (!response.ok) {
         throw new Error(`Backend error: ${response.status} ${response.statusText}`);
@@ -66,7 +76,26 @@ class QwenAgentService {
 
       try {
         while (true) {
-          const { done, value } = await reader.read();
+          // Check if aborted
+          if (abortSignal && abortSignal.aborted) {
+            reader.cancel();
+            throw new Error('Request cancelled by user');
+          }
+          
+          let done, value;
+          try {
+            const result = await reader.read();
+            done = result.done;
+            value = result.value;
+          } catch (readError) {
+            // Handle reader abort errors
+            if (readError.name === 'AbortError' || abortSignal?.aborted) {
+              reader.cancel();
+              throw new Error('Request cancelled by user');
+            }
+            throw readError;
+          }
+          
           if (done) break;
 
           buffer += decoder.decode(value, { stream: true });
@@ -207,8 +236,31 @@ class QwenAgentService {
             }
           }
         }
+      } catch (streamError) {
+        // Handle streaming errors, especially abort
+        if (
+          streamError?.name === 'AbortError' ||
+          streamError?.name === 'AbortedError' ||
+          streamError?.message?.includes('aborted') ||
+          streamError?.message?.includes('cancelled') ||
+          abortSignal?.aborted
+        ) {
+          // Clean up and throw cancellation error
+          try {
+            reader.cancel();
+          } catch (cancelError) {
+            // Ignore cancel errors
+          }
+          throw new Error('Request cancelled by user');
+        }
+        // Re-throw other errors
+        throw streamError;
       } finally {
-        reader.releaseLock();
+        try {
+          reader.releaseLock();
+        } catch (lockError) {
+          // Ignore lock release errors (may fail if already released)
+        }
       }
 
       // Update conversation history
@@ -235,6 +287,25 @@ class QwenAgentService {
       // Return formatted response
       return fullResponse;
     } catch (error) {
+      // If aborted, throw a clear cancellation error
+      if (abortSignal && abortSignal.aborted) {
+        throw new Error('Request cancelled by user');
+      }
+      
+      // Check if the original error was an abort
+      const errorMessage = error.message || '';
+      const errorName = error.name || '';
+      
+      if (
+        errorName === 'AbortError' || 
+        errorName === 'AbortedError' ||
+        errorMessage.includes('aborted') ||
+        errorMessage.includes('abort') ||
+        errorMessage.includes('cancelled')
+      ) {
+        throw new Error('Request cancelled by user');
+      }
+      
       console.error('Qwen-Agent service error:', error);
       throw new Error(`Failed to execute task: ${error.message}`);
     }

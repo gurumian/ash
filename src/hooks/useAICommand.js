@@ -42,6 +42,8 @@ export function useAICommand({
   const onAIMessageUpdateRef = useRef(onAIMessageUpdate);
   const lastConnectionIdRef = useRef(null);
   const assistantMessageRef = useRef(null); // Stable reference to current assistant message
+  const abortControllerRef = useRef(null); // AbortController for cancelling requests
+  const executePromiseRef = useRef(null); // Reference to current execution promise
   
   // Keep ref updated
   useEffect(() => {
@@ -189,12 +191,15 @@ export function useAICommand({
     // Don't execute if sidebar is not visible
     if (!isSidebarVisible) {
       console.warn('AI Command requested but sidebar is not visible');
-      return;
+      return Promise.resolve();
     }
 
     setIsAIProcessing(true);
     let processingId = null; // Track which conversation is being processed
-    try {
+    
+    // Wrap entire execution in a promise that always resolves to prevent unhandled rejections
+    return new Promise(async (resolve) => {
+      try {
       if (process.env.NODE_ENV === 'development') {
         console.log('AI Command requested:', naturalLanguage, 'mode:', mode);
       }
@@ -236,6 +241,10 @@ export function useAICommand({
         processingId = currentConversationId;
         setProcessingConversationId(currentConversationId);
         setProcessingConversations(prev => new Set(prev).add(currentConversationId));
+        
+        // Create AbortController for cancellation
+        abortControllerRef.current = new AbortController();
+        const abortSignal = abortControllerRef.current.signal;
         
         // Create Qwen-Agent service
         const qwenAgent = new QwenAgentService();
@@ -326,10 +335,17 @@ export function useAICommand({
         };
 
         // Execute task with streaming
-        await qwenAgent.executeTask(
-          naturalLanguage,
-          connectionId,
-          (fullContent) => {
+        // Wrap in try-catch to handle abort errors gracefully
+        try {
+          await qwenAgent.executeTask(
+            naturalLanguage,
+            connectionId,
+            (fullContent) => {
+            // Check if aborted before processing
+            if (abortSignal?.aborted) {
+              return;
+            }
+            
             // qwen-agent-service sends full accumulated content
             assistantContent = String(fullContent || '');
             
@@ -339,8 +355,8 @@ export function useAICommand({
             
             // Update only content, don't touch toolResults to avoid flickering
             // Only update if this is still the active conversation
-            if (currentConversationId !== conversationId) {
-              return; // Conversation was switched, don't update UI
+            if (currentConversationId !== conversationId || abortSignal?.aborted) {
+              return; // Conversation was switched or aborted, don't update UI
             }
             
             // Use functional update with stable reference
@@ -396,6 +412,11 @@ export function useAICommand({
           llmSettings,
           // Tool result callback
           async (toolName, toolResult) => {
+            // Check if aborted before processing
+            if (abortSignal?.aborted) {
+              return;
+            }
+            
             // Add tool result to the array (preserve all previous results)
             const toolResultData = typeof toolResult === 'object' ? toolResult : { 
               name: toolName, 
@@ -405,12 +426,16 @@ export function useAICommand({
             };
             
             // Show stdout in "AI is thinking" area while processing
-            if (toolResultData.stdout) {
+            if (toolResultData.stdout && !abortSignal?.aborted) {
               setStreamingToolResult({
                 name: toolName,
                 stdout: toolResultData.stdout,
                 stderr: toolResultData.stderr || ''
               });
+            }
+            
+            if (abortSignal?.aborted) {
+              return;
             }
             
             toolResults.push(toolResultData);
@@ -469,25 +494,64 @@ export function useAICommand({
               return updatedMessages;
             });
 
-            // Save tool result to history
-            if (currentConversationId) {
-              await chatHistoryService.saveMessage(
-                currentConversationId,
-                'tool',
-                typeof toolResult === 'string' ? toolResult : JSON.stringify(toolResult),
-                typeof toolResult === 'object' ? [toolResult] : null
-              );
+            // Save tool result to history (only if not aborted)
+            if (currentConversationId && !abortSignal?.aborted) {
+              try {
+                await chatHistoryService.saveMessage(
+                  currentConversationId,
+                  'tool',
+                  typeof toolResult === 'string' ? toolResult : JSON.stringify(toolResult),
+                  typeof toolResult === 'object' ? [toolResult] : null
+                );
+              } catch (saveError) {
+                // Ignore save errors if aborted
+                if (abortSignal?.aborted || saveError?.message?.includes('aborted')) {
+                  return;
+                }
+                throw saveError;
+              }
             }
           },
           // Tool call callback (when LLM requests to call a tool) - don't display
           (toolName, toolArgs) => {
             // Don't display tool calls to user
+          },
+          // AbortSignal for cancellation
+          abortSignal
+          );
+        } catch (taskError) {
+          // Handle task execution errors, especially abort errors
+          const taskErrorMessage = taskError?.message || '';
+          const taskErrorName = taskError?.name || '';
+          
+          if (
+            taskErrorName === 'AbortError' ||
+            taskErrorName === 'AbortedError' ||
+            taskErrorMessage.includes('cancelled') ||
+            taskErrorMessage.includes('aborted') ||
+            taskErrorMessage.includes('abort') ||
+            abortSignal?.aborted
+          ) {
+            // User-initiated cancellation - don't throw, just return
+            console.log('AI task cancelled by user');
+            return Promise.resolve();
           }
-        );
+          
+          // Re-throw other errors to be handled by outer catch block
+          throw taskError;
+        }
 
-        // Save assistant message to history
-        if (currentConversationId && assistantContent) {
-          await chatHistoryService.saveMessage(currentConversationId, 'assistant', assistantContent);
+        // Save assistant message to history (only if not aborted)
+        if (currentConversationId && assistantContent && !abortSignal?.aborted) {
+          try {
+            await chatHistoryService.saveMessage(currentConversationId, 'assistant', assistantContent);
+          } catch (saveError) {
+            // Ignore save errors if aborted
+            if (abortSignal?.aborted || saveError?.message?.includes('aborted')) {
+              return Promise.resolve();
+            }
+            throw saveError;
+          }
           
           // Generate title after first assistant message if still default (completely async)
           (async () => {
@@ -600,16 +664,24 @@ export function useAICommand({
       let assistantContent = '';
       const streamingChunks = [];
       
-      const command = await llmService.convertToCommand(
-        naturalLanguage, 
-        context,
-        // Streaming callback
-        (chunk) => {
-          streamingChunks.push(chunk);
-          assistantContent += chunk;
-          
-          // Only update if this is still the active conversation
-          if (currentConversationId === conversationId) {
+      // Wrap in try-catch to handle abort errors gracefully
+      let command;
+      try {
+        command = await llmService.convertToCommand(
+          naturalLanguage, 
+          context,
+          // Streaming callback
+          (chunk) => {
+            // Check if aborted before processing
+            if (abortSignal?.aborted) {
+              return;
+            }
+            
+            streamingChunks.push(chunk);
+            assistantContent += chunk;
+            
+            // Only update if this is still the active conversation
+            if (currentConversationId === conversationId && !abortSignal?.aborted) {
             // Update assistant message in sidebar
             const assistantMessage = { 
               id: `msg-${Date.now()}-assistant`,
@@ -630,8 +702,31 @@ export function useAICommand({
               return updated;
             });
           }
+        },
+        // AbortSignal for cancellation
+        abortSignal
+        );
+      } catch (taskError) {
+        // Handle task execution errors, especially abort errors
+        const taskErrorMessage = taskError?.message || '';
+        const taskErrorName = taskError?.name || '';
+        
+        if (
+          taskErrorName === 'AbortError' ||
+          taskErrorName === 'AbortedError' ||
+          taskErrorMessage.includes('cancelled') ||
+          taskErrorMessage.includes('aborted') ||
+          taskErrorMessage.includes('abort') ||
+          abortSignal?.aborted
+        ) {
+          // User-initiated cancellation - don't throw, just return
+          console.log('AI task cancelled by user');
+          return Promise.resolve();
         }
-      );
+        
+        // Re-throw other errors to be handled by outer catch block
+        throw taskError;
+      }
       
       if (process.env.NODE_ENV === 'development') {
         console.log('LLM returned command:', command);
@@ -696,19 +791,43 @@ export function useAICommand({
       } else {
         throw new Error('No active session');
       }
-    } catch (error) {
-      console.error('AI Command error:', error);
-      
-      const formattedError = formatAICommandError(error, { llmSettings });
-      
-      setErrorDialog({
-        isOpen: true,
-        ...formattedError
-      });
-    } finally {
+      } catch (error) {
+        // Handle abort/cancellation gracefully - don't show error dialog when user intentionally stops
+        const errorMessage = error.message || '';
+        const errorName = error.name || '';
+        
+        if (
+          errorName === 'AbortError' || 
+          errorName === 'AbortedError' ||
+          errorMessage.includes('aborted') ||
+          errorMessage.includes('cancelled') ||
+          errorMessage.includes('Cancelled') ||
+          errorMessage.includes('abort') ||
+          errorMessage === 'Request cancelled by user'
+        ) {
+          console.log('AI command cancelled by user');
+          // Don't show error dialog for cancellation
+          // Abort errors are expected and handled - resolve silently
+          resolve();
+          return;
+        }
+        
+        console.error('AI Command error:', error);
+        
+        const formattedError = formatAICommandError(error, { llmSettings });
+        
+        setErrorDialog({
+          isOpen: true,
+          ...formattedError
+        });
+        
+        // Resolve promise even on error to prevent unhandled rejection
+        resolve();
+      } finally {
       setIsAIProcessing(false);
       setShowAICommandInput(false);
       setStreamingToolResult(null); // Clear streaming tool result when done
+      abortControllerRef.current = null; // Clear abort controller
       // Clear processing state for the conversation that just finished
       // Use processingId from the beginning of execution, not from state (which may have changed)
       if (processingId) {
@@ -731,7 +850,11 @@ export function useAICommand({
           }
         })();
       }
-    }
+      
+      // Resolve promise on successful completion
+      resolve();
+      }
+    });
   }, [
     isSidebarVisible,
     activeSessionId,
@@ -969,8 +1092,50 @@ Title:`,
     }
   }, [activeSessionId]);
 
+  // Stop current AI command execution
+  const stopAICommand = useCallback(() => {
+    if (abortControllerRef.current) {
+      // Store abort controller reference before clearing
+      const controller = abortControllerRef.current;
+      
+      // Clear the abort controller immediately to prevent double abort
+      abortControllerRef.current = null;
+      
+      // Manually trigger cleanup - set processing states to false immediately
+      setIsAIProcessing(false);
+      setShowAICommandInput(false);
+      setStreamingToolResult(null);
+      
+      // Clear processing conversation state
+      setProcessingConversationId(null);
+      setProcessingConversations(prev => {
+        const next = new Set(prev);
+        next.clear(); // Clear all processing conversations
+        return next;
+      });
+      
+      // Abort the request - this is expected to cause promise rejections
+      // Wrap in try-catch to handle any synchronous errors
+      try {
+        controller.abort();
+      } catch (error) {
+        // Ignore any synchronous errors from abort() - they're expected
+        // Promise rejections will be handled asynchronously
+      }
+      
+      // Handle any unhandled promise rejections that might occur from abort
+      // This catches any promises that reject after abort() is called
+      // We use a Promise that catches rejections to prevent unhandled rejection warnings
+      Promise.resolve().catch(() => {
+        // This catch handler prevents unhandled rejection warnings
+        // The actual rejections are handled in executeAICommand's catch blocks
+      });
+    }
+  }, [setIsAIProcessing, setShowAICommandInput, setStreamingToolResult, setProcessingConversationId, setProcessingConversations]);
+
   return {
     executeAICommand,
+    stopAICommand, // Function to stop/cancel current AI command
     aiMessages,
     clearAIMessages,
     streamingToolResult, // Expose current streaming tool result
