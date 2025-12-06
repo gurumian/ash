@@ -84,6 +84,30 @@ export const AIChatSidebar = memo(function AIChatSidebar({
     }
   }, [input, mode, isProcessing, onExecuteAICommand]);
 
+  const handleCopy = useCallback(async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      // Optional: Show toast notification (can be enhanced later)
+      console.log('Copied to clipboard');
+    } catch (err) {
+      console.error('Failed to copy:', err);
+      // Fallback: use execCommand
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        console.log('Copied to clipboard (fallback)');
+      } catch (e) {
+        console.error('Fallback copy failed:', e);
+      }
+      document.body.removeChild(textArea);
+    }
+  }, []);
+
   if (!isVisible) return null;
 
   return (
@@ -201,6 +225,13 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                 source: 'legacy'
               });
             }
+            
+            // Check if this is a completed assistant message (not currently processing)
+            const isCompleted = msg.role === 'assistant' && !isProcessing;
+            const isLastAssistantMessage = msg.role === 'assistant' && 
+              (index === messages.length - 1 || 
+               messages.slice(index + 1).every(m => m.role !== 'assistant'));
+            const showCopyButton = isCompleted && isLastAssistantMessage && msg.content;
             
             return (
             <div
@@ -408,6 +439,46 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                   toolResults={allToolResults.filter(tr => tr.source === 'execution' || tr.source === 'legacy')}
                   messageId={msg.id || `msg-${index}`}
                 />
+              )}
+              
+              {/* Done indicator and Copy button - Bottom of message */}
+              {showCopyButton && (
+                <div
+                  style={{
+                    marginTop: '12px',
+                    paddingTop: '8px',
+                    borderTop: '1px solid rgba(0, 255, 65, 0.1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '8px'
+                  }}
+                >
+                  <span style={{ color: '#00ff41', fontSize: '10px', opacity: 0.8 }}>
+                    ✓ Done
+                  </span>
+                  <button
+                    onClick={() => handleCopy(msg.content)}
+                    style={{
+                      background: 'transparent',
+                      border: '1px solid rgba(0, 255, 65, 0.3)',
+                      borderRadius: '4px',
+                      padding: '4px 8px',
+                      color: '#00ff41',
+                      fontSize: '10px',
+                      cursor: 'pointer',
+                      opacity: 0.8,
+                      transition: 'opacity 0.2s',
+                      textTransform: 'none',
+                      fontWeight: 'normal'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+                    onMouseLeave={(e) => e.currentTarget.style.opacity = '0.8'}
+                    title="Copy message"
+                  >
+                    📋 Copy
+                  </button>
+                </div>
               )}
             </div>
             );
