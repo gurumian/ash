@@ -306,65 +306,112 @@ async def execute_task_stream(request: TaskRequest):
             else:
                 logger.warning("No conversation history provided - agent will start fresh")
             
+            # 상태 추적: 이전 response를 추적하여 중복 방지
+            previous_response = []  # 이전 response_chunk 저장 (누적된 전체 응답)
+            # 각 assistant 메시지별로 content를 추적 (메시지별로 독립적으로 관리)
+            assistant_content_map = {}  # {message_index: content} 형태로 각 assistant 메시지의 content 추적
+            
             # Qwen-Agent automatically includes tool results in the conversation
+            # response_chunk는 누적된 전체 응답: [msg1, msg2, msg3, ...]
             for response_chunk in assistant.run(messages=messages):
-                for message in response_chunk:
-                    # Log all message details for debugging
-                    logger.debug(f"Message from Qwen-Agent: {json.dumps(message, ensure_ascii=False, indent=2)}")
-                    
+                # 이전 response와 비교해서 새로운 메시지만 추출
+                new_messages = response_chunk[len(previous_response):]
+                
+                logger.debug(f"Processing {len(new_messages)} new messages (total: {len(response_chunk)}, previous: {len(previous_response)})")
+                
+                # 핵심 수정: response_chunk 전체를 스캔해서 assistant 메시지의 content 업데이트를 확인
+                # (new_messages가 비어있어도, 기존 메시지의 content가 업데이트될 수 있음)
+                for idx, message in enumerate(response_chunk):
                     event_type = message.get('role', 'unknown')
                     content = message.get('content', '')
                     
-                    # Check for assistant content
+                    # Check for assistant content updates (모든 assistant 메시지 확인)
                     if event_type == 'assistant':
-                        if content:
-                            # Stream content directly without parsing
-                            # Frontend will handle <thinking> tags in markdown rendering
-                            # This avoids brittle regex parsing that breaks when LLM output format varies
-                            yield f"data: {json.dumps({'type': 'content', 'content': content})}\n\n"
+                        # Qwen-Agent의 content는 문자열이거나 None일 수 있음
+                        # content가 None이 아닐 때만 처리
+                        content_str = str(content) if content is not None else ''
                         
-                        # Check for function_call (tool call request) - don't show to user, just log
-                        function_call = message.get('function_call')
-                        if function_call:
-                            # LLM is requesting to call a tool
-                            tool_name = function_call.get('name', 'unknown_tool')
-                            tool_args = function_call.get('arguments', '{}')
-                            logger.info(f"Tool call request: {tool_name} with args: {tool_args[:200]}...")
-                            # Don't stream tool call to client - user doesn't need to see this
+                        if content_str:
+                            # 이 메시지의 이전 content 확인
+                            previous_content = assistant_content_map.get(idx, '')
+                            
+                            if not previous_content:
+                                # 첫 번째 content - 전체를 스트리밍
+                                logger.info(f"[Backend] ✅ Streaming initial assistant content (idx={idx}): {len(content_str)} chars | content={repr(content_str[:200])}")
+                                yield f"data: {json.dumps({'type': 'content_chunk', 'content': content_str})}\n\n"
+                                assistant_content_map[idx] = content_str
+                            elif content_str != previous_content:
+                                # Content가 변경됨
+                                if content_str.startswith(previous_content):
+                                    # Content가 연장됨 - 새로운 부분만 스트리밍 (증분)
+                                    new_chunk = content_str[len(previous_content):]
+                                    if new_chunk:
+                                        logger.info(f"[Backend] ✅ Streaming content chunk (idx={idx}): +{len(new_chunk)} chars (total: {len(content_str)} chars) | new={repr(new_chunk[:200])}")
+                                        yield f"data: {json.dumps({'type': 'content_chunk', 'content': new_chunk})}\n\n"
+                                    assistant_content_map[idx] = content_str
+                                else:
+                                    # 완전히 다른 content (새로운 assistant 메시지이거나 내용이 완전히 바뀜)
+                                    logger.info(f"[Backend] ✅ Streaming new assistant content (idx={idx}): {len(content_str)} chars (previous was {len(previous_content)} chars) | new={repr(content_str[:200])}")
+                                    yield f"data: {json.dumps({'type': 'content_chunk', 'content': content_str})}\n\n"
+                                    assistant_content_map[idx] = content_str
+                        
+                        # Tool call 실시간 스트리밍 (새로운 메시지에만)
+                        if idx >= len(previous_response):
+                            function_call = message.get('function_call')
+                            if function_call:
+                                tool_name = function_call.get('name', 'unknown_tool')
+                                tool_args = function_call.get('arguments', '{}')
+                                
+                                # Command 추출 (ash_ssh_execute인 경우)
+                                command = None
+                                if tool_name == 'ash_ssh_execute':
+                                    try:
+                                        import json5
+                                        args = json5.loads(tool_args)
+                                        command = args.get('command', tool_args)
+                                    except:
+                                        command = tool_args
+                                
+                                logger.info(f"Tool call request: {tool_name} with args: {tool_args[:200]}...")
+                                
+                                # Tool call을 실시간으로 스트리밍 (사용자가 볼 수 있도록!)
+                                yield f"data: {json.dumps({
+                                    'type': 'tool_call',
+                                    'name': tool_name,
+                                    'args': tool_args,
+                                    'command': command
+                                }, ensure_ascii=False)}\n\n"
                     
                     # Check for tool results (Qwen-Agent uses both 'tool' and 'function' roles)
-                    elif event_type in ('tool', 'function'):
+                    # 새로운 메시지만 처리 (중복 방지)
+                    elif event_type in ('tool', 'function') and idx >= len(previous_response):
                         tool_name = message.get('name', 'unknown_tool')
-                        tool_content = str(content)
+                        tool_content = str(content) if content else ''
                         logger.info(f"Tool {tool_name} result (role={event_type}): {tool_content[:100]}...")
                         
-                        # Parse tool result JSON if possible for structured display
+                        # Parse tool result JSON for structured display
                         try:
-                            # Tool result is typically a JSON string like {"success": true, "output": "...", "error": "", "exitCode": 0}
-                            parsed_result = json.loads(tool_content) if isinstance(tool_content, str) else tool_content
+                            parsed_result = json.loads(tool_content) if isinstance(tool_content, str) and tool_content.strip().startswith('{') else tool_content
                             
                             # Structure the result for frontend rendering
                             structured_result = {
                                 'type': 'tool_result',
                                 'name': tool_name,
-                                'success': parsed_result.get('success', True),
-                                'exitCode': parsed_result.get('exitCode', 0),
-                                'stdout': parsed_result.get('output', ''),
-                                'stderr': parsed_result.get('error', ''),
+                                'success': parsed_result.get('success', True) if isinstance(parsed_result, dict) else True,
+                                'exitCode': parsed_result.get('exitCode', 0) if isinstance(parsed_result, dict) else 0,
+                                'stdout': parsed_result.get('output', '') if isinstance(parsed_result, dict) else '',
+                                'stderr': parsed_result.get('error', '') if isinstance(parsed_result, dict) else '',
                             }
                             
                             # Stream structured tool result
                             yield f"data: {json.dumps(structured_result, ensure_ascii=False)}\n\n"
-                        except (json.JSONDecodeError, AttributeError):
-                            # Fallback: if parsing fails, send as-is
-                            logger.warning(f"Could not parse tool result as JSON, sending as raw content")
+                        except (json.JSONDecodeError, AttributeError) as e:
+                            # Fallback: if parsing fails, send as raw content
+                            logger.warning(f"Could not parse tool result as JSON: {e}, sending as raw content")
                             yield f"data: {json.dumps({'type': 'tool_result', 'name': tool_name, 'content': tool_content})}\n\n"
-                    
-                    # Handle any other message types
-                    else:
-                        # Stream any other message types for visibility
-                        logger.info(f"Unknown message type: {event_type}, content: {str(content)[:100]}...")
-                        yield f"data: {json.dumps({'type': 'message', 'role': event_type, 'content': str(content)})}\n\n"
+                
+                # 이전 response 업데이트 (중복 방지)
+                previous_response = response_chunk.copy()
             
             logger.info("Assistant run completed.")
             yield f"data: {json.dumps({'type': 'done', 'timestamp': datetime.now().isoformat()})}\n\n"

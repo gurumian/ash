@@ -82,8 +82,29 @@ class QwenAgentService {
               try {
                 const data = JSON.parse(line.substring(6));
                 
-                if (data.type === 'content' && data.content) {
-                  // Backend sends full accumulated content
+                if (data.type === 'content_chunk' && data.content !== undefined) {
+                  // Backend sends incremental content chunks
+                  // Accumulate chunks to build the full response (Qwen-Agent 방식)
+                  const chunkContent = String(data.content || '');
+                  if (chunkContent) {
+                    fullResponse += chunkContent;
+                    
+                    // Call onChunk with accumulated full content
+                    if (onChunk) {
+                      console.log(`[QwenAgentService] 📝 Content chunk received: ${chunkContent.length} chars, total: ${fullResponse.length} chars`);
+                      onChunk(fullResponse);  // Send full accumulated content
+                    }
+                    
+                    // Track assistant messages for history
+                    if (!messages.length || messages[messages.length - 1].role !== 'assistant') {
+                      messages.push({ role: 'assistant', content: fullResponse });
+                    } else {
+                      // Update with accumulated content
+                      messages[messages.length - 1].content = fullResponse;
+                    }
+                  }
+                } else if (data.type === 'content' && data.content) {
+                  // Backend sends full accumulated content (fallback for non-incremental case)
                   // Note: [function]: {...} patterns in content will be parsed and displayed 
                   // separately in the UI using FunctionResult component
                   let currentContent = data.content;
@@ -108,15 +129,15 @@ class QwenAgentService {
                   }
                 } else if (data.type === 'tool_call') {
                   // Tool call request - LLM is requesting to call a tool
-                  // Don't display to user, just track internally if needed
-                  const toolName = data.tool_name || 'unknown_tool';
+                  const toolName = data.name || data.tool_name || 'unknown_tool';
+                  const toolArgs = data.args || data.arguments || '{}';
                   
-                  // Call tool call callback if provided (for internal tracking)
+                  // Call tool call callback if provided (for displaying to user)
                   if (onToolCall) {
-                    onToolCall(toolName, data.arguments || '{}');
+                    onToolCall(toolName, toolArgs);
                   }
                   
-                  // Don't add to messages or display - user doesn't need to see tool calls
+                  // Track for history but don't add to messages array (handled by backend)
                 } else if (data.type === 'tool_result') {
                   // Tool execution result - Backend sends structured format:
                   // { type: 'tool_result', name: '...', success: true/false, exitCode: 0, stdout: '...', stderr: '...' }
@@ -170,7 +191,11 @@ class QwenAgentService {
                     onChunk(`\n[${data.role || 'unknown'}]: ${data.content || ''}\n`);
                   }
                 } else if (data.type === 'done') {
-                  // Task completed
+                  // Task completed - send final content update before breaking
+                  if (onChunk && fullResponse) {
+                    console.log(`[QwenAgentService] ✅ Final done signal, sending final content: ${fullResponse.length} chars`);
+                    onChunk(fullResponse);
+                  }
                   break;
                 } else if (data.type === 'error') {
                   throw new Error(data.content || 'Unknown error');

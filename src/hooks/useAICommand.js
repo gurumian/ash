@@ -199,7 +199,11 @@ export function useAICommand({
           connectionId,
           (fullContent) => {
             // qwen-agent-service sends full accumulated content
-            assistantContent = fullContent;
+            assistantContent = String(fullContent || '');
+            
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`[useAICommand] 📝 Content chunk callback: ${assistantContent.length} chars`);
+            }
             
             // Update only content, don't touch toolResults to avoid flickering
             // Use functional update with stable reference
