@@ -61,7 +61,12 @@ export const AIChatSidebar = memo(function AIChatSidebar({
   backendStatus = 'not-ready', // Backend status: 'ready' | 'starting' | 'not-ready'
   onClose,
   onExecuteAICommand,
-  terminal
+  terminal,
+  conversations = [], // List of conversations for current connection
+  activeConversationId = null, // Current active conversation ID
+  onSwitchConversation = null, // Function to switch conversation
+  onCreateNewConversation = null, // Function to create new conversation
+  onDeleteConversation = null // Function to delete a conversation
 }) {
   const messagesEndRef = useRef(null);
   const sidebarRef = useRef(null);
@@ -176,55 +181,218 @@ export const AIChatSidebar = memo(function AIChatSidebar({
           padding: '12px 16px',
           borderBottom: '1px solid #1a1a1a',
           display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
+          flexDirection: 'column',
+          gap: '8px',
           background: '#000000'
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <h3 style={{ margin: 0, fontSize: '13px', fontWeight: '600', color: '#00ff41' }}>
-            AI Chat
-          </h3>
-          {/* Backend Status Indicator - Circular Lamp */}
-          <div
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h3 style={{ margin: 0, fontSize: '13px', fontWeight: '600', color: '#00ff41' }}>
+              AI Chat
+            </h3>
+            {/* Backend Status Indicator - Circular Lamp */}
+            <div
+              style={{
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                backgroundColor: 
+                  backendStatus === 'ready' ? '#00ff41' :
+                  backendStatus === 'starting' ? '#ffaa00' : '#666',
+                boxShadow: 
+                  backendStatus === 'ready' ? '0 0 4px rgba(0, 255, 65, 0.5)' :
+                  backendStatus === 'starting' ? '0 0 4px rgba(255, 170, 0, 0.5)' : 'none',
+                transition: 'background-color 0.3s, box-shadow 0.3s',
+                flexShrink: 0
+              }}
+              title={
+                backendStatus === 'ready' ? 'Backend Ready' :
+                backendStatus === 'starting' ? 'Backend Starting' : 'Backend Not Ready'
+              }
+            />
+          </div>
+          <button
+            onClick={onClose}
             style={{
-              width: '8px',
-              height: '8px',
-              borderRadius: '50%',
-              backgroundColor: 
-                backendStatus === 'ready' ? '#00ff41' :
-                backendStatus === 'starting' ? '#ffaa00' : '#666',
-              boxShadow: 
-                backendStatus === 'ready' ? '0 0 4px rgba(0, 255, 65, 0.5)' :
-                backendStatus === 'starting' ? '0 0 4px rgba(255, 170, 0, 0.5)' : 'none',
-              transition: 'background-color 0.3s, box-shadow 0.3s',
-              flexShrink: 0
+              background: 'none',
+              border: 'none',
+              color: '#00ff41',
+              cursor: 'pointer',
+              fontSize: '18px',
+              lineHeight: '1',
+              padding: '4px 8px',
+              opacity: 0.7,
+              transition: 'opacity 0.2s'
             }}
-            title={
-              backendStatus === 'ready' ? 'Backend Ready' :
-              backendStatus === 'starting' ? 'Backend Starting' : 'Backend Not Ready'
-            }
-          />
+            onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+            onMouseLeave={(e) => e.currentTarget.style.opacity = '0.7'}
+            title="Close"
+          >
+            ×
+          </button>
         </div>
-        <button
-          onClick={onClose}
+        
+        {/* Conversation Tabs */}
+        <div
           style={{
-            background: 'none',
-            border: 'none',
-            color: '#00ff41',
-            cursor: 'pointer',
-            fontSize: '18px',
-            lineHeight: '1',
-            padding: '4px 8px',
-            opacity: 0.7,
-            transition: 'opacity 0.2s'
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px 12px',
+            borderTop: '1px solid #1a1a1a'
           }}
-          onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
-          onMouseLeave={(e) => e.currentTarget.style.opacity = '0.7'}
-          title="Close"
         >
-          ×
-        </button>
+          {/* Scrollable tabs container */}
+          <div
+            className="ai-chat-tabs-scroll"
+            style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              overflowX: 'auto',
+              overflowY: 'hidden',
+              minWidth: 0
+            }}
+          >
+            {conversations.map((conv) => {
+                const isActive = conv.id === activeConversationId;
+                const displayTitle = conv.title && conv.title.length > 15 
+                  ? conv.title.substring(0, 15) + '...' 
+                  : conv.title || 'New Chat';
+                
+                return (
+                  <div
+                    key={conv.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      background: isActive ? 'rgba(0, 255, 65, 0.15)' : 'transparent',
+                      border: `1px solid ${isActive ? 'rgba(0, 255, 65, 0.5)' : 'rgba(0, 255, 65, 0.2)'}`,
+                      borderRadius: '4px',
+                      padding: '0 4px 0 12px',
+                      height: '32px',
+                      opacity: isActive ? 1 : 0.7,
+                      transition: 'all 0.2s',
+                      flexShrink: 0,
+                      maxWidth: '150px',
+                      position: 'relative'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.opacity = '1';
+                        e.currentTarget.style.borderColor = 'rgba(0, 255, 65, 0.4)';
+                        e.currentTarget.style.background = 'rgba(0, 255, 65, 0.05)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.opacity = '0.7';
+                        e.currentTarget.style.borderColor = 'rgba(0, 255, 65, 0.2)';
+                        e.currentTarget.style.background = 'transparent';
+                      }
+                    }}
+                  >
+                    <button
+                      onClick={() => onSwitchConversation && onSwitchConversation(conv.id)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#00ff41',
+                        cursor: 'pointer',
+                        fontSize: '11px',
+                        padding: '6px 0',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        flex: 1,
+                        textAlign: 'left'
+                      }}
+                      title={conv.title || 'New Chat'}
+                    >
+                      {displayTitle}
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onDeleteConversation) {
+                          onDeleteConversation(conv.id);
+                        }
+                      }}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#00ff41',
+                        cursor: 'pointer',
+                        fontSize: '16px',
+                        lineHeight: '1',
+                        padding: '4px 6px',
+                        opacity: 0.7,
+                        transition: 'opacity 0.2s',
+                        flexShrink: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '20px',
+                        height: '20px'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.opacity = '1';
+                        e.currentTarget.style.color = '#ff4141';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.opacity = '0.7';
+                        e.currentTarget.style.color = '#00ff41';
+                      }}
+                      title="Delete conversation"
+                    >
+                      ×
+                    </button>
+                  </div>
+                );
+            })}
+          </div>
+          
+          {/* New Chat button - Fixed on the right */}
+          {onCreateNewConversation && (
+            <button
+              onClick={onCreateNewConversation}
+              style={{
+                background: 'transparent',
+                border: '1px solid rgba(0, 255, 65, 0.3)',
+                borderRadius: '4px',
+                color: '#00ff41',
+                cursor: 'pointer',
+                fontSize: '18px',
+                lineHeight: '1',
+                padding: '6px 10px',
+                minWidth: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: 0.8,
+                transition: 'all 0.2s',
+                flexShrink: 0
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.opacity = '1';
+                e.currentTarget.style.borderColor = 'rgba(0, 255, 65, 0.5)';
+                e.currentTarget.style.background = 'rgba(0, 255, 65, 0.05)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.opacity = '0.8';
+                e.currentTarget.style.borderColor = 'rgba(0, 255, 65, 0.3)';
+                e.currentTarget.style.background = 'transparent';
+              }}
+              title="New Chat"
+            >
+              +
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Messages */}

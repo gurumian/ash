@@ -629,7 +629,18 @@ function App() {
   const { status: backendStatus, setStarting: setBackendStarting } = useBackendStatus(showAIChatSidebar);
 
   // AI Command hook
-  const { executeAICommand, aiMessages: hookAiMessages, clearAIMessages, streamingToolResult } = useAICommand({
+  const { 
+    executeAICommand, 
+    aiMessages: hookAiMessages, 
+    clearAIMessages, 
+    streamingToolResult,
+    processingConversationId,
+    conversations,
+    activeConversationId,
+    switchConversation,
+    createNewConversation,
+    deleteConversation
+  } = useAICommand({
     activeSessionId,
     terminalInstances,
     sshConnections,
@@ -1253,11 +1264,16 @@ function App() {
           isVisible={showAIChatSidebar}
           width={aiChatSidebarWidth}
           messages={aiMessages}
-          isProcessing={isAIProcessing}
-          streamingToolResult={streamingToolResult}
+          isProcessing={isAIProcessing && processingConversationId === activeConversationId}
+          streamingToolResult={processingConversationId === activeConversationId ? streamingToolResult : null}
           backendStatus={backendStatus}
           terminal={activeSessionId ? terminalInstances.current[activeSessionId] : null}
           onExecuteAICommand={executeAICommand}
+          conversations={conversations || []}
+          activeConversationId={activeConversationId}
+          onSwitchConversation={switchConversation}
+          onCreateNewConversation={createNewConversation}
+          onDeleteConversation={deleteConversation}
           onClose={() => {
             setShowAIChatSidebar(false);
             if (clearAIMessages) {

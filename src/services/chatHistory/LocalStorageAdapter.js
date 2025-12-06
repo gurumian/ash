@@ -8,6 +8,7 @@
  */
 
 const STORAGE_KEY = 'ash-chat-history';
+const ACTIVE_CONVERSATION_KEY = 'ash-active-conversations'; // { connectionId: conversationId }
 
 class LocalStorageAdapter {
   constructor() {
@@ -217,6 +218,56 @@ class LocalStorageAdapter {
     return data.conversations.sort((a, b) => 
       new Date(b.updatedAt) - new Date(a.updatedAt)
     );
+  }
+
+  /**
+   * List conversations for a specific connection
+   */
+  async listConversations(connectionId) {
+    const data = this._getData();
+    const conversations = data.conversations
+      .filter(c => c.connectionId === connectionId)
+      .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+    
+    return conversations.map(c => ({
+      id: c.id,
+      title: c.title,
+      connectionId: c.connectionId,
+      createdAt: c.createdAt,
+      updatedAt: c.updatedAt,
+      messageCount: data.messages.filter(m => m.conversationId === c.id).length
+    }));
+  }
+
+  /**
+   * Save active conversation for a connection
+   */
+  saveActiveConversation(connectionId, conversationId) {
+    try {
+      const data = this.storage.getItem(ACTIVE_CONVERSATION_KEY);
+      const activeConversations = data ? JSON.parse(data) : {};
+      activeConversations[connectionId] = conversationId;
+      this.storage.setItem(ACTIVE_CONVERSATION_KEY, JSON.stringify(activeConversations));
+      return true;
+    } catch (error) {
+      console.error('Failed to save active conversation:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get active conversation for a connection
+   */
+  getActiveConversation(connectionId) {
+    try {
+      const data = this.storage.getItem(ACTIVE_CONVERSATION_KEY);
+      if (!data) return null;
+      const activeConversations = JSON.parse(data);
+      return activeConversations[connectionId] || null;
+    } catch (error) {
+      console.error('Failed to get active conversation:', error);
+      return null;
+    }
   }
 
   /**

@@ -34,7 +34,9 @@ export function useAICommand({
 }) {
   const [aiMessages, setAiMessages] = useState([]);
   const [conversationId, setConversationId] = useState(null);
+  const [conversations, setConversations] = useState([]); // List of all conversations for current connection
   const [streamingToolResult, setStreamingToolResult] = useState(null); // Current executing tool result
+  const [processingConversationId, setProcessingConversationId] = useState(null); // ID of conversation currently being processed
   const onAIMessageUpdateRef = useRef(onAIMessageUpdate);
   const lastConnectionIdRef = useRef(null);
   const assistantMessageRef = useRef(null); // Stable reference to current assistant message
@@ -44,11 +46,12 @@ export function useAICommand({
     onAIMessageUpdateRef.current = onAIMessageUpdate;
   }, [onAIMessageUpdate]);
 
-  // Load conversation history when activeSessionId changes
+  // Load conversations list and active conversation when activeSessionId changes
   useEffect(() => {
     if (!activeSessionId) {
       setAiMessages([]);
       setConversationId(null);
+      setConversations([]);
       lastConnectionIdRef.current = null;
       if (onAIMessageUpdateRef.current) {
         onAIMessageUpdateRef.current([]);
@@ -61,6 +64,7 @@ export function useAICommand({
     if (!connection) {
       setAiMessages([]);
       setConversationId(null);
+      setConversations([]);
       lastConnectionIdRef.current = null;
       if (onAIMessageUpdateRef.current) {
         onAIMessageUpdateRef.current([]);
@@ -77,19 +81,52 @@ export function useAICommand({
     
     lastConnectionIdRef.current = connectionId;
 
-    // Load conversation history for this connection
+    // Load conversations list and restore active conversation
     (async () => {
       try {
-        const conversation = await chatHistoryService.getOrCreateConversation(connectionId);
-        setConversationId(conversation.id);
+        // Load all conversations for this connection
+        const conversationsList = await chatHistoryService.listConversations(connectionId);
+        setConversations(conversationsList);
         
-        const history = await chatHistoryService.getConversationHistory(conversation.id);
+        // Try to restore last active conversation
+        let activeConversationId = chatHistoryService.getActiveConversation(connectionId);
+        let activeConversation = null;
+        
+        if (activeConversationId) {
+          // Verify the conversation still exists
+          activeConversation = conversationsList.find(c => c.id === activeConversationId);
+        }
+        
+        // If no active conversation or it doesn't exist, use most recent or create new
+        if (!activeConversation) {
+          if (conversationsList.length > 0) {
+            activeConversation = conversationsList[0]; // Most recent
+            activeConversationId = activeConversation.id;
+          } else {
+            // Create new conversation
+            activeConversation = await chatHistoryService.createConversation(
+              `New Chat ${new Date().toLocaleTimeString()}`,
+              connectionId
+            );
+            activeConversationId = activeConversation.id;
+            // Refresh conversations list
+            const updatedList = await chatHistoryService.listConversations(connectionId);
+            setConversations(updatedList);
+          }
+        }
+        
+        setConversationId(activeConversationId);
+        chatHistoryService.saveActiveConversation(connectionId, activeConversationId);
+        
+        // Load messages for active conversation
+        const history = await chatHistoryService.getConversationHistory(activeConversationId);
         
         // Convert back to display format
         const displayMessages = history.map(msg => ({
           id: msg.id,
           role: msg.role,
           content: msg.content,
+          toolResults: msg.toolResults || [],
           toolResult: msg.toolResults && msg.toolResults[0] ? {
             name: msg.toolResults[0].name,
             success: msg.toolResults[0].success,
@@ -107,6 +144,7 @@ export function useAICommand({
         console.error('Failed to load conversation history:', error);
         setAiMessages([]);
         setConversationId(null);
+        setConversations([]);
         if (onAIMessageUpdateRef.current) {
           onAIMessageUpdateRef.current([]);
         }
@@ -149,10 +187,18 @@ export function useAICommand({
         }
         
         // Ensure conversation exists
-        if (!conversationId) {
+        let currentConversationId = conversationId;
+        if (!currentConversationId) {
           const conversation = await chatHistoryService.getOrCreateConversation(connectionId);
+          currentConversationId = conversation.id;
           setConversationId(conversation.id);
+          // Refresh conversations list
+          const updatedList = await chatHistoryService.listConversations(connectionId);
+          setConversations(updatedList);
         }
+        
+        // Set processing state for this specific conversation
+        setProcessingConversationId(currentConversationId);
         
         // Create Qwen-Agent service
         const qwenAgent = new QwenAgentService();
@@ -422,6 +468,26 @@ export function useAICommand({
         currentDirectory: 'unknown' // TODO: Get actual current directory from terminal
       };
 
+      // Ensure conversation exists for ask mode
+      let currentConversationId = conversationId;
+      if (!currentConversationId && activeSessionId) {
+        const connection = sshConnections.current[activeSessionId];
+        if (connection) {
+          const connectionId = connection.connectionId || activeSessionId;
+          const conversation = await chatHistoryService.getOrCreateConversation(connectionId);
+          currentConversationId = conversation.id;
+          setConversationId(conversation.id);
+          // Refresh conversations list
+          const updatedList = await chatHistoryService.listConversations(connectionId);
+          setConversations(updatedList);
+        }
+      }
+
+      // Set processing state for this specific conversation (ask mode)
+      if (currentConversationId) {
+        setProcessingConversationId(currentConversationId);
+      }
+
       // Add user message to sidebar
       const userMessage = { 
         id: `msg-${Date.now()}-user`,
@@ -531,6 +597,19 @@ export function useAICommand({
       setIsAIProcessing(false);
       setShowAICommandInput(false);
       setStreamingToolResult(null); // Clear streaming tool result when done
+      setProcessingConversationId(null); // Clear processing conversation ID
+      
+      // Refresh conversations list after message is saved
+      if (lastConnectionIdRef.current && conversationId) {
+        (async () => {
+          try {
+            const updatedList = await chatHistoryService.listConversations(lastConnectionIdRef.current);
+            setConversations(updatedList);
+          } catch (error) {
+            console.error('Failed to refresh conversations list:', error);
+          }
+        })();
+      }
     }
   }, [
     activeSessionId,
@@ -553,14 +632,149 @@ export function useAICommand({
     if (conversationId) {
       chatHistoryService.deleteConversation(conversationId);
       setConversationId(null);
+      // Refresh conversations list
+      if (lastConnectionIdRef.current) {
+        (async () => {
+          try {
+            const updatedList = await chatHistoryService.listConversations(lastConnectionIdRef.current);
+            setConversations(updatedList);
+          } catch (error) {
+            console.error('Failed to refresh conversations list:', error);
+          }
+        })();
+      }
     }
     lastConnectionIdRef.current = null;
   }, [conversationId]);
+
+  // Switch to a different conversation
+  const switchConversation = useCallback(async (targetConversationId) => {
+    if (targetConversationId === conversationId) {
+      return; // Already active
+    }
+
+    try {
+      const history = await chatHistoryService.getConversationHistory(targetConversationId);
+      
+      // Convert back to display format
+      const displayMessages = history.map(msg => ({
+        id: msg.id,
+        role: msg.role,
+        content: msg.content,
+        toolResults: msg.toolResults || [],
+        toolResult: msg.toolResults && msg.toolResults[0] ? {
+          name: msg.toolResults[0].name,
+          success: msg.toolResults[0].success,
+          exitCode: msg.toolResults[0].exitCode,
+          stdout: msg.toolResults[0].stdout,
+          stderr: msg.toolResults[0].stderr
+        } : null
+      }));
+      
+      setConversationId(targetConversationId);
+      setAiMessages(displayMessages);
+      
+      // Save as active conversation
+      if (lastConnectionIdRef.current) {
+        chatHistoryService.saveActiveConversation(lastConnectionIdRef.current, targetConversationId);
+      }
+      
+      if (onAIMessageUpdateRef.current) {
+        onAIMessageUpdateRef.current(displayMessages);
+      }
+    } catch (error) {
+      console.error('Failed to switch conversation:', error);
+    }
+  }, [conversationId]);
+
+  // Create a new conversation
+  const createNewConversation = useCallback(async () => {
+    if (!activeSessionId) {
+      return null;
+    }
+
+    const connection = sshConnections.current[activeSessionId];
+    if (!connection) {
+      return null;
+    }
+
+    const connectionId = connection.connectionId || activeSessionId;
+
+    try {
+      const newConversation = await chatHistoryService.createConversation(
+        `New Chat ${new Date().toLocaleTimeString()}`,
+        connectionId
+      );
+      
+      // Refresh conversations list
+      const updatedList = await chatHistoryService.listConversations(connectionId);
+      setConversations(updatedList);
+      
+      // Switch to new conversation
+      setConversationId(newConversation.id);
+      setAiMessages([]);
+      chatHistoryService.saveActiveConversation(connectionId, newConversation.id);
+      
+      if (onAIMessageUpdateRef.current) {
+        onAIMessageUpdateRef.current([]);
+      }
+      
+      return newConversation;
+    } catch (error) {
+      console.error('Failed to create new conversation:', error);
+      return null;
+    }
+  }, [activeSessionId]);
+
+  // Delete a conversation
+  const deleteConversation = useCallback(async (targetConversationId) => {
+    if (!targetConversationId) {
+      return;
+    }
+
+    try {
+      await chatHistoryService.deleteConversation(targetConversationId);
+      
+      // If deleted conversation was active, switch to another or create new
+      if (targetConversationId === conversationId) {
+        const connection = sshConnections.current[activeSessionId];
+        if (connection) {
+          const connectionId = connection.connectionId || activeSessionId;
+          const updatedList = await chatHistoryService.listConversations(connectionId);
+          setConversations(updatedList);
+          
+          if (updatedList.length > 0) {
+            // Switch to most recent conversation
+            await switchConversation(updatedList[0].id);
+          } else {
+            // No conversations left, create new one
+            await createNewConversation();
+          }
+        }
+      } else {
+        // Just refresh the list
+        const connection = sshConnections.current[activeSessionId];
+        if (connection) {
+          const connectionId = connection.connectionId || activeSessionId;
+          const updatedList = await chatHistoryService.listConversations(connectionId);
+          setConversations(updatedList);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to delete conversation:', error);
+    }
+  }, [activeSessionId, conversationId, switchConversation, createNewConversation]);
 
   return {
     executeAICommand,
     aiMessages,
     clearAIMessages,
-    streamingToolResult // Expose current streaming tool result
+    streamingToolResult, // Expose current streaming tool result
+    processingConversationId, // ID of conversation currently being processed
+    conversations, // List of all conversations for current connection
+    activeConversationId: conversationId, // Current active conversation ID
+    switchConversation, // Function to switch to a different conversation
+    createNewConversation, // Function to create a new conversation
+    deleteConversation // Function to delete a conversation
   };
 }

@@ -70,6 +70,27 @@ class ChatHistoryService {
   }
 
   /**
+   * List conversations for a connection
+   */
+  async listConversations(connectionId) {
+    return await this.adapter.listConversations(connectionId);
+  }
+
+  /**
+   * Save active conversation for a connection
+   */
+  saveActiveConversation(connectionId, conversationId) {
+    return this.adapter.saveActiveConversation(connectionId, conversationId);
+  }
+
+  /**
+   * Get active conversation for a connection
+   */
+  getActiveConversation(connectionId) {
+    return this.adapter.getActiveConversation(connectionId);
+  }
+
+  /**
    * Delete conversation
    */
   async deleteConversation(conversationId) {
