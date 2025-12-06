@@ -419,6 +419,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
 
       {/* Messages */}
       <div
+        className="ai-chat-messages-scroll"
         style={{
           flex: 1,
           overflowY: 'auto',
@@ -437,6 +438,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
           messages.map((msg, index) => {
             // Separate thinking/reasoning from tool execution results
             // Parse function results, thinking, plan, and todos from content
+            // Note: We keep raw tool data in content for display (styled differently)
             const { functionResults, cleanedContent, thinking, plan, todos } = parseAndCleanContent(msg.content || '');
             
             // Tool results from array (these are actual executed commands)
@@ -567,18 +569,135 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                   components={{
                     // Customize markdown components to match terminal theme
                     p: ({ children, ...props }) => {
-                      return (
-                        <p style={{ margin: '0 0 8px 0' }} {...props}>
-                          {children}
-                        </p>
-                      );
+                      // Helper to recursively process children and style tool result JSON
+                      const processChildren = (children) => {
+                        if (typeof children === 'string') {
+                          // Check if this string contains tool result pattern
+                          if (/\[function\]:\s*\{[^}]*"success"/.test(children) || 
+                              /\{"success":\s*(?:true|false)[^}]+\}/.test(children)) {
+                            // Split by tool result pattern and wrap matches
+                            const parts = children.split(/(\[function\]:\s*\{[^}]*"success"[^}]*\}|\{"success":\s*(?:true|false)[^}]+\})/);
+                            return parts.map((part, idx) => {
+                              if (part && (/\[function\]:\s*\{[^}]*"success"/.test(part) || 
+                                  /\{"success":\s*(?:true|false)[^}]+\}/.test(part))) {
+                                return (
+                                  <span
+                                    key={idx}
+                                    style={{
+                                      color: '#666',
+                                      fontStyle: 'italic',
+                                      opacity: 0.7,
+                                      fontFamily: 'monospace',
+                                      fontSize: '11px'
+                                    }}
+                                  >
+                                    {part}
+                                  </span>
+                                );
+                              }
+                              return part;
+                            }).filter(Boolean);
+                          }
+                          return children;
+                        }
+                        if (Array.isArray(children)) {
+                          return children.flatMap((child, idx) => {
+                            const processed = processChildren(child);
+                            return Array.isArray(processed) ? processed : [processed];
+                          });
+                        }
+                        if (children && typeof children === 'object' && 'props' in children) {
+                          // React element - process its children if it has any
+                          return React.cloneElement(children, {
+                            ...children.props,
+                            children: processChildren(children.props.children)
+                          });
+                        }
+                        return children;
+                      };
+                      
+                      try {
+                        const processedChildren = processChildren(children);
+                        return (
+                          <p style={{ margin: '0 0 8px 0' }} {...props}>
+                            {processedChildren}
+                          </p>
+                        );
+                      } catch (e) {
+                        // Fallback to simple rendering if processing fails
+                        return (
+                          <p style={{ margin: '0 0 8px 0' }} {...props}>
+                            {children}
+                          </p>
+                        );
+                      }
                     },
                     h1: ({ children }) => <h1 style={{ fontSize: '18px', margin: '12px 0 8px 0', fontWeight: '600' }}>{children}</h1>,
                     h2: ({ children }) => <h2 style={{ fontSize: '16px', margin: '10px 0 6px 0', fontWeight: '600' }}>{children}</h2>,
                     h3: ({ children }) => <h3 style={{ fontSize: '14px', margin: '8px 0 4px 0', fontWeight: '600' }}>{children}</h3>,
                     code: ({ inline, className, children, ...props }) => {
+                      // Check if this is a tool result raw data
+                      const isToolResult = props['data-tool-result'] === 'true' || 
+                                         className?.includes('tool-result-raw') ||
+                                         (typeof children === 'string' && 
+                                          (/\[function\]:\s*\{[^}]*"success"/.test(children) || 
+                                           /\{"success":\s*(?:true|false)[^}]+\}/.test(children)));
+                      
                       // Check if this is a fenced code block (has language class)
                       const match = /language-(\w+)/.exec(className || '');
+                      
+                      // Tool result raw data - style with gray/italic
+                      if (isToolResult) {
+                        if (inline || !match) {
+                          return (
+                            <code 
+                              {...props} 
+                              className={className}
+                              style={{
+                                background: 'transparent',
+                                padding: '2px 4px',
+                                borderRadius: '3px',
+                                fontFamily: 'monospace',
+                                fontSize: '11px',
+                                color: '#666',
+                                fontStyle: 'italic',
+                                opacity: 0.7
+                              }}
+                            >
+                              {children}
+                            </code>
+                          );
+                        }
+                        
+                        // Fenced code block for tool result
+                        return (
+                          <pre
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              borderRadius: '4px',
+                              padding: '4px 8px',
+                              overflow: 'auto',
+                              margin: '4px 0',
+                              fontSize: '11px'
+                            }}
+                            {...props}
+                          >
+                            <code 
+                              className={className}
+                              style={{
+                                fontFamily: 'monospace',
+                                fontSize: '11px',
+                                color: '#666',
+                                fontStyle: 'italic',
+                                opacity: 0.7
+                              }}
+                            >
+                              {children}
+                            </code>
+                          </pre>
+                        );
+                      }
                       
                       // Inline code (``name``)
                       if (inline || !match) {
@@ -655,6 +774,26 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                     ),
                     strong: ({ children }) => <strong style={{ fontWeight: '600' }}>{children}</strong>,
                     em: ({ children }) => <em style={{ fontStyle: 'italic' }}>{children}</em>,
+                    // Style tool result raw data spans
+                    span: ({ className, children, ...props }) => {
+                      if (className?.includes('tool-result-raw') || props['data-tool-result'] === 'true') {
+                        return (
+                          <span
+                            {...props}
+                            style={{
+                              color: '#666',
+                              fontStyle: 'italic',
+                              opacity: 0.7,
+                              fontFamily: 'monospace',
+                              fontSize: '11px'
+                            }}
+                          >
+                            {children}
+                          </span>
+                        );
+                      }
+                      return <span {...props}>{children}</span>;
+                    },
                     hr: () => <hr style={{ border: 'none', borderTop: '1px solid rgba(0, 255, 65, 0.2)', margin: '12px 0' }} />,
                     table: ({ children }) => (
                       <table style={{

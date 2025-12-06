@@ -37,6 +37,52 @@ html, body {
   scrollbar-color: #2a2a2a #000000;
 }
 
+/* Thin scrollbar for AI Chat tabs */
+.ai-chat-tabs-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+
+.ai-chat-tabs-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ai-chat-tabs-scroll::-webkit-scrollbar-thumb {
+  background: rgba(0, 255, 65, 0.2);
+  border-radius: 2px;
+}
+
+.ai-chat-tabs-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 255, 65, 0.4);
+}
+
+.ai-chat-tabs-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 255, 65, 0.2) transparent;
+}
+
+/* Thin scrollbar for AI Chat messages */
+.ai-chat-messages-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.ai-chat-messages-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ai-chat-messages-scroll::-webkit-scrollbar-thumb {
+  background: rgba(0, 255, 65, 0.2);
+  border-radius: 2px;
+}
+
+.ai-chat-messages-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 255, 65, 0.4);
+}
+
+.ai-chat-messages-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 255, 65, 0.2) transparent;
+}
+
 #root {
   height: 100vh;
   width: 100vw;
