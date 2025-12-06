@@ -66,6 +66,29 @@ export function removeFunctionPatterns(content) {
   const jsonPattern = /\{"success":\s*(?:true|false)[^}]+\}/gs;
   cleaned = cleaned.replace(jsonPattern, '');
   
+  // Remove tool call patterns like ash_ssh_execute(connection_id='...', command='...')
+  // This pattern can be on a single line or span multiple lines
+  const toolCallPatterns = [
+    // Pattern: ash_ssh_execute(connection_id='...', command='...')
+    /ash_ssh_execute\s*\([^)]*\)/gi,
+    // Pattern: ash_list_connections()
+    /ash_list_connections\s*\([^)]*\)/gi,
+    // More general pattern for any tool call
+    /\w+_tool\s*\([^)]*\)/gi,
+  ];
+  
+  toolCallPatterns.forEach(pattern => {
+    cleaned = cleaned.replace(pattern, '');
+  });
+  
+  // Remove tool call patterns that span multiple lines
+  // Pattern: tool_name(
+  //   param1='value',
+  //   param2='value'
+  // )
+  const multiLineToolCallPattern = /(?:ash_ssh_execute|ash_list_connections|\w+_tool)\s*\([\s\S]*?\)/gi;
+  cleaned = cleaned.replace(multiLineToolCallPattern, '');
+  
   // Clean up extra newlines
   cleaned = cleaned.replace(/\n\s*\n\s*\n+/g, '\n\n').trim();
   

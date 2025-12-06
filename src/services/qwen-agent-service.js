@@ -21,7 +21,7 @@ class QwenAgentService {
    * @param {Function} onToolCall - Callback for tool call requests (optional)
    * @returns {Promise<string>} - Final response
    */
-  async executeTask(message, connectionId = null, onChunk = null, llmSettings = null, onToolResult = null, onToolCall = null) {
+  async executeTask(message, connectionId = null, onChunk = null, llmSettings = null, onToolResult = null, onToolCall = null, onContentChunk = null) {
     try {
       // Get conversation history for this connection (or use default)
       const historyKey = connectionId || 'default';
@@ -82,86 +82,47 @@ class QwenAgentService {
               try {
                 const data = JSON.parse(line.substring(6));
                 
-                if (data.type === 'content' && data.content) {
-                  // Backend sends full accumulated content
-                  // Note: [function]: {...} patterns in content will be parsed and displayed 
-                  // separately in the UI using FunctionResult component
-                  let currentContent = data.content;
-                  
-                  // Clean up excessive newlines only (keep function patterns for parsing)
-                  currentContent = currentContent.replace(/\n\s*\n\s*\n+/g, '\n\n').trim();
-                  
-                  // Update full response (keep full content including function patterns for parsing)
-                  fullResponse = currentContent;
-                  
-                  // Call onChunk with FULL content - UI will parse [function]: patterns and display them nicely
-                  if (onChunk && currentContent) {
-                    onChunk(currentContent);
+                if (data.type === 'content_chunk' && data.content) {
+                  // New streaming protocol: backend sends chunks incrementally
+                  if (onContentChunk) {
+                    onContentChunk(data.content);
                   }
-                  
-                  // Track assistant messages for history (keep full content for parsing in UI)
-                  if (!messages.length || messages[messages.length - 1].role !== 'assistant') {
-                    messages.push({ role: 'assistant', content: currentContent });
-                  } else {
-                    // Update with full accumulated content
-                    messages[messages.length - 1].content = currentContent;
+                  fullResponse += data.content;
+                } else if (data.type === 'content' && data.content) {
+                  // Legacy fallback: backend sends full accumulated content.
+                  // This is for compatibility, new logic should use content_chunk.
+                  if (onChunk) {
+                    onChunk(data.content);
                   }
+                  fullResponse = data.content;
                 } else if (data.type === 'tool_call') {
                   // Tool call request - LLM is requesting to call a tool
-                  // Don't display to user, just track internally if needed
-                  const toolName = data.tool_name || 'unknown_tool';
-                  
-                  // Call tool call callback if provided (for internal tracking)
+                  const toolName = data.name || 'unknown_tool';
                   if (onToolCall) {
-                    onToolCall(toolName, data.arguments || '{}');
+                    onToolCall(toolName, data.args || '{}');
                   }
-                  
                   // Don't add to messages or display - user doesn't need to see tool calls
                 } else if (data.type === 'tool_result') {
-                  // Tool execution result - Backend sends structured format:
-                  // { type: 'tool_result', name: '...', success: true/false, exitCode: 0, stdout: '...', stderr: '...' }
-                  // OR legacy format: { type: 'tool_result', tool_name: '...', content: '...' }
+                  // Tool execution result
+                  const toolName = data.name || 'unknown_tool';
                   
-                  const toolName = data.name || data.tool_name || 'unknown_tool';
-                  
-                  // Don't display ash_list_connections results - they're not useful to the user
                   if (toolName === 'ash_list_connections') {
-                    // Still track it for conversation history, but don't show to user
                     messages.push({ role: 'tool', name: toolName, content: data.content || '' });
-                    // Don't call onToolResult callback for this tool - skip displaying it
                   } else {
-                    // For other tools, track and display normally
+                    // Parse tool result content which may contain STDOUT/STDERR markers
+                    const toolResult = {
+                      name: toolName,
+                      success: data.success !== undefined ? data.success : true,
+                      exitCode: data.exitCode !== undefined ? data.exitCode : 0,
+                      content: data.content || '',
+                      stdout: (data.content || '').includes("STDOUT") ? data.content.split("--- STDOUT ---")[1]?.split("--- END STDOUT ---")[0]?.trim() : data.content,
+                      stderr: (data.content || '').includes("STDERR") ? data.content.split("--- STDERR ---")[1]?.split("--- END STDERR ---")[0]?.trim() : ''
+                    };
                     
-                    // Handle structured format from backend
-                    if (data.name && (data.stdout !== undefined || data.stderr !== undefined)) {
-                      // New structured format
-                      const toolResult = {
-                        name: data.name,
-                        success: data.success !== undefined ? data.success : true,
-                        exitCode: data.exitCode !== undefined ? data.exitCode : 0,
-                        stdout: data.stdout || '',
-                        stderr: data.stderr || ''
-                      };
-                      
-                      messages.push({ role: 'tool', name: toolName, toolResult });
-                      
-                      // Call onToolResult callback with structured data
-                      if (onToolResult) {
-                        onToolResult(toolName, toolResult);
-                      }
-                    } else {
-                      // Legacy format
-                      const toolResult = {
-                        name: toolName,
-                        content: data.content || ''
-                      };
-                      
-                      messages.push({ role: 'tool', name: toolName, toolResult });
-                      
-                      // Call onToolResult callback
-                      if (onToolResult) {
-                        onToolResult(toolName, data.content || '');
-                      }
+                    messages.push({ role: 'tool', name: toolName, toolResult });
+                    
+                    if (onToolResult) {
+                      onToolResult(toolName, toolResult);
                     }
                   }
                 } else if (data.type === 'message') {
@@ -187,19 +148,15 @@ class QwenAgentService {
       }
 
       // Update conversation history
-      // Qwen-Agent automatically includes tool results in the conversation
-      // We need to reconstruct the full conversation including tool results
       const updatedHistory = [...conversationHistory];
-      
-      // Add user message
       updatedHistory.push({ role: 'user', content: message });
       
-      // Add all messages from this response (assistant + tool results)
-      // Qwen-Agent format: tool results are included as { role: 'tool', name: ..., content: ... }
+      // Add assistant's final response
+      if (fullResponse) {
+          messages.push({ role: 'assistant', content: fullResponse });
+      }
       updatedHistory.push(...messages);
       
-      // Keep last 50 messages to maintain full context
-      // This ensures all previous commands, results, and OS detection are preserved
       const trimmedHistory = updatedHistory.slice(-50);
       this.conversationHistory.set(historyKey, trimmedHistory);
       
@@ -207,7 +164,6 @@ class QwenAgentService {
         console.debug(`Updated conversation history for ${historyKey}: ${trimmedHistory.length} messages (kept last 50 for context)`);
       }
       
-      // Return formatted response
       return fullResponse;
     } catch (error) {
       console.error('Qwen-Agent service error:', error);

@@ -198,7 +198,7 @@ export function useAICommand({
           naturalLanguage,
           connectionId,
           (fullContent) => {
-            // qwen-agent-service sends full accumulated content
+            // Legacy fallback: qwen-agent-service sends full accumulated content
             assistantContent = fullContent;
             
             // Update only content, don't touch toolResults to avoid flickering
@@ -341,6 +341,61 @@ export function useAICommand({
           // Tool call callback (when LLM requests to call a tool) - don't display
           (toolName, toolArgs) => {
             // Don't display tool calls to user
+          },
+          // Content chunk callback (incremental streaming)
+          (chunk) => {
+            // Append chunk to accumulated content
+            assistantContent += chunk;
+            
+            // Update only content, don't touch toolResults to avoid flickering
+            setAiMessages(prev => {
+              const updatedMessages = [...prev];
+              
+              // Find or create assistant message
+              if (lastAssistantMessageIndex === -1) {
+                const userMessageIndex = updatedMessages.findLastIndex(msg => 
+                  msg.role === 'user' && msg.content === naturalLanguage
+                );
+                
+                const existingAssistantIndex = updatedMessages.findIndex((msg, idx) => 
+                  idx > userMessageIndex && msg.role === 'assistant' && msg.id === messageId
+                );
+                
+                if (existingAssistantIndex >= 0) {
+                  lastAssistantMessageIndex = existingAssistantIndex;
+                } else {
+                  // Create new assistant message with stable ID
+                  updatedMessages.push({ 
+                    role: 'assistant', 
+                    content: assistantContent,
+                    id: messageId,
+                    toolResults: [],
+                    thinking: ''
+                  });
+                  lastAssistantMessageIndex = updatedMessages.length - 1;
+                }
+              }
+              
+              // Update only content, preserve toolResults and thinking
+              if (lastAssistantMessageIndex >= 0 && lastAssistantMessageIndex < updatedMessages.length) {
+                const existing = updatedMessages[lastAssistantMessageIndex];
+                updatedMessages[lastAssistantMessageIndex] = { 
+                  ...existing, // Preserve all existing properties
+                  content: assistantContent, // Only update content
+                  id: messageId // Ensure stable ID
+                };
+              }
+              
+              // Update ref
+              if (assistantMessageRef.current) {
+                assistantMessageRef.current.content = assistantContent;
+              }
+              
+              if (onAIMessageUpdateRef.current) {
+                onAIMessageUpdateRef.current(updatedMessages);
+              }
+              return updatedMessages;
+            });
           }
         );
 

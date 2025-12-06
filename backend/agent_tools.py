@@ -137,8 +137,20 @@ class SSHExecuteTool(BaseTool):
         try:
             # Use the correct IPC channel name: 'ssh-exec-command'
             result = call_ash_ipc('ssh-exec-command', connection_id, command)
-            _logger.info(f"[ash_ssh_execute] Result: success={result.get('success')}, output length={len(str(result.get('output', '')))}")
-            return json.dumps(result, ensure_ascii=False)
+            
+            # Format the result into a human-readable string for the LLM
+            output = result.get('output', '')
+            error = result.get('error', '')
+            exit_code = result.get('exitCode', -1)
+            
+            _logger.info(f"[ash_ssh_execute] Result: exitCode={exit_code}, output length={len(output)}, error length={len(error)}")
+
+            if exit_code == 0:
+                # Success
+                return f"Command executed successfully with exit code {exit_code}.\n--- STDOUT ---\n{output}\n--- END STDOUT ---"
+            else:
+                # Failure
+                return f"Command failed with exit code {exit_code}.\n--- STDERR ---\n{error}\n--- END STDERR ---"
         except Exception as e:
             _logger.error(f"[ash_ssh_execute] Error: {str(e)}", exc_info=True)
             raise

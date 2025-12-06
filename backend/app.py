@@ -141,6 +141,8 @@ def build_system_prompt(connection_id: Optional[str] = None) -> str:
         "EXECUTION BEHAVIOR:\n"
         "- Check conversation history BEFORE executing commands - avoid repeating commands that were already executed\n"
         "- If a command was already executed and the result is in conversation history, use that result instead of re-executing\n"
+        "- BEFORE calling any tool, check if the same command was already executed in this conversation\n"
+        "- If you see a tool result in conversation history with the same command, DO NOT execute it again - use the existing result\n"
         "- You MUST execute commands to get actual results, not just explain methods\n"
         "- When asked to check, analyze, or find something, EXECUTE the commands and show the results\n"
         "- Do not say 'you can use X command' - instead, USE the command via ash_ssh_execute and show results\n"
@@ -153,7 +155,9 @@ def build_system_prompt(connection_id: Optional[str] = None) -> str:
         "  4. Then provide analysis based on the real data\n"
         "- DO NOT write explanations without executing commands first\n"
         "- DO NOT say 'I will execute X command' - just execute it immediately using ash_ssh_execute\n"
-        "- DO NOT repeat commands that were already executed - check conversation history first\n\n"
+        "- CRITICAL: DO NOT repeat commands that were already executed - check conversation history first\n"
+        "- CRITICAL: If you see tool results in conversation history, those commands have already been executed - do NOT execute them again\n"
+        "- CRITICAL: After executing a command and receiving the result, move on to the next step - do NOT execute the same command again\n\n"
         
         "RESPONSE FORMAT:\n"
         "- Present your responses in clear, well-structured Markdown format.\n"
@@ -162,7 +166,10 @@ def build_system_prompt(connection_id: Optional[str] = None) -> str:
         "- Use code blocks (```) for command output and multi-line content\n"
         "- Use inline code (`) for single values, file names, and paths\n"
         "- Use lists and headers to organize information\n"
-        "- Show actual command results in code blocks\n\n"
+        "- Show actual command results in code blocks\n"
+        "- NEVER show tool call syntax like 'ash_ssh_execute(...)' to the user - just show the actual command that was executed\n"
+        "- When describing what command was executed, show only the command itself (e.g., 'apt list --upgradeable'), not the tool call syntax\n"
+        "- Tool calls happen automatically in the background - users only need to see the commands and their results\n\n"
         
         "Important guidelines:\n"
         "1. Plan complex tasks step by step and explain your approach clearly.\n"
@@ -223,7 +230,14 @@ async def health_check():
 @app.post("/agent/execute/stream")
 async def execute_task_stream(request: TaskRequest):
     """
-    Execute a task with streaming response.
+    Execute a task with streaming response using a manual ReAct loop.
+    
+    This implementation correctly handles the agent's lifecycle:
+    1. It manually manages the `messages` history.
+    2. It detects when the agent wants to call a tool.
+    3. It executes the tool and captures the output.
+    4. It adds the tool's result back to the `messages` history in the correct format.
+    5. It continues the loop until the agent provides a final answer.
     
     Returns Server-Sent Events (SSE) stream for real-time updates.
     """
@@ -306,67 +320,95 @@ async def execute_task_stream(request: TaskRequest):
             else:
                 logger.warning("No conversation history provided - agent will start fresh")
             
-            # Qwen-Agent automatically includes tool results in the conversation
-            for response_chunk in assistant.run(messages=messages):
-                for message in response_chunk:
-                    # Log all message details for debugging
-                    logger.debug(f"Message from Qwen-Agent: {json.dumps(message, ensure_ascii=False, indent=2)}")
-                    
-                    event_type = message.get('role', 'unknown')
-                    content = message.get('content', '')
-                    
-                    # Check for assistant content
-                    if event_type == 'assistant':
-                        if content:
-                            # Stream content directly without parsing
-                            # Frontend will handle <thinking> tags in markdown rendering
-                            # This avoids brittle regex parsing that breaks when LLM output format varies
-                            yield f"data: {json.dumps({'type': 'content', 'content': content})}\n\n"
-                        
-                        # Check for function_call (tool call request) - don't show to user, just log
-                        function_call = message.get('function_call')
-                        if function_call:
-                            # LLM is requesting to call a tool
-                            tool_name = function_call.get('name', 'unknown_tool')
-                            tool_args = function_call.get('arguments', '{}')
-                            logger.info(f"Tool call request: {tool_name} with args: {tool_args[:200]}...")
-                            # Don't stream tool call to client - user doesn't need to see this
-                    
-                    # Check for tool results (Qwen-Agent uses both 'tool' and 'function' roles)
-                    elif event_type in ('tool', 'function'):
-                        tool_name = message.get('name', 'unknown_tool')
-                        tool_content = str(content)
-                        logger.info(f"Tool {tool_name} result (role={event_type}): {tool_content[:100]}...")
-                        
-                        # Parse tool result JSON if possible for structured display
-                        try:
-                            # Tool result is typically a JSON string like {"success": true, "output": "...", "error": "", "exitCode": 0}
-                            parsed_result = json.loads(tool_content) if isinstance(tool_content, str) else tool_content
-                            
-                            # Structure the result for frontend rendering
-                            structured_result = {
-                                'type': 'tool_result',
-                                'name': tool_name,
-                                'success': parsed_result.get('success', True),
-                                'exitCode': parsed_result.get('exitCode', 0),
-                                'stdout': parsed_result.get('output', ''),
-                                'stderr': parsed_result.get('error', ''),
-                            }
-                            
-                            # Stream structured tool result
-                            yield f"data: {json.dumps(structured_result, ensure_ascii=False)}\n\n"
-                        except (json.JSONDecodeError, AttributeError):
-                            # Fallback: if parsing fails, send as-is
-                            logger.warning(f"Could not parse tool result as JSON, sending as raw content")
-                            yield f"data: {json.dumps({'type': 'tool_result', 'name': tool_name, 'content': tool_content})}\n\n"
-                    
-                    # Handle any other message types
-                    else:
-                        # Stream any other message types for visibility
-                        logger.info(f"Unknown message type: {event_type}, content: {str(content)[:100]}...")
-                        yield f"data: {json.dumps({'type': 'message', 'role': event_type, 'content': str(content)})}\n\n"
+            # Track previous content across all turns to send only incremental chunks
+            previous_content = ''
             
-            logger.info("Assistant run completed.")
+            # Manual ReAct loop: iterate until agent finishes (no more tool calls)
+            while True:
+                logger.info(f"Running agent turn with {len(messages)} messages...")
+                
+                # Run the agent - it will return responses including tool calls
+                responses = assistant.run(messages=messages)
+                
+                has_tool_calls = False
+                
+                # Process each chunk of responses
+                for chunk in responses:
+                    # Append agent's thought process to history
+                    messages.extend(chunk)
+                    
+                    for message in chunk:
+                        logger.debug(f"Agent message: {json.dumps(message, ensure_ascii=False)}")
+                        
+                        # Stream assistant content as it arrives (incremental chunks only)
+                        if message.get('role') == 'assistant' and message.get('content'):
+                            current_content = message['content']
+                            # Only send the new part (delta)
+                            if current_content.startswith(previous_content):
+                                new_chunk = current_content[len(previous_content):]
+                                if new_chunk:  # Only send if there's new content
+                                    yield f"data: {json.dumps({'type': 'content_chunk', 'content': new_chunk})}\n\n"
+                                previous_content = current_content
+                            else:
+                                # Content doesn't start with previous - send full content (fallback)
+                                yield f"data: {json.dumps({'type': 'content_chunk', 'content': current_content})}\n\n"
+                                previous_content = current_content
+
+                        # Check for tool calls (Qwen-Agent uses 'tool_calls' field)
+                        if message.get('tool_calls'):
+                            has_tool_calls = True
+                            for tool_call in message['tool_calls']:
+                                tool_name = tool_call.get('function', {}).get('name', 'unknown_tool')
+                                tool_args = tool_call.get('function', {}).get('arguments', '{}')
+                                tool_call_id = tool_call.get('id')
+                                
+                                logger.info(f"Executing tool '{tool_name}' with ID '{tool_call_id}'")
+                                logger.info(f"Args: {tool_args}")
+                                
+                                # Stream tool call event to frontend
+                                yield f"data: {json.dumps({'type': 'tool_call', 'name': tool_name, 'args': tool_args})}\n\n"
+
+                                # Execute the tool
+                                try:
+                                    tool_result_content = assistant.execute_tool(
+                                        (tool_name, tool_args)
+                                    )
+                                except Exception as e:
+                                    logger.error(f"Error executing tool {tool_name}: {str(e)}", exc_info=True)
+                                    tool_result_content = f"Error executing tool: {str(e)}"
+                                
+                                logger.info(f"Tool '{tool_name}' result: {tool_result_content[:200]}...")
+                                
+                                # Add tool result to history in the correct format
+                                tool_result_message = {
+                                    'role': 'tool',
+                                    'name': tool_name,
+                                    'content': tool_result_content,
+                                    'tool_call_id': tool_call_id
+                                }
+                                messages.append(tool_result_message)
+
+                                # Stream tool result to frontend
+                                yield f"data: {json.dumps({'type': 'tool_result', 'name': tool_name, 'content': tool_result_content})}\n\n"
+
+                # If there were no tool calls in this turn, the agent is done
+                if not has_tool_calls:
+                    logger.info("No more tool calls in this turn. Agent has finished.")
+                    # Before breaking, check if there's any final assistant content to send
+                    # Find the last assistant message in messages
+                    for msg in reversed(messages):
+                        if msg.get('role') == 'assistant' and msg.get('content'):
+                            final_content = msg['content']
+                            # If we haven't sent this content yet, send it
+                            if final_content != previous_content and final_content.startswith(previous_content):
+                                remaining_chunk = final_content[len(previous_content):]
+                                if remaining_chunk:
+                                    logger.info(f"Sending final content chunk: {len(remaining_chunk)} chars")
+                                    yield f"data: {json.dumps({'type': 'content_chunk', 'content': remaining_chunk})}\n\n"
+                            break
+                    break # Exit the while loop
+            
+            logger.info("Agent run completed.")
             yield f"data: {json.dumps({'type': 'done', 'timestamp': datetime.now().isoformat()})}\n\n"
             
         except Exception as e:
