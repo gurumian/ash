@@ -78,10 +78,19 @@ export const AIChatSidebar = memo(function AIChatSidebar({
   const titleEditInputRef = useRef(null);
   
   const [input, setInput] = useState('');
-  const [mode, setMode] = useState('ask');
+  // Load mode from localStorage, default to 'ask'
+  const [mode, setMode] = useState(() => {
+    const savedMode = localStorage.getItem('ash-ai-mode');
+    return (savedMode === 'ask' || savedMode === 'agent') ? savedMode : 'ask';
+  });
   const [showModeDropdown, setShowModeDropdown] = useState(false);
   const [editingConversationId, setEditingConversationId] = useState(null); // ID of conversation being edited
   const [editingTitle, setEditingTitle] = useState(''); // Temporary title during editing
+  
+  // Save mode to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('ash-ai-mode', mode);
+  }, [mode]);
 
   // Focus input when editing starts
   useEffect(() => {
