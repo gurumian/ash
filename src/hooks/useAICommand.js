@@ -259,6 +259,18 @@ export function useAICommand({
         // Save user message to history
         await chatHistoryService.saveMessage(currentConversationId, 'user', naturalLanguage);
 
+        // Generate title if needed (async, don't wait)
+        const conversation = await chatHistoryService.getConversation(currentConversationId);
+        if (conversation && (!conversation.title || conversation.title.startsWith('New Chat') || conversation.title.startsWith('Chat '))) {
+          // Start title generation in background
+          generateConversationTitle(currentConversationId).catch(err => {
+            // Silently fail
+            if (process.env.NODE_ENV === 'development') {
+              console.log('Title generation failed:', err);
+            }
+          });
+        }
+
         // Collect assistant response and tool results
         let assistantContent = '';
         let lastAssistantMessageIndex = -1;
@@ -437,6 +449,18 @@ export function useAICommand({
         // Save assistant message to history
         if (currentConversationId && assistantContent) {
           await chatHistoryService.saveMessage(currentConversationId, 'assistant', assistantContent);
+          
+          // Generate title after first assistant message if still default
+          const conversation = await chatHistoryService.getConversation(currentConversationId);
+          if (conversation && (conversation.title.startsWith('New Chat') || conversation.title.startsWith('Chat '))) {
+            // Start title generation in background
+            generateConversationTitle(currentConversationId).catch(err => {
+              // Silently fail
+              if (process.env.NODE_ENV === 'development') {
+                console.log('Title generation failed:', err);
+              }
+            });
+          }
         }
 
         // Final update (preserve all tool results and content)
@@ -595,6 +619,18 @@ export function useAICommand({
       // Save assistant message to history
       if (currentConversationId) {
         await chatHistoryService.saveMessage(currentConversationId, 'assistant', `Generated command: ${command}`);
+        
+        // Generate title after first assistant message if still default
+        const conversation = await chatHistoryService.getConversation(currentConversationId);
+        if (conversation && (conversation.title.startsWith('New Chat') || conversation.title.startsWith('Chat '))) {
+          // Start title generation in background
+          generateConversationTitle(currentConversationId).catch(err => {
+            // Silently fail
+            if (process.env.NODE_ENV === 'development') {
+              console.log('Title generation failed:', err);
+            }
+          });
+        }
       }
 
       // Execute command in active session
@@ -762,6 +798,67 @@ export function useAICommand({
     }
   }, [activeSessionId]);
 
+  // Generate conversation title from messages using LLM
+  const generateConversationTitle = useCallback(async (targetConversationId) => {
+    if (!targetConversationId || !llmSettings?.enabled) {
+      return;
+    }
+
+    try {
+      // Get first few messages for context
+      const history = await chatHistoryService.getConversationHistory(targetConversationId, 3);
+      if (!history || history.length === 0) {
+        return;
+      }
+
+      // Get first user message and first assistant message
+      const userMessages = history.filter(m => m.role === 'user').slice(0, 2);
+      const assistantMessages = history.filter(m => m.role === 'assistant').slice(0, 1);
+      
+      if (userMessages.length === 0) {
+        return;
+      }
+
+      // Build context for title generation
+      const contextMessages = userMessages.map(m => `User: ${m.content.substring(0, 200)}`).join('\n');
+      const assistantContext = assistantMessages.length > 0 
+        ? `\nAssistant: ${assistantMessages[0].content.substring(0, 200)}`
+        : '';
+
+      // Use LLM to generate a short title
+      const llmService = new LLMService(llmSettings);
+      const prompt = {
+        system: `You are a helpful assistant that generates short, descriptive titles for conversations.
+Generate a concise title (maximum 30 characters) based on the conversation content.
+Return ONLY the title, nothing else. No quotes, no explanations, just the title.
+
+Conversation:
+${contextMessages}${assistantContext}
+
+Title:`,
+        user: 'Generate a short title for this conversation.'
+      };
+
+      const title = await llmService.callLLM(prompt);
+      const cleanTitle = title.trim().replace(/^["']|["']$/g, '').substring(0, 50);
+
+      if (cleanTitle && cleanTitle.length > 0) {
+        await chatHistoryService.updateConversation(targetConversationId, { title: cleanTitle });
+        
+        // Refresh conversations list
+        const connection = sshConnections.current[activeSessionId];
+        if (connection) {
+          const connectionId = connection.connectionId || activeSessionId;
+          const updatedList = await chatHistoryService.listConversations(connectionId);
+          setConversations(updatedList);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to generate conversation title:', error);
+      // Silently fail - title generation is optional
+    }
+  }, [activeSessionId, llmSettings]);
+
   // Delete a conversation
   const deleteConversation = useCallback(async (targetConversationId) => {
     if (!targetConversationId) {
@@ -801,6 +898,27 @@ export function useAICommand({
     }
   }, [activeSessionId, conversationId, switchConversation, createNewConversation]);
 
+  // Update conversation title
+  const updateConversationTitle = useCallback(async (targetConversationId, newTitle) => {
+    if (!targetConversationId || !newTitle || !newTitle.trim()) {
+      return;
+    }
+
+    try {
+      await chatHistoryService.updateConversation(targetConversationId, { title: newTitle.trim() });
+      
+      // Refresh conversations list
+      const connection = sshConnections.current[activeSessionId];
+      if (connection) {
+        const connectionId = connection.connectionId || activeSessionId;
+        const updatedList = await chatHistoryService.listConversations(connectionId);
+        setConversations(updatedList);
+      }
+    } catch (error) {
+      console.error('Failed to update conversation title:', error);
+    }
+  }, [activeSessionId]);
+
   return {
     executeAICommand,
     aiMessages,
@@ -812,6 +930,7 @@ export function useAICommand({
     activeConversationId: conversationId, // Current active conversation ID
     switchConversation, // Function to switch to a different conversation
     createNewConversation, // Function to create a new conversation
-    deleteConversation // Function to delete a conversation
+    deleteConversation, // Function to delete a conversation
+    updateConversationTitle // Function to update conversation title
   };
 }

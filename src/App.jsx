@@ -640,7 +640,8 @@ function App() {
     activeConversationId,
     switchConversation,
     createNewConversation,
-    deleteConversation
+    deleteConversation,
+    updateConversationTitle
   } = useAICommand({
     activeSessionId,
     terminalInstances,
@@ -1276,6 +1277,7 @@ function App() {
           onSwitchConversation={switchConversation}
           onCreateNewConversation={createNewConversation}
           onDeleteConversation={deleteConversation}
+          onUpdateConversationTitle={updateConversationTitle}
           onClose={() => {
             setShowAIChatSidebar(false);
             if (clearAIMessages) {

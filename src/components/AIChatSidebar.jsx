@@ -67,17 +67,29 @@ export const AIChatSidebar = memo(function AIChatSidebar({
   onSwitchConversation = null, // Function to switch conversation
   onCreateNewConversation = null, // Function to create new conversation
   onDeleteConversation = null, // Function to delete a conversation
+  onUpdateConversationTitle = null, // Function to update conversation title
   processingConversations = new Set() // Set of conversation IDs currently being processed
 }) {
   const messagesEndRef = useRef(null);
   const sidebarRef = useRef(null);
   const inputRef = useRef(null);
   const modeDropdownRef = useRef(null);
+  const titleEditInputRef = useRef(null);
   
   const [input, setInput] = useState('');
   const [mode, setMode] = useState('ask');
   const [showModeDropdown, setShowModeDropdown] = useState(false);
-  
+  const [editingConversationId, setEditingConversationId] = useState(null); // ID of conversation being edited
+  const [editingTitle, setEditingTitle] = useState(''); // Temporary title during editing
+
+  // Focus input when editing starts
+  useEffect(() => {
+    if (editingConversationId && titleEditInputRef.current) {
+      titleEditInputRef.current.focus();
+      titleEditInputRef.current.select();
+    }
+  }, [editingConversationId]);
+
   // Check if the active conversation is processing
   const isActiveProcessing = activeConversationId && processingConversations.has(activeConversationId);
 
@@ -263,10 +275,40 @@ export const AIChatSidebar = memo(function AIChatSidebar({
             {conversations.map((conv) => {
                 const isActive = conv.id === activeConversationId;
                 const isProcessing = processingConversations.has(conv.id);
+                const isEditing = editingConversationId === conv.id;
                 const displayTitle = conv.title && conv.title.length > 15 
                   ? conv.title.substring(0, 15) + '...' 
                   : conv.title || 'New Chat';
                 
+                const handleStartEdit = (e) => {
+                  e.stopPropagation();
+                  setEditingConversationId(conv.id);
+                  setEditingTitle(conv.title || '');
+                };
+
+                const handleSaveEdit = async () => {
+                  if (editingTitle.trim() && onUpdateConversationTitle) {
+                    await onUpdateConversationTitle(conv.id, editingTitle.trim());
+                  }
+                  setEditingConversationId(null);
+                  setEditingTitle('');
+                };
+
+                const handleCancelEdit = () => {
+                  setEditingConversationId(null);
+                  setEditingTitle('');
+                };
+
+                const handleKeyDown = (e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSaveEdit();
+                  } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    handleCancelEdit();
+                  }
+                };
+
                 return (
                   <div
                     key={conv.id}
@@ -282,96 +324,154 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                       opacity: isActive ? 1 : 0.7,
                       transition: 'all 0.2s',
                       flexShrink: 0,
-                      maxWidth: '150px',
+                      maxWidth: isEditing ? '200px' : '150px',
                       position: 'relative'
                     }}
                     onMouseEnter={(e) => {
-                      if (!isActive) {
+                      if (!isActive && !isEditing) {
                         e.currentTarget.style.opacity = '1';
                         e.currentTarget.style.borderColor = 'rgba(0, 255, 65, 0.4)';
                         e.currentTarget.style.background = 'rgba(0, 255, 65, 0.05)';
                       }
                     }}
                     onMouseLeave={(e) => {
-                      if (!isActive) {
+                      if (!isActive && !isEditing) {
                         e.currentTarget.style.opacity = '0.7';
                         e.currentTarget.style.borderColor = 'rgba(0, 255, 65, 0.2)';
                         e.currentTarget.style.background = 'transparent';
                       }
                     }}
                   >
-                    <button
-                      onClick={() => onSwitchConversation && onSwitchConversation(conv.id)}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: '#00ff41',
-                        cursor: 'pointer',
-                        fontSize: '11px',
-                        padding: '6px 0',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        flex: 1,
-                        textAlign: 'left',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px'
-                      }}
-                      title={conv.title || 'New Chat'}
-                    >
-                      {isProcessing && (
-                        <span
+                    {isEditing ? (
+                      <input
+                        ref={titleEditInputRef}
+                        type="text"
+                        value={editingTitle}
+                        onChange={(e) => setEditingTitle(e.target.value)}
+                        onBlur={handleSaveEdit}
+                        onKeyDown={handleKeyDown}
+                        style={{
+                          background: 'rgba(0, 0, 0, 0.5)',
+                          border: '1px solid rgba(0, 255, 65, 0.5)',
+                          borderRadius: '3px',
+                          color: '#00ff41',
+                          fontSize: '11px',
+                          padding: '4px 6px',
+                          flex: 1,
+                          minWidth: 0,
+                          outline: 'none',
+                          fontFamily: 'inherit'
+                        }}
+                        autoFocus
+                      />
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => onSwitchConversation && onSwitchConversation(conv.id)}
+                          onDoubleClick={handleStartEdit}
                           style={{
-                            display: 'inline-block',
-                            width: '8px',
-                            height: '8px',
-                            border: '2px solid #00ff41',
-                            borderTopColor: 'transparent',
-                            borderRadius: '50%',
-                            animation: 'spin 1s linear infinite',
-                            flexShrink: 0
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#00ff41',
+                            cursor: 'pointer',
+                            fontSize: '11px',
+                            padding: '6px 0',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            flex: 1,
+                            textAlign: 'left',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
                           }}
-                        />
-                      )}
-                      {displayTitle}
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (onDeleteConversation) {
-                          onDeleteConversation(conv.id);
-                        }
-                      }}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: '#00ff41',
-                        cursor: 'pointer',
-                        fontSize: '16px',
-                        lineHeight: '1',
-                        padding: '4px 6px',
-                        opacity: 0.7,
-                        transition: 'opacity 0.2s',
-                        flexShrink: 0,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: '20px',
-                        height: '20px'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.opacity = '1';
-                        e.currentTarget.style.color = '#ff4141';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.opacity = '0.7';
-                        e.currentTarget.style.color = '#00ff41';
-                      }}
-                      title="Delete conversation"
-                    >
-                      ×
-                    </button>
+                          title={`${conv.title || 'New Chat'} (더블클릭하여 편집)`}
+                        >
+                          {isProcessing && (
+                            <span
+                              style={{
+                                display: 'inline-block',
+                                width: '8px',
+                                height: '8px',
+                                border: '2px solid #00ff41',
+                                borderTopColor: 'transparent',
+                                borderRadius: '50%',
+                                animation: 'spin 1s linear infinite',
+                                flexShrink: 0
+                              }}
+                            />
+                          )}
+                          {displayTitle}
+                        </button>
+                        <button
+                          onClick={handleStartEdit}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#00ff41',
+                            cursor: 'pointer',
+                            fontSize: '12px',
+                            lineHeight: '1',
+                            padding: '4px 4px',
+                            opacity: 0.5,
+                            transition: 'opacity 0.2s',
+                            flexShrink: 0,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: '16px',
+                            height: '16px'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.opacity = '1';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.opacity = '0.5';
+                          }}
+                          title="Edit title"
+                        >
+                          ✎
+                        </button>
+                      </>
+                    )}
+                    {!isEditing && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onDeleteConversation) {
+                            onDeleteConversation(conv.id);
+                          }
+                        }}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#00ff41',
+                          cursor: 'pointer',
+                          fontSize: '16px',
+                          lineHeight: '1',
+                          padding: '4px 6px',
+                          opacity: 0.7,
+                          transition: 'opacity 0.2s',
+                          flexShrink: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: '20px',
+                          height: '20px'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.opacity = '1';
+                          e.currentTarget.style.color = '#ff4141';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.opacity = '0.7';
+                          e.currentTarget.style.color = '#00ff41';
+                        }}
+                        title="Delete conversation"
+                      >
+                        ×
+                      </button>
+                    )}
                   </div>
                 );
             })}
