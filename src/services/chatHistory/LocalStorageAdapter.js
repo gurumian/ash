@@ -13,19 +13,50 @@ const ACTIVE_CONVERSATION_KEY = 'ash-active-conversations'; // { connectionId: c
 class LocalStorageAdapter {
   constructor() {
     this.storage = window.localStorage;
+    // Memory cache for faster access
+    this._dataCache = null;
+    this._cacheTimestamp = null;
+    this._cacheTimeout = 5000; // 5 seconds cache timeout
   }
 
   /**
-   * Get all data from storage
+   * Get all data from storage (with memory caching)
    */
   _getData() {
+    const now = Date.now();
+    
+    // Return cached data if available and fresh
+    if (this._dataCache !== null && this._cacheTimestamp !== null) {
+      if (now - this._cacheTimestamp < this._cacheTimeout) {
+        return this._dataCache;
+      }
+    }
+
+    // Load from localStorage
     try {
-      const data = this.storage.getItem(STORAGE_KEY);
-      return data ? JSON.parse(data) : { conversations: [], messages: [] };
+      const dataString = this.storage.getItem(STORAGE_KEY);
+      const data = dataString ? JSON.parse(dataString) : { conversations: [], messages: [] };
+      
+      // Update cache
+      this._dataCache = data;
+      this._cacheTimestamp = now;
+      
+      return data;
     } catch (error) {
       console.error('Failed to read chat history from localStorage:', error);
-      return { conversations: [], messages: [] };
+      const emptyData = { conversations: [], messages: [] };
+      this._dataCache = emptyData;
+      this._cacheTimestamp = now;
+      return emptyData;
     }
+  }
+
+  /**
+   * Invalidate cache (call after writing to localStorage)
+   */
+  _invalidateCache() {
+    this._dataCache = null;
+    this._cacheTimestamp = null;
   }
 
   /**
@@ -34,9 +65,14 @@ class LocalStorageAdapter {
   _saveData(data) {
     try {
       this.storage.setItem(STORAGE_KEY, JSON.stringify(data));
+      // Update cache immediately
+      this._dataCache = data;
+      this._cacheTimestamp = Date.now();
       return true;
     } catch (error) {
       console.error('Failed to save chat history to localStorage:', error);
+      // Invalidate cache on error
+      this._invalidateCache();
       // Handle quota exceeded error
       if (error.name === 'QuotaExceededError') {
         console.warn('localStorage quota exceeded, clearing old conversations...');
@@ -44,10 +80,14 @@ class LocalStorageAdapter {
         this._clearOldConversations();
         // Retry once
         try {
-          this.storage.setItem(STORAGE_KEY, JSON.stringify(data));
+          const retryData = this._getData();
+          this.storage.setItem(STORAGE_KEY, JSON.stringify(retryData));
+          this._dataCache = retryData;
+          this._cacheTimestamp = Date.now();
           return true;
         } catch (retryError) {
           console.error('Failed to save after clearing old data:', retryError);
+          this._invalidateCache();
           return false;
         }
       }

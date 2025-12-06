@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import path from 'node:path';
 import fs from 'node:fs';
 import http from 'node:http';
-import { app } from 'electron';
+import { app, ipcMain } from 'electron';
 
 // Backend process management
 let pyProc = null;
@@ -467,5 +467,47 @@ export function getBackendUrl() {
  */
 export function isBackendRunning() {
   return pyProc !== null;
+}
+
+/**
+ * Initialize IPC handlers for backend control
+ */
+export function initializeBackendHandlers() {
+  // Start backend
+  ipcMain.handle('backend-start', async () => {
+    try {
+      const result = await startBackend();
+      return { success: result };
+    } catch (error) {
+      console.error('IPC: Failed to start backend:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Stop backend
+  ipcMain.handle('backend-stop', async () => {
+    try {
+      await stopBackend();
+      return { success: true };
+    } catch (error) {
+      console.error('IPC: Failed to stop backend:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Get backend status
+  ipcMain.handle('backend-status-check', async () => {
+    try {
+      const isRunning = isBackendRunning();
+      return { 
+        success: true, 
+        running: isRunning,
+        url: BACKEND_URL 
+      };
+    } catch (error) {
+      console.error('IPC: Failed to check backend status:', error);
+      return { success: false, error: error.message };
+    }
+  });
 }
 

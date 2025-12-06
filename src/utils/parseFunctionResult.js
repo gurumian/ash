@@ -50,12 +50,18 @@ export function parseFunctionResults(content) {
  * Remove function result patterns from content
  * @param {string} content - Content to clean
  * @returns {string} Content with function patterns removed
+ * 
+ * NOTE: Currently we keep tool result patterns in content but style them differently
+ * If you want to remove them completely, uncomment the removal logic below
  */
 export function removeFunctionPatterns(content) {
   if (!content || typeof content !== 'string') {
     return content;
   }
 
+  // Keep tool result patterns - they will be styled differently in the UI
+  // Uncomment below to remove them completely:
+  /*
   let cleaned = content;
   
   // Remove [function]: {...} patterns
@@ -70,6 +76,9 @@ export function removeFunctionPatterns(content) {
   cleaned = cleaned.replace(/\n\s*\n\s*\n+/g, '\n\n').trim();
   
   return cleaned;
+  */
+  
+  return content; // Return original content - tool results will be styled but kept
 }
 
 /**

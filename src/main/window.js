@@ -87,12 +87,8 @@ function getIndexHtmlPath() {
  * Create the main application window
  */
 export async function createWindow() {
-  // Start backend first (similar to log-chat)
-  const { startBackend } = await import('./backend-handler.js');
-  const backendStarted = await startBackend();
-  if (!backendStarted) {
-    console.error('Backend failed to start, but continuing with app...');
-  }
+  // Don't start backend automatically - it will be started on-demand when AI Sidebar is opened
+  // This makes app startup much faster
   
   // Create the browser window.
   const mainWindow = new BrowserWindow({
@@ -130,10 +126,10 @@ export async function createWindow() {
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
     
-    // Send backend status to renderer (similar to log-chat)
+    // Send backend status to renderer (not-ready initially, will be started on-demand)
     if (mainWindow.webContents && !mainWindow.webContents.isDestroyed()) {
       mainWindow.webContents.send('backend-status', {
-        status: backendStarted ? 'ready' : 'error',
+        status: 'not-ready', // Backend will be started when AI Sidebar is opened
         url: 'http://127.0.0.1:54111'
       });
     }

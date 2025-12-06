@@ -651,6 +651,7 @@ function App() {
     setIsAIProcessing,
     setShowAICommandInput,
     onBackendStarting: setBackendStarting, // Pass setStarting callback for on-demand loading
+    isSidebarVisible: showAIChatSidebar, // Only load conversations when sidebar is visible
     onAIMessageUpdate: (messages) => {
       setAiMessages(messages);
       // Auto-show sidebar when messages arrive

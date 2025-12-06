@@ -9,7 +9,7 @@ import { initializeUpdateHandlers, cleanupUpdateHandlers, scheduleStartupCheck }
 import { initializeTftpHandlers, cleanupTftpServer, setMainWindow as setTftpMainWindow } from './main/tftp-handler.js';
 import { initializeWebHandlers, cleanupWebServer, setMainWindow as setWebMainWindow } from './main/web-handler.js';
 import { initializeIperfHandlers, cleanupIperfServer, setMainWindow as setIperfMainWindow, initializeIperfClientHandlers, cleanupIperfClient } from './main/iperf-handler.js';
-import { startBackend, stopBackend } from './main/backend-handler.js';
+import { startBackend, stopBackend, initializeBackendHandlers } from './main/backend-handler.js';
 import { startIPCBridge, stopIPCBridge } from './main/ipc-bridge-handler.js';
 
 // Set app name
@@ -28,6 +28,7 @@ initializeTftpHandlers();
 initializeWebHandlers();
 initializeIperfHandlers();
 initializeIperfClientHandlers();
+initializeBackendHandlers(); // Initialize backend handlers for on-demand startup
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.

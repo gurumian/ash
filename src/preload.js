@@ -222,4 +222,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Third-party licenses
   readThirdPartyLicenses: () => ipcRenderer.invoke('read-third-party-licenses'),
+  
+  // Backend APIs (for on-demand startup)
+  startBackend: () => ipcRenderer.invoke('backend-start'),
+  stopBackend: () => ipcRenderer.invoke('backend-stop'),
+  checkBackendStatus: () => ipcRenderer.invoke('backend-status-check'),
 });

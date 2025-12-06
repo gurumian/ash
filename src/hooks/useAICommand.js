@@ -30,7 +30,8 @@ export function useAICommand({
   setIsAIProcessing,
   setShowAICommandInput,
   onAIMessageUpdate = null,
-  onBackendStarting = null
+  onBackendStarting = null,
+  isSidebarVisible = false // Only load conversations when sidebar is visible
 }) {
   const [aiMessages, setAiMessages] = useState([]);
   const [conversationId, setConversationId] = useState(null);
@@ -47,8 +48,23 @@ export function useAICommand({
     onAIMessageUpdateRef.current = onAIMessageUpdate;
   }, [onAIMessageUpdate]);
 
-  // Load conversations list and active conversation when activeSessionId changes
+  // Load conversations list and active conversation when activeSessionId changes and sidebar is visible
   useEffect(() => {
+    // Clean up when sidebar closes
+    if (!isSidebarVisible) {
+      // Clear state when sidebar is not visible to free up memory
+      setAiMessages([]);
+      setConversationId(null);
+      setConversations([]);
+      lastConnectionIdRef.current = null;
+      if (onAIMessageUpdateRef.current) {
+        onAIMessageUpdateRef.current([]);
+      }
+      return;
+    }
+
+    // Only load if sidebar is visible
+
     if (!activeSessionId) {
       setAiMessages([]);
       setConversationId(null);
@@ -151,7 +167,18 @@ export function useAICommand({
         }
       }
     })();
-  }, [activeSessionId]); // Only depend on activeSessionId
+  }, [activeSessionId, isSidebarVisible]); // Load when activeSessionId changes and sidebar is visible
+
+  // Clean up when sidebar closes - clear all AI-related state
+  useEffect(() => {
+    if (!isSidebarVisible) {
+      // Reset processing states
+      setProcessingConversationId(null);
+      setProcessingConversations(new Set());
+      setStreamingToolResult(null);
+      setIsAIProcessing(false);
+    }
+  }, [isSidebarVisible, setIsAIProcessing]);
 
   /**
    * Execute AI command from natural language input
@@ -159,6 +186,12 @@ export function useAICommand({
    * @param {string} mode - AI mode: 'ask' (simple) or 'agent' (multi-step)
    */
   const executeAICommand = useCallback(async (naturalLanguage, mode = 'ask') => {
+    // Don't execute if sidebar is not visible
+    if (!isSidebarVisible) {
+      console.warn('AI Command requested but sidebar is not visible');
+      return;
+    }
+
     setIsAIProcessing(true);
     let processingId = null; // Track which conversation is being processed
     try {
@@ -259,17 +292,23 @@ export function useAICommand({
         // Save user message to history
         await chatHistoryService.saveMessage(currentConversationId, 'user', naturalLanguage);
 
-        // Generate title if needed (async, don't wait)
-        const conversation = await chatHistoryService.getConversation(currentConversationId);
-        if (conversation && (!conversation.title || conversation.title.startsWith('New Chat') || conversation.title.startsWith('Chat '))) {
-          // Start title generation in background
-          generateConversationTitle(currentConversationId).catch(err => {
-            // Silently fail
-            if (process.env.NODE_ENV === 'development') {
-              console.log('Title generation failed:', err);
+        // Generate title if needed (completely async, don't block)
+        // Check title in background without blocking the main flow
+        (async () => {
+          try {
+            const conversation = await chatHistoryService.getConversation(currentConversationId);
+            if (conversation && (!conversation.title || conversation.title.startsWith('New Chat') || conversation.title.startsWith('Chat '))) {
+              generateConversationTitle(currentConversationId).catch(err => {
+                // Silently fail
+                if (process.env.NODE_ENV === 'development') {
+                  console.log('Title generation failed:', err);
+                }
+              });
             }
-          });
-        }
+          } catch (err) {
+            // Silently fail
+          }
+        })();
 
         // Collect assistant response and tool results
         let assistantContent = '';
@@ -450,17 +489,22 @@ export function useAICommand({
         if (currentConversationId && assistantContent) {
           await chatHistoryService.saveMessage(currentConversationId, 'assistant', assistantContent);
           
-          // Generate title after first assistant message if still default
-          const conversation = await chatHistoryService.getConversation(currentConversationId);
-          if (conversation && (conversation.title.startsWith('New Chat') || conversation.title.startsWith('Chat '))) {
-            // Start title generation in background
-            generateConversationTitle(currentConversationId).catch(err => {
-              // Silently fail
-              if (process.env.NODE_ENV === 'development') {
-                console.log('Title generation failed:', err);
+          // Generate title after first assistant message if still default (completely async)
+          (async () => {
+            try {
+              const conversation = await chatHistoryService.getConversation(currentConversationId);
+              if (conversation && (conversation.title.startsWith('New Chat') || conversation.title.startsWith('Chat '))) {
+                generateConversationTitle(currentConversationId).catch(err => {
+                  // Silently fail
+                  if (process.env.NODE_ENV === 'development') {
+                    console.log('Title generation failed:', err);
+                  }
+                });
               }
-            });
-          }
+            } catch (err) {
+              // Silently fail
+            }
+          })();
         }
 
         // Final update (preserve all tool results and content)
@@ -620,17 +664,22 @@ export function useAICommand({
       if (currentConversationId) {
         await chatHistoryService.saveMessage(currentConversationId, 'assistant', `Generated command: ${command}`);
         
-        // Generate title after first assistant message if still default
-        const conversation = await chatHistoryService.getConversation(currentConversationId);
-        if (conversation && (conversation.title.startsWith('New Chat') || conversation.title.startsWith('Chat '))) {
-          // Start title generation in background
-          generateConversationTitle(currentConversationId).catch(err => {
-            // Silently fail
-            if (process.env.NODE_ENV === 'development') {
-              console.log('Title generation failed:', err);
+        // Generate title after first assistant message if still default (completely async)
+        (async () => {
+          try {
+            const conversation = await chatHistoryService.getConversation(currentConversationId);
+            if (conversation && (conversation.title.startsWith('New Chat') || conversation.title.startsWith('Chat '))) {
+              generateConversationTitle(currentConversationId).catch(err => {
+                // Silently fail
+                if (process.env.NODE_ENV === 'development') {
+                  console.log('Title generation failed:', err);
+                }
+              });
             }
-          });
-        }
+          } catch (err) {
+            // Silently fail
+          }
+        })();
       }
 
       // Execute command in active session
@@ -684,6 +733,7 @@ export function useAICommand({
       }
     }
   }, [
+    isSidebarVisible,
     activeSessionId,
     terminalInstances,
     sshConnections,
