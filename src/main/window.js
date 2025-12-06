@@ -86,7 +86,14 @@ function getIndexHtmlPath() {
 /**
  * Create the main application window
  */
-export function createWindow() {
+export async function createWindow() {
+  // Start backend first (similar to log-chat)
+  const { startBackend } = await import('./backend-handler.js');
+  const backendStarted = await startBackend();
+  if (!backendStarted) {
+    console.error('Backend failed to start, but continuing with app...');
+  }
+  
   // Create the browser window.
   const mainWindow = new BrowserWindow({
     width: 800,
@@ -122,6 +129,14 @@ export function createWindow() {
   // Show window when ready to prevent black screen
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
+    
+    // Send backend status to renderer (similar to log-chat)
+    if (mainWindow.webContents && !mainWindow.webContents.isDestroyed()) {
+      mainWindow.webContents.send('backend-status', {
+        status: backendStarted ? 'ready' : 'error',
+        url: 'http://127.0.0.1:54111'
+      });
+    }
   });
 
   // Listen for window maximize/unmaximize events (Windows/Linux only)

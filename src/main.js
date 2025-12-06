@@ -36,17 +36,8 @@ app.whenReady().then(async () => {
   // Start IPC Bridge first (backend needs it)
   startIPCBridge();
   
-  // Start Python backend
-  try {
-    await startBackend();
-    console.log('✅ Backend started successfully');
-  } catch (error) {
-    console.error('❌ Failed to start backend:', error);
-    // Continue anyway - backend might be started manually
-  }
-  
   createMenu(); // Create system menu
-  const mainWindow = createWindow();
+  const mainWindow = await createWindow();
   
   // Set main window reference for TFTP, Web, and iperf handlers
   setTftpMainWindow(mainWindow);

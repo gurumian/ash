@@ -18,6 +18,7 @@ import { formatAICommandError } from '../utils/errorFormatter';
  * @param {Function} options.setIsAIProcessing - Function to set AI processing state
  * @param {Function} options.setShowAICommandInput - Function to control AI command input visibility
  * @param {Function} options.onAIMessageUpdate - Callback to update AI messages in sidebar (optional)
+ * @param {Function} options.onBackendStarting - Callback when backend is starting (for status indicator) (optional)
  * @returns {Object} Object containing executeAICommand function, aiMessages, and clearAIMessages
  */
 export function useAICommand({
@@ -28,7 +29,8 @@ export function useAICommand({
   setErrorDialog,
   setIsAIProcessing,
   setShowAICommandInput,
-  onAIMessageUpdate = null
+  onAIMessageUpdate = null,
+  onBackendStarting = null
 }) {
   const [aiMessages, setAiMessages] = useState([]);
   const [conversationId, setConversationId] = useState(null);
@@ -156,9 +158,36 @@ export function useAICommand({
         const qwenAgent = new QwenAgentService();
         
         // Check backend health
-        const isHealthy = await qwenAgent.checkHealth();
+        let isHealthy = await qwenAgent.checkHealth();
         if (!isHealthy) {
-          throw new Error('Qwen-Agent backend is not available. Please ensure the backend is running.');
+          // Try on-demand loading: start backend if available
+          if (window.electronAPI && window.electronAPI.startBackend) {
+            if (onBackendStarting) {
+              onBackendStarting(); // Set status to 'starting'
+            }
+            
+            const startResult = await window.electronAPI.startBackend();
+            if (!startResult.success) {
+              throw new Error(`Failed to start backend: ${startResult.error || 'Unknown error'}`);
+            }
+            
+            // Wait for backend to be ready (with timeout)
+            let retries = 30; // 30 seconds timeout
+            while (retries > 0) {
+              await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+              isHealthy = await qwenAgent.checkHealth();
+              if (isHealthy) {
+                break;
+              }
+              retries--;
+            }
+            
+            if (!isHealthy) {
+              throw new Error('Backend started but health check failed. Please check backend logs.');
+            }
+          } else {
+            throw new Error('Qwen-Agent backend is not available. Please ensure the backend is running.');
+          }
         }
 
         // Add user message to sidebar
@@ -511,7 +540,8 @@ export function useAICommand({
     setErrorDialog,
     setIsAIProcessing,
     setShowAICommandInput,
-    conversationId
+    conversationId,
+    onBackendStarting
   ]);
 
   const clearAIMessages = useCallback(() => {

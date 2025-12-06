@@ -25,6 +25,15 @@ if [ -f "dist/ash-backend" ]; then
     echo "✅ Backend build successful!"
     echo "Executable created at: backend/dist/ash-backend"
     ls -la dist/ash-backend
+    
+    # Code sign on macOS (if on macOS and identity is set)
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        IDENTITY="${APPLE_IDENTITY:-Apple Development: Sungmin Kim (XM4Q8R9Y2G)}"
+        echo "Code signing backend executable with identity: $IDENTITY"
+        codesign --force --deep --sign "$IDENTITY" --options runtime --entitlements ../entitlements.plist dist/ash-backend 2>&1 || {
+            echo "⚠️ Warning: Code signing failed, but continuing..."
+        }
+    fi
 elif [ -f "dist/ash-backend.exe" ]; then
     echo "✅ Backend build successful!"
     echo "Executable created at: backend/dist/ash-backend.exe"

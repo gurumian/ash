@@ -372,19 +372,28 @@ export async function startBackend() {
       logStream.end();
     });
     
-    // Wait for backend to be ready
-    console.log('Waiting for backend to be ready...');
-    await waitForHealth(BACKEND_URL, 30000);
-    console.log('✅ Backend is ready');
+    // Wait a moment for the backend to fully initialize
+    await new Promise(resolve => setTimeout(resolve, 2000));
     
-    return { success: true, url: BACKEND_URL };
+    // Wait for backend to be ready (with timeout handling)
+    console.log('Waiting for backend to be ready...');
+    try {
+      await waitForHealth(BACKEND_URL, 30000);
+      console.log('✅ Backend is ready');
+      return true;
+    } catch (healthError) {
+      console.error('Backend health check failed:', healthError.message);
+      // Don't kill the process - it might still be starting
+      // Return false but let the process continue running
+      return false;
+    }
   } catch (error) {
     console.error('Failed to start backend:', error);
     if (pyProc) {
       pyProc.kill();
       pyProc = null;
     }
-    throw error;
+    return false;
   }
 }
 

@@ -11,3 +11,4 @@ Requires-Dist: qwen-agent>=0.0.31
 Requires-Dist: uvicorn>=0.37.0
 Requires-Dist: requests>=2.31.0
 Requires-Dist: json5>=0.9.0
+Requires-Dist: pyinstaller>=6.17.0

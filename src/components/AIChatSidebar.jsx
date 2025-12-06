@@ -58,6 +58,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
   messages,
   isProcessing,
   streamingToolResult, // Current executing tool result (stdout/stderr)
+  backendStatus = 'not-ready', // Backend status: 'ready' | 'starting' | 'not-ready'
   onClose,
   onExecuteAICommand,
   terminal
@@ -180,9 +181,31 @@ export const AIChatSidebar = memo(function AIChatSidebar({
           background: '#000000'
         }}
       >
-        <h3 style={{ margin: 0, fontSize: '13px', fontWeight: '600', color: '#00ff41' }}>
-          AI Chat
-        </h3>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <h3 style={{ margin: 0, fontSize: '13px', fontWeight: '600', color: '#00ff41' }}>
+            AI Chat
+          </h3>
+          {/* Backend Status Indicator - Circular Lamp */}
+          <div
+            style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              backgroundColor: 
+                backendStatus === 'ready' ? '#00ff41' :
+                backendStatus === 'starting' ? '#ffaa00' : '#666',
+              boxShadow: 
+                backendStatus === 'ready' ? '0 0 4px rgba(0, 255, 65, 0.5)' :
+                backendStatus === 'starting' ? '0 0 4px rgba(255, 170, 0, 0.5)' : 'none',
+              transition: 'background-color 0.3s, box-shadow 0.3s',
+              flexShrink: 0
+            }}
+            title={
+              backendStatus === 'ready' ? 'Backend Ready' :
+              backendStatus === 'starting' ? 'Backend Starting' : 'Backend Not Ready'
+            }
+          />
+        </div>
         <button
           onClick={onClose}
           style={{

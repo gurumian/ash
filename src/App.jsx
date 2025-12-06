@@ -19,6 +19,7 @@ import { useTerminalManagement } from './hooks/useTerminalManagement';
 import { useConnectionManagement } from './hooks/useConnectionManagement';
 import { useAppHandlers } from './hooks/useAppHandlers';
 import { useAICommand } from './hooks/useAICommand';
+import { useBackendStatus } from './hooks/useBackendStatus';
 import { CustomTitleBar } from './components/CustomTitleBar';
 import { SessionManager } from './components/SessionManager';
 import { TerminalView } from './components/TerminalView';
@@ -624,6 +625,9 @@ function App() {
     setPendingSessionForGroup
   });
 
+  // Backend status monitoring (only when AI Chat Sidebar is visible)
+  const { status: backendStatus, setStarting: setBackendStarting } = useBackendStatus(showAIChatSidebar);
+
   // AI Command hook
   const { executeAICommand, aiMessages: hookAiMessages, clearAIMessages, streamingToolResult } = useAICommand({
     activeSessionId,
@@ -633,6 +637,7 @@ function App() {
     setErrorDialog,
     setIsAIProcessing,
     setShowAICommandInput,
+    onBackendStarting: setBackendStarting, // Pass setStarting callback for on-demand loading
     onAIMessageUpdate: (messages) => {
       setAiMessages(messages);
       // Auto-show sidebar when messages arrive
@@ -1250,6 +1255,7 @@ function App() {
           messages={aiMessages}
           isProcessing={isAIProcessing}
           streamingToolResult={streamingToolResult}
+          backendStatus={backendStatus}
           terminal={activeSessionId ? terminalInstances.current[activeSessionId] : null}
           onExecuteAICommand={executeAICommand}
           onClose={() => {
