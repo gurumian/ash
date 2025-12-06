@@ -44,9 +44,12 @@ import logging
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Configure logging - use standard format
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(levelname)s:%(name)s: %(message)s'
+)
+logger = logging.getLogger('app')
 
 # Import agent tools to register them
 import agent_tools
@@ -337,7 +340,7 @@ async def execute_task_stream(request: TaskRequest):
                             
                             if not previous_content:
                                 # 첫 번째 content - 전체를 스트리밍
-                                logger.info(f"[Backend] ✅ Streaming initial assistant content (idx={idx}): {len(content_str)} chars | content={repr(content_str[:200])}")
+                                logger.info(f"✅ Streaming initial assistant content (idx={idx}): {len(content_str)} chars | content={repr(content_str[:200])}")
                                 yield f"data: {json.dumps({'type': 'content_chunk', 'content': content_str})}\n\n"
                                 assistant_content_map[idx] = content_str
                             elif content_str != previous_content:
@@ -346,12 +349,12 @@ async def execute_task_stream(request: TaskRequest):
                                     # Content가 연장됨 - 새로운 부분만 스트리밍 (증분)
                                     new_chunk = content_str[len(previous_content):]
                                     if new_chunk:
-                                        logger.info(f"[Backend] ✅ Streaming content chunk (idx={idx}): +{len(new_chunk)} chars (total: {len(content_str)} chars) | new={repr(new_chunk[:200])}")
+                                        logger.info(f"✅ Streaming content chunk (idx={idx}): +{len(new_chunk)} chars (total: {len(content_str)} chars) | new={repr(new_chunk[:200])}")
                                         yield f"data: {json.dumps({'type': 'content_chunk', 'content': new_chunk})}\n\n"
                                     assistant_content_map[idx] = content_str
                                 else:
                                     # 완전히 다른 content (새로운 assistant 메시지이거나 내용이 완전히 바뀜)
-                                    logger.info(f"[Backend] ✅ Streaming new assistant content (idx={idx}): {len(content_str)} chars (previous was {len(previous_content)} chars) | new={repr(content_str[:200])}")
+                                    logger.info(f"✅ Streaming new assistant content (idx={idx}): {len(content_str)} chars (previous was {len(previous_content)} chars) | new={repr(content_str[:200])}")
                                     yield f"data: {json.dumps({'type': 'content_chunk', 'content': content_str})}\n\n"
                                     assistant_content_map[idx] = content_str
                         
