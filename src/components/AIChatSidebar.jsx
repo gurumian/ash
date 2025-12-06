@@ -5,6 +5,50 @@ import { ThinkingSection } from './ThinkingSection';
 import { FunctionResultsSection } from './FunctionResultsSection';
 import { parseAndCleanContent } from '../utils/parseFunctionResult';
 
+// Copy icon SVG component - Modern clipboard style (two overlapping rectangles)
+const CopyIcon = ({ size = 14, color = '#00ff41' }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 16 16"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    style={{ display: 'inline-block', verticalAlign: 'middle' }}
+  >
+    {/* Background rectangle (bottom, slightly larger) */}
+    <rect
+      x="5"
+      y="5"
+      width="9"
+      height="9"
+      rx="1"
+      stroke={color}
+      strokeWidth="1.2"
+      fill="none"
+      opacity="0.4"
+    />
+    {/* Foreground rectangle (top, the actual clipboard) */}
+    <rect
+      x="2"
+      y="2"
+      width="9"
+      height="9"
+      rx="1"
+      stroke={color}
+      strokeWidth="1.2"
+      fill="none"
+    />
+    {/* Small handle/tab on top rectangle */}
+    <path
+      d="M 4 2 L 4 1 L 6 1 L 6 2"
+      stroke={color}
+      strokeWidth="1.2"
+      fill="none"
+      strokeLinecap="round"
+    />
+  </svg>
+);
+
 /**
  * AI Chat Sidebar - Displays AI conversation history and input
  */
@@ -463,20 +507,30 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                       background: 'transparent',
                       border: '1px solid rgba(0, 255, 65, 0.3)',
                       borderRadius: '4px',
-                      padding: '4px 8px',
+                      padding: '6px',
                       color: '#00ff41',
-                      fontSize: '10px',
                       cursor: 'pointer',
                       opacity: 0.8,
-                      transition: 'opacity 0.2s',
-                      textTransform: 'none',
-                      fontWeight: 'normal'
+                      transition: 'all 0.2s',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '28px',
+                      height: '28px'
                     }}
-                    onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
-                    onMouseLeave={(e) => e.currentTarget.style.opacity = '0.8'}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.opacity = '1';
+                      e.currentTarget.style.borderColor = 'rgba(0, 255, 65, 0.5)';
+                      e.currentTarget.style.background = 'rgba(0, 255, 65, 0.05)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.opacity = '0.8';
+                      e.currentTarget.style.borderColor = 'rgba(0, 255, 65, 0.3)';
+                      e.currentTarget.style.background = 'transparent';
+                    }}
                     title="Copy message"
                   >
-                    📋 Copy
+                    <CopyIcon size={18} color="#00ff41" />
                   </button>
                 </div>
               )}
