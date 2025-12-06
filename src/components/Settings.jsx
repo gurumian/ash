@@ -30,52 +30,114 @@ export const Settings = memo(function Settings({
   const [showModelDropdown, setShowModelDropdown] = useState(false);
   const [filteredModels, setFilteredModels] = useState([]);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [showProviderDropdown, setShowProviderDropdown] = useState(false);
   const modelInputRef = useRef(null);
   const modelDropdownRef = useRef(null);
+  const providerDropdownRef = useRef(null);
   const { t, i18n } = useTranslation(['settings', 'common']);
 
   // Fetch Ollama models when provider is ollama and baseURL is set
   useEffect(() => {
-    const fetchOllamaModels = async () => {
-      if (llmSettings?.provider === 'ollama' && llmSettings?.baseURL && llmSettings?.enabled) {
-        setIsLoadingModels(true);
-        try {
-          const url = `${llmSettings.baseURL}/api/tags`;
-          const response = await fetch(url, {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-            }
-          });
+    // Helper function to check if baseURL is an Ollama URL
+    const isOllamaURL = (url) => {
+      if (!url) return false;
+      // Check if URL contains ollama-specific patterns
+      // Ollama typically runs on localhost with port 11434 or custom ports
+      try {
+        const urlObj = new URL(url);
+        // Check if it's a known Ollama endpoint pattern
+        // OpenAI: api.openai.com, Anthropic: api.anthropic.com
+        const hostname = urlObj.hostname.toLowerCase();
+        if (hostname.includes('openai.com') || hostname.includes('anthropic.com')) {
+          return false;
+        }
+        // If it's localhost or 127.0.0.1, likely Ollama
+        return hostname === 'localhost' || hostname === '127.0.0.1' || !hostname.includes('.');
+      } catch {
+        // If URL parsing fails, check if it starts with http://localhost (common Ollama pattern)
+        return url.startsWith('http://localhost') || url.startsWith('http://127.0.0.1');
+      }
+    };
 
-          if (response.ok) {
-            const data = await response.json();
-            if (data.models && Array.isArray(data.models)) {
-              const modelNames = data.models.map(model => model.name || model.model || model).filter(Boolean);
-              setOllamaModels(modelNames);
-              setFilteredModels(modelNames);
-            }
-          } else {
-            // Silently fail - user might not have Ollama running
-            setOllamaModels([]);
-            setFilteredModels([]);
+    // Early return if not ollama provider or baseURL is not Ollama - don't fetch models for other providers
+    if (llmSettings?.provider !== 'ollama' || !isOllamaURL(llmSettings?.baseURL)) {
+      setOllamaModels([]);
+      setFilteredModels([]);
+      setIsLoadingModels(false);
+      return;
+    }
+
+    // Capture current values to avoid closure issues
+    const currentProvider = llmSettings.provider;
+    const currentBaseURL = llmSettings.baseURL;
+    const currentEnabled = llmSettings.enabled;
+
+    // Don't fetch if not enabled
+    if (!currentEnabled) {
+      setOllamaModels([]);
+      setFilteredModels([]);
+      setIsLoadingModels(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchOllamaModels = async () => {
+      // Double-check everything before fetching
+      if (cancelled || currentProvider !== 'ollama' || !isOllamaURL(currentBaseURL)) {
+        setOllamaModels([]);
+        setFilteredModels([]);
+        setIsLoadingModels(false);
+        return;
+      }
+
+      setIsLoadingModels(true);
+      try {
+        const url = `${currentBaseURL}/api/tags`;
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
           }
-        } catch (error) {
+        });
+
+        // Check if cancelled after async operation
+        if (cancelled || currentProvider !== 'ollama') {
+          return;
+        }
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.models && Array.isArray(data.models)) {
+            const modelNames = data.models.map(model => model.name || model.model || model).filter(Boolean);
+            setOllamaModels(modelNames);
+            setFilteredModels(modelNames);
+          }
+        } else {
           // Silently fail - user might not have Ollama running
           setOllamaModels([]);
           setFilteredModels([]);
-        } finally {
-          setIsLoadingModels(false);
         }
-      } else {
+      } catch (error) {
+        // Silently fail - don't log CORS errors for non-Ollama providers
+        if (!cancelled && currentProvider === 'ollama') {
+          console.debug('Failed to fetch Ollama models:', error);
+        }
         setOllamaModels([]);
         setFilteredModels([]);
+      } finally {
+        if (!cancelled && currentProvider === 'ollama') {
+          setIsLoadingModels(false);
+        }
       }
     };
 
     // Debounce the fetch
     const timeoutId = setTimeout(fetchOllamaModels, 500);
-    return () => clearTimeout(timeoutId);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+    };
   }, [llmSettings?.provider, llmSettings?.baseURL, llmSettings?.enabled]);
 
   // Filter models based on input
@@ -103,13 +165,19 @@ export const Settings = memo(function Settings({
         setShowModelDropdown(false);
         setHighlightedIndex(-1);
       }
+      if (
+        providerDropdownRef.current &&
+        !providerDropdownRef.current.contains(event.target)
+      ) {
+        setShowProviderDropdown(false);
+      }
     };
 
-    if (showModelDropdown) {
+    if (showModelDropdown || showProviderDropdown) {
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
-  }, [showModelDropdown]);
+  }, [showModelDropdown, showProviderDropdown]);
 
   if (!showSettings) return null;
 
@@ -441,42 +509,194 @@ export const Settings = memo(function Settings({
               <>
                 <div className="setting-group">
                   <label>{t('settings:provider')}</label>
-                  <select
-                    value={llmSettings?.provider || 'ollama'}
-                    onChange={(e) => {
-                      const provider = e.target.value;
-                      const updates = { provider };
-                      // Set default baseURL and model only if not already set
-                      if (provider === 'ollama') {
-                        if (!llmSettings?.baseURL) {
-                          updates.baseURL = 'http://localhost:11434';
-                        }
-                        if (!llmSettings?.model) {
-                          updates.model = 'llama3.2';
-                        }
-                      } else if (provider === 'openai') {
-                        if (!llmSettings?.baseURL || llmSettings?.baseURL === 'http://localhost:11434') {
-                          updates.baseURL = 'https://api.openai.com/v1';
-                        }
-                        if (!llmSettings?.model || llmSettings?.model === 'llama3.2') {
-                          updates.model = 'gpt-4o-mini';
-                        }
-                      } else if (provider === 'anthropic') {
-                        if (!llmSettings?.baseURL || llmSettings?.baseURL === 'http://localhost:11434') {
-                          updates.baseURL = 'https://api.anthropic.com/v1';
-                        }
-                        if (!llmSettings?.model || llmSettings?.model === 'llama3.2') {
-                          updates.model = 'claude-3-5-sonnet-20241022';
-                        }
-                      }
-                      onChangeLlmSettings?.(updates);
-                    }}
-                    style={{ width: '200px', padding: '8px 12px', background: '#1a1a1a', border: '1px solid #1a1a1a', borderRadius: '4px', color: '#00ff41', fontSize: '13px' }}
-                  >
-                    <option value="ollama">Ollama (Local)</option>
-                    <option value="openai">OpenAI</option>
-                    <option value="anthropic">Anthropic (Claude)</option>
-                  </select>
+                  <div style={{ position: 'relative', display: 'inline-block' }}>
+                    <button
+                      type="button"
+                      onClick={() => setShowProviderDropdown(!showProviderDropdown)}
+                      style={{
+                        padding: '8px 32px 8px 12px',
+                        background: '#1a1a1a',
+                        border: '1px solid #1a1a1a',
+                        borderRadius: '4px',
+                        color: '#00ff41',
+                        fontSize: '13px',
+                        cursor: 'pointer',
+                        fontFamily: 'var(--ui-font-family)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        minWidth: '200px',
+                        textAlign: 'left',
+                        position: 'relative',
+                        transition: 'border-color 0.2s'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = 'rgba(0, 255, 65, 0.5)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = '#1a1a1a';
+                      }}
+                    >
+                      <span>
+                        {llmSettings?.provider === 'ollama' 
+                          ? 'Ollama (Local)' 
+                          : llmSettings?.provider === 'openai' 
+                          ? 'OpenAI' 
+                          : llmSettings?.provider === 'anthropic'
+                          ? 'Anthropic (Claude)'
+                          : 'Ollama (Local)'}
+                      </span>
+                      <span style={{
+                        fontSize: '8px',
+                        position: 'absolute',
+                        right: '8px',
+                        top: '50%',
+                        transform: `translateY(-50%) ${showProviderDropdown ? 'rotate(180deg)' : ''}`,
+                        transition: 'transform 0.2s'
+                      }}>
+                        ▼
+                      </span>
+                    </button>
+                    {showProviderDropdown && (
+                      <div
+                        ref={providerDropdownRef}
+                        style={{
+                          position: 'absolute',
+                          top: '100%',
+                          left: 0,
+                          marginTop: '4px',
+                          background: '#1a1a1a',
+                          border: '1px solid #2a2a2a',
+                          borderRadius: '4px',
+                          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)',
+                          zIndex: 1000,
+                          minWidth: '200px'
+                        }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const provider = 'ollama';
+                            const updates = { provider };
+                            // Always reset baseURL to Ollama default when switching to Ollama
+                            // unless it's already an Ollama URL
+                            const currentBaseURL = llmSettings?.baseURL || '';
+                            if (!currentBaseURL || 
+                                currentBaseURL.includes('openai.com') || 
+                                currentBaseURL.includes('anthropic.com')) {
+                              updates.baseURL = 'http://localhost:11434';
+                            }
+                            if (!llmSettings?.model || 
+                                llmSettings?.model === 'gpt-4o-mini' || 
+                                llmSettings?.model.includes('claude')) {
+                              updates.model = 'llama3.2';
+                            }
+                            onChangeLlmSettings?.(updates);
+                            setShowProviderDropdown(false);
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            background: llmSettings?.provider === 'ollama' ? 'rgba(0, 255, 65, 0.15)' : 'transparent',
+                            border: 'none',
+                            color: '#00ff41',
+                            fontSize: '13px',
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                            transition: 'background 0.15s'
+                          }}
+                          onMouseEnter={(e) => {
+                            if (llmSettings?.provider !== 'ollama') {
+                              e.currentTarget.style.backgroundColor = 'rgba(0, 255, 65, 0.1)';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (llmSettings?.provider !== 'ollama') {
+                              e.currentTarget.style.backgroundColor = 'transparent';
+                            }
+                          }}
+                        >
+                          Ollama (Local)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const provider = 'openai';
+                            const updates = { provider };
+                            if (!llmSettings?.baseURL || llmSettings?.baseURL === 'http://localhost:11434') {
+                              updates.baseURL = 'https://api.openai.com/v1';
+                            }
+                            if (!llmSettings?.model || llmSettings?.model === 'llama3.2') {
+                              updates.model = 'gpt-4o-mini';
+                            }
+                            onChangeLlmSettings?.(updates);
+                            setShowProviderDropdown(false);
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            background: llmSettings?.provider === 'openai' ? 'rgba(0, 255, 65, 0.15)' : 'transparent',
+                            border: 'none',
+                            color: '#00ff41',
+                            fontSize: '13px',
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                            transition: 'background 0.15s'
+                          }}
+                          onMouseEnter={(e) => {
+                            if (llmSettings?.provider !== 'openai') {
+                              e.currentTarget.style.backgroundColor = 'rgba(0, 255, 65, 0.1)';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (llmSettings?.provider !== 'openai') {
+                              e.currentTarget.style.backgroundColor = 'transparent';
+                            }
+                          }}
+                        >
+                          OpenAI
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const provider = 'anthropic';
+                            const updates = { provider };
+                            if (!llmSettings?.baseURL || llmSettings?.baseURL === 'http://localhost:11434') {
+                              updates.baseURL = 'https://api.anthropic.com/v1';
+                            }
+                            if (!llmSettings?.model || llmSettings?.model === 'llama3.2') {
+                              updates.model = 'claude-3-5-sonnet-20241022';
+                            }
+                            onChangeLlmSettings?.(updates);
+                            setShowProviderDropdown(false);
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            background: llmSettings?.provider === 'anthropic' ? 'rgba(0, 255, 65, 0.15)' : 'transparent',
+                            border: 'none',
+                            color: '#00ff41',
+                            fontSize: '13px',
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                            transition: 'background 0.15s'
+                          }}
+                          onMouseEnter={(e) => {
+                            if (llmSettings?.provider !== 'anthropic') {
+                              e.currentTarget.style.backgroundColor = 'rgba(0, 255, 65, 0.1)';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (llmSettings?.provider !== 'anthropic') {
+                              e.currentTarget.style.backgroundColor = 'transparent';
+                            }
+                          }}
+                        >
+                          Anthropic (Claude)
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   <p className="setting-description">
                     {t('settings:providerDesc')}
                   </p>
@@ -504,7 +724,15 @@ export const Settings = memo(function Settings({
                     type="text"
                     value={llmSettings?.baseURL || ''}
                     onChange={(e) => onChangeLlmSettings?.({ baseURL: e.target.value })}
-                    placeholder={llmSettings?.provider === 'ollama' ? 'http://localhost:11434' : 'https://api.openai.com/v1'}
+                    placeholder={
+                      llmSettings?.provider === 'ollama' 
+                        ? 'http://localhost:11434' 
+                        : llmSettings?.provider === 'openai'
+                        ? 'https://api.openai.com/v1'
+                        : llmSettings?.provider === 'anthropic'
+                        ? 'https://api.anthropic.com/v1'
+                        : ''
+                    }
                     style={{ width: '400px', padding: '8px 12px', background: '#1a1a1a', border: '1px solid #1a1a1a', borderRadius: '4px', color: '#00ff41', fontSize: '13px' }}
                   />
                   <p className="setting-description">
