@@ -22,6 +22,8 @@ class QwenAgentService {
    * @returns {Promise<string>} - Final response
    */
   async executeTask(message, connectionId = null, onChunk = null, llmSettings = null, onToolResult = null, onToolCall = null, abortSignal = null) {
+  // Command 큐: tool_call과 tool_result를 순차적으로 매칭하기 위한 FIFO 큐
+  const commandQueue = [];
     try {
       // Get conversation history for this connection (or use default)
       const historyKey = connectionId || 'default';
@@ -161,6 +163,11 @@ class QwenAgentService {
                   const toolName = data.name || data.tool_name || 'unknown_tool';
                   const toolArgs = data.args || data.arguments || '{}';
                   
+                  // Command 추출 및 큐에 저장 (ash_ssh_execute인 경우)
+                  if (toolName === 'ash_ssh_execute' && data.command) {
+                    commandQueue.push(data.command);
+                  }
+                  
                   // Call tool call callback if provided (for displaying to user)
                   if (onToolCall) {
                     onToolCall(toolName, toolArgs);
@@ -184,9 +191,16 @@ class QwenAgentService {
                     
                     // Handle structured format from backend
                     if (data.name && (data.stdout !== undefined || data.stderr !== undefined)) {
+                      // Command 가져오기 (큐에서)
+                      let command = null;
+                      if (toolName === 'ash_ssh_execute' && commandQueue.length > 0) {
+                        command = commandQueue.shift();
+                      }
+                      
                       // New structured format
                       const toolResult = {
                         name: data.name,
+                        command: command,
                         success: data.success !== undefined ? data.success : true,
                         exitCode: data.exitCode !== undefined ? data.exitCode : 0,
                         stdout: data.stdout || '',

@@ -429,6 +429,7 @@ export function useAICommand({
             if (toolResultData.stdout && !abortSignal?.aborted) {
               setStreamingToolResult({
                 name: toolName,
+                command: toolResultData.command || null,
                 stdout: toolResultData.stdout,
                 stderr: toolResultData.stderr || ''
               });

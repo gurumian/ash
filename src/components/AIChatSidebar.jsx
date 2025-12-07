@@ -1129,7 +1129,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                       fontWeight: '600'
                     }}
                   >
-                    Executing: {streamingToolResult.name}
+                    Executing: {streamingToolResult.command || streamingToolResult.name}
                   </div>
                 )}
                 {streamingToolResult.stdout && (
