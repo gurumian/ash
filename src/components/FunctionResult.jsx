@@ -11,6 +11,7 @@ import React from 'react';
  */
 export function FunctionResult({ 
   name, 
+  command, // 실제 실행된 명령어 (있으면 이것을 표시)
   success, 
   exitCode, 
   stdout, 
@@ -64,7 +65,7 @@ export function FunctionResult({
               color: success ? '#00ff41' : '#ff4141'
             }}
           >
-            {success ? '✓' : '✗'} {name || 'Command'}
+            {success ? '✓' : '✗'} {command || name || 'Command'}
           </span>
         </div>
         {exitCode !== undefined && exitCode !== null && (

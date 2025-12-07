@@ -164,8 +164,27 @@ class QwenAgentService {
                   const toolArgs = data.args || data.arguments || '{}';
                   
                   // Command 추출 및 큐에 저장 (ash_ssh_execute인 경우)
-                  if (toolName === 'ash_ssh_execute' && data.command) {
-                    commandQueue.push(data.command);
+                  console.log(`[QwenAgentService] 🔧 Tool call: name=${toolName}, command=${data.command || 'null'}, hasCommand=${!!data.command}`);
+                  
+                  if (toolName === 'ash_ssh_execute') {
+                    // 백엔드에서 command를 전달하지 않은 경우, toolArgs에서 추출
+                    let command = data.command;
+                    if (!command && toolArgs) {
+                      try {
+                        const args = JSON.parse(toolArgs);
+                        command = args.command || null;
+                      } catch (e) {
+                        // JSON 파싱 실패시 그대로 사용
+                        command = toolArgs;
+                      }
+                    }
+                    
+                    if (command) {
+                      commandQueue.push(command);
+                      console.log(`[QwenAgentService] ✅ Saved command to queue: '${command}' (queue size: ${commandQueue.length})`);
+                    } else {
+                      console.warn(`[QwenAgentService] ⚠️ No command found for ash_ssh_execute, toolArgs:`, toolArgs);
+                    }
                   }
                   
                   // Call tool call callback if provided (for displaying to user)
@@ -191,10 +210,11 @@ class QwenAgentService {
                     
                     // Handle structured format from backend
                     if (data.name && (data.stdout !== undefined || data.stderr !== undefined)) {
-                      // Command 가져오기 (큐에서)
-                      let command = null;
-                      if (toolName === 'ash_ssh_execute' && commandQueue.length > 0) {
+                      // Command 가져오기 (백엔드에서 전달된 command 우선 사용, 없으면 큐에서)
+                      let command = data.command || null;
+                      if (!command && toolName === 'ash_ssh_execute' && commandQueue.length > 0) {
                         command = commandQueue.shift();
+                        console.log(`[QwenAgentService] ⚠️ Backend didn't send command, using queue: '${command}'`);
                       }
                       
                       // New structured format
@@ -206,6 +226,8 @@ class QwenAgentService {
                         stdout: data.stdout || '',
                         stderr: data.stderr || ''
                       };
+                      
+                      console.log(`[QwenAgentService] 📤 Tool result: name=${toolResult.name}, command=${toolResult.command || 'null'}`);
                       
                       messages.push({ role: 'tool', name: toolName, toolResult });
                       

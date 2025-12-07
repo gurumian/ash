@@ -137,6 +137,8 @@ class SSHExecuteTool(BaseTool):
         try:
             # Use the correct IPC channel name: 'ssh-exec-command'
             result = call_ash_ipc('ssh-exec-command', connection_id, command)
+            # Command를 결과에 포함시키기 (tool_result에서 사용하기 위해)
+            result['command'] = command
             _logger.info(f"[ash_ssh_execute] Result: success={result.get('success')}, output length={len(str(result.get('output', '')))}")
             return json.dumps(result, ensure_ascii=False)
         except Exception as e:

@@ -78,6 +78,7 @@ export function FunctionResultsSection({ toolResults, messageId }) {
             <FunctionResult
               key={`func-${messageId}-${idx}`}
               name={toolResult.name || 'Command'}
+              command={toolResult.command || null}
               success={toolResult.success !== undefined ? toolResult.success : true}
               exitCode={toolResult.exitCode}
               stdout={toolResult.stdout}

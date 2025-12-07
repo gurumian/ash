@@ -313,6 +313,8 @@ async def execute_task_stream(request: TaskRequest):
             previous_response = []  # 이전 response_chunk 저장 (누적된 전체 응답)
             # 각 assistant 메시지별로 content를 추적 (메시지별로 독립적으로 관리)
             assistant_content_map = {}  # {message_index: content} 형태로 각 assistant 메시지의 content 추적
+            # Tool call에서 추출한 command를 큐에 저장 (실행 순서대로)
+            tool_command_queue = []  # FIFO 큐
             
             # Qwen-Agent automatically includes tool results in the conversation
             # response_chunk는 누적된 전체 응답: [msg1, msg2, msg3, ...]
@@ -368,14 +370,27 @@ async def execute_task_stream(request: TaskRequest):
                                 # Command 추출 (ash_ssh_execute인 경우)
                                 command = None
                                 if tool_name == 'ash_ssh_execute':
-                                    try:
-                                        import json5
-                                        args = json5.loads(tool_args)
-                                        command = args.get('command', tool_args)
-                                    except:
-                                        command = tool_args
+                                    # tool_args가 빈 문자열이거나 None인 경우 처리
+                                    if tool_args and tool_args.strip():
+                                        try:
+                                            import json5
+                                            args = json5.loads(tool_args)
+                                            command = args.get('command') or tool_args
+                                        except Exception as e:
+                                            logger.warning(f"Failed to parse tool_args: {tool_args}, error: {e}")
+                                            command = tool_args if tool_args else None
+                                    else:
+                                        logger.warning(f"tool_args is empty for {tool_name}: {repr(tool_args)}")
+                                        command = None
                                 
-                                logger.info(f"Tool call request: {tool_name} with args: {tool_args[:200]}...")
+                                # Command를 큐에 추가 (실행 순서대로)
+                                if command:
+                                    tool_command_queue.append(command)
+                                    logger.info(f"✅ Saved command to queue: '{command}' (queue size: {len(tool_command_queue)})")
+                                else:
+                                    logger.warning(f"⚠️ No command extracted for {tool_name}, tool_args: {repr(tool_args)}")
+                                
+                                logger.info(f"Tool call request: {tool_name} with args: {repr(tool_args[:200])}, command: {repr(command) if command else 'None'}")
                                 
                                 # Tool call을 실시간으로 스트리밍 (사용자가 볼 수 있도록!)
                                 yield f"data: {json.dumps({
@@ -392,14 +407,29 @@ async def execute_task_stream(request: TaskRequest):
                         tool_content = str(content) if content else ''
                         logger.info(f"Tool {tool_name} result (role={event_type}): {tool_content[:100]}...")
                         
+                        # 큐에서 command 가져오기 (실행 순서대로)
+                        command = None
+                        if tool_command_queue:
+                            command = tool_command_queue.pop(0)
+                            logger.info(f"✅ Retrieved command from queue: '{command}' (remaining: {len(tool_command_queue)})")
+                        
                         # Parse tool result JSON for structured display
                         try:
                             parsed_result = json.loads(tool_content) if isinstance(tool_content, str) and tool_content.strip().startswith('{') else tool_content
+                            
+                            # Command 추출: tool_result에 포함된 command 우선 사용, 없으면 큐에서 가져오기
+                            result_command = None
+                            if isinstance(parsed_result, dict):
+                                result_command = parsed_result.get('command')
+                            
+                            # Command 결정: tool_result의 command > 큐의 command
+                            final_command = result_command or command
                             
                             # Structure the result for frontend rendering
                             structured_result = {
                                 'type': 'tool_result',
                                 'name': tool_name,
+                                'command': final_command,  # tool_result에서 추출한 command 또는 큐에서 가져온 command
                                 'success': parsed_result.get('success', True) if isinstance(parsed_result, dict) else True,
                                 'exitCode': parsed_result.get('exitCode', 0) if isinstance(parsed_result, dict) else 0,
                                 'stdout': parsed_result.get('output', '') if isinstance(parsed_result, dict) else '',
@@ -411,7 +441,7 @@ async def execute_task_stream(request: TaskRequest):
                         except (json.JSONDecodeError, AttributeError) as e:
                             # Fallback: if parsing fails, send as raw content
                             logger.warning(f"Could not parse tool result as JSON: {e}, sending as raw content")
-                            yield f"data: {json.dumps({'type': 'tool_result', 'name': tool_name, 'content': tool_content})}\n\n"
+                            yield f"data: {json.dumps({'type': 'tool_result', 'name': tool_name, 'command': command, 'content': tool_content})}\n\n"
                 
                 # 이전 response 업데이트 (중복 방지)
                 previous_response = response_chunk.copy()
