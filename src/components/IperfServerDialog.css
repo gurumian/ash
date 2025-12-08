@@ -136,9 +136,9 @@
 }
 
 .iperf-status-badge.stopped {
-  background: rgba(255, 68, 68, 0.1);
-  color: #ff4444;
-  border-color: rgba(255, 68, 68, 0.3);
+  background: rgba(128, 128, 128, 0.1);
+  color: #888888;
+  border-color: rgba(128, 128, 128, 0.3);
 }
 
 .iperf-status-badge::before {
@@ -186,9 +186,9 @@
 }
 
 .iperf-status-card.stopped .iperf-status-icon {
-  color: #00ff41;
-  background: rgba(0, 255, 65, 0.1);
-  border-color: rgba(0, 255, 65, 0.3);
+  color: #888888;
+  background: rgba(128, 128, 128, 0.1);
+  border-color: rgba(128, 128, 128, 0.3);
 }
 
 .iperf-status-card.running .iperf-status-icon {

@@ -1043,6 +1043,11 @@ function App() {
     document.documentElement.style.setProperty('--ui-font-family', uiFontFamily);
   }, [uiFontFamily]);
 
+  // Apply terminal font family CSS variable
+  useEffect(() => {
+    document.documentElement.style.setProperty('--terminal-font-family', terminalFontFamily);
+  }, [terminalFontFamily]);
+
   // Cleanup resize timeout on unmount
   useEffect(() => {
     return () => {
