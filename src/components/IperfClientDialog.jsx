@@ -170,7 +170,9 @@ export function IperfClientDialog({ isOpen, onClose, activeSession }) {
                     {loading ? (status.running ? t('client:iperf.stopping') : t('client:iperf.starting')) : (status.running ? t('client:iperf.running') : t('client:iperf.stopped'))}
                   </span>
                   <span className="iperf-client-status-icon">
-                    {loading ? '⏳' : (status.running ? '⏹' : '▶')}
+                    {loading ? (
+                      <span className="iperf-client-spinner"></span>
+                    ) : (status.running ? '⏹' : '▶')}
                   </span>
                 </div>
               </div>
