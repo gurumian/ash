@@ -67,5 +67,7 @@
   "copy": "Sao chép",
   "paste": "Dán",
   "selectAll": "Chọn tất cả",
-  "upload": "Tải lên..."
+  "upload": "Tải lên...",
+  "aiChat": "Trò chuyện AI",
+  "iperfClient": "Máy khách iperf3"
 }

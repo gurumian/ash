@@ -16,7 +16,8 @@
     "durationHint": "Thời lượng kiểm tra (giây)",
     "output": "Đầu ra",
     "clear": "Xóa",
-    "waitingForOutput": "Đang chờ đầu ra..."
+    "waitingForOutput": "Đang chờ đầu ra...",
+    "config": "Cấu hình"
   }
 }
 

@@ -8,5 +8,7 @@
   "webServer": "Máy chủ Web",
   "webServerTooltip": "Máy chủ Web: HTTP/{{port}}\nNhấp để mở hộp thoại Máy chủ Web",
   "iperf3Server": "Máy chủ iperf3",
-  "iperf3ServerTooltip": "Máy chủ iperf3: TCP/{{port}}\nNhấp để mở hộp thoại iperf3"
+  "iperf3ServerTooltip": "Máy chủ iperf3: TCP/{{port}}\nNhấp để mở hộp thoại iperf3",
+  "iperf3Client": "Máy khách iperf3",
+  "iperf3ClientTooltip": "Máy khách iperf3\nNhấp để mở thanh bên máy khách iperf3"
 }

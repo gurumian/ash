@@ -8,6 +8,8 @@
   "webServer": "Webサーバー",
   "webServerTooltip": "Webサーバー: HTTP/{{port}}\nクリックしてWebサーバーダイアログを開く",
   "iperf3Server": "iperf3サーバー",
-  "iperf3ServerTooltip": "iperf3サーバー: TCP/{{port}}\nクリックしてiperf3ダイアログを開く"
+  "iperf3ServerTooltip": "iperf3サーバー: TCP/{{port}}\nクリックしてiperf3ダイアログを開く",
+  "iperf3Client": "iperf3クライアント",
+  "iperf3ClientTooltip": "iperf3クライアント\nクリックしてiperf3クライアントサイドバーを開く"
 }
 

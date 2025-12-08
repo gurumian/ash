@@ -67,6 +67,8 @@
   "copy": "复制",
   "paste": "粘贴",
   "selectAll": "全选",
-  "upload": "上传..."
+  "upload": "上传...",
+  "aiChat": "AI聊天",
+  "iperfClient": "iperf3客户端"
 }
 

@@ -16,7 +16,8 @@
     "durationHint": "Test duration in seconds",
     "output": "Output",
     "clear": "Clear",
-    "waitingForOutput": "Waiting for output..."
+    "waitingForOutput": "Waiting for output...",
+    "config": "Configuration"
   }
 }
 

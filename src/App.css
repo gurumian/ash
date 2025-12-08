@@ -769,6 +769,12 @@ button, a, input, select, textarea, [role="button"] {
   font-size: 11px;
 }
 
+.status-iperf-client-indicator {
+  color: #00ff41;
+  opacity: 0.8;
+  font-size: 11px;
+}
+
 .status-right {
   display: flex;
   align-items: center;

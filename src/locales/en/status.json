@@ -8,6 +8,8 @@
   "webServer": "Web Server",
   "webServerTooltip": "Web Server: HTTP/{{port}}\nClick to open Web Server dialog",
   "iperf3Server": "iperf3 Server",
-  "iperf3ServerTooltip": "iperf3 Server: TCP/{{port}}\nClick to open iperf3 dialog"
+  "iperf3ServerTooltip": "iperf3 Server: TCP/{{port}}\nClick to open iperf3 dialog",
+  "iperf3Client": "iperf3 Client",
+  "iperf3ClientTooltip": "iperf3 Client\nClick to open iperf3 client sidebar"
 }
 

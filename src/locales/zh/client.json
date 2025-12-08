@@ -16,7 +16,8 @@
     "durationHint": "测试持续时间（秒）",
     "output": "输出",
     "clear": "清除",
-    "waitingForOutput": "等待输出..."
+    "waitingForOutput": "等待输出...",
+    "config": "配置"
   }
 }
 

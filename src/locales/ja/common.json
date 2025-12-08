@@ -67,6 +67,8 @@
   "copy": "コピー",
   "paste": "貼り付け",
   "selectAll": "すべて選択",
-  "upload": "アップロード..."
+  "upload": "アップロード...",
+  "aiChat": "AIチャット",
+  "iperfClient": "iperf3クライアント"
 }
 

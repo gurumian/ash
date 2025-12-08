@@ -576,6 +576,11 @@ export function initializeIperfClientHandlers() {
       
       console.log(`[iperf3-client] Starting client: ${binaryPath} ${args.join(' ')}`);
       
+      // Send status update when client starts
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('iperf-client-started');
+      }
+      
       iperfClientProcess = spawn(binaryPath, args, {
         stdio: ['ignore', 'pipe', 'pipe']
       });

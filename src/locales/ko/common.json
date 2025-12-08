@@ -68,6 +68,8 @@
   "copy": "복사",
   "paste": "붙여넣기",
   "selectAll": "모두 선택",
-  "upload": "업로드..."
+  "upload": "업로드...",
+  "aiChat": "AI 채팅",
+  "iperfClient": "iperf3 클라이언트"
 }
 

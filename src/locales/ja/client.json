@@ -16,7 +16,8 @@
     "durationHint": "テスト継続時間（秒）",
     "output": "出力",
     "clear": "クリア",
-    "waitingForOutput": "出力待機中..."
+    "waitingForOutput": "出力待機中...",
+    "config": "設定"
   }
 }
 

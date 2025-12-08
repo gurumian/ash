@@ -1,0 +1,75 @@
+.secondary-sidebar-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.secondary-sidebar-tabs {
+  display: flex;
+  background: #000000;
+  border-bottom: 1px solid #1a1a1a;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+.secondary-sidebar-tab {
+  background: transparent;
+  border: none;
+  color: #00ff41;
+  padding: 10px 16px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s;
+  opacity: 0.7;
+  border-bottom: 2px solid transparent;
+  flex: 1;
+  text-align: center;
+}
+
+.secondary-sidebar-tab:hover {
+  background: rgba(0, 255, 65, 0.05);
+  opacity: 1;
+}
+
+.secondary-sidebar-tab.active {
+  opacity: 1;
+  border-bottom-color: #00ff41;
+  background: rgba(0, 255, 65, 0.1);
+}
+
+.secondary-sidebar-close {
+  background: transparent;
+  border: none;
+  color: #00ff41;
+  cursor: pointer;
+  padding: 10px 16px;
+  font-size: 18px;
+  line-height: 1;
+  opacity: 0.7;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.secondary-sidebar-close:hover {
+  opacity: 1;
+  background: rgba(0, 255, 65, 0.1);
+}
+
+.secondary-sidebar-content {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+}
+
+.secondary-sidebar-content > * {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+}

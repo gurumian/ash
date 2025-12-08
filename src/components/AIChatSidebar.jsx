@@ -199,10 +199,9 @@ export const AIChatSidebar = memo(function AIChatSidebar({
       ref={sidebarRef}
       className="ai-chat-sidebar"
       style={{
-        width: `${width}px`,
+        width: '100%',
         height: '100%',
         background: '#000000',
-        borderLeft: '1px solid #1a1a1a',
         display: 'flex',
         flexDirection: 'column',
         flexShrink: 0,
@@ -246,25 +245,27 @@ export const AIChatSidebar = memo(function AIChatSidebar({
               }
             />
           </div>
-          <button
-            onClick={onClose}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#00ff41',
-              cursor: 'pointer',
-              fontSize: '18px',
-              lineHeight: '1',
-              padding: '4px 8px',
-              opacity: 0.7,
-              transition: 'opacity 0.2s'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
-            onMouseLeave={(e) => e.currentTarget.style.opacity = '0.7'}
-            title="Close"
-          >
-            ×
-          </button>
+          {onClose && (
+            <button
+              onClick={onClose}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#00ff41',
+                cursor: 'pointer',
+                fontSize: '18px',
+                lineHeight: '1',
+                padding: '4px 8px',
+                opacity: 0.7,
+                transition: 'opacity 0.2s'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+              onMouseLeave={(e) => e.currentTarget.style.opacity = '0.7'}
+              title="Close"
+            >
+              ×
+            </button>
+          )}
         </div>
         
         {/* Conversation Tabs */}

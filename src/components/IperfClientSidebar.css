@@ -1,0 +1,320 @@
+/* Reuse styles from IperfClientDialog.css but adapt for sidebar */
+.iperf-client-sidebar {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.iperf-client-status-section {
+  flex-shrink: 0;
+}
+
+.iperf-client-status-card {
+  background: #1a1a1a;
+  border: 1px solid #1a1a1a;
+  border-radius: 4px;
+  padding: 16px;
+  transition: all 0.2s;
+}
+
+.iperf-client-status-card:hover:not(.loading) {
+  border-color: #00ff41;
+  background: rgba(0, 255, 65, 0.05);
+}
+
+.iperf-client-status-card.loading {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.iperf-client-status-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.iperf-client-status-label {
+  font-weight: 600;
+  color: #00ff41;
+  min-width: 80px;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.iperf-client-status-control {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex: 1;
+}
+
+.iperf-client-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(0, 255, 65, 0.1);
+  color: #00ff41;
+  border: 1px solid rgba(0, 255, 65, 0.3);
+}
+
+.iperf-client-status-badge.stopped {
+  background: rgba(255, 68, 68, 0.1);
+  color: #ff4444;
+  border-color: rgba(255, 68, 68, 0.3);
+}
+
+.iperf-client-status-badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  display: inline-block;
+}
+
+.iperf-client-status-icon {
+  font-size: 16px;
+  color: #00ff41;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 24px;
+  background: rgba(0, 255, 65, 0.1);
+  border: 1px solid rgba(0, 255, 65, 0.3);
+  border-radius: 6px;
+  transition: all 0.2s;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.iperf-client-status-card.stopped .iperf-client-status-icon {
+  color: #00ff41;
+  background: rgba(0, 255, 65, 0.1);
+  border-color: rgba(0, 255, 65, 0.3);
+}
+
+.iperf-client-status-card.running .iperf-client-status-icon {
+  color: #ff4444;
+  background: rgba(255, 68, 68, 0.1);
+  border-color: rgba(255, 68, 68, 0.3);
+}
+
+.iperf-client-status-card:hover:not(.loading) .iperf-client-status-icon {
+  transform: scale(1.05);
+  border-color: #00ff41;
+  background: rgba(0, 255, 65, 0.15);
+}
+
+.iperf-client-config-section {
+  flex-shrink: 0;
+}
+
+.iperf-client-config-header {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.iperf-client-config-header:hover {
+  opacity: 0.8;
+}
+
+.iperf-client-config-content {
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 1000px;
+  }
+}
+
+.iperf-client-config-item {
+  margin-bottom: 16px;
+}
+
+.iperf-client-config-item:last-child {
+  margin-bottom: 0;
+}
+
+.iperf-client-config-item label {
+  display: block;
+  font-weight: 600;
+  color: #00ff41;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.iperf-client-config-item input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #1a1a1a;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+  background: #1a1a1a;
+  color: #00ff41;
+}
+
+.iperf-client-config-item input:focus {
+  outline: none;
+  border-color: #00ff41;
+  box-shadow: 0 0 0 2px rgba(0, 255, 65, 0.2);
+}
+
+.iperf-client-config-item input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.iperf-client-config-item input::placeholder {
+  color: #555;
+}
+
+.iperf-client-config-hint {
+  display: block;
+  font-size: 11px;
+  color: #888;
+  margin-top: 4px;
+}
+
+.iperf-client-protocol-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #111;
+  border-radius: 999px;
+  padding: 3px;
+  border: 1px solid #1a1a1a;
+}
+
+.iperf-client-protocol-btn {
+  border: none;
+  background: transparent;
+  color: #888;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.iperf-client-protocol-btn.active {
+  background: #00ff41;
+  color: #000;
+}
+
+.iperf-client-protocol-btn:hover:not(:disabled):not(.active) {
+  background: rgba(0, 255, 65, 0.08);
+  color: #00ff41;
+}
+
+.iperf-client-protocol-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.iperf-client-output-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.iperf-client-output-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.iperf-client-output-title {
+  font-weight: 600;
+  color: #00ff41;
+  font-size: 13px;
+}
+
+.iperf-client-clear-btn {
+  background: #1a1a1a;
+  border: 1px solid #1a1a1a;
+  color: #00ff41;
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.iperf-client-clear-btn:hover:not(:disabled) {
+  border-color: #00ff41;
+  background: rgba(0, 255, 65, 0.1);
+}
+
+.iperf-client-clear-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.iperf-client-output {
+  background: #0a0a0a;
+  border: 1px solid #1a1a1a;
+  border-radius: 4px;
+  padding: 12px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace;
+  font-size: 12px;
+  color: #00ff41;
+  flex: 1;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  min-height: 200px;
+}
+
+.iperf-client-output::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.iperf-client-output::-webkit-scrollbar-track {
+  background: #0a0a0a;
+  border-radius: 4px;
+}
+
+.iperf-client-output::-webkit-scrollbar-thumb {
+  background: #2a2a2a;
+  border-radius: 4px;
+}
+
+.iperf-client-output::-webkit-scrollbar-thumb:hover {
+  background: #3a3a3a;
+}
+
+.iperf-client-output-empty {
+  color: #555;
+  font-style: italic;
+}
+
+.iperf-client-error {
+  background: rgba(255, 68, 68, 0.1);
+  border: 1px solid rgba(255, 68, 68, 0.3);
+  color: #ff4444;
+  padding: 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  line-height: 1.5;
+  flex-shrink: 0;
+}

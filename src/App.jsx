@@ -40,7 +40,8 @@ import { LibraryImportDialog } from './components/LibraryImportDialog';
 import { TftpServerDialog } from './components/TftpServerDialog';
 import { WebServerDialog } from './components/WebServerDialog';
 import { IperfServerDialog } from './components/IperfServerDialog';
-import { IperfClientDialog } from './components/IperfClientDialog';
+import { IperfClientSidebar } from './components/IperfClientSidebar';
+import { SecondarySidebarContainer } from './components/SecondarySidebarContainer';
 import { FileUploadDialog } from './components/FileUploadDialog';
 
 function App() {
@@ -176,8 +177,10 @@ function App() {
   const [showWebServerDialog, setShowWebServerDialog] = useState(false);
   const [webStatus, setWebStatus] = useState({ running: false, port: null });
   const [iperfStatus, setIperfStatus] = useState({ running: false, port: null });
+  const [iperfClientStatus, setIperfClientStatus] = useState({ running: false });
   const [showIperfServerDialog, setShowIperfServerDialog] = useState(false);
-  const [showIperfClientDialog, setShowIperfClientDialog] = useState(false);
+  const [showIperfClientSidebar, setShowIperfClientSidebar] = useState(false);
+  const [iperfClientSidebarWidth, setIperfClientSidebarWidth] = useState(500);
   const [iperfAvailable, setIperfAvailable] = useState(true); // Default to true, will be checked on mount
   const [appInfo, setAppInfo] = useState({ version: '', author: { name: 'Bryce Ghim', email: 'admin@toktoktalk.com' } });
   
@@ -282,6 +285,48 @@ function App() {
     return () => clearInterval(interval);
   }, []);
 
+  // Load iperf3 client status on mount and periodically check
+  useEffect(() => {
+    const loadIperfClientStatus = async () => {
+      try {
+        const status = await window.electronAPI?.iperfClientStatus?.();
+        if (status) {
+          setIperfClientStatus(status);
+        }
+      } catch (error) {
+        console.error('Failed to load iperf3 client status:', error);
+      }
+    };
+
+    // Load immediately
+    loadIperfClientStatus();
+
+    // Check periodically (every 10 seconds to reduce overhead)
+    const interval = setInterval(loadIperfClientStatus, 10000);
+
+    // Listen for client start/stop events to update status immediately
+    const handleClientStarted = () => {
+      loadIperfClientStatus();
+    };
+
+    const handleClientStopped = () => {
+      loadIperfClientStatus();
+    };
+
+    const startedHandler = window.electronAPI?.onIperfClientStarted?.(handleClientStarted);
+    const stoppedHandler = window.electronAPI?.onIperfClientStopped?.(handleClientStopped);
+
+    return () => {
+      clearInterval(interval);
+      if (startedHandler) {
+        window.electronAPI?.offIperfClientStarted?.(handleClientStarted);
+      }
+      if (stoppedHandler) {
+        window.electronAPI?.offIperfClientStopped?.(handleClientStopped);
+      }
+    };
+  }, []);
+
   // Listen for Web Server error events
   useEffect(() => {
     const handleWebServerError = (errorData) => {
@@ -334,6 +379,7 @@ function App() {
   const [showAICommandInput, setShowAICommandInput] = useState(false);
   const [showAIChatSidebar, setShowAIChatSidebar] = useState(false);
   const [aiChatSidebarWidth, setAiChatSidebarWidth] = useState(400);
+  const [activeSecondaryTab, setActiveSecondaryTab] = useState('ai-chat'); // 'ai-chat' | 'iperf-client'
   const [isAIProcessing, setIsAIProcessing] = useState(false);
   const [aiMessages, setAiMessages] = useState([]);
   // Error dialog state
@@ -967,7 +1013,7 @@ function App() {
     setShowTftpServerDialog,
     setShowWebServerDialog,
     setShowIperfServerDialog,
-    setShowIperfClientDialog,
+    setShowIperfClientSidebar,
     setShowAICommandInput,
     setAppInfo,
     disconnectSession,
@@ -1062,7 +1108,7 @@ function App() {
           onTftpServer={() => setShowTftpServerDialog(true)}
           onWebServer={() => setShowWebServerDialog(true)}
           onIperfServer={() => setShowIperfServerDialog(true)}
-          onIperfClient={() => setShowIperfClientDialog(true)}
+          onIperfClient={() => setShowIperfClientSidebar(true)}
           iperfAvailable={iperfAvailable}
           showSessionManager={showSessionManager}
           onToggleSessionManager={(checked) => {
@@ -1191,7 +1237,13 @@ function App() {
           showAICommandInput={showAIChatSidebar || false} // Button state (toggles AIChatSidebar)
           onToggleAICommandInput={() => {
             // Toggle AI Chat Sidebar
-            setShowAIChatSidebar(prev => !prev);
+            setShowAIChatSidebar(prev => {
+              const newValue = !prev;
+              if (newValue) {
+                setActiveSecondaryTab('ai-chat');
+              }
+              return newValue;
+            });
           }}
           onReconnectSession={async (sessionId) => {
             const session = sessions.find(s => s.id === sessionId);
@@ -1228,8 +1280,8 @@ function App() {
           reconnectingSessions={reconnectingSessions}
         />
 
-        {/* Resize handle for AI Chat Sidebar */}
-        {showAIChatSidebar && (
+        {/* Resize handle for Secondary Sidebar Container */}
+        {(showAIChatSidebar || showIperfClientSidebar) && (
           <div 
             className="resize-handle"
             style={{
@@ -1244,12 +1296,17 @@ function App() {
             onMouseDown={(e) => {
               e.preventDefault();
               const startX = e.clientX;
-              const startWidth = aiChatSidebarWidth;
+              const currentWidth = showAIChatSidebar && showIperfClientSidebar 
+                ? Math.max(aiChatSidebarWidth, iperfClientSidebarWidth)
+                : (showAIChatSidebar ? aiChatSidebarWidth : iperfClientSidebarWidth);
+              const startWidth = currentWidth;
               
               const handleMouseMove = (e) => {
                 const diff = startX - e.clientX; // Reverse because it's on the right
-                const newWidth = Math.max(300, Math.min(800, startWidth + diff));
-                setAiChatSidebarWidth(newWidth);
+                const newWidth = Math.max(300, Math.min(1000, startWidth + diff));
+                // Update both widths to keep them in sync
+                if (showAIChatSidebar) setAiChatSidebarWidth(newWidth);
+                if (showIperfClientSidebar) setIperfClientSidebarWidth(newWidth);
               };
               
               const handleMouseUp = () => {
@@ -1263,31 +1320,92 @@ function App() {
           />
         )}
 
-        {/* AI Chat Sidebar */}
-        <AIChatSidebar
-          isVisible={showAIChatSidebar}
-          width={aiChatSidebarWidth}
-          messages={aiMessages}
-          isProcessing={isAIProcessing && processingConversationId === activeConversationId}
-          streamingToolResult={processingConversationId === activeConversationId ? streamingToolResult : null}
-          processingConversations={processingConversations}
-          backendStatus={backendStatus}
-          terminal={activeSessionId ? terminalInstances.current[activeSessionId] : null}
-          onExecuteAICommand={executeAICommand}
-          onStopAICommand={stopAICommand}
-          conversations={conversations || []}
-          activeConversationId={activeConversationId}
-          onSwitchConversation={switchConversation}
-          onCreateNewConversation={createNewConversation}
-          onDeleteConversation={deleteConversation}
-          onUpdateConversationTitle={updateConversationTitle}
+        {/* Secondary Sidebar Container with Tabs */}
+        <SecondarySidebarContainer
+          width={showAIChatSidebar && showIperfClientSidebar 
+            ? Math.max(aiChatSidebarWidth, iperfClientSidebarWidth)
+            : (showAIChatSidebar ? aiChatSidebarWidth : (showIperfClientSidebar ? iperfClientSidebarWidth : 0))}
+          showAIChat={showAIChatSidebar}
+          showIperfClient={showIperfClientSidebar}
+          activeTab={activeSecondaryTab}
+          onTabChange={(tab) => {
+            setActiveSecondaryTab(tab);
+            // Auto-show the selected sidebar if it's not visible
+            if (tab === 'ai-chat' && !showAIChatSidebar) {
+              setShowAIChatSidebar(true);
+            } else if (tab === 'iperf-client' && !showIperfClientSidebar) {
+              setShowIperfClientSidebar(true);
+            }
+          }}
           onClose={() => {
+            // Close both sidebars
             setShowAIChatSidebar(false);
+            setShowIperfClientSidebar(false);
             if (clearAIMessages) {
               clearAIMessages();
             }
           }}
-        />
+          onCloseAIChat={() => {
+            setShowAIChatSidebar(false);
+            if (clearAIMessages) {
+              clearAIMessages();
+            }
+            // If iperf client is also open, switch to it
+            if (showIperfClientSidebar) {
+              setActiveSecondaryTab('iperf-client');
+            }
+          }}
+          onCloseIperfClient={() => {
+            setShowIperfClientSidebar(false);
+            // If AI chat is also open, switch to it
+            if (showAIChatSidebar) {
+              setActiveSecondaryTab('ai-chat');
+            }
+          }}
+        >
+          {/* AI Chat Sidebar */}
+          <AIChatSidebar
+            isVisible={showAIChatSidebar && (!showIperfClientSidebar || activeSecondaryTab === 'ai-chat')}
+            width={aiChatSidebarWidth}
+            messages={aiMessages}
+            isProcessing={isAIProcessing && processingConversationId === activeConversationId}
+            streamingToolResult={processingConversationId === activeConversationId ? streamingToolResult : null}
+            processingConversations={processingConversations}
+            backendStatus={backendStatus}
+            terminal={activeSessionId ? terminalInstances.current[activeSessionId] : null}
+            onExecuteAICommand={executeAICommand}
+            onStopAICommand={stopAICommand}
+            conversations={conversations || []}
+            activeConversationId={activeConversationId}
+            onSwitchConversation={switchConversation}
+            onCreateNewConversation={createNewConversation}
+            onDeleteConversation={deleteConversation}
+            onUpdateConversationTitle={updateConversationTitle}
+            onClose={showAIChatSidebar && showIperfClientSidebar ? () => {
+              setShowAIChatSidebar(false);
+              setActiveSecondaryTab('iperf-client');
+              if (clearAIMessages) {
+                clearAIMessages();
+              }
+            } : () => {
+              setShowAIChatSidebar(false);
+              if (clearAIMessages) {
+                clearAIMessages();
+              }
+            }}
+          />
+
+          {/* iperf3 Client Sidebar */}
+          <IperfClientSidebar
+            isVisible={showIperfClientSidebar && (!showAIChatSidebar || activeSecondaryTab === 'iperf-client')}
+            width={iperfClientSidebarWidth}
+            activeSession={activeSession}
+            onClose={showAIChatSidebar && showIperfClientSidebar ? () => {
+              setShowIperfClientSidebar(false);
+              setActiveSecondaryTab('ai-chat');
+            } : () => setShowIperfClientSidebar(false)}
+          />
+        </SecondarySidebarContainer>
         
         {/* Terminal Context Menu */}
         <TerminalContextMenu
@@ -1360,6 +1478,12 @@ function App() {
         onTftpClick={() => setShowTftpServerDialog(true)}
         onWebClick={() => setShowWebServerDialog(true)}
         onIperfClick={() => setShowIperfServerDialog(true)}
+        onIperfClientClick={() => {
+          setShowIperfClientSidebar(true);
+          setActiveSecondaryTab('iperf-client');
+        }}
+        iperfClientStatus={iperfClientStatus}
+        iperfAvailable={iperfAvailable}
       />
 
       {/* Connection form modal */}
@@ -1544,12 +1668,6 @@ function App() {
         onClose={() => setShowIperfServerDialog(false)}
       />
 
-      {/* iperf3 Client Dialog */}
-      <IperfClientDialog
-        isOpen={showIperfClientDialog}
-        onClose={() => setShowIperfClientDialog(false)}
-        activeSession={activeSession}
-      />
 
       <FileUploadDialog
         isOpen={showFileUploadDialog}

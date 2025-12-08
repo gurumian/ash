@@ -68,6 +68,8 @@
   "copy": "Copy",
   "paste": "Paste",
   "selectAll": "Select All",
-  "upload": "Upload..."
+  "upload": "Upload...",
+  "aiChat": "AI Chat",
+  "iperfClient": "iperf3 Client"
 }
 

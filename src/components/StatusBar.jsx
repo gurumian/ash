@@ -10,9 +10,12 @@ export const StatusBar = memo(function StatusBar({
   tftpStatus, 
   webStatus,
   iperfStatus,
+  iperfClientStatus,
   onTftpClick,
   onWebClick,
   onIperfClick,
+  onIperfClientClick,
+  iperfAvailable = true,
 }) {
   const { t } = useTranslation(['status', 'common']);
 
@@ -52,15 +55,29 @@ export const StatusBar = memo(function StatusBar({
             • {t('status:webServer')}: HTTP/{webStatus.port}
           </button>
         )}
-        {iperfStatus?.running && (
-          <button 
-            type="button"
-            className="status-indicator status-iperf-indicator" 
-            title={t('status:iperf3ServerTooltip', { port: iperfStatus.port })}
-            onClick={onIperfClick}
-          >
-            • {t('status:iperf3Server')}: TCP/{iperfStatus.port}
-          </button>
+        {iperfAvailable && (
+          <>
+            {iperfStatus?.running && (
+              <button 
+                type="button"
+                className="status-indicator status-iperf-indicator" 
+                title={t('status:iperf3ServerTooltip', { port: iperfStatus.port })}
+                onClick={onIperfClick}
+              >
+                • {t('status:iperf3Server')}: TCP/{iperfStatus.port}
+              </button>
+            )}
+            {iperfClientStatus?.running && (
+              <button 
+                type="button"
+                className="status-indicator status-iperf-client-indicator" 
+                title={t('status:iperf3ClientTooltip')}
+                onClick={onIperfClientClick}
+              >
+                • {t('status:iperf3Client')}
+              </button>
+            )}
+          </>
         )}
       </div>
       <div className="status-right">

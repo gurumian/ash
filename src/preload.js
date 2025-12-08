@@ -193,6 +193,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   iperfClientStop: () => ipcRenderer.invoke('iperf-client-stop'),
   onIperfClientError: (callback) => ipcRenderer.on('iperf-client-error', (event, data) => callback(data)),
   offIperfClientError: (callback) => ipcRenderer.off('iperf-client-error', callback),
+  onIperfClientStarted: (callback) => ipcRenderer.on('iperf-client-started', (event, data) => callback(data)),
+  offIperfClientStarted: (callback) => ipcRenderer.off('iperf-client-started', callback),
   onIperfClientOutput: (callback) => ipcRenderer.on('iperf-client-output', (event, data) => callback(data)),
   offIperfClientOutput: (callback) => ipcRenderer.off('iperf-client-output', callback),
   onIperfClientStopped: (callback) => ipcRenderer.on('iperf-client-stopped', (event, data) => callback(data)),

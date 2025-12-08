@@ -8,6 +8,8 @@
   "webServer": "Web服务器",
   "webServerTooltip": "Web服务器: HTTP/{{port}}\n点击打开Web服务器对话框",
   "iperf3Server": "iperf3服务器",
-  "iperf3ServerTooltip": "iperf3服务器: TCP/{{port}}\n点击打开iperf3对话框"
+  "iperf3ServerTooltip": "iperf3服务器: TCP/{{port}}\n点击打开iperf3对话框",
+  "iperf3Client": "iperf3客户端",
+  "iperf3ClientTooltip": "iperf3客户端\n点击打开iperf3客户端侧边栏"
 }
 
