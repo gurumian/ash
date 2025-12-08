@@ -184,3 +184,4 @@ getActiveConversation(connectionId)  // 마지막 활성 대화 ID 반환
    - 여러 탭에서 동시에 처리 중일 수 있음
    - 각 탭의 처리 상태를 독립적으로 관리
 
+
