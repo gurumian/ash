@@ -20,7 +20,8 @@ export function IperfClientDialog({ isOpen, onClose, activeSession }) {
   useEffect(() => {
     if (isOpen) {
       loadStatus();
-      setOutput('');
+      // Don't clear output when dialog opens - preserve previous run results
+      // User can manually clear with the Clear button if needed
       
       // Auto-fill host from active SSH session if available
       if (activeSession && activeSession.connectionType === 'ssh' && activeSession.isConnected && activeSession.host) {
@@ -39,17 +40,19 @@ export function IperfClientDialog({ isOpen, onClose, activeSession }) {
     }
   }, [output]);
 
-  // Listen for client events
+  // Listen for client events - register once on mount to capture output in real-time
+  // even if dialog is closed temporarily
   useEffect(() => {
-    if (!isOpen) return;
-
     const handleError = (data) => {
+      if (!isOpen) return; // Only show errors when dialog is open
       setError(data.detail || data.message || 'iperf3 client error');
       setLoading(false);
     };
 
     const handleOutput = (data) => {
-      if (data.output) {
+      // Always update output state in real-time - this ensures output is captured
+      // even if dialog was closed during execution
+      if (data && data.output) {
         setOutput(prev => prev + data.output);
       }
     };
@@ -57,21 +60,23 @@ export function IperfClientDialog({ isOpen, onClose, activeSession }) {
     const handleStopped = (data) => {
       setStatus({ running: false });
       setLoading(false);
-      if (data.output) {
+      if (data && data.output) {
         setOutput(prev => prev + data.output);
       }
     };
 
-    window.electronAPI?.onIperfClientError?.(handleError);
-    window.electronAPI?.onIperfClientOutput?.(handleOutput);
-    window.electronAPI?.onIperfClientStopped?.(handleStopped);
+    // Register listeners once when component mounts
+    const errorHandler = window.electronAPI?.onIperfClientError?.(handleError);
+    const outputHandler = window.electronAPI?.onIperfClientOutput?.(handleOutput);
+    const stoppedHandler = window.electronAPI?.onIperfClientStopped?.(handleStopped);
 
     return () => {
-      window.electronAPI?.offIperfClientError?.(handleError);
-      window.electronAPI?.offIperfClientOutput?.(handleOutput);
-      window.electronAPI?.offIperfClientStopped?.(handleStopped);
+      // Cleanup only when component unmounts
+      if (errorHandler) window.electronAPI?.offIperfClientError?.(handleError);
+      if (outputHandler) window.electronAPI?.offIperfClientOutput?.(handleOutput);
+      if (stoppedHandler) window.electronAPI?.offIperfClientStopped?.(handleStopped);
     };
-  }, [isOpen]);
+  }, []); // Register once on mount - don't re-register when isOpen changes
 
   const loadStatus = async () => {
     try {
@@ -92,7 +97,7 @@ export function IperfClientDialog({ isOpen, onClose, activeSession }) {
     
     setLoading(true);
     setError(null);
-    setOutput('');
+    setOutput(''); // Clear output only when starting a new test
     
     try {
       const result = await window.electronAPI?.iperfClientStart?.({
@@ -260,7 +265,7 @@ export function IperfClientDialog({ isOpen, onClose, activeSession }) {
             </div>
           )}
 
-          {status.running && (
+          {(status.running || output) && (
             <div className="iperf-client-output-section">
               <div className="iperf-client-output-header">
                 <span className="iperf-client-output-title">{t('client:iperf.output')}</span>

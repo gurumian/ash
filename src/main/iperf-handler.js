@@ -557,6 +557,12 @@ export function initializeIperfClientHandlers() {
       // Build iperf3 client command
       const args = ['-c', targetHost, '-p', targetPort.toString(), '-t', duration.toString()];
       
+      // Add --forceflush for real-time output when piping
+      // This forces iperf3 to flush output at every interval
+      // Note: This option is supported in iperf3 3.1.5+ on all platforms (including Windows)
+      // If the iperf3 version doesn't support it, it will show an error, but the test will still work
+      args.push('--forceflush');
+      
       if (protocol === 'udp') {
         args.push('-u');
         if (bandwidth) {
