@@ -192,9 +192,9 @@
 }
 
 .iperf-status-card.running .iperf-status-icon {
-  color: #ff4444;
-  background: rgba(255, 68, 68, 0.1);
-  border-color: rgba(255, 68, 68, 0.3);
+  color: #00ff41;
+  background: rgba(0, 255, 65, 0.1);
+  border-color: rgba(0, 255, 65, 0.3);
 }
 
 .iperf-status-card:hover:not(.loading) .iperf-status-icon {
