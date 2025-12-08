@@ -44,18 +44,42 @@ export const SecondarySidebarContainer = memo(function SecondarySidebarContainer
       {/* Tab Header - Only show when both sidebars are visible */}
       {showTabs && (
         <div className="secondary-sidebar-tabs">
-          <button
+          <div
             className={`secondary-sidebar-tab ${activeTab === 'ai-chat' ? 'active' : ''}`}
             onClick={() => onTabChange('ai-chat')}
           >
-            {t('common:aiChat')}
-          </button>
-          <button
+            <span>{t('common:aiChat')}</span>
+            <button
+              className="secondary-sidebar-tab-close"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onCloseAIChat) {
+                  onCloseAIChat();
+                }
+              }}
+              title={t('common:close')}
+            >
+              ×
+            </button>
+          </div>
+          <div
             className={`secondary-sidebar-tab ${activeTab === 'iperf-client' ? 'active' : ''}`}
             onClick={() => onTabChange('iperf-client')}
           >
-            {t('common:iperfClient')}
-          </button>
+            <span>{t('common:iperfClient')}</span>
+            <button
+              className="secondary-sidebar-tab-close"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onCloseIperfClient) {
+                  onCloseIperfClient();
+                }
+              }}
+              title={t('common:close')}
+            >
+              ×
+            </button>
+          </div>
           <button
             className="secondary-sidebar-close"
             onClick={onClose}
@@ -65,6 +89,7 @@ export const SecondarySidebarContainer = memo(function SecondarySidebarContainer
           </button>
         </div>
       )}
+      
 
       {/* Content - Show based on active tab or single sidebar */}
       <div className="secondary-sidebar-content">

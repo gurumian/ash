@@ -178,6 +178,7 @@ function App() {
   const [webStatus, setWebStatus] = useState({ running: false, port: null });
   const [iperfStatus, setIperfStatus] = useState({ running: false, port: null });
   const [iperfClientStatus, setIperfClientStatus] = useState({ running: false });
+  const [iperfClientOutput, setIperfClientOutput] = useState(''); // Persistent output data
   const [showIperfServerDialog, setShowIperfServerDialog] = useState(false);
   const [showIperfClientSidebar, setShowIperfClientSidebar] = useState(false);
   const [iperfClientSidebarWidth, setIperfClientSidebarWidth] = useState(500);
@@ -309,12 +310,24 @@ function App() {
       loadIperfClientStatus();
     };
 
-    const handleClientStopped = () => {
+    const handleClientStopped = (data) => {
       loadIperfClientStatus();
+      // Append final output if available
+      if (data && data.output) {
+        setIperfClientOutput(prev => prev + data.output);
+      }
+    };
+
+    // Listen for client output events - always capture even if sidebar is closed
+    const handleClientOutput = (data) => {
+      if (data && data.output) {
+        setIperfClientOutput(prev => prev + data.output);
+      }
     };
 
     const startedHandler = window.electronAPI?.onIperfClientStarted?.(handleClientStarted);
     const stoppedHandler = window.electronAPI?.onIperfClientStopped?.(handleClientStopped);
+    const outputHandler = window.electronAPI?.onIperfClientOutput?.(handleClientOutput);
 
     return () => {
       clearInterval(interval);
@@ -323,6 +336,9 @@ function App() {
       }
       if (stoppedHandler) {
         window.electronAPI?.offIperfClientStopped?.(handleClientStopped);
+      }
+      if (outputHandler) {
+        window.electronAPI?.offIperfClientOutput?.(handleClientOutput);
       }
     };
   }, []);
@@ -1383,9 +1399,12 @@ function App() {
             onUpdateConversationTitle={updateConversationTitle}
             onClose={showAIChatSidebar && showIperfClientSidebar ? () => {
               setShowAIChatSidebar(false);
-              setActiveSecondaryTab('iperf-client');
               if (clearAIMessages) {
                 clearAIMessages();
+              }
+              // If iperf client is also open, switch to it
+              if (showIperfClientSidebar) {
+                setActiveSecondaryTab('iperf-client');
               }
             } : () => {
               setShowAIChatSidebar(false);
@@ -1393,6 +1412,7 @@ function App() {
                 clearAIMessages();
               }
             }}
+            showHeader={!showIperfClientSidebar}
           />
 
           {/* iperf3 Client Sidebar */}
@@ -1400,10 +1420,17 @@ function App() {
             isVisible={showIperfClientSidebar && (!showAIChatSidebar || activeSecondaryTab === 'iperf-client')}
             width={iperfClientSidebarWidth}
             activeSession={activeSession}
+            output={iperfClientOutput}
+            onClearOutput={() => setIperfClientOutput('')}
+            onStartTest={() => setIperfClientOutput('')}
             onClose={showAIChatSidebar && showIperfClientSidebar ? () => {
               setShowIperfClientSidebar(false);
-              setActiveSecondaryTab('ai-chat');
+              // If AI chat is also open, switch to it
+              if (showAIChatSidebar) {
+                setActiveSecondaryTab('ai-chat');
+              }
             } : () => setShowIperfClientSidebar(false)}
+            showHeader={!showAIChatSidebar}
           />
         </SecondarySidebarContainer>
         

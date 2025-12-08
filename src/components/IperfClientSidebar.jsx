@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import './IperfClientSidebar.css';
 
-export function IperfClientSidebar({ isVisible, width, onClose, activeSession }) {
+export function IperfClientSidebar({ isVisible, width, onClose, activeSession, output = '', onClearOutput, onStartTest, showHeader = true }) {
   const { t } = useTranslation(['client', 'common']);
   const [status, setStatus] = useState({ running: false });
   const [host, setHost] = useState('localhost');
@@ -13,7 +13,6 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession })
   const [duration, setDuration] = useState(10); // seconds
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [output, setOutput] = useState('');
   const [configExpanded, setConfigExpanded] = useState(true);
   const outputRef = useRef(null);
   const sidebarRef = useRef(null);
@@ -47,7 +46,7 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession })
     }
   }, [output]);
 
-  // Listen for client events - register once on mount to capture output in real-time
+  // Listen for client events - only for errors and status updates
   useEffect(() => {
     const handleError = (data) => {
       if (!isVisible) return; // Only show errors when sidebar is visible
@@ -55,31 +54,19 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession })
       setLoading(false);
     };
 
-    const handleOutput = (data) => {
-      // Always update output state in real-time - this ensures output is captured
-      // even if sidebar was closed during execution
-      if (data && data.output) {
-        setOutput(prev => prev + data.output);
-      }
-    };
-
     const handleStopped = (data) => {
       setStatus({ running: false });
       setLoading(false);
-      if (data && data.output) {
-        setOutput(prev => prev + data.output);
-      }
+      // Output is now managed in App.jsx, no need to handle it here
     };
 
     // Register listeners once when component mounts
     const errorHandler = window.electronAPI?.onIperfClientError?.(handleError);
-    const outputHandler = window.electronAPI?.onIperfClientOutput?.(handleOutput);
     const stoppedHandler = window.electronAPI?.onIperfClientStopped?.(handleStopped);
 
     return () => {
       // Cleanup only when component unmounts
       if (errorHandler) window.electronAPI?.offIperfClientError?.(handleError);
-      if (outputHandler) window.electronAPI?.offIperfClientOutput?.(handleOutput);
       if (stoppedHandler) window.electronAPI?.offIperfClientStopped?.(handleStopped);
     };
   }, [isVisible]); // Re-register if visibility changes
@@ -103,7 +90,10 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession })
     
     setLoading(true);
     setError(null);
-    setOutput(''); // Clear output only when starting a new test
+    // Clear output via parent callback when starting a new test
+    if (onStartTest) {
+      onStartTest();
+    }
     
     try {
       const result = await window.electronAPI?.iperfClientStart?.({
@@ -147,7 +137,9 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession })
   };
 
   const handleClear = () => {
-    setOutput('');
+    if (onClearOutput) {
+      onClearOutput();
+    }
   };
 
   if (!isVisible) return null;
@@ -167,6 +159,7 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession })
       }}
     >
       {/* Header */}
+      {showHeader && (
       <div
         style={{
           padding: '12px 16px',
@@ -209,6 +202,7 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession })
         </button>
         )}
       </div>
+      )}
 
       {/* Content */}
       <div

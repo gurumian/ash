@@ -69,7 +69,8 @@ export const AIChatSidebar = memo(function AIChatSidebar({
   onCreateNewConversation = null, // Function to create new conversation
   onDeleteConversation = null, // Function to delete a conversation
   onUpdateConversationTitle = null, // Function to update conversation title
-  processingConversations = new Set() // Set of conversation IDs currently being processed
+  processingConversations = new Set(), // Set of conversation IDs currently being processed
+  showHeader = true // Show header (hidden when in tabbed mode)
 }) {
   const messagesEndRef = useRef(null);
   const sidebarRef = useRef(null);
@@ -209,6 +210,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
       }}
     >
       {/* Header */}
+      {showHeader && (
       <div
         style={{
           padding: '12px 16px',
@@ -535,6 +537,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
           )}
         </div>
       </div>
+      )}
 
       {/* Messages */}
       <div
