@@ -188,6 +188,133 @@ export function initializeTelnetHandlers() {
     }
     return { success: false };
   });
+
+  // Telnet file upload using base64 encoding
+  ipcMain.handle('telnet-upload-file', async (event, { connectionId, localPath, remotePath }) => {
+    const connInfo = telnetConnections.get(connectionId);
+    if (!connInfo || !connInfo.tSocket) {
+      throw new Error('Telnet connection not found');
+    }
+
+    const fs = require('fs');
+    const path = require('path');
+
+    // Check if local file exists
+    if (!fs.existsSync(localPath)) {
+      throw new Error(`Local file not found: ${localPath}`);
+    }
+
+    // Get file stats for progress tracking
+    const stats = fs.statSync(localPath);
+    const fileSize = stats.size;
+
+    // For large files, warn but allow (base64 increases size by ~33%)
+    if (fileSize > 10 * 1024 * 1024) { // 10MB
+      console.warn(`[Telnet Upload] Large file detected: ${fileSize} bytes. Base64 encoding will increase size.`);
+    }
+
+    try {
+      // Read file and encode to base64
+      const fileData = fs.readFileSync(localPath);
+      const base64Data = fileData.toString('base64');
+      
+      const webContents = event.sender;
+      
+      // Send progress update (encoding complete)
+      if (!webContents.isDestroyed()) {
+        webContents.send('telnet-upload-progress', {
+          connectionId,
+          progress: 30,
+          transferred: fileSize,
+          total: fileSize
+        });
+      }
+
+      // Create remote directory if needed
+      const remoteDir = path.dirname(remotePath);
+      const mkdirCommand = `mkdir -p "${remoteDir}"\r\n`;
+      
+      // Wait a bit for mkdir to complete
+      await new Promise((resolve) => {
+        connInfo.tSocket.write(mkdirCommand);
+        setTimeout(resolve, 200);
+      });
+
+      // Send progress update (directory created)
+      if (!webContents.isDestroyed()) {
+        webContents.send('telnet-upload-progress', {
+          connectionId,
+          progress: 50,
+          transferred: fileSize,
+          total: fileSize
+        });
+      }
+
+      // Send base64 data using echo and pipe to base64 -d
+      // Split into smaller chunks to avoid command line length limits
+      const chunkSize = 32 * 1024; // 32KB chunks (base64 encoded)
+      const totalChunks = Math.ceil(base64Data.length / chunkSize);
+      
+      // Create a temporary file to store base64 data
+      const base64TempFile = `${remotePath}.b64`;
+      
+      // Send command to create temp file and start writing base64
+      const startCommand = `cat > "${base64TempFile}" << 'EOF_BASE64'\r\n`;
+      connInfo.tSocket.write(startCommand);
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Send base64 data in chunks
+      for (let i = 0; i < totalChunks; i++) {
+        const start = i * chunkSize;
+        const end = Math.min(start + chunkSize, base64Data.length);
+        const chunk = base64Data.substring(start, end);
+        
+        connInfo.tSocket.write(chunk);
+        
+        // Send progress update
+        const progress = 50 + (i / totalChunks) * 40; // 50% to 90%
+        if (!webContents.isDestroyed()) {
+          webContents.send('telnet-upload-progress', {
+            connectionId,
+            progress: Math.min(progress, 90),
+            transferred: fileSize,
+            total: fileSize
+          });
+        }
+        
+        // Small delay between chunks
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+
+      // Close heredoc and decode base64 to final file
+      const decodeCommand = `\r\nEOF_BASE64\r\nbase64 -d "${base64TempFile}" > "${remotePath}" && rm -f "${base64TempFile}"\r\n`;
+      connInfo.tSocket.write(decodeCommand);
+
+      // Wait for command to complete (longer wait for decode operation)
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Send final progress update
+      if (!webContents.isDestroyed()) {
+        webContents.send('telnet-upload-progress', {
+          connectionId,
+          progress: 100,
+          transferred: fileSize,
+          total: fileSize
+        });
+      }
+
+      return {
+        success: true,
+        localPath,
+        remotePath,
+        fileSize,
+        method: 'base64'
+      };
+    } catch (error) {
+      console.error('[Telnet Upload] Error:', error);
+      throw new Error(`Telnet file upload failed: ${error.message}`);
+    }
+  });
 }
 
 /**
@@ -212,5 +339,6 @@ export function cleanupTelnetConnections() {
   telnetConnections.clear();
   telnetStreams.clear();
 }
+
 
 

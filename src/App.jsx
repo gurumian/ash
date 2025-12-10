@@ -1505,6 +1505,12 @@ function App() {
             const session = sessions.find(s => s.id === contextMenu.sessionId);
             return session?.connectionType === 'ssh' && session?.isConnected;
           })()}
+          canUpload={(() => {
+            if (!contextMenu.sessionId) return false;
+            const session = sessions.find(s => s.id === contextMenu.sessionId);
+            // Support upload for both SSH and Telnet connections
+            return (session?.connectionType === 'ssh' || session?.connectionType === 'telnet') && session?.isConnected;
+          })()}
           onClose={() => setContextMenu({ visible: false, x: 0, y: 0, sessionId: null })}
         />
       </div>
@@ -1722,6 +1728,12 @@ function App() {
           if (!sessionId) return null;
           const connection = sshConnections.current[sessionId];
           return connection?.connectionId || null;
+        })()}
+        connectionType={(() => {
+          const sessionId = contextMenu.sessionId || activeSessionId;
+          if (!sessionId) return 'ssh';
+          const session = sessions.find(s => s.id === sessionId);
+          return session?.connectionType || 'ssh';
         })()}
         libraries={libraries}
         initialFilePath={fileUploadInitialPath}

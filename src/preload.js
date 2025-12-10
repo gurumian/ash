@@ -42,6 +42,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Send data to Telnet connection
   telnetWrite: (connectionId, data) => ipcRenderer.invoke('telnet-write', { connectionId, data }),
   
+  // Telnet file upload
+  telnetUploadFile: ({ connectionId, localPath, remotePath }) => ipcRenderer.invoke('telnet-upload-file', { connectionId, localPath, remotePath }),
+  
+  // Telnet upload progress event
+  onTelnetUploadProgress: (callback) => ipcRenderer.on('telnet-upload-progress', (event, data) => callback(data)),
+  offTelnetUploadProgress: (callback) => ipcRenderer.off('telnet-upload-progress', callback),
+  
   // Disconnect Telnet connection
   telnetDisconnect: (connectionId) => ipcRenderer.invoke('telnet-disconnect', connectionId),
   

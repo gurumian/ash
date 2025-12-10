@@ -6,6 +6,7 @@ export function FileUploadDialog({
   onClose, 
   sessionId, 
   connectionId, 
+  connectionType,
   libraries,
   onUploadComplete,
   initialFilePath
@@ -110,23 +111,39 @@ export function FileUploadDialog({
     setProgress(0);
 
     try {
+      // Determine if this is a Telnet connection
+      const isTelnet = connectionType === 'telnet';
+      
       // Set up progress listener
       const progressHandler = (data) => {
         if (data.connectionId === connectionId) {
           setProgress(data.progress);
         }
       };
-      window.electronAPI?.onSSHUploadProgress?.(progressHandler);
+      
+      if (isTelnet) {
+        window.electronAPI?.onTelnetUploadProgress?.(progressHandler);
+      } else {
+        window.electronAPI?.onSSHUploadProgress?.(progressHandler);
+      }
 
-      // Upload file
-      const result = await window.electronAPI?.sshUploadFile?.({
-        connectionId,
-        localPath: selectedFile,
-        remotePath: remotePath
-      });
-
-      // Remove progress listener
-      window.electronAPI?.offSSHUploadProgress?.(progressHandler);
+      // Upload file based on connection type
+      let result;
+      if (isTelnet) {
+        result = await window.electronAPI?.telnetUploadFile?.({
+          connectionId,
+          localPath: selectedFile,
+          remotePath: remotePath
+        });
+        window.electronAPI?.offTelnetUploadProgress?.(progressHandler);
+      } else {
+        result = await window.electronAPI?.sshUploadFile?.({
+          connectionId,
+          localPath: selectedFile,
+          remotePath: remotePath
+        });
+        window.electronAPI?.offSSHUploadProgress?.(progressHandler);
+      }
 
       if (result?.success) {
         // Extract filename from path
@@ -147,8 +164,12 @@ export function FileUploadDialog({
                 .replace(/{filename}/g, fileName)
                 .replace(/{remotePath}/g, remotePath);
               
-              // Execute command via SSH write
-              await window.electronAPI?.sshWrite?.(connectionId, finalCommand + '\r\n');
+              // Execute command via SSH/Telnet write
+              if (isTelnet) {
+                await window.electronAPI?.telnetWrite?.(connectionId, finalCommand + '\r\n');
+              } else {
+                await window.electronAPI?.sshWrite?.(connectionId, finalCommand + '\r\n');
+              }
               
               // Add a small delay between commands to ensure proper execution
               await new Promise(resolve => setTimeout(resolve, 100));
