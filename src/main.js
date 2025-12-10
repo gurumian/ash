@@ -3,6 +3,7 @@ import started from 'electron-squirrel-startup';
 import { createMenu } from './main/menu.js';
 import { createWindow } from './main/window.js';
 import { initializeSSHHandlers, cleanupSSHConnections } from './main/ssh-handler.js';
+import { initializeTelnetHandlers, cleanupTelnetConnections } from './main/telnet-handler.js';
 import { initializeSerialHandlers, cleanupSerialConnections } from './main/serial-handler.js';
 import { initializeWindowHandlers } from './main/window-handler.js';
 import { initializeUpdateHandlers, cleanupUpdateHandlers, scheduleStartupCheck } from './main/update-handler.js';
@@ -20,6 +21,7 @@ if (started) {
 
 // Initialize all IPC handlers
 initializeSSHHandlers();
+initializeTelnetHandlers();
 initializeSerialHandlers();
 initializeWindowHandlers();
 initializeTftpHandlers();
@@ -59,6 +61,7 @@ app.on('window-all-closed', () => {
 // Cleanup on app quit
 app.on('before-quit', () => {
   cleanupSSHConnections();
+  cleanupTelnetConnections();
   cleanupSerialConnections();
   cleanupUpdateHandlers();
   cleanupTftpServer();

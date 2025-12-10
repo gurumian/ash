@@ -406,6 +406,15 @@ export function useTerminalManagement({
                 terminal.write(`\x1b[90mFailed to start shell: ${error.message}\x1b[0m\r\n`);
               }
             }, 50);
+          } else if (session.connectionType === 'telnet') {
+            // Telnet connection - connection is already established, just ready for data
+            terminal.write(`\x1b[90mTelnet connected to ${session.host}:${session.port || '23'}\x1b[0m\r\n`);
+            terminal.write('\x1b[90mTelnet terminal ready\x1b[0m\r\n');
+            
+            // Execute post-processing commands after telnet connection is ready
+            setTimeout(() => {
+              executePostProcessing(sessionId, session, sshConnections.current[sessionId]);
+            }, 200);
           } else if (session.connectionType === 'serial') {
             // Serial port connection - use grey color for status messages
             terminal.write(`\x1b[90mSerial port ${session.serialPort} connected at ${session.baudRate} baud\x1b[0m\r\n`);
@@ -428,9 +437,12 @@ export function useTerminalManagement({
       terminalInputHandlers.current[sessionId] = (data) => {
         // CRITICAL: Send data immediately - highest priority, no blocking
         const connection = sshConnections.current[sessionId];
+        console.log(`[TELNET-DEBUG] Terminal input handler called for session ${sessionId}, connection exists: ${!!connection}, data length: ${data.length}`);
         if (connection) {
-          // Direct write - works for both SSH and Serial connections
+          // Direct write - works for both SSH, Telnet, and Serial connections
           connection.write(data);
+        } else {
+          console.warn(`[TELNET-DEBUG] No connection found for session ${sessionId}`);
         }
         
         // Log synchronously but non-blocking - optimized append
@@ -444,9 +456,11 @@ export function useTerminalManagement({
     }
     terminal.onData(terminalInputHandlers.current[sessionId]);
     
-    // Update connectionId map when terminal is initialized with SSH connection
+    // Update connectionId map when terminal is initialized with SSH or Telnet connection
     // This ensures map includes the connectionId after connection.connect() completes
-    if (session.connectionType === 'ssh' && sshConnections.current[sessionId]?.connectionId) {
+    if ((session.connectionType === 'ssh' || session.connectionType === 'telnet') && 
+        sshConnections.current[sessionId]?.connectionId) {
+      console.log(`[TELNET-DEBUG] Updating connectionId map for ${session.connectionType} session ${sessionId}, connectionId: ${sshConnections.current[sessionId].connectionId}`);
       updateConnectionIdMap();
     }
   }, [theme, themes, scrollbackLines, activeSessionId, sessions, sshConnections, sessionLogs, appendToLog, setContextMenu, setShowSearchBar, updateConnectionIdMap, cleanupTerminal, showAICommandInput, setShowAICommandInput]);
@@ -618,14 +632,94 @@ export function useTerminalManagement({
       }
     };
 
+    const handleTelnetData = (event, { connectionId, data }) => {
+      console.log(`[TELNET-DEBUG-RENDERER] Received telnet-data event, connectionId: ${connectionId}, data length: ${data?.length || 0}`);
+      // Use cached map for O(1) lookup - much faster than building map each time
+      const sessionId = connectionIdMapRef.current.get(connectionId);
+      console.log(`[TELNET-DEBUG-RENDERER] Mapped to sessionId: ${sessionId}, terminal exists: ${!!terminalInstances.current[sessionId]}`);
+      
+      if (sessionId && terminalInstances.current[sessionId]) {
+        const terminal = terminalInstances.current[sessionId];
+        console.log(`[TELNET-DEBUG-RENDERER] Writing to terminal, data: ${data.substring(0, 100)}...`);
+        
+        // Optimized: Split large data chunks to prevent blocking
+        // Large synchronous writes can block the UI thread
+        if (data.length > 8192) { // 8KB threshold
+          // Split into smaller chunks and write asynchronously
+          const chunkSize = 4096;
+          let offset = 0;
+          const writeChunk = () => {
+            if (offset < data.length) {
+              const chunk = data.slice(offset, offset + chunkSize);
+              terminal.write(chunk);
+              offset += chunkSize;
+              // Use requestAnimationFrame for smooth rendering
+              requestAnimationFrame(writeChunk);
+            }
+          };
+          writeChunk();
+        } else {
+          // Write to terminal immediately for small data to preserve output order
+          terminal.write(data);
+        }
+        
+        // Log asynchronously without blocking display - use ref to get latest function
+        if (sessionLogs.current[sessionId] && sessionLogs.current[sessionId].isLogging) {
+          startTransition(() => {
+            appendToLogRef.current(sessionId, data);
+          });
+        }
+      } else {
+        console.warn(`[TELNET-DEBUG-RENDERER] No terminal found for connectionId ${connectionId}, sessionId: ${sessionId}`);
+      }
+    };
+
+    const handleTelnetClose = (event, { connectionId }) => {
+      // Use cached map for O(1) lookup
+      const sessionId = connectionIdMapRef.current.get(connectionId);
+      
+      if (sessionId && terminalInstances.current[sessionId]) {
+        // Use grey color for connection status messages
+        terminalInstances.current[sessionId].write('\r\n\x1b[90mTelnet connection closed.\x1b[0m\r\n');
+        // Add F5 reconnect hint with keyboard-style key representation
+        // Using box drawing characters to make it look like a keyboard key in one line: ┌─F5─┐
+        terminalInstances.current[sessionId].write('\x1b[90mPress \x1b[0m\x1b[92m┌─F5─┐\x1b[0m\x1b[90m to reconnect.\x1b[0m\r\n');
+      }
+      
+      // Remove from map when connection closes
+      // Also rebuild map to ensure consistency (in case of race conditions)
+      connectionIdMapRef.current.delete(connectionId);
+      // Rebuild map to ensure it's in sync with actual connections
+      updateConnectionIdMap();
+      
+      // Call callback if provided (for auto-reconnect)
+      // Use ref to get latest callback
+      if (onSshCloseRef.current && sessionId) {
+        onSshCloseRef.current(sessionId, connectionId);
+      }
+    };
+
+    // Debug: log connectionId map on each update
+    const logConnectionIdMap = () => {
+      console.log('[TELNET-DEBUG] ConnectionId map:', Array.from(connectionIdMapRef.current.entries()));
+      console.log('[TELNET-DEBUG] sshConnections keys:', Object.keys(sshConnections.current));
+    };
+
     window.electronAPI.onSSHData(handleSshData);
     window.electronAPI.onSSHClose(handleSshClose);
+    window.electronAPI.onTelnetData(handleTelnetData);
+    window.electronAPI.onTelnetClose(handleTelnetClose);
+
+    // Log map after setting up listeners
+    logConnectionIdMap();
 
     return () => {
       window.electronAPI.offSSHData(handleSshData);
       window.electronAPI.offSSHClose(handleSshClose);
+      window.electronAPI.offTelnetData(handleTelnetData);
+      window.electronAPI.offTelnetClose(handleTelnetClose);
     };
-  }, [updateConnectionIdMap]); // Update map when connections change - onSshClose is handled via ref
+  }, [updateConnectionIdMap, sshConnections]); // Update map when connections change - onSshClose is handled via ref
 
   // Handle Serial data events - register only once
   useEffect(() => {

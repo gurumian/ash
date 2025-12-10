@@ -36,6 +36,24 @@ contextBridge.exposeInMainWorld('electronAPI', {
   offSSHData: (callback) => ipcRenderer.off('ssh-data', callback),
   offSSHClose: (callback) => ipcRenderer.off('ssh-closed', callback),
   
+  // Telnet connection
+  telnetConnect: (connectionInfo) => ipcRenderer.invoke('telnet-connect', connectionInfo),
+  
+  // Send data to Telnet connection
+  telnetWrite: (connectionId, data) => ipcRenderer.invoke('telnet-write', { connectionId, data }),
+  
+  // Disconnect Telnet connection
+  telnetDisconnect: (connectionId) => ipcRenderer.invoke('telnet-disconnect', connectionId),
+  
+  onTelnetData: (callback) => ipcRenderer.on('telnet-data', callback),
+  
+  // Telnet connection close event
+  onTelnetClose: (callback) => ipcRenderer.on('telnet-closed', callback),
+  
+  // Remove Telnet event listeners
+  offTelnetData: (callback) => ipcRenderer.off('telnet-data', callback),
+  offTelnetClose: (callback) => ipcRenderer.off('telnet-closed', callback),
+  
   // Serial port APIs
   serialListPorts: () => ipcRenderer.invoke('serial-list-ports'),
   serialConnect: (sessionId, options) => ipcRenderer.invoke('serial-connect', sessionId, options),

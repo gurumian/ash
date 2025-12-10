@@ -126,6 +126,7 @@ function App() {
     password: '',
     sessionName: '',
     savePassword: false,
+    useTelnet: false, // Use Telnet instead of SSH
     // Serial port specific fields
     serialPort: '',
     baudRate: '9600',

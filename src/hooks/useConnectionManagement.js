@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { SSHConnection } from '../connections/SSHConnection';
+import { TelnetConnection } from '../connections/TelnetConnection';
 import { SerialConnection } from '../connections/SerialConnection';
 import { matchSavedSessionWithActiveSession } from '../utils/sessionMatcher';
 
@@ -77,9 +78,21 @@ export function useConnectionManagement({
     setFormError('');
     
     if (formData.connectionType === 'ssh') {
-      if (!formData.host || !formData.user) {
-        setFormError('Host and Username are required for SSH connections.');
-        return;
+      // Check if using telnet
+      const useTelnet = formData.useTelnet || false;
+      
+      if (useTelnet) {
+        // Telnet connection - only host and port required
+        if (!formData.host) {
+          setFormError('Host is required for Telnet connections.');
+          return;
+        }
+      } else {
+        // SSH connection - host and username required
+        if (!formData.host || !formData.user) {
+          setFormError('Host and Username are required for SSH connections.');
+          return;
+        }
       }
     } else if (formData.connectionType === 'serial') {
       if (!formData.serialPort) {
@@ -92,49 +105,102 @@ export function useConnectionManagement({
     
     try {
       const sessionId = Date.now().toString();
-      const sessionName = formData.connectionType === 'ssh' 
-        ? (formData.sessionName || `${formData.user}@${formData.host}`)
-        : (formData.sessionName || `Serial: ${formData.serialPort}`);
+      let sessionName;
+      if (formData.connectionType === 'ssh') {
+        const useTelnet = formData.useTelnet || false;
+        if (useTelnet) {
+          sessionName = formData.sessionName || `Telnet: ${formData.host}:${formData.port || '23'}`;
+        } else {
+          sessionName = formData.sessionName || `${formData.user}@${formData.host}`;
+        }
+      } else {
+        sessionName = formData.sessionName || `Serial: ${formData.serialPort}`;
+      }
       
       // Create connection based on type
       let connection;
       let session;
       
       if (formData.connectionType === 'ssh') {
-        connection = new SSHConnection();
-        await connection.connect(
-          formData.host,
-          formData.port,
-          formData.user,
-          formData.password
-        );
+        const useTelnet = formData.useTelnet || false;
         
-        session = {
-          id: sessionId,
-          name: sessionName,
-          host: formData.host,
-          port: formData.port,
-          user: formData.user,
-          password: formData.password, // Include password for detach functionality
-          connectionType: 'ssh',
-          isConnected: true,
-          createdAt: new Date().toISOString(),
-          postProcessing: formData.postProcessing || [],
-          postProcessingEnabled: formData.postProcessingEnabled !== false
-        };
+        if (useTelnet) {
+          // Telnet connection
+          connection = new TelnetConnection();
+          await connection.connect(
+            formData.host,
+            formData.port || '23'
+          );
+          
+          session = {
+            id: sessionId,
+            name: sessionName,
+            host: formData.host,
+            port: formData.port || '23',
+            connectionType: 'telnet',
+            isConnected: true,
+            createdAt: new Date().toISOString(),
+            postProcessing: formData.postProcessing || [],
+            postProcessingEnabled: formData.postProcessingEnabled !== false
+          };
+          
+          // Save connection history
+          saveConnectionHistory({
+            connectionType: 'telnet',
+            host: formData.host,
+            port: formData.port || '23',
+            sessionName: sessionName,
+            savePassword: false, // Telnet doesn't use passwords
+            postProcessing: formData.postProcessing || [],
+            postProcessingEnabled: formData.postProcessingEnabled !== false
+          });
+        } else {
+          // SSH connection
+          connection = new SSHConnection();
+          await connection.connect(
+            formData.host,
+            formData.port,
+            formData.user,
+            formData.password
+          );
+          
+          session = {
+            id: sessionId,
+            name: sessionName,
+            host: formData.host,
+            port: formData.port,
+            user: formData.user,
+            password: formData.password, // Include password for detach functionality
+            connectionType: 'ssh',
+            isConnected: true,
+            createdAt: new Date().toISOString(),
+            postProcessing: formData.postProcessing || [],
+            postProcessingEnabled: formData.postProcessingEnabled !== false
+          };
+          
+          // Save connection history
+          saveConnectionHistory({
+            connectionType: 'ssh',
+            host: formData.host,
+            port: formData.port,
+            user: formData.user,
+            password: formData.password,
+            sessionName: sessionName,
+            savePassword: formData.savePassword,
+            postProcessing: formData.postProcessing || [],
+            postProcessingEnabled: formData.postProcessingEnabled !== false
+          });
+        }
         
-        // Save connection history
-        saveConnectionHistory({
-          connectionType: 'ssh',
-          host: formData.host,
-          port: formData.port,
-          user: formData.user,
-          password: formData.password,
-          sessionName: sessionName,
-          savePassword: formData.savePassword,
-          postProcessing: formData.postProcessing || [],
-          postProcessingEnabled: formData.postProcessingEnabled !== false
-        });
+        // Store connection in sshConnections (works for both SSH and Telnet)
+        sshConnections.current[sessionId] = connection;
+        
+        // Complete session setup (SSH or Telnet)
+        if (useTelnet) {
+          await completeTelnetSessionSetup(session, connection);
+        } else {
+          await completeSSHSessionSetup(session, connection);
+        }
       } else if (formData.connectionType === 'serial') {
         connection = new SerialConnection();
         await connection.connect(sessionId, {
@@ -181,7 +247,7 @@ export function useConnectionManagement({
       // Common session setup
       setSessions(prev => [...prev, session]);
       setActiveSessionId(sessionId);
-      sshConnections.current[sessionId] = connection; // Store both SSH and Serial connections
+      // Connection already stored above before completeTelnetSessionSetup/completeSSHSessionSetup
       
       // Reset form (unless skipFormReset is true)
       if (!skipFormReset) {
@@ -193,6 +259,7 @@ export function useConnectionManagement({
           password: '',
           sessionName: '',
           savePassword: false,
+          useTelnet: false,
           serialPort: '',
           baudRate: '9600',
           dataBits: '8',
@@ -325,7 +392,7 @@ export function useConnectionManagement({
     }, 500);
   }, []);
 
-  // Helper: Complete SSH session setup after successful connection
+  // Helper: Complete SSH/Telnet session setup after successful connection
   const completeSSHSessionSetup = useCallback(async (session, connection) => {
     // Initialize terminal if not already initialized
     if (!terminalInstances.current[session.id]) {
@@ -342,6 +409,27 @@ export function useConnectionManagement({
     setSessions(prev => prev.map(s => 
       s.id === session.id ? { ...s, isConnected: true } : s
     ));
+  }, [initializeTerminal, executePostProcessing, setSessions, terminalInstances]);
+
+  // Helper: Complete Telnet session setup after successful connection
+  const completeTelnetSessionSetup = useCallback(async (session, connection) => {
+    // Initialize terminal if not already initialized
+    if (!terminalInstances.current[session.id]) {
+      setTimeout(() => {
+        initializeTerminal(session.id, session);
+      }, 100);
+    } else {
+      // Terminal already exists, telnet is ready immediately (no shell start needed)
+      executePostProcessing(connection, session.id);
+    }
+
+    setSessions(prev => prev.map(s => 
+      s.id === session.id ? { ...s, isConnected: true } : s
+    ));
+    
+    // Note: updateConnectionIdMap will be called in initializeTerminal
+    // But we also ensure it's updated here after connection is stored
+    console.log(`[TELNET-DEBUG] Telnet session setup complete for ${session.id}, connectionId: ${connection.connectionId}`);
   }, [initializeTerminal, executePostProcessing, setSessions, terminalInstances]);
 
   // Helper: Reconnect SSH session with retry
@@ -417,6 +505,78 @@ export function useConnectionManagement({
     }
   }, [findPasswordFromHistory, reconnectRetry, terminalInstances, completeSSHSessionSetup]);
 
+  // Helper: Reconnect Telnet session with retry
+  const reconnectTelnetSession = useCallback(async (session) => {
+    // Disconnect old connection if it exists
+    if (sshConnections.current[session.id]) {
+      try {
+        sshConnections.current[session.id].disconnect();
+      } catch (error) {
+        // Ignore errors when disconnecting old connection
+        console.log('Error disconnecting old Telnet connection:', error);
+      }
+      delete sshConnections.current[session.id];
+    }
+    
+    const retryEnabled = reconnectRetry?.enabled !== false;
+    const retryInterval = reconnectRetry?.interval || 1000;
+    const maxAttempts = reconnectRetry?.maxAttempts || 60;
+    
+    // Get terminal instance for status messages
+    const terminal = terminalInstances.current[session.id];
+    
+    let connection = null;
+    
+    if (!retryEnabled) {
+      // No retry - single attempt
+      connection = new TelnetConnection();
+      await connection.connect(session.host, session.port || '23');
+      sshConnections.current[session.id] = connection;
+    } else {
+      // Retry logic
+      let lastError = null;
+      
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        // Update terminal with attempt status
+        if (terminal) {
+          // Clear previous attempt line and show new one
+          terminal.write(`\r\x1b[K\x1b[90mAttempting ${attempt}/${maxAttempts}...\x1b[0m`);
+        }
+        
+        try {
+          connection = new TelnetConnection();
+          await connection.connect(session.host, session.port || '23');
+          sshConnections.current[session.id] = connection;
+          
+          // Success - clear attempt message
+          if (terminal) {
+            terminal.write(`\r\x1b[K\x1b[90mConnected successfully.\x1b[0m\r\n`);
+          }
+          break; // Exit retry loop on success
+        } catch (error) {
+          lastError = error;
+          console.log(`Telnet reconnection attempt ${attempt}/${maxAttempts} failed:`, error.message);
+          
+          if (attempt < maxAttempts) {
+            // Wait before next attempt
+            await new Promise(resolve => setTimeout(resolve, retryInterval));
+          } else {
+            // All attempts failed
+            if (terminal) {
+              terminal.write(`\r\x1b[K\x1b[90mDisconnected. Max retry attempts (${maxAttempts}) reached.\x1b[0m\r\n`);
+            }
+            throw lastError || new Error(`Telnet reconnection failed after ${maxAttempts} attempts`);
+          }
+        }
+      }
+    }
+    
+    // Complete session setup after successful connection
+    if (connection) {
+      await completeTelnetSessionSetup(session, connection);
+    }
+  }, [reconnectRetry, terminalInstances, completeTelnetSessionSetup]);
+
   // Helper: Reconnect Serial session
   const reconnectSerialSession = useCallback(async (session) => {
     const connection = new SerialConnection();
@@ -452,6 +612,8 @@ export function useConnectionManagement({
     try {
       if (session.connectionType === 'ssh') {
         await reconnectSSHSession(session);
+      } else if (session.connectionType === 'telnet') {
+        await reconnectTelnetSession(session);
       } else if (session.connectionType === 'serial') {
         await reconnectSerialSession(session);
       }
@@ -483,14 +645,16 @@ export function useConnectionManagement({
       }
       throw error; // Re-throw to let caller handle it
     }
-  }, [reconnectSSHSession, reconnectSerialSession, formatConnectionError, setErrorDialog]);
+  }, [reconnectSSHSession, reconnectTelnetSession, reconnectSerialSession, formatConnectionError, setErrorDialog]);
 
   // Helper: Prepare connection form data from saved session
   const prepareConnectionFormData = useCallback((savedSession) => {
+    const isTelnet = savedSession.connectionType === 'telnet';
     return {
-      connectionType: savedSession.connectionType || 'ssh',
+      connectionType: isTelnet ? 'ssh' : (savedSession.connectionType || 'ssh'), // Telnet uses ssh form with checkbox
+      useTelnet: isTelnet, // Set checkbox for telnet connections
       host: savedSession.host || '',
-      port: savedSession.port || '22',
+      port: savedSession.port || (isTelnet ? '23' : '22'),
       user: savedSession.user || '',
       password: savedSession.password || '',
       sessionName: savedSession.label || savedSession.sessionName || savedSession.name || '',
@@ -500,7 +664,9 @@ export function useConnectionManagement({
       dataBits: savedSession.dataBits || '8',
       stopBits: savedSession.stopBits || '1',
       parity: savedSession.parity || 'none',
-      flowControl: savedSession.flowControl || 'none'
+      flowControl: savedSession.flowControl || 'none',
+      postProcessing: savedSession.postProcessing || [],
+      postProcessingEnabled: savedSession.postProcessingEnabled !== false
     };
   }, []);
 
@@ -680,6 +846,20 @@ export function useConnectionManagement({
                 
                 // Initialize terminal - use ref to get latest function
                 // Terminal initialization will start the SSH shell with correct size
+                setTimeout(() => {
+                  initializeTerminalRef.current(newSession.id, newSession);
+                }, 100);
+              } else if (newSession.connectionType === 'telnet') {
+                // Telnet reconnection
+                const connection = new TelnetConnection();
+                await connection.connect(newSession.host, newSession.port || '23');
+                sshConnections.current[newSession.id] = connection;
+                
+                setSessions(prev => prev.map(s => 
+                  s.id === newSession.id ? { ...s, isConnected: true } : s
+                ));
+                
+                // Initialize terminal - use ref to get latest function
                 setTimeout(() => {
                   initializeTerminalRef.current(newSession.id, newSession);
                 }, 100);

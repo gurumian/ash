@@ -33,11 +33,32 @@ export function useAppHandlers({
 }) {
   // Input change handler
   const handleInputChange = useCallback((e) => {
-    const { name, value } = e.target;
-    setConnectionForm(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    const { name, value, type, checked } = e.target;
+    const inputValue = type === 'checkbox' ? checked : value;
+    
+    setConnectionForm(prev => {
+      const updated = {
+        ...prev,
+        [name]: inputValue
+      };
+      
+      // If useTelnet is checked/unchecked, update port accordingly
+      if (name === 'useTelnet') {
+        if (checked) {
+          // Telnet checked: set port to 23 if it's currently 22 (SSH default)
+          if (!prev.port || prev.port === '22') {
+            updated.port = '23';
+          }
+        } else {
+          // Telnet unchecked: set port to 22 if it's currently 23 (Telnet default)
+          if (prev.port === '23') {
+            updated.port = '22';
+          }
+        }
+      }
+      
+      return updated;
+    });
   }, [setConnectionForm]);
 
   // Resize handlers - these need to be wrapped in App.jsx for event listeners
@@ -83,10 +104,12 @@ export function useAppHandlers({
 
   // Connect from history
   const connectFromHistory = useCallback((connection) => {
+    const isTelnet = connection.connectionType === 'telnet';
     setConnectionForm({
-      connectionType: connection.connectionType || 'ssh',
+      connectionType: isTelnet ? 'ssh' : (connection.connectionType || 'ssh'), // Telnet uses ssh form with checkbox
+      useTelnet: isTelnet, // Set checkbox for telnet connections
       host: connection.host,
-      port: connection.port || '22',
+      port: connection.port || (isTelnet ? '23' : '22'),
       user: connection.user,
       password: connection.password || '',
       sessionName: connection.sessionName || connection.name || '',
