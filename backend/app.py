@@ -206,7 +206,16 @@ async def execute_task_stream(request: TaskRequest):
 
     messages = []
     if request.conversation_history:
-        messages.extend(request.conversation_history)
+        # Convert 'tool' role to 'function' role for Qwen-Agent compatibility
+        # Qwen-Agent's Pydantic model only accepts: user, assistant, system, function
+        for msg in request.conversation_history:
+            if msg.get('role') == 'tool':
+                # Convert tool role to function role
+                converted_msg = msg.copy()
+                converted_msg['role'] = 'function'
+                messages.append(converted_msg)
+            else:
+                messages.append(msg)
     messages.append({"role": "user", "content": request.message})
     
     def generate():

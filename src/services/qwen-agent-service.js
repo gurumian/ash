@@ -2,12 +2,14 @@
  * Qwen-Agent Service - Calls Python backend with Qwen-Agent
  */
 
+import chatHistoryService from './chatHistory/ChatHistoryService.js';
+
 const BACKEND_URL = 'http://127.0.0.1:54111';
 
 class QwenAgentService {
   constructor() {
     this.backendUrl = BACKEND_URL;
-    // Store conversation history per connection
+    // Store conversation history per connection (memory cache as fallback)
     this.conversationHistory = new Map();
   }
 
@@ -19,15 +21,70 @@ class QwenAgentService {
    * @param {Object} llmSettings - LLM settings from frontend (optional)
    * @param {Function} onToolResult - Callback for tool results (optional)
    * @param {Function} onToolCall - Callback for tool call requests (optional)
+   * @param {AbortSignal} abortSignal - Signal for cancellation (optional)
+   * @param {string} conversationId - Conversation ID for loading history from DB (optional)
    * @returns {Promise<string>} - Final response
    */
-  async executeTask(message, connectionId = null, onChunk = null, llmSettings = null, onToolResult = null, onToolCall = null, abortSignal = null) {
+  async executeTask(message, connectionId = null, onChunk = null, llmSettings = null, onToolResult = null, onToolCall = null, abortSignal = null, conversationId = null) {
   // Command 큐: tool_call과 tool_result를 순차적으로 매칭하기 위한 FIFO 큐
   const commandQueue = [];
     try {
-      // Get conversation history for this connection (or use default)
-      const historyKey = connectionId || 'default';
-      const conversationHistory = this.conversationHistory.get(historyKey) || [];
+      // Load conversation history from DB if conversationId is provided
+      // This ensures context persists across app restarts
+      // Note: New conversations (with no messages) will return empty array, which is fine
+      let conversationHistory = [];
+      
+      if (conversationId) {
+        try {
+          // Debug: Log which conversation we're loading
+          console.log(`[QwenAgentService] Loading history for conversationId: ${conversationId}, connectionId: ${connectionId}`);
+          
+          // Load from database
+          const dbHistory = await chatHistoryService.getConversationHistory(conversationId);
+          
+          console.log(`[QwenAgentService] DB returned ${dbHistory?.length || 0} messages for conversation ${conversationId}`);
+          
+          // Only convert if there are messages (optimization: skip for new conversations)
+          if (dbHistory && dbHistory.length > 0) {
+            // Convert DB messages to Qwen-Agent format
+            conversationHistory = chatHistoryService.convertToQwenAgentFormat(dbHistory);
+            
+            // Remove the last user message if it matches the current request
+            // This prevents duplicate messages since saveMessage is called before executeTask
+            if (conversationHistory.length > 0) {
+              const lastMessage = conversationHistory[conversationHistory.length - 1];
+              if (lastMessage.role === 'user' && lastMessage.content === message) {
+                console.log(`[QwenAgentService] Removing duplicate last user message: "${message}"`);
+                conversationHistory = conversationHistory.slice(0, -1);
+              }
+            }
+            
+            console.log(`[QwenAgentService] Converted to ${conversationHistory.length} Qwen-Agent format messages (after deduplication)`);
+            if (conversationHistory.length > 0) {
+              console.log(`[QwenAgentService] First message:`, conversationHistory[0]);
+              console.log(`[QwenAgentService] Last message:`, conversationHistory[conversationHistory.length - 1]);
+            }
+          } else {
+            // New conversation with no messages - no need to load history
+            console.log(`[QwenAgentService] New conversation ${conversationId} - no history to load`);
+          }
+        } catch (dbError) {
+          console.error('[QwenAgentService] Failed to load history from DB:', dbError);
+          console.error('[QwenAgentService] conversationId was:', conversationId);
+          // Fallback to memory cache if DB load fails
+          const historyKey = connectionId || 'default';
+          conversationHistory = this.conversationHistory.get(historyKey) || [];
+          console.log(`[QwenAgentService] Using memory cache fallback: ${conversationHistory.length} messages`);
+        }
+      } else {
+        // Fallback to memory cache if no conversationId provided
+        const historyKey = connectionId || 'default';
+        conversationHistory = this.conversationHistory.get(historyKey) || [];
+        
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[QwenAgentService] Using memory cache for ${historyKey} (no conversationId provided)`);
+        }
+      }
       
       // Build request body
       const requestBody = {
@@ -299,9 +356,9 @@ class QwenAgentService {
         }
       }
 
-      // Update conversation history
-      // Qwen-Agent automatically includes tool results in the conversation
-      // We need to reconstruct the full conversation including tool results
+      // Update conversation history in memory cache (for fallback)
+      // Note: DB updates are handled by useAICommand hook which saves messages separately
+      const historyKey = connectionId || 'default';
       const updatedHistory = [...conversationHistory];
       
       // Add user message
@@ -317,7 +374,7 @@ class QwenAgentService {
       this.conversationHistory.set(historyKey, trimmedHistory);
       
       if (process.env.NODE_ENV === 'development') {
-        console.debug(`Updated conversation history for ${historyKey}: ${trimmedHistory.length} messages (kept last 50 for context)`);
+        console.debug(`[QwenAgentService] Updated memory cache for ${historyKey}: ${trimmedHistory.length} messages (kept last 50 for context)`);
       }
       
       // Return formatted response

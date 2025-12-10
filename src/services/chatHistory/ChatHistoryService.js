@@ -106,38 +106,74 @@ class ChatHistoryService {
 
   /**
    * Convert messages to Qwen-Agent format
-   * Qwen-Agent expects: [{ role: 'user', content: '...' }, { role: 'assistant', content: '...' }, { role: 'tool', name: '...', content: '...' }]
+   * Qwen-Agent expects: [{ role: 'user', content: '...' }, { role: 'assistant', content: '...' }, { role: 'function', name: '...', content: '...' }]
+   * Note: Qwen-Agent uses 'function' role for tool results, not 'tool'
    */
   convertToQwenAgentFormat(messages) {
-    return messages.map(msg => {
-      if (msg.role === 'tool' && msg.toolResults) {
-        // Convert tool results to Qwen-Agent format
-        const toolResult = msg.toolResults[0]; // Take first tool result
-        if (toolResult && toolResult.name) {
-          // Format tool result as JSON string (as Qwen-Agent expects)
-          const content = typeof toolResult === 'string' 
-            ? toolResult 
-            : JSON.stringify({
-                success: toolResult.success !== undefined ? toolResult.success : true,
-                output: toolResult.stdout || toolResult.content || '',
-                error: toolResult.stderr || '',
-                exitCode: toolResult.exitCode || 0
+    const result = [];
+    
+    for (const msg of messages) {
+      if (msg.role === 'tool') {
+        // Handle tool messages - convert to 'function' role for Qwen-Agent
+        if (msg.toolResults && Array.isArray(msg.toolResults) && msg.toolResults.length > 0) {
+          // Convert each tool result to Qwen-Agent format
+          for (const toolResult of msg.toolResults) {
+            if (toolResult && toolResult.name) {
+              // Format tool result as JSON string (as Qwen-Agent expects)
+              const content = typeof toolResult === 'string' 
+                ? toolResult 
+                : JSON.stringify({
+                    success: toolResult.success !== undefined ? toolResult.success : true,
+                    output: toolResult.stdout || toolResult.content || '',
+                    error: toolResult.stderr || '',
+                    exitCode: toolResult.exitCode || 0
+                  });
+              
+              result.push({
+                role: 'function', // Qwen-Agent uses 'function' role, not 'tool'
+                name: toolResult.name,
+                content: content
               });
-          
-          return {
-            role: 'tool',
-            name: toolResult.name,
-            content: content
-          };
+            }
+          }
+        } else if (msg.content) {
+          // If tool message has content but no toolResults, try to parse it
+          // This handles cases where tool message was saved as JSON string
+          try {
+            const parsed = JSON.parse(msg.content);
+            if (parsed.name) {
+              result.push({
+                role: 'function', // Qwen-Agent uses 'function' role, not 'tool'
+                name: parsed.name,
+                content: msg.content
+              });
+            } else {
+              // Fallback: use content as-is
+              result.push({
+                role: 'function', // Qwen-Agent uses 'function' role, not 'tool'
+                name: 'unknown_tool',
+                content: msg.content
+              });
+            }
+          } catch (e) {
+            // Not JSON, use as-is
+            result.push({
+              role: 'function', // Qwen-Agent uses 'function' role, not 'tool'
+              name: 'unknown_tool',
+              content: msg.content
+            });
+          }
         }
+      } else {
+        // For user and assistant messages, return as-is
+        result.push({
+          role: msg.role,
+          content: msg.content
+        });
       }
-      
-      // For user and assistant messages, return as-is
-      return {
-        role: msg.role,
-        content: msg.content
-      };
-    });
+    }
+    
+    return result;
   }
 }
 

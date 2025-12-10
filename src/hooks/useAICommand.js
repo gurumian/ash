@@ -228,13 +228,35 @@ export function useAICommand({
         
         // Ensure conversation exists
         let currentConversationId = conversationId;
+        console.log(`[useAICommand] Agent mode - conversationId state: ${conversationId}, connectionId: ${connectionId}`);
+        console.log(`[useAICommand] Current active conversation (from state): ${conversationId}`);
+        
         if (!currentConversationId) {
+          console.log(`[useAICommand] No conversationId, creating/getting conversation for connectionId: ${connectionId}`);
           const conversation = await chatHistoryService.getOrCreateConversation(connectionId);
           currentConversationId = conversation.id;
+          console.log(`[useAICommand] Created/got conversation: ${currentConversationId}`);
           setConversationId(conversation.id);
           // Refresh conversations list
           const updatedList = await chatHistoryService.listConversations(connectionId);
           setConversations(updatedList);
+        } else {
+          console.log(`[useAICommand] Using existing conversationId: ${currentConversationId}`);
+          // Verify the conversation exists and belongs to this connection
+          const conversation = await chatHistoryService.getConversation(currentConversationId);
+          if (conversation) {
+            console.log(`[useAICommand] Verified conversation exists:`, {
+              id: conversation.id,
+              title: conversation.title,
+              connectionId: conversation.connectionId,
+              expectedConnectionId: connectionId
+            });
+            if (conversation.connectionId !== connectionId) {
+              console.warn(`[useAICommand] WARNING: Conversation belongs to different connection! Expected: ${connectionId}, Got: ${conversation.connectionId}`);
+            }
+          } else {
+            console.warn(`[useAICommand] WARNING: Conversation ${currentConversationId} not found in DB!`);
+          }
         }
         
         // Set processing state for this specific conversation
@@ -518,7 +540,13 @@ export function useAICommand({
             // Don't display tool calls to user
           },
           // AbortSignal for cancellation
-          abortSignal
+          abortSignal,
+          // Conversation ID for loading history from DB
+          // This ensures context persists across app restarts
+          (() => {
+            console.log(`[useAICommand] Passing conversationId to executeTask: ${currentConversationId}`);
+            return currentConversationId;
+          })()
           );
         } catch (taskError) {
           // Handle task execution errors, especially abort errors
