@@ -453,7 +453,8 @@ function App() {
     initializeTerminal,
     cleanupLog,
     setErrorDialog,
-    reconnectRetry
+    reconnectRetry,
+    updateConnectionIdMap
   });
 
   // Keyboard shortcuts hook (must be after useConnectionManagement to access reconnectSession)

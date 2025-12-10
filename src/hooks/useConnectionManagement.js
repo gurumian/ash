@@ -30,7 +30,8 @@ export function useConnectionManagement({
   cleanupLog,
   cleanupTerminal,
   setErrorDialog,
-  reconnectRetry
+  reconnectRetry,
+  updateConnectionIdMap
 }) {
   // Helper function to format connection errors
   const formatConnectionError = useCallback((error) => {
@@ -125,24 +126,70 @@ export function useConnectionManagement({
         const useTelnet = formData.useTelnet || false;
         
         if (useTelnet) {
-          // Telnet connection
-          connection = new TelnetConnection();
-          await connection.connect(
-            formData.host,
-            formData.port || '23'
-          );
-          
+          // For Telnet: Initialize terminal FIRST before connecting
+          // This ensures terminal is ready to receive data immediately when connection is established
           session = {
             id: sessionId,
             name: sessionName,
             host: formData.host,
             port: formData.port || '23',
             connectionType: 'telnet',
-            isConnected: true,
+            isConnected: false, // Will be set to true after connection
             createdAt: new Date().toISOString(),
             postProcessing: formData.postProcessing || [],
             postProcessingEnabled: formData.postProcessingEnabled !== false
           };
+          
+          // Create session first so terminal can be initialized
+          setSessions(prev => [...prev, session]);
+          setActiveSessionId(sessionId);
+          
+          // Initialize terminal BEFORE connection to catch initial data
+          // Use Promise to ensure terminal is fully initialized before connecting
+          await new Promise((resolve) => {
+            setTimeout(() => {
+              initializeTerminal(sessionId, session).then(() => {
+                console.log(`[TELNET-DEBUG] Terminal initialized for session ${sessionId} before connection`);
+                resolve();
+              }).catch(() => {
+                // Even if initialization fails, proceed with connection
+                // Terminal might initialize later
+                console.warn(`[TELNET-DEBUG] Terminal initialization had issues, proceeding anyway`);
+                resolve();
+              });
+            }, 0);
+          });
+          
+          // Wait a bit more to ensure terminal is in terminalInstances map
+          // Poll until terminal is ready (with timeout)
+          let attempts = 0;
+          const maxAttempts = 20; // 200ms max wait
+          while (attempts < maxAttempts && !terminalInstances.current[sessionId]) {
+            await new Promise(resolve => setTimeout(resolve, 10));
+            attempts++;
+          }
+          
+          if (terminalInstances.current[sessionId]) {
+            console.log(`[TELNET-DEBUG] Terminal confirmed ready after ${attempts * 10}ms`);
+          } else {
+            console.warn(`[TELNET-DEBUG] Terminal not ready after ${maxAttempts * 10}ms, proceeding anyway`);
+          }
+          
+          // Now connect - terminal should be ready
+          connection = new TelnetConnection();
+          
+          // Store connection BEFORE connecting so buffer can map connectionId
+          sshConnections.current[sessionId] = connection;
+          
+          await connection.connect(
+            formData.host,
+            formData.port || '23'
+          );
+          
+          // Update session as connected
+          setSessions(prev => prev.map(s => 
+            s.id === sessionId ? { ...s, isConnected: true } : s
+          ));
           
           // Save connection history
           saveConnectionHistory({
@@ -154,6 +201,17 @@ export function useConnectionManagement({
             postProcessing: formData.postProcessing || [],
             postProcessingEnabled: formData.postProcessingEnabled !== false
           });
+          
+          // Update connectionId map immediately
+          if (updateConnectionIdMap && connection.connectionId) {
+            updateConnectionIdMap();
+            console.log(`[TELNET-DEBUG] Updated connectionId map after connection: ${connection.connectionId} -> ${sessionId}`);
+          }
+          
+          // Execute post-processing
+          setTimeout(() => {
+            executePostProcessing(connection, sessionId);
+          }, 200);
         } else {
           // SSH connection
           connection = new SSHConnection();
@@ -192,15 +250,18 @@ export function useConnectionManagement({
           });
         }
         
-        // Store connection in sshConnections (works for both SSH and Telnet)
+        // Store connection in sshConnections (works for SSH)
         sshConnections.current[sessionId] = connection;
         
-        // Complete session setup (SSH or Telnet)
-        if (useTelnet) {
-          await completeTelnetSessionSetup(session, connection);
-        } else {
-          await completeSSHSessionSetup(session, connection);
+        // CRITICAL: Update connectionId map immediately and synchronously after storing connection
+        // This ensures data arriving right after connection can be routed to the correct session
+        if (updateConnectionIdMap && connection.connectionId) {
+          updateConnectionIdMap();
+          console.log(`[TELNET-DEBUG] Immediately updated connectionId map: ${connection.connectionId} -> ${sessionId}`);
         }
+        
+        // Complete session setup (SSH)
+        await completeSSHSessionSetup(session, connection);
       } else if (formData.connectionType === 'serial') {
         connection = new SerialConnection();
         await connection.connect(sessionId, {
@@ -245,7 +306,12 @@ export function useConnectionManagement({
       }
       
       // Common session setup
-      setSessions(prev => [...prev, session]);
+      // Note: Telnet session is already added earlier (line 144) to allow terminal initialization before connection
+      // Only add session for SSH and Serial connections here
+      if (formData.connectionType !== 'ssh' || !formData.useTelnet) {
+        setSessions(prev => [...prev, session]);
+      }
+      // Set active session ID (Telnet already set it earlier, but it's safe to set again)
       setActiveSessionId(sessionId);
       // Connection already stored above before completeTelnetSessionSetup/completeSSHSessionSetup
       
@@ -414,10 +480,15 @@ export function useConnectionManagement({
   // Helper: Complete Telnet session setup after successful connection
   const completeTelnetSessionSetup = useCallback(async (session, connection) => {
     // Initialize terminal if not already initialized
+    // Use minimal delay for telnet to capture initial data quickly
     if (!terminalInstances.current[session.id]) {
-      setTimeout(() => {
-        initializeTerminal(session.id, session);
-      }, 100);
+      // Use requestAnimationFrame for faster initialization (instead of 100ms timeout)
+      // This allows terminal to be ready faster to catch initial server data
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          initializeTerminal(session.id, session);
+        });
+      });
     } else {
       // Terminal already exists, telnet is ready immediately (no shell start needed)
       executePostProcessing(connection, session.id);
@@ -427,8 +498,8 @@ export function useConnectionManagement({
       s.id === session.id ? { ...s, isConnected: true } : s
     ));
     
-    // Note: updateConnectionIdMap will be called in initializeTerminal
-    // But we also ensure it's updated here after connection is stored
+    // Note: updateConnectionIdMap is already called immediately after connection storage
+    // It will also be called in initializeTerminal as a safety measure
     console.log(`[TELNET-DEBUG] Telnet session setup complete for ${session.id}, connectionId: ${connection.connectionId}`);
   }, [initializeTerminal, executePostProcessing, setSessions, terminalInstances]);
 

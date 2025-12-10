@@ -32,6 +32,8 @@ export function useTerminalManagement({
   const pendingResizeRef = useRef(null);
   // Cache connectionId -> sessionId mapping for O(1) lookup
   const connectionIdMapRef = useRef(new Map());
+  // Buffer for data received before terminal is ready (connectionId -> data array)
+  const dataBufferRef = useRef(new Map());
   // Ref for onSshClose callback to allow dynamic updates
   const onSshCloseRef = useRef(onSshClose);
 
@@ -255,6 +257,46 @@ export function useTerminalManagement({
     fitAddons.current[sessionId] = fitAddon;
     searchAddons.current[sessionId] = searchAddon;
     
+    // Get session info to determine connection type (use early to avoid duplicate declaration)
+    const session = sessionInfo || sessions.find(s => s.id === sessionId);
+    if (!session) return;
+    
+    // CRITICAL: Flush any buffered data now that terminal is ready
+    // Find connectionId for this sessionId and flush its buffer
+    // Also check all buffers and match by connectionId if mapping exists
+    if (session && (session.connectionType === 'telnet' || session.connectionType === 'ssh')) {
+      const connection = sshConnections.current[sessionId];
+      if (connection && connection.connectionId) {
+        const connectionId = connection.connectionId;
+        const buffer = dataBufferRef.current.get(connectionId);
+        if (buffer && buffer.length > 0) {
+          console.log(`[TELNET-DEBUG] Terminal ready, flushing ${buffer.length} buffered data chunks for connectionId ${connectionId}, sessionId ${sessionId}`);
+          // Write all buffered data in order
+          buffer.forEach((bufferedData, index) => {
+            console.log(`[TELNET-DEBUG] Flushing buffer chunk ${index + 1}/${buffer.length}: "${bufferedData.substring(0, 50)}"`);
+            terminal.write(bufferedData);
+          });
+          dataBufferRef.current.delete(connectionId);
+          console.log(`[TELNET-DEBUG] Buffer flushed and cleared for connectionId ${connectionId}`);
+        } else {
+          console.log(`[TELNET-DEBUG] No buffered data found for connectionId ${connectionId}, sessionId ${sessionId}`);
+        }
+      }
+    }
+    
+    // Also check for any unmapped buffers that might match this sessionId now that mapping is updated
+    updateConnectionIdMap();
+    dataBufferRef.current.forEach((buffer, bufferedConnectionId) => {
+      const bufferedSessionId = connectionIdMapRef.current.get(bufferedConnectionId);
+      if (bufferedSessionId === sessionId && buffer.length > 0) {
+        console.log(`[TELNET-DEBUG] Found buffered data for connectionId ${bufferedConnectionId} that matches sessionId ${sessionId}, flushing...`);
+        buffer.forEach((bufferedData) => {
+          terminal.write(bufferedData);
+        });
+        dataBufferRef.current.delete(bufferedConnectionId);
+      }
+    });
+    
     // Enable copy/paste functionality
     terminal.attachCustomKeyEventHandler((event) => {
       // Ctrl+Shift+C - copy selected text
@@ -372,11 +414,8 @@ export function useTerminalManagement({
       }
     }, 100);
     
-    // Get session info to determine connection type
-    const session = sessionInfo || sessions.find(s => s.id === sessionId);
-    if (!session) return;
-
     // Fit terminal after DOM is ready and then start SSH shell with accurate size
+    // Note: session variable is already declared above
     // Use double requestAnimationFrame to ensure layout is complete
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
@@ -460,8 +499,11 @@ export function useTerminalManagement({
     // This ensures map includes the connectionId after connection.connect() completes
     if ((session.connectionType === 'ssh' || session.connectionType === 'telnet') && 
         sshConnections.current[sessionId]?.connectionId) {
-      console.log(`[TELNET-DEBUG] Updating connectionId map for ${session.connectionType} session ${sessionId}, connectionId: ${sshConnections.current[sessionId].connectionId}`);
+      const connectionId = sshConnections.current[sessionId].connectionId;
+      console.log(`[TELNET-DEBUG] Updating connectionId map for ${session.connectionType} session ${sessionId}, connectionId: ${connectionId}`);
       updateConnectionIdMap();
+      
+      // Note: Buffer flushing is done above right after terminal instance is stored
     }
   }, [theme, themes, scrollbackLines, activeSessionId, sessions, sshConnections, sessionLogs, appendToLog, setContextMenu, setShowSearchBar, updateConnectionIdMap, cleanupTerminal, showAICommandInput, setShowAICommandInput]);
 
@@ -642,6 +684,16 @@ export function useTerminalManagement({
         const terminal = terminalInstances.current[sessionId];
         console.log(`[TELNET-DEBUG-RENDERER] Writing to terminal, data: ${data.substring(0, 100)}...`);
         
+        // Flush any buffered data first (in order)
+        const buffer = dataBufferRef.current.get(connectionId);
+        if (buffer && buffer.length > 0) {
+          console.log(`[TELNET-DEBUG-RENDERER] Flushing ${buffer.length} buffered data chunks for connectionId ${connectionId}`);
+          buffer.forEach(bufferedData => {
+            terminal.write(bufferedData);
+          });
+          dataBufferRef.current.delete(connectionId);
+        }
+        
         // Optimized: Split large data chunks to prevent blocking
         // Large synchronous writes can block the UI thread
         if (data.length > 8192) { // 8KB threshold
@@ -669,8 +721,23 @@ export function useTerminalManagement({
             appendToLogRef.current(sessionId, data);
           });
         }
+      } else if (sessionId) {
+        // Terminal not ready yet - buffer the data
+        console.log(`[TELNET-DEBUG-RENDERER] Terminal not ready, buffering data for connectionId ${connectionId}, sessionId: ${sessionId}, data: "${data.substring(0, 50)}"`);
+        if (!dataBufferRef.current.has(connectionId)) {
+          dataBufferRef.current.set(connectionId, []);
+        }
+        dataBufferRef.current.get(connectionId).push(data);
+        console.log(`[TELNET-DEBUG-RENDERER] Buffer now has ${dataBufferRef.current.get(connectionId).length} chunks for connectionId ${connectionId}`);
       } else {
-        console.warn(`[TELNET-DEBUG-RENDERER] No terminal found for connectionId ${connectionId}, sessionId: ${sessionId}`);
+        console.warn(`[TELNET-DEBUG-RENDERER] No sessionId found for connectionId ${connectionId} - this means connectionId mapping is missing!`);
+        console.warn(`[TELNET-DEBUG-RENDERER] Current map:`, Array.from(connectionIdMapRef.current.entries()));
+        // Still try to buffer by connectionId - we'll match it later when mapping is ready
+        if (!dataBufferRef.current.has(connectionId)) {
+          dataBufferRef.current.set(connectionId, []);
+        }
+        dataBufferRef.current.get(connectionId).push(data);
+        console.log(`[TELNET-DEBUG-RENDERER] Buffered data for unmapped connectionId ${connectionId}, will match when mapping is available`);
       }
     };
 
