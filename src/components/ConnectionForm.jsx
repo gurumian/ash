@@ -216,13 +216,13 @@ export const ConnectionForm = memo(function ConnectionForm({
 
               <div className="form-group checkbox-group">
                 <label className="checkbox-label">
+                  <span className="checkbox-text">Use Telnet</span>
                   <input
                     type="checkbox"
                     name="useTelnet"
                     checked={connectionForm.useTelnet || false}
                     onChange={onInputChange}
                   />
-                  <span className="checkbox-text">Use Telnet</span>
                 </label>
                 <div className="checkbox-help" style={{ fontSize: '11px', color: '#888' }}>
                   Connect using Telnet instead of SSH
@@ -367,13 +367,13 @@ export const ConnectionForm = memo(function ConnectionForm({
           {connectionForm.connectionType === 'ssh' && (
             <div className="form-group checkbox-group">
               <label className="checkbox-label">
+                <span className="checkbox-text">{t('connection:savePassword')}</span>
                 <input
                   type="checkbox"
                   name="savePassword"
                   checked={connectionForm.savePassword}
                   onChange={onSavePasswordChange}
                 />
-                <span className="checkbox-text">{t('connection:savePassword')}</span>
               </label>
               <div className="checkbox-help">
                 {t('connection:passwordWarning')}
