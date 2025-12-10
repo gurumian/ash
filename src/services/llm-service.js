@@ -96,6 +96,8 @@ Command:`;
         return await this.callOpenAI(prompt, onChunk, abortSignal);
       case 'anthropic':
         return await this.callAnthropic(prompt, onChunk, abortSignal);
+      case 'ash':
+        return await this.callAsh(prompt, onChunk, abortSignal);
       default:
         throw new Error(`Unsupported provider: ${this.provider}`);
     }
@@ -640,6 +642,176 @@ Command:`;
       }
       
       return data.content[0]?.text || '';
+    }
+  }
+
+  /**
+   * Call Ash API with streaming support (using /v1/generate interface)
+   */
+  async callAsh(prompt, onChunk = null, abortSignal = null) {
+    // Ensure baseURL ends with /v1
+    const baseURL = this.baseURL.endsWith('/v1') ? this.baseURL : `${this.baseURL.replace(/\/$/, '')}/v1`;
+    const url = `${baseURL}/generate`;
+    
+    // Build headers
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+    if (this.apiKey) {
+      headers['X-API-Key'] = this.apiKey;
+    }
+    
+    // Use streaming if onChunk callback is provided
+    if (onChunk) {
+      let response;
+      try {
+        response = await fetch(url, {
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify({
+            model: this.model,
+            prompt: `${prompt.system}\n\n${prompt.user}`,
+            stream: true,
+            options: {
+              temperature: this.temperature,
+              num_predict: this.maxTokens
+            }
+          }),
+          signal: abortSignal
+        });
+      } catch (fetchError) {
+        if (fetchError.name === 'AbortError' || abortSignal?.aborted) {
+          throw new Error('Request cancelled by user');
+        }
+        throw fetchError;
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Ash API error: ${response.status} - ${errorText}`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullResponse = '';
+      let buffer = '';
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          
+          // Keep the last incomplete line in buffer
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            
+            try {
+              const data = JSON.parse(line);
+              if (data.response) {
+                const text = data.response;
+                fullResponse += text;
+                if (onChunk) {
+                  onChunk(text);
+                }
+              }
+              if (data.done) {
+                break;
+              }
+            } catch (e) {
+              // Skip invalid JSON lines
+              if (process.env.NODE_ENV === 'development') {
+                console.warn('LLM Service - Failed to parse JSON line:', line, e);
+              }
+            }
+          }
+        }
+      } catch (streamError) {
+        if (streamError?.name === 'AbortError' || streamError?.message?.includes('cancelled') || abortSignal?.aborted) {
+          try {
+            reader.cancel();
+          } catch (cancelError) {
+            // Ignore cancel errors
+          }
+          throw new Error('Request cancelled by user');
+        }
+        throw streamError;
+      } finally {
+        try {
+          reader.releaseLock();
+        } catch (lockError) {
+          // Ignore lock release errors
+        }
+      }
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log('LLM Service - Ash streaming response length:', fullResponse.length);
+      }
+
+      return fullResponse;
+    } else {
+      // Non-streaming fallback
+      let response;
+      try {
+        response = await fetch(url, {
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify({
+            model: this.model,
+            prompt: `${prompt.system}\n\n${prompt.user}`,
+            stream: false,
+            options: {
+              temperature: this.temperature,
+              num_predict: this.maxTokens
+            }
+          }),
+          signal: abortSignal
+        });
+      } catch (fetchError) {
+        if (fetchError.name === 'AbortError' || abortSignal?.aborted) {
+          throw new Error('Request cancelled by user');
+        }
+        throw fetchError;
+      }
+
+      if (!response.ok) {
+        try {
+          const errorText = await response.text();
+          throw new Error(`Ash API error: ${response.status} - ${errorText}`);
+        } catch (textError) {
+          if (textError.name === 'AbortError' || abortSignal?.aborted) {
+            throw new Error('Request cancelled by user');
+          }
+          throw textError;
+        }
+      }
+
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonError) {
+        if (jsonError.name === 'AbortError' || jsonError?.aborted) {
+          throw new Error('Request cancelled by user');
+        }
+        throw jsonError;
+      }
+      
+      const result = data.response || data.text || '';
+      
+      // Check if aborted before returning
+      if (abortSignal?.aborted) {
+        throw new Error('Request cancelled by user');
+      }
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log('LLM Service - Ash non-streaming response:', result);
+      }
+      
+      return result;
     }
   }
 

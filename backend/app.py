@@ -176,6 +176,21 @@ async def execute_task_stream(request: TaskRequest):
                     base_url = base_url.rstrip('/') + '/v1'
                 llm_config_data['model_server'] = base_url
                 llm_config_data['api_key'] = 'ollama'
+            elif request.llm_config.provider == 'ash':
+                # Ash backend proxies to Ollama, so use the same format
+                base_url = request.llm_config.base_url or 'https://ash.toktoktalk.com/v1'
+                if not base_url.endswith('/v1'):
+                    base_url = base_url.rstrip('/') + '/v1'
+                llm_config_data['model_server'] = base_url
+                # Use the API key from request, or default to 'ollama' if not provided
+                api_key = request.llm_config.api_key or 'ollama'
+                llm_config_data['api_key'] = api_key
+                # Qwen-Agent may use api_key as Authorization header, but ash server needs X-API-Key
+                # Try to add custom headers if Qwen-Agent supports it
+                # Note: This depends on Qwen-Agent's implementation
+                if 'headers' not in llm_config_data:
+                    llm_config_data['headers'] = {}
+                llm_config_data['headers']['X-API-Key'] = api_key
             elif request.llm_config.provider == 'openai':
                 llm_config_data['model_server'] = request.llm_config.base_url or 'https://api.openai.com/v1'
             elif request.llm_config.provider == 'anthropic':
@@ -186,6 +201,11 @@ async def execute_task_stream(request: TaskRequest):
                 llm_config_data['model_server'] = base_url
 
             logger.info(f"Using LLM config: provider={request.llm_config.provider}, model={llm_config_data['model']}, server={llm_config_data['model_server']}")
+            if request.llm_config.provider == 'ash':
+                logger.info(f"Ash API key: {api_key[:10]}... (truncated for security)")
+                logger.info(f"Ash LLM config keys: {list(llm_config_data.keys())}")
+                if 'headers' in llm_config_data:
+                    logger.info(f"Ash custom headers: {list(llm_config_data['headers'].keys())}")
             
             assistant = Assistant(
                 llm=llm_config_data,

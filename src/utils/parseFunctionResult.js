@@ -83,7 +83,7 @@ export function removeFunctionPatterns(content) {
 
 /**
  * Extract thinking/reasoning content from text
- * Handles patterns like <thinking>...</thinking> or <reasoning>...</reasoning>
+ * Handles patterns like <think>...</think>, <thinking>...</thinking> or <reasoning>...</reasoning>
  * @param {string} content - Content that may contain thinking tags
  * @returns {string} Extracted thinking content
  */
@@ -92,8 +92,8 @@ export function extractThinking(content) {
     return '';
   }
 
-  // Pattern: <thinking>...</thinking> or <reasoning>...</reasoning>
-  const thinkingPattern = /<(?:thinking|reasoning)>(.*?)<\/(?:thinking|reasoning)>/gis;
+  // Pattern: <think>...</think>, <thinking>...</thinking> or <reasoning>...</reasoning>
+  const thinkingPattern = /<(?:think|thinking|reasoning)>(.*?)<\/(?:think|thinking|reasoning)>/gis;
   const matches = [...content.matchAll(thinkingPattern)];
   
   if (matches.length > 0) {
@@ -114,8 +114,8 @@ export function removeThinkingTags(content) {
     return content;
   }
 
-  // Remove <thinking>...</thinking> or <reasoning>...</reasoning> tags
-  const thinkingPattern = /<(?:thinking|reasoning)>.*?<\/(?:thinking|reasoning)>/gis;
+  // Remove <think>...</think>, <thinking>...</thinking> or <reasoning>...</reasoning> tags
+  const thinkingPattern = /<(?:think|thinking|reasoning)>.*?<\/(?:think|thinking|reasoning)>/gis;
   let cleaned = content.replace(thinkingPattern, '');
   
   // Clean up extra newlines

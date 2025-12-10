@@ -38,6 +38,8 @@ export const Settings = memo(function Settings({
 
   // Fetch Ollama models when provider is ollama and baseURL is set
   useEffect(() => {
+    let cancelled = false;
+
     // Helper function to check if baseURL is an Ollama URL
     const isOllamaURL = (url) => {
       if (!url) return false;
@@ -59,7 +61,100 @@ export const Settings = memo(function Settings({
       }
     };
 
-    // Early return if not ollama provider or baseURL is not Ollama - don't fetch models for other providers
+    // Helper function to check if provider supports model listing
+    const supportsModelListing = (provider) => {
+      return provider === 'ollama' || provider === 'ash';
+    };
+
+    // Early return if provider doesn't support model listing
+    if (!supportsModelListing(llmSettings?.provider)) {
+      setOllamaModels([]);
+      setFilteredModels([]);
+      setIsLoadingModels(false);
+      return;
+    }
+
+    // For ash provider, use /v1/tags endpoint
+    if (llmSettings?.provider === 'ash') {
+      // Capture current values to avoid closure issues
+      const currentProvider = llmSettings.provider;
+      const currentBaseURL = llmSettings.baseURL;
+      const currentEnabled = llmSettings.enabled;
+
+      // Don't fetch if not enabled
+      if (!currentEnabled) {
+        setOllamaModels([]);
+        setFilteredModels([]);
+        setIsLoadingModels(false);
+        return;
+      }
+
+      const fetchAshModels = async () => {
+        if (cancelled || currentProvider !== 'ash') {
+          setOllamaModels([]);
+          setFilteredModels([]);
+          setIsLoadingModels(false);
+          return;
+        }
+
+        setIsLoadingModels(true);
+        try {
+          const baseURL = currentBaseURL.endsWith('/v1') ? currentBaseURL : `${currentBaseURL.replace(/\/$/, '')}/v1`;
+          const url = `${baseURL}/tags`;
+          
+          // Build headers
+          const headers = {
+            'Content-Type': 'application/json',
+          };
+          const apiKey = llmSettings?.apiKey;
+          if (apiKey) {
+            headers['X-API-Key'] = apiKey;
+          }
+          
+          const response = await fetch(url, {
+            method: 'GET',
+            headers: headers
+          });
+
+          if (cancelled || currentProvider !== 'ash') {
+            return;
+          }
+
+          if (response.ok) {
+            const data = await response.json();
+            // OpenAI-compatible format: { data: [{ id: "model1", ... }, ...] }
+            // Ollama native format: { models: [{ name: "model1", ... }, ...] }
+            const models = data.data || data.models || [];
+            if (Array.isArray(models)) {
+              const modelNames = models.map(model => model.id || model.name || model.model || model).filter(Boolean);
+              setOllamaModels(modelNames);
+              setFilteredModels(modelNames);
+            }
+          } else {
+            setOllamaModels([]);
+            setFilteredModels([]);
+          }
+        } catch (error) {
+          if (!cancelled && currentProvider === 'ash') {
+            console.debug('Failed to fetch Ash models:', error);
+          }
+          setOllamaModels([]);
+          setFilteredModels([]);
+        } finally {
+          if (!cancelled && currentProvider === 'ash') {
+            setIsLoadingModels(false);
+          }
+        }
+      };
+
+      const timeoutId = setTimeout(fetchAshModels, 500);
+      return () => {
+        cancelled = true;
+        clearTimeout(timeoutId);
+      };
+    }
+
+    // For ollama provider, use existing logic
     if (llmSettings?.provider !== 'ollama' || !isOllamaURL(llmSettings?.baseURL)) {
       setOllamaModels([]);
       setFilteredModels([]);
@@ -79,8 +174,6 @@ export const Settings = memo(function Settings({
       setIsLoadingModels(false);
       return;
     }
-
-    let cancelled = false;
 
     const fetchOllamaModels = async () => {
       // Double-check everything before fetching
@@ -544,6 +637,8 @@ export const Settings = memo(function Settings({
                           ? 'OpenAI' 
                           : llmSettings?.provider === 'anthropic'
                           ? 'Anthropic (Claude)'
+                          : llmSettings?.provider === 'ash'
+                          ? 'Ash'
                           : 'Ollama (Local)'}
                       </span>
                       <span style={{
@@ -694,6 +789,50 @@ export const Settings = memo(function Settings({
                         >
                           Anthropic (Claude)
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const provider = 'ash';
+                            const updates = { provider };
+                            if (!llmSettings?.baseURL || 
+                                llmSettings?.baseURL === 'http://localhost:11434' ||
+                                llmSettings?.baseURL.includes('openai.com') ||
+                                llmSettings?.baseURL.includes('anthropic.com')) {
+                              updates.baseURL = 'https://ash.toktoktalk.com/v1';
+                            }
+                            if (!llmSettings?.model || 
+                                llmSettings?.model === 'llama3.2' ||
+                                llmSettings?.model === 'gpt-4o-mini' ||
+                                llmSettings?.model.includes('claude')) {
+                              updates.model = 'llama3.2';
+                            }
+                            onChangeLlmSettings?.(updates);
+                            setShowProviderDropdown(false);
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            background: llmSettings?.provider === 'ash' ? 'rgba(0, 255, 65, 0.15)' : 'transparent',
+                            border: 'none',
+                            color: '#00ff41',
+                            fontSize: '13px',
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                            transition: 'background 0.15s'
+                          }}
+                          onMouseEnter={(e) => {
+                            if (llmSettings?.provider !== 'ash') {
+                              e.currentTarget.style.backgroundColor = 'rgba(0, 255, 65, 0.1)';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (llmSettings?.provider !== 'ash') {
+                              e.currentTarget.style.backgroundColor = 'transparent';
+                            }
+                          }}
+                        >
+                          Ash
+                        </button>
                       </div>
                     )}
                   </div>
@@ -702,7 +841,7 @@ export const Settings = memo(function Settings({
                   </p>
                 </div>
 
-                {llmSettings?.provider !== 'ollama' && (
+                {(llmSettings?.provider !== 'ollama' && llmSettings?.provider !== 'ash') && (
                   <div className="setting-group">
                     <label>{t('settings:apiKey')}</label>
                     <input
@@ -714,6 +853,21 @@ export const Settings = memo(function Settings({
                     />
                     <p className="setting-description">
                       {t('settings:apiKeyDesc', { provider: llmSettings?.provider === 'openai' ? 'OpenAI' : 'Anthropic' })}
+                    </p>
+                  </div>
+                )}
+                {llmSettings?.provider === 'ash' && (
+                  <div className="setting-group">
+                    <label>{t('settings:apiKey')}</label>
+                    <input
+                      type="password"
+                      value={llmSettings?.apiKey || ''}
+                      onChange={(e) => onChangeLlmSettings?.({ apiKey: e.target.value })}
+                      placeholder="Optional API key"
+                      style={{ width: '400px', padding: '8px 12px', background: '#1a1a1a', border: '1px solid #1a1a1a', borderRadius: '4px', color: '#00ff41', fontSize: '13px' }}
+                    />
+                    <p className="setting-description">
+                      Optional API key for Ash provider
                     </p>
                   </div>
                 )}
@@ -731,6 +885,8 @@ export const Settings = memo(function Settings({
                         ? 'https://api.openai.com/v1'
                         : llmSettings?.provider === 'anthropic'
                         ? 'https://api.anthropic.com/v1'
+                        : llmSettings?.provider === 'ash'
+                        ? 'https://ash.toktoktalk.com/v1'
                         : ''
                     }
                     style={{ width: '400px', padding: '8px 12px', background: '#1a1a1a', border: '1px solid #1a1a1a', borderRadius: '4px', color: '#00ff41', fontSize: '13px' }}
@@ -743,12 +899,12 @@ export const Settings = memo(function Settings({
                 <div className="setting-group">
                   <label>
                     {t('settings:model')}
-                    {llmSettings?.provider === 'ollama' && ollamaModels.length > 0 && (
+                    {(llmSettings?.provider === 'ollama' || llmSettings?.provider === 'ash') && ollamaModels.length > 0 && (
                       <span style={{ marginLeft: '8px', fontSize: '11px', color: '#888', fontWeight: 'normal' }}>
                         ({ollamaModels.length} {t('settings:available')})
                       </span>
                     )}
-                    {llmSettings?.provider === 'ollama' && isLoadingModels && (
+                    {(llmSettings?.provider === 'ollama' || llmSettings?.provider === 'ash') && isLoadingModels && (
                       <span style={{ marginLeft: '8px', fontSize: '11px', color: '#888', fontWeight: 'normal' }}>
                         ({t('settings:loading')})
                       </span>
@@ -763,18 +919,18 @@ export const Settings = memo(function Settings({
                         onChange={(e) => {
                           const newValue = e.target.value;
                           onChangeLlmSettings?.({ model: newValue });
-                          if (llmSettings?.provider === 'ollama' && ollamaModels.length > 0) {
+                          if ((llmSettings?.provider === 'ollama' || llmSettings?.provider === 'ash') && ollamaModels.length > 0) {
                             setShowModelDropdown(true);
                             setHighlightedIndex(-1);
                           }
                         }}
                         onFocus={() => {
-                          if (llmSettings?.provider === 'ollama' && ollamaModels.length > 0) {
+                          if ((llmSettings?.provider === 'ollama' || llmSettings?.provider === 'ash') && ollamaModels.length > 0) {
                             setShowModelDropdown(true);
                           }
                         }}
                         onKeyDown={(e) => {
-                          if (llmSettings?.provider === 'ollama' && ollamaModels.length > 0 && showModelDropdown) {
+                          if ((llmSettings?.provider === 'ollama' || llmSettings?.provider === 'ash') && ollamaModels.length > 0 && showModelDropdown) {
                             if (e.key === 'ArrowDown') {
                               e.preventDefault();
                               setHighlightedIndex(prev => 
@@ -794,7 +950,7 @@ export const Settings = memo(function Settings({
                             }
                           }
                         }}
-                        placeholder={llmSettings?.provider === 'ollama' ? 'llama3.2' : llmSettings?.provider === 'openai' ? 'gpt-4o-mini' : 'claude-3-5-sonnet-20241022'}
+                        placeholder={llmSettings?.provider === 'ollama' ? 'llama3.2' : llmSettings?.provider === 'openai' ? 'gpt-4o-mini' : llmSettings?.provider === 'anthropic' ? 'claude-3-5-sonnet-20241022' : llmSettings?.provider === 'ash' ? 'llama3.2' : 'llama3.2'}
                         style={{ 
                           width: '100%', 
                           padding: '8px 32px 8px 12px', 
@@ -806,7 +962,7 @@ export const Settings = memo(function Settings({
                           boxSizing: 'border-box'
                         }}
                       />
-                      {llmSettings?.provider === 'ollama' && (
+                      {(llmSettings?.provider === 'ollama' || llmSettings?.provider === 'ash') && (
                         <button
                           type="button"
                           onClick={() => setShowModelDropdown(!showModelDropdown)}
@@ -828,7 +984,7 @@ export const Settings = memo(function Settings({
                         </button>
                       )}
                     </div>
-                    {llmSettings?.provider === 'ollama' && showModelDropdown && filteredModels.length > 0 && (
+                    {(llmSettings?.provider === 'ollama' || llmSettings?.provider === 'ash') && showModelDropdown && filteredModels.length > 0 && (
                       <div
                         ref={modelDropdownRef}
                         style={{
@@ -876,8 +1032,8 @@ export const Settings = memo(function Settings({
                     )}
                   </div>
                   <p className="setting-description">
-                    {llmSettings?.provider === 'ollama' 
-                      ? ollamaModels.length > 0 
+                    {(llmSettings?.provider === 'ollama' || llmSettings?.provider === 'ash')
+                      ? ollamaModels.length > 0
                         ? t('settings:modelDescOllama')
                         : t('settings:modelDescOllamaLoading')
                       : t('settings:modelDesc')
