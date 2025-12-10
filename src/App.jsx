@@ -129,6 +129,7 @@ function App() {
     password: '',
     sessionName: '',
     savePassword: false,
+    useTelnet: false, // Use Telnet instead of SSH
     // Serial port specific fields
     serialPort: '',
     baudRate: '9600',
@@ -519,7 +520,8 @@ function App() {
     initializeTerminal,
     cleanupLog,
     setErrorDialog,
-    reconnectRetry
+    reconnectRetry,
+    updateConnectionIdMap
   });
 
   // Keyboard shortcuts hook (must be after useConnectionManagement to access reconnectSession)

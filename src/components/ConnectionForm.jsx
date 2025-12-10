@@ -213,6 +213,21 @@ export const ConnectionForm = memo(function ConnectionForm({
                   placeholder={t('connection:passwordPlaceholder')}
                 />
               </div>
+
+              <div className="form-group checkbox-group">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    name="useTelnet"
+                    checked={connectionForm.useTelnet || false}
+                    onChange={onInputChange}
+                  />
+                  <span className="checkbox-text">Use Telnet</span>
+                </label>
+                <div className="checkbox-help" style={{ fontSize: '11px', color: '#888' }}>
+                  Connect using Telnet instead of SSH
+                </div>
+              </div>
             </>
           )}
 
