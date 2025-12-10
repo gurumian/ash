@@ -145,7 +145,11 @@ export async function startBackend() {
         // uv not found, try python
         const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
         try {
-          execSync(`which ${pythonCmd}`, { stdio: 'ignore' });
+          if (process.platform === 'win32') {
+            execSync(`where ${pythonCmd}`, { stdio: 'ignore' });
+          } else {
+            execSync(`which ${pythonCmd}`, { stdio: 'ignore' });
+          }
           cmd = pythonCmd;
           args = ['-m', 'uvicorn', 'app:app', '--host', '127.0.0.1', '--port', String(BACKEND_PORT), '--reload'];
           console.log(`Using python to run backend`);
