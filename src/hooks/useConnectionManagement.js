@@ -28,6 +28,7 @@ export function useConnectionManagement({
   setPendingGroupAdditions,
   initializeTerminal,
   cleanupLog,
+  cleanupStopwatch,
   cleanupTerminal,
   setErrorDialog,
   reconnectRetry,
@@ -448,6 +449,11 @@ export function useConnectionManagement({
     // Clean up session logs
     await cleanupLog(sessionId);
     
+    // Clean up stopwatch
+    if (cleanupStopwatch) {
+      cleanupStopwatch(sessionId);
+    }
+    
     setSessions(prev => prev.filter(s => s.id !== sessionId));
     
     if (activeSessionId === sessionId) {
@@ -462,6 +468,7 @@ export function useConnectionManagement({
     fitAddons,
     searchAddons,
     cleanupLog,
+    cleanupStopwatch,
     cleanupTerminal,
     setSessions,
     setActiveSessionId

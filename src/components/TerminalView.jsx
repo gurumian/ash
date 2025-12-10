@@ -5,62 +5,10 @@ import { TerminalSearchBar } from './TerminalSearchBar';
 // AI Command Input is now in AIChatSidebar, not here
 
 /**
- * Stopwatch component - independent timer with play, stop, reset controls
+ * Stopwatch component - independent timer with play, stop, reset controls per session
  */
-function Stopwatch() {
-  const [isRunning, setIsRunning] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
-  const [startTime, setStartTime] = useState(null);
-  const intervalRef = useRef(null);
-
-  useEffect(() => {
-    if (isRunning) {
-      const updateElapsed = () => {
-        if (startTime) {
-          const now = Date.now();
-          const diff = Math.floor((now - startTime) / 1000); // seconds
-          setElapsed(diff);
-        }
-      };
-
-      // Update immediately
-      updateElapsed();
-
-      // Update every second
-      intervalRef.current = setInterval(updateElapsed, 1000);
-    } else {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    }
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, [isRunning, startTime]);
-
-  const handlePlay = () => {
-    if (!isRunning) {
-      // Resume from current elapsed time
-      const now = Date.now();
-      const baseTime = now - (elapsed * 1000);
-      setStartTime(baseTime);
-      setIsRunning(true);
-    }
-  };
-
-  const handleStop = () => {
-    setIsRunning(false);
-  };
-
-  const handleReset = () => {
-    setIsRunning(false);
-    setElapsed(0);
-    setStartTime(null);
-  };
+function Stopwatch({ sessionId, stopwatchState, onStart, onStop, onReset }) {
+  const { isRunning, elapsed } = stopwatchState || { isRunning: false, elapsed: 0 };
 
   const formatTime = (seconds) => {
     const hours = Math.floor(seconds / 3600);
@@ -80,7 +28,7 @@ function Stopwatch() {
         {!isRunning ? (
           <button 
             className="stopwatch-btn play-btn"
-            onClick={handlePlay}
+            onClick={() => onStart(sessionId)}
             title="Start timer"
           >
             ▶
@@ -88,7 +36,7 @@ function Stopwatch() {
         ) : (
           <button 
             className="stopwatch-btn stop-btn"
-            onClick={handleStop}
+            onClick={() => onStop(sessionId)}
             title="Stop timer"
           >
             ⏸
@@ -96,7 +44,7 @@ function Stopwatch() {
         )}
         <button 
           className="stopwatch-btn reset-btn"
-          onClick={handleReset}
+          onClick={() => onReset(sessionId)}
           title="Reset timer"
           disabled={elapsed === 0}
         >
@@ -148,7 +96,11 @@ export const TerminalView = memo(function TerminalView({
   onToggleAICommandInput, // Toggles AIChatSidebar
   onFileDrop,
   onReconnectSession,
-  reconnectingSessions
+  reconnectingSessions,
+  stopwatchState,
+  onStartStopwatch,
+  onStopStopwatch,
+  onResetStopwatch
 }) {
   const { t } = useTranslation('common');
   // Track previous value for change detection (debug only)
@@ -373,7 +325,13 @@ export const TerminalView = memo(function TerminalView({
                 <span className="log-status">
                   {logStates[activeSessionId]?.isLogging ? t('common:recording') : t('common:notRecording')}
                 </span>
-                <Stopwatch />
+                <Stopwatch 
+                  sessionId={activeSessionId}
+                  stopwatchState={stopwatchState}
+                  onStart={onStartStopwatch}
+                  onStop={onStopStopwatch}
+                  onReset={onResetStopwatch}
+                />
               </div>
             )}
           </div>

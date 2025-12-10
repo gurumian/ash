@@ -7,6 +7,7 @@ import { SerialConnection } from './connections/SerialConnection';
 import { useTheme } from './hooks/useTheme';
 import { useConnectionHistory } from './hooks/useConnectionHistory';
 import { useLogging } from './hooks/useLogging';
+import { useStopwatch } from './hooks/useStopwatch';
 import { useGroups } from './hooks/useGroups';
 import { useLibraries } from './hooks/useLibraries';
 import { useSerialPorts } from './hooks/useSerialPorts';
@@ -152,6 +153,7 @@ function App() {
   // Use custom hooks
   const { connectionHistory, favorites, saveConnectionHistory, toggleFavorite, removeConnection } = useConnectionHistory();
   const { sessionLogs, logStates, appendToLog, startLogging, stopLogging, saveLog, clearLog, cleanupLog } = useLogging(sessions, groups);
+  const { getStopwatchState, startStopwatch, stopStopwatch, resetStopwatch, cleanupStopwatch } = useStopwatch();
   const { availableSerialPorts, loadSerialPorts } = useSerialPorts();
   
   // Libraries hook
@@ -519,6 +521,7 @@ function App() {
     addSessionToGroup,
     initializeTerminal,
     cleanupLog,
+    cleanupStopwatch,
     setErrorDialog,
     reconnectRetry,
     updateConnectionIdMap
@@ -1301,6 +1304,10 @@ function App() {
             }
           }}
           reconnectingSessions={reconnectingSessions}
+          stopwatchState={activeSessionId ? getStopwatchState(activeSessionId) : null}
+          onStartStopwatch={startStopwatch}
+          onStopStopwatch={stopStopwatch}
+          onResetStopwatch={resetStopwatch}
         />
 
         {/* Resize handle for Secondary Sidebar Container */}
