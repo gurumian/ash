@@ -53,7 +53,7 @@ const makers = [
 module.exports = {
   packagerConfig: {
     asar: {
-      unpack: '**/{serialport,ssh2}/**' // Native modules that need to be unpacked from asar
+      unpack: '**/{serialport,ssh2,telnet-stream}/**' // Native modules and dynamically required modules that need to be unpacked from asar
     },
     appBundleId: 'com.gurumlab.ash',
     executableName: 'ash',
