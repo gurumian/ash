@@ -71,11 +71,9 @@ export function initializeTelnetHandlers() {
           // Server wants us to enable an option
           if (option === ECHO) {
             // Server wants to echo - accept it (DO ECHO)
-            console.log(`[TELNET-DEBUG] Server requests ECHO, accepting`);
             tSocket.writeWill(option);
           } else if (option === SUPPRESS_GO_AHEAD) {
             // Server wants to suppress go ahead - accept it
-            console.log(`[TELNET-DEBUG] Server requests SUPPRESS_GO_AHEAD, accepting`);
             tSocket.writeWill(option);
           } else {
             // Refuse other options
@@ -87,11 +85,9 @@ export function initializeTelnetHandlers() {
           // Server offers to enable an option
           if (option === ECHO) {
             // Server offers to echo - accept it (DO ECHO)
-            console.log(`[TELNET-DEBUG] Server offers ECHO, accepting`);
             tSocket.writeDo(option);
           } else if (option === SUPPRESS_GO_AHEAD) {
             // Server offers to suppress go ahead - accept it
-            console.log(`[TELNET-DEBUG] Server offers SUPPRESS_GO_AHEAD, accepting`);
             tSocket.writeDo(option);
           } else {
             // Tell server we don't want other options
@@ -104,28 +100,22 @@ export function initializeTelnetHandlers() {
         // even before socket.on('connect') event fires, so we must be ready
         tSocket.on('data', (data) => {
           try {
-            console.log(`[TELNET-DEBUG] Received data for ${connectionId}, length: ${data.length}, isConnected: ${isConnected}, isClosed: ${isClosed}`);
             if (!webContents.isDestroyed() && !isClosed) {
               const dataString = data.toString();
-              console.log(`[TELNET-DEBUG] Sending to renderer: ${dataString.substring(0, 100)}...`);
               webContents.send('telnet-data', { connectionId: connectionId, data: dataString });
-            } else {
-              console.log(`[TELNET-DEBUG] Skipping send - destroyed: ${webContents.isDestroyed()}, closed: ${isClosed}`);
             }
           } catch (error) {
-            console.error(`[TELNET-DEBUG] Error in data handler:`, error);
+            console.error(`Error in Telnet data handler:`, error);
           }
         });
         
         // Handle telnet stream close event
         tSocket.on('close', () => {
-          console.log(`Telnet stream closed: ${connectionId}`);
           handleClose();
         });
         
         // Handle telnet stream end event
         tSocket.on('end', () => {
-          console.log(`Telnet stream ended: ${connectionId}`);
           handleClose();
         });
         
@@ -143,7 +133,6 @@ export function initializeTelnetHandlers() {
           
           isConnected = true;
           // Maps already set above - no need to set again
-          console.log(`[TELNET-DEBUG] Connection established: ${connectionId}, webContents exists: ${!!webContents}, destroyed: ${webContents.isDestroyed()}`);
           resolve({ success: true, connectionId });
         });
         
@@ -158,7 +147,6 @@ export function initializeTelnetHandlers() {
         // Handle socket close event
         socket.on('close', (hadError) => {
           if (isConnected && !isClosed) {
-            console.log(`Telnet socket closed: ${connectionId}${hadError ? ' (with error)' : ''}`);
             handleClose();
           }
         });
@@ -170,20 +158,16 @@ export function initializeTelnetHandlers() {
 
   // Send data to Telnet connection
   ipcMain.handle('telnet-write', async (event, { connectionId, data }) => {
-    console.log(`[TELNET-DEBUG] telnet-write called: connectionId=${connectionId}, data length=${data.length}`);
     const connInfo = telnetConnections.get(connectionId);
     if (!connInfo || !connInfo.tSocket) {
-      console.error(`[TELNET-DEBUG] Connection not found: connectionId=${connectionId}`);
       throw new Error('Telnet connection not found');
     }
     
     try {
-      console.log(`[TELNET-DEBUG] Writing to tSocket: "${data.substring(0, 50)}"`);
       connInfo.tSocket.write(data);
-      console.log(`[TELNET-DEBUG] Write successful`);
       return { success: true };
     } catch (error) {
-      console.error(`[TELNET-DEBUG] Write error:`, error);
+      console.error(`Failed to write to Telnet:`, error);
       throw new Error(`Failed to write to Telnet: ${error.message}`);
     }
   });

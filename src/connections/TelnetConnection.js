@@ -10,18 +10,14 @@ export class TelnetConnection {
 
   async connect(host, port) {
     try {
-      console.log(`Telnet connecting to ${host}:${port}`);
       const result = await window.electronAPI.telnetConnect({
         host,
         port: parseInt(port)
       });
       
-      console.log('Telnet connect result:', result);
-      
       if (result.success) {
         this.connectionId = result.connectionId;
         this.isConnected = true;
-        console.log(`Telnet connection successful: ${this.connectionId}`);
         return result;
       } else {
         throw new Error('Telnet connection failed');
@@ -52,11 +48,9 @@ export class TelnetConnection {
 
   write(data) {
     if (!this.isConnected) {
-      console.warn(`[TELNET-DEBUG] Cannot write - not connected`);
       return;
     }
     
-    console.log(`[TELNET-DEBUG] Writing data: connectionId=${this.connectionId}, data length=${data.length}, data="${data.substring(0, 50)}"`);
     window.electronAPI.telnetWrite(this.connectionId, data);
   }
 

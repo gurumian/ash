@@ -270,16 +270,11 @@ export function useTerminalManagement({
         const connectionId = connection.connectionId;
         const buffer = dataBufferRef.current.get(connectionId);
         if (buffer && buffer.length > 0) {
-          console.log(`[TELNET-DEBUG] Terminal ready, flushing ${buffer.length} buffered data chunks for connectionId ${connectionId}, sessionId ${sessionId}`);
           // Write all buffered data in order
-          buffer.forEach((bufferedData, index) => {
-            console.log(`[TELNET-DEBUG] Flushing buffer chunk ${index + 1}/${buffer.length}: "${bufferedData.substring(0, 50)}"`);
+          buffer.forEach((bufferedData) => {
             terminal.write(bufferedData);
           });
           dataBufferRef.current.delete(connectionId);
-          console.log(`[TELNET-DEBUG] Buffer flushed and cleared for connectionId ${connectionId}`);
-        } else {
-          console.log(`[TELNET-DEBUG] No buffered data found for connectionId ${connectionId}, sessionId ${sessionId}`);
         }
       }
     }
@@ -289,7 +284,6 @@ export function useTerminalManagement({
     dataBufferRef.current.forEach((buffer, bufferedConnectionId) => {
       const bufferedSessionId = connectionIdMapRef.current.get(bufferedConnectionId);
       if (bufferedSessionId === sessionId && buffer.length > 0) {
-        console.log(`[TELNET-DEBUG] Found buffered data for connectionId ${bufferedConnectionId} that matches sessionId ${sessionId}, flushing...`);
         buffer.forEach((bufferedData) => {
           terminal.write(bufferedData);
         });
@@ -476,12 +470,9 @@ export function useTerminalManagement({
       terminalInputHandlers.current[sessionId] = (data) => {
         // CRITICAL: Send data immediately - highest priority, no blocking
         const connection = sshConnections.current[sessionId];
-        console.log(`[TELNET-DEBUG] Terminal input handler called for session ${sessionId}, connection exists: ${!!connection}, data length: ${data.length}`);
         if (connection) {
           // Direct write - works for both SSH, Telnet, and Serial connections
           connection.write(data);
-        } else {
-          console.warn(`[TELNET-DEBUG] No connection found for session ${sessionId}`);
         }
         
         // Log synchronously but non-blocking - optimized append
@@ -499,8 +490,6 @@ export function useTerminalManagement({
     // This ensures map includes the connectionId after connection.connect() completes
     if ((session.connectionType === 'ssh' || session.connectionType === 'telnet') && 
         sshConnections.current[sessionId]?.connectionId) {
-      const connectionId = sshConnections.current[sessionId].connectionId;
-      console.log(`[TELNET-DEBUG] Updating connectionId map for ${session.connectionType} session ${sessionId}, connectionId: ${connectionId}`);
       updateConnectionIdMap();
       
       // Note: Buffer flushing is done above right after terminal instance is stored
@@ -675,19 +664,15 @@ export function useTerminalManagement({
     };
 
     const handleTelnetData = (event, { connectionId, data }) => {
-      console.log(`[TELNET-DEBUG-RENDERER] Received telnet-data event, connectionId: ${connectionId}, data length: ${data?.length || 0}`);
       // Use cached map for O(1) lookup - much faster than building map each time
       const sessionId = connectionIdMapRef.current.get(connectionId);
-      console.log(`[TELNET-DEBUG-RENDERER] Mapped to sessionId: ${sessionId}, terminal exists: ${!!terminalInstances.current[sessionId]}`);
       
       if (sessionId && terminalInstances.current[sessionId]) {
         const terminal = terminalInstances.current[sessionId];
-        console.log(`[TELNET-DEBUG-RENDERER] Writing to terminal, data: ${data.substring(0, 100)}...`);
         
         // Flush any buffered data first (in order)
         const buffer = dataBufferRef.current.get(connectionId);
         if (buffer && buffer.length > 0) {
-          console.log(`[TELNET-DEBUG-RENDERER] Flushing ${buffer.length} buffered data chunks for connectionId ${connectionId}`);
           buffer.forEach(bufferedData => {
             terminal.write(bufferedData);
           });
@@ -723,21 +708,16 @@ export function useTerminalManagement({
         }
       } else if (sessionId) {
         // Terminal not ready yet - buffer the data
-        console.log(`[TELNET-DEBUG-RENDERER] Terminal not ready, buffering data for connectionId ${connectionId}, sessionId: ${sessionId}, data: "${data.substring(0, 50)}"`);
         if (!dataBufferRef.current.has(connectionId)) {
           dataBufferRef.current.set(connectionId, []);
         }
         dataBufferRef.current.get(connectionId).push(data);
-        console.log(`[TELNET-DEBUG-RENDERER] Buffer now has ${dataBufferRef.current.get(connectionId).length} chunks for connectionId ${connectionId}`);
       } else {
-        console.warn(`[TELNET-DEBUG-RENDERER] No sessionId found for connectionId ${connectionId} - this means connectionId mapping is missing!`);
-        console.warn(`[TELNET-DEBUG-RENDERER] Current map:`, Array.from(connectionIdMapRef.current.entries()));
         // Still try to buffer by connectionId - we'll match it later when mapping is ready
         if (!dataBufferRef.current.has(connectionId)) {
           dataBufferRef.current.set(connectionId, []);
         }
         dataBufferRef.current.get(connectionId).push(data);
-        console.log(`[TELNET-DEBUG-RENDERER] Buffered data for unmapped connectionId ${connectionId}, will match when mapping is available`);
       }
     };
 
@@ -766,19 +746,10 @@ export function useTerminalManagement({
       }
     };
 
-    // Debug: log connectionId map on each update
-    const logConnectionIdMap = () => {
-      console.log('[TELNET-DEBUG] ConnectionId map:', Array.from(connectionIdMapRef.current.entries()));
-      console.log('[TELNET-DEBUG] sshConnections keys:', Object.keys(sshConnections.current));
-    };
-
     window.electronAPI.onSSHData(handleSshData);
     window.electronAPI.onSSHClose(handleSshClose);
     window.electronAPI.onTelnetData(handleTelnetData);
     window.electronAPI.onTelnetClose(handleTelnetClose);
-
-    // Log map after setting up listeners
-    logConnectionIdMap();
 
     return () => {
       window.electronAPI.offSSHData(handleSshData);
