@@ -362,7 +362,10 @@ export function useConnectionManagement({
       // Connection already stored above before completeTelnetSessionSetup/completeSSHSessionSetup
       if (formData.connectionType === 'ssh' && !formData.useTelnet) {
         sshConnections.current[sessionId] = connection; // Store SSH connection
+      } else if (formData.connectionType === 'serial') {
+        sshConnections.current[sessionId] = connection; // Store Serial connection
       }
+      // Note: Telnet connection is already stored at line 245 before connection.connect()
       
       // Reset form (unless skipFormReset is true)
       if (!skipFormReset) {
