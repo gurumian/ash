@@ -804,7 +804,7 @@ export const Settings = memo(function Settings({
                                 llmSettings?.model === 'llama3.2' ||
                                 llmSettings?.model === 'gpt-4o-mini' ||
                                 llmSettings?.model.includes('claude')) {
-                              updates.model = 'llama3.2';
+                              updates.model = 'qwen3:14b';
                             }
                             onChangeLlmSettings?.(updates);
                             setShowProviderDropdown(false);
@@ -950,7 +950,7 @@ export const Settings = memo(function Settings({
                             }
                           }
                         }}
-                        placeholder={llmSettings?.provider === 'ollama' ? 'llama3.2' : llmSettings?.provider === 'openai' ? 'gpt-4o-mini' : llmSettings?.provider === 'anthropic' ? 'claude-3-5-sonnet-20241022' : llmSettings?.provider === 'ash' ? 'llama3.2' : 'llama3.2'}
+                        placeholder={llmSettings?.provider === 'ollama' ? 'llama3.2' : llmSettings?.provider === 'openai' ? 'gpt-4o-mini' : llmSettings?.provider === 'anthropic' ? 'claude-3-5-sonnet-20241022' : llmSettings?.provider === 'ash' ? 'qwen3:14b' : 'llama3.2'}
                         style={{ 
                           width: '100%', 
                           padding: '8px 32px 8px 12px', 

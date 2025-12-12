@@ -13,7 +13,7 @@ export function useLLMSettings() {
           provider: parsed.provider || 'ollama',
           apiKey: parsed.apiKey || '',
           baseURL: parsed.baseURL || (parsed.provider === 'ollama' ? 'http://localhost:11434' : ''),
-          model: parsed.model || (parsed.provider === 'ollama' ? 'llama3.2' : ''),
+          model: parsed.model || (parsed.provider === 'ollama' ? 'llama3.2' : parsed.provider === 'ash' ? 'qwen3:14b' : ''),
           enabled: parsed.enabled !== undefined ? parsed.enabled : false,
           temperature: parsed.temperature !== undefined ? parsed.temperature : 0.7,
           maxTokens: parsed.maxTokens !== undefined ? parsed.maxTokens : 1000
