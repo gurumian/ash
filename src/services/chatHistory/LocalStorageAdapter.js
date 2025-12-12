@@ -235,6 +235,61 @@ class LocalStorageAdapter {
   }
 
   /**
+   * Compact a conversation by rewriting messages in-place.
+   * This is used to "summary + delete" large payloads already stored.
+   *
+   * @param {string} conversationId
+   * @param {(msg: any) => any} compactFn - must return a (possibly modified) message object
+   * @returns {Promise<{updated: number}>}
+   */
+  async compactConversation(conversationId, compactFn) {
+    const data = this._getData();
+    let updated = 0;
+
+    data.messages = data.messages.map((m) => {
+      if (m.conversationId !== conversationId) return m;
+      const next = compactFn ? compactFn(m) : m;
+      if (next !== m) updated += 1;
+      return next;
+    });
+
+    if (updated > 0) {
+      // Update conversation updatedAt
+      const convIndex = data.conversations.findIndex(c => c.id === conversationId);
+      if (convIndex !== -1) {
+        data.conversations[convIndex].updatedAt = new Date().toISOString();
+      }
+      this._saveData(data);
+    }
+
+    return { updated };
+  }
+
+  /**
+   * Compact all conversations.
+   * @param {(msg: any) => any} compactFn
+   */
+  async compactAll(compactFn) {
+    const data = this._getData();
+    let updated = 0;
+
+    data.messages = data.messages.map((m) => {
+      const next = compactFn ? compactFn(m) : m;
+      if (next !== m) updated += 1;
+      return next;
+    });
+
+    if (updated > 0) {
+      // touch all conversations
+      const now = new Date().toISOString();
+      data.conversations = data.conversations.map((c) => ({ ...c, updatedAt: now }));
+      this._saveData(data);
+    }
+
+    return { updated };
+  }
+
+  /**
    * Get conversation history
    */
   async getConversationHistory(conversationId, limit = null) {

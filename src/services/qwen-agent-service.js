@@ -43,6 +43,17 @@ class QwenAgentService {
           // Debug: Log which conversation we're loading
           console.log(`[QwenAgentService] Loading history for conversationId: ${conversationId}, connectionId: ${connectionId}`);
           
+          // Summary + delete: compact stored tool outputs before loading
+          // This prevents repeated failures when a conversation contains huge command outputs.
+          try {
+            const compactResult = await chatHistoryService.compactConversation(conversationId);
+            if (compactResult?.updated > 0) {
+              console.log(`[QwenAgentService] 🧹 Compacted conversation ${conversationId}: updated ${compactResult.updated} messages`);
+            }
+          } catch (compactError) {
+            console.warn('[QwenAgentService] Failed to compact conversation history (continuing):', compactError);
+          }
+
           // Load from database
           const dbHistory = await chatHistoryService.getConversationHistory(conversationId);
           
@@ -130,19 +141,25 @@ class QwenAgentService {
       if (!response.ok) {
         // Check for specific error types
         if (response.status === 413 || response.statusText.includes('Payload Too Large')) {
-          throw new Error('Server response is too large. An error occurred while processing the result of a command with very large output. Please try reducing the command output or use a different approach.');
+          console.error(`[QwenAgentService] ❌ HTTP 413 Payload Too Large error`);
+          throw new Error('Server response exceeded size limit. The command output was too large to process.');
         }
         // Try to get error message from response body
         let errorMessage = `Backend error: ${response.status} ${response.statusText}`;
         try {
           const errorText = await response.text();
-          if (errorText.includes('Payload Too Large')) {
-            errorMessage = 'Server response is too large. An error occurred while processing the result of a command with very large output. Please try reducing the command output or use a different approach.';
+          console.error(`[QwenAgentService] ❌ HTTP ${response.status} error: ${response.statusText}, body: ${errorText.substring(0, 500)}`);
+          if (errorText.includes('Payload Too Large') || 
+              errorText.includes('Response too large') ||
+              errorText.includes('exceeded size limit') ||
+              errorText.includes('too large')) {
+            errorMessage = 'Server response exceeded size limit. The command output was too large to process.';
           } else if (errorText) {
             errorMessage = `Backend error: ${response.status} ${response.statusText} - ${errorText.substring(0, 200)}`;
           }
         } catch (e) {
           // Ignore error reading response body
+          console.error(`[QwenAgentService] ❌ Failed to read error response body: ${e}`);
         }
         throw new Error(errorMessage);
       }
@@ -192,14 +209,26 @@ class QwenAgentService {
                 
                 if (data.type === 'content_chunk' && data.content !== undefined) {
                   // Backend sends incremental content chunks
+                  // May be chunked if content is very large (chunk_index will be present)
                   // Accumulate chunks to build the full response (Qwen-Agent 방식)
                   const chunkContent = String(data.content || '');
+                  const chunkIndex = data.chunk_index;
+                  
                   if (chunkContent) {
+                    if (chunkIndex !== undefined) {
+                      // This is a chunked content - log for debugging
+                      console.log(`[QwenAgentService] 📦 Content chunk ${chunkIndex} received: ${chunkContent.length} chars`);
+                    }
+                    
                     fullResponse += chunkContent;
                     
                     // Call onChunk with accumulated full content
                     if (onChunk) {
-                      console.log(`[QwenAgentService] 📝 Content chunk received: ${chunkContent.length} chars, total: ${fullResponse.length} chars`);
+                      if (chunkIndex !== undefined) {
+                        console.log(`[QwenAgentService] 📝 Content chunk ${chunkIndex}: ${chunkContent.length} chars, total: ${fullResponse.length} chars`);
+                      } else {
+                        console.log(`[QwenAgentService] 📝 Content chunk received: ${chunkContent.length} chars, total: ${fullResponse.length} chars`);
+                      }
                       onChunk(fullResponse);  // Send full accumulated content
                     }
                     
@@ -357,6 +386,21 @@ class QwenAgentService {
                     } else if (data.stream === 'stderr') {
                       accumulator.stderr += data.chunk || '';
                     }
+                    console.log(`[QwenAgentService] 📦 Received chunk: tool=${toolName}, stream=${data.stream}, index=${data.index}, chunk_size=${(data.chunk || '').length} bytes, accumulated=${accumulator.stdout.length + accumulator.stderr.length} bytes`);
+                  } else {
+                    // Accumulator not initialized - this shouldn't happen, but create one as fallback
+                    console.warn(`[QwenAgentService] ⚠️ Received chunk for ${toolName} but accumulator not found, creating fallback accumulator`);
+                    chunkAccumulators.set(toolName, {
+                      stdout: data.stream === 'stdout' ? (data.chunk || '') : '',
+                      stderr: data.stream === 'stderr' ? (data.chunk || '') : '',
+                      metadata: {
+                        name: toolName,
+                        command: null,
+                        success: true,
+                        exitCode: 0,
+                        total_size: 0
+                      }
+                    });
                   }
                 } else if (data.type === 'tool_result_complete') {
                   // All chunks received, assemble final result
@@ -371,6 +415,9 @@ class QwenAgentService {
                       console.log(`[QwenAgentService] ⚠️ Backend didn't send command in chunked result, using queue: '${command}'`);
                     }
                     
+                    const totalReceived = accumulator.stdout.length + accumulator.stderr.length;
+                    const expectedSize = accumulator.metadata.total_size || 0;
+                    
                     const toolResult = {
                       name: accumulator.metadata.name || toolName,
                       command: command,
@@ -380,7 +427,12 @@ class QwenAgentService {
                       stderr: accumulator.stderr
                     };
                     
-                    console.log(`[QwenAgentService] 📤 Tool result (chunked): name=${toolResult.name}, command=${toolResult.command || 'null'}, size=${toolResult.stdout.length + toolResult.stderr.length} bytes`);
+                    console.log(`[QwenAgentService] 📤 Tool result (chunked): name=${toolResult.name}, command=${toolResult.command || 'null'}, received=${totalReceived} bytes, expected=${expectedSize} bytes`);
+                    
+                    // Verify all data was received
+                    if (expectedSize > 0 && Math.abs(totalReceived - expectedSize) > 100) {
+                      console.warn(`[QwenAgentService] ⚠️ Size mismatch: received ${totalReceived} bytes but expected ${expectedSize} bytes (diff: ${Math.abs(totalReceived - expectedSize)} bytes)`);
+                    }
                     
                     messages.push({ role: 'tool', name: toolName, toolResult });
                     
@@ -391,6 +443,8 @@ class QwenAgentService {
                     
                     // Clean up accumulator
                     chunkAccumulators.delete(toolName);
+                  } else {
+                    console.error(`[QwenAgentService] ❌ Received tool_result_complete for ${toolName} but accumulator not found - data may be lost!`);
                   }
                 } else if (data.type === 'message') {
                   // Other message types (for debugging/visibility)
@@ -403,12 +457,29 @@ class QwenAgentService {
                     console.log(`[QwenAgentService] ✅ Final done signal, sending final content: ${fullResponse.length} chars`);
                     onChunk(fullResponse);
                   }
+                  
+                  // Clean up any remaining accumulators (in case tool_result_complete was missed)
+                  if (chunkAccumulators.size > 0) {
+                    console.warn(`[QwenAgentService] ⚠️ Cleaning up ${chunkAccumulators.size} remaining accumulators at done signal`);
+                    chunkAccumulators.clear();
+                  }
+                  
                   break;
                 } else if (data.type === 'error') {
-                  // Check if it's a "Payload Too Large" error
+                  // Clean up accumulators on error
+                  chunkAccumulators.clear();
+                  console.log(`[QwenAgentService] 🧹 Cleared chunk accumulators due to server error`);
+                  
                   const errorContent = data.content || '';
-                  if (errorContent.includes('Payload Too Large') || errorContent.includes('<!DOCTYPE html>')) {
-                    throw new Error('Server response is too large. An error occurred while processing the result of a command with very large output. Please try reducing the command output or use a different approach.');
+                  console.error(`[QwenAgentService] ❌ Server error received: ${errorContent}`);
+                  
+                  // Check if it's a "Payload Too Large" or size limit error
+                  if (errorContent.includes('Payload Too Large') || 
+                      errorContent.includes('<!DOCTYPE html>') ||
+                      errorContent.includes('Response too large') ||
+                      errorContent.includes('exceeded size limit') ||
+                      errorContent.includes('too large')) {
+                    throw new Error('Server response exceeded size limit. The command output was too large to process.');
                   }
                   throw new Error(data.content || 'Unknown error');
                 }
@@ -432,6 +503,10 @@ class QwenAgentService {
           }
         }
       } catch (streamError) {
+        // Clean up accumulators on any error
+        chunkAccumulators.clear();
+        console.log(`[QwenAgentService] 🧹 Cleared chunk accumulators due to error: ${streamError?.message || streamError}`);
+        
         // Handle streaming errors, especially abort
         if (
           streamError?.name === 'AbortError' ||
@@ -451,6 +526,12 @@ class QwenAgentService {
         // Re-throw other errors
         throw streamError;
       } finally {
+        // Always clean up accumulators when stream ends (success or error)
+        if (chunkAccumulators.size > 0) {
+          console.log(`[QwenAgentService] 🧹 Cleaning up ${chunkAccumulators.size} accumulators in finally block`);
+          chunkAccumulators.clear();
+        }
+        
         try {
           reader.releaseLock();
         } catch (lockError) {
@@ -468,7 +549,57 @@ class QwenAgentService {
       
       // Add all messages from this response (assistant + tool results)
       // Qwen-Agent format: tool results are included as { role: 'tool', name: ..., content: ... }
-      updatedHistory.push(...messages);
+      // NOTE:
+      // - DB (localStorage) is the source of truth and is compacted/summarized there.
+      // - This memory cache is only a fallback if DB load fails.
+      // Keep it safe by sanitizing huge tool outputs to avoid in-memory bloat.
+      const MAX_TOOL_RESULT_BYTES_FOR_CACHE = 10 * 1024; // 10KB
+
+      const summarizeTextForCache = (text, maxLines = 80) => {
+        if (!text || typeof text !== 'string') return '';
+        const lines = text.split('\n');
+        if (lines.length <= maxLines) return text;
+        const head = lines.slice(0, 40);
+        const tail = lines.slice(-40);
+        const omitted = Math.max(0, lines.length - head.length - tail.length);
+        return `${head.join('\n')}\n\n... [${omitted} lines omitted] ...\n\n${tail.join('\n')}`;
+      };
+
+      const sanitizeForCache = (msg) => {
+        if (!msg || typeof msg !== 'object') return msg;
+        
+        // Do not keep <think> blocks in cached history (used as fallback conversation_history)
+        if (msg.role === 'assistant' && typeof msg.content === 'string') {
+          const stripped = msg.content
+            .replace(/<think>[\s\S]*?<\/think>/g, '')
+            .split('<think>')[0];
+          if (stripped !== msg.content) {
+            return { ...msg, content: stripped };
+          }
+        }
+        
+        if (msg.role !== 'tool' || !msg.toolResult || typeof msg.toolResult !== 'object') return msg;
+
+        const tr = msg.toolResult;
+        const stdout = typeof tr.stdout === 'string' ? tr.stdout : '';
+        const stderr = typeof tr.stderr === 'string' ? tr.stderr : '';
+        const bytes = stdout.length + stderr.length; // approximate, good enough for cache safety
+
+        if (bytes <= MAX_TOOL_RESULT_BYTES_FOR_CACHE) return msg;
+
+        return {
+          ...msg,
+          toolResult: {
+            ...tr,
+            stdout: summarizeTextForCache(stdout),
+            stderr: summarizeTextForCache(stderr),
+            summary: true,
+            originalSize: bytes
+          }
+        };
+      };
+
+      updatedHistory.push(...messages.map(sanitizeForCache));
       
       // Keep last 50 messages to maintain full context
       // This ensures all previous commands, results, and OS detection are preserved
@@ -482,6 +613,12 @@ class QwenAgentService {
       // Return formatted response
       return fullResponse;
     } catch (error) {
+      // Clean up accumulators on any error (defensive cleanup)
+      if (chunkAccumulators && chunkAccumulators.size > 0) {
+        console.log(`[QwenAgentService] 🧹 Cleared ${chunkAccumulators.size} accumulators due to error: ${error?.message || error}`);
+        chunkAccumulators.clear();
+      }
+      
       // If aborted, throw a clear cancellation error
       if (abortSignal && abortSignal.aborted) {
         throw new Error('Request cancelled by user');

@@ -230,16 +230,106 @@ async def execute_task_stream(request: TaskRequest):
         # Convert 'tool' role to 'function' role for Qwen-Agent compatibility
         # Qwen-Agent's Pydantic model only accepts: user, assistant, system, function
         for msg in request.conversation_history:
-            if msg.get('role') == 'tool':
-                # Convert tool role to function role
-                converted_msg = msg.copy()
+            # Convert tool role to function role
+            # (Frontend stores/compacts tool outputs; backend should not try to reinterpret custom fields.)
+            converted_msg = msg.copy()
+            if converted_msg.get('role') == 'tool':
                 converted_msg['role'] = 'function'
-                messages.append(converted_msg)
-            else:
-                messages.append(msg)
+            messages.append(converted_msg)
     messages.append({"role": "user", "content": request.message})
     
     def generate():
+        # Maximum size per SSE message (to avoid "Payload Too Large" errors)
+        # Use 32KB to be very safe (some servers/proxies have very strict limits)
+        MAX_CHUNK_SIZE = 32 * 1024  # 32KB - very conservative, safe for all servers
+        logger.info(f"Starting SSE stream with MAX_CHUNK_SIZE={MAX_CHUNK_SIZE} bytes")
+        
+        # Track the latest tool result of THIS run only.
+        # This avoids mistakenly using old conversation history data when summarizing after an exception.
+        last_tool_ctx = None  # {name, command, total_raw_size, stdout_head, stderr_head}
+
+        def _serialize_sse(obj: dict) -> tuple[str, int]:
+            serialized = json.dumps(obj, ensure_ascii=False)
+            sse_message = f"data: {serialized}\n\n"
+            return sse_message, len(sse_message.encode("utf-8"))
+
+        def _emit(obj: dict):
+            """Emit a single SSE event if it fits MAX_CHUNK_SIZE.
+            Returns True if emitted, False if too large.
+            """
+            msg, size = _serialize_sse(obj)
+            if size < MAX_CHUNK_SIZE:
+                yield msg
+                return True
+            return False
+
+        def _emit_text_chunks(*, base: dict, text: str, text_key: str, index_key: str, initial_chunk_size: int = 15 * 1024):
+            """Emit `text` split into chunks, dynamically shrinking if JSON gets too large."""
+            chunk_size = initial_chunk_size
+            i = 0
+            chunk_index = 0
+
+            while i < len(text):
+                chunk = text[i:i + chunk_size]
+                payload = dict(base)
+                payload[text_key] = chunk
+                payload[index_key] = chunk_index
+
+                sent = yield from _emit(payload)
+                if not sent:
+                    chunk_size = int(chunk_size * 0.7)
+                    if chunk_size < 5000:
+                        logger.error(f"Chunk size too small ({chunk_size} bytes), cannot send {base.get('type')}")
+                        # Last resort: send a small error and stop
+                        yield from _emit({'type': 'error', 'content': 'Server response exceeded size limit. The command output was too large to process.'})
+                        return False
+                    continue
+
+                i += len(chunk)
+                chunk_index += 1
+
+            return True
+
+        def _emit_tool_stream_chunks(tool_name: str, stream: str, text: str):
+            """Emit stdout/stderr as tool_result_chunk events."""
+            if not text:
+                return True
+            base = {'type': 'tool_result_chunk', 'name': tool_name, 'stream': stream}
+            # Use 30KB content as initial size (kept from previous logic)
+            return (yield from _emit_text_chunks(base=base, text=text, text_key='chunk', index_key='index', initial_chunk_size=30 * 1024))
+
+        def _generate_summary_text(command: str, stdout_head: str, stderr_head: str, total_size: int) -> str:
+            """Generate summary using LLM (functions disabled, streaming)."""
+            summary_prompt = f"""Please provide a concise summary of the following command output.
+
+Command: {command or 'unknown'}
+STDOUT (first 10000 chars):
+{stdout_head or ''}
+
+STDERR (first 2000 chars):
+{stderr_head or ''}
+
+Total size: {total_size} bytes ({total_size // 1024} KB)
+
+Provide a brief summary (3-5 sentences) focusing on:
+1. What the command did
+2. Key findings, errors, or important information
+3. Notable patterns or trends
+
+Summary:"""
+
+            # IMPORTANT: Use raw LLM chat with functions disabled to avoid tool recursion
+            summary_messages = [{"role": "user", "content": summary_prompt}]
+            summary_response = assistant.llm.chat(messages=summary_messages, functions=[], stream=True)
+
+            summary_text = ""
+            for chunk in summary_response:
+                if chunk and len(chunk) > 0:
+                    last_msg = chunk[-1]
+                    if last_msg.get('role') == 'assistant':
+                        summary_text = last_msg.get('content', '')
+            return summary_text or ""
+        
         try:
             logger.info(f"Running assistant with {len(messages)} messages.")
             logger.info(f"LLM config: model={request.llm_config.model if request.llm_config else model_config['model']}, server={request.llm_config.base_url if request.llm_config else model_config['model_server']}")
@@ -279,25 +369,51 @@ async def execute_task_stream(request: TaskRequest):
                             # 이 메시지의 이전 content 확인
                             previous_content = assistant_content_map.get(idx, '')
                             
+                            # Determine what content to send
+                            content_to_send = ''
                             if not previous_content:
                                 # 첫 번째 content - 전체를 스트리밍
-                                logger.info(f"✅ Streaming initial assistant content (idx={idx}): {len(content_str)} chars | content={repr(content_str[:200])}")
-                                yield f"data: {json.dumps({'type': 'content_chunk', 'content': content_str})}\n\n"
-                                assistant_content_map[idx] = content_str
+                                content_to_send = content_str
                             elif content_str != previous_content:
                                 # Content가 변경됨
                                 if content_str.startswith(previous_content):
                                     # Content가 연장됨 - 새로운 부분만 스트리밍 (증분)
-                                    new_chunk = content_str[len(previous_content):]
-                                    if new_chunk:
-                                        logger.info(f"✅ Streaming content chunk (idx={idx}): +{len(new_chunk)} chars (total: {len(content_str)} chars) | new={repr(new_chunk[:200])}")
-                                        yield f"data: {json.dumps({'type': 'content_chunk', 'content': new_chunk})}\n\n"
-                                    assistant_content_map[idx] = content_str
+                                    content_to_send = content_str[len(previous_content):]
                                 else:
                                     # 완전히 다른 content (새로운 assistant 메시지이거나 내용이 완전히 바뀜)
-                                    logger.info(f"✅ Streaming new assistant content (idx={idx}): {len(content_str)} chars (previous was {len(previous_content)} chars) | new={repr(content_str[:200])}")
-                                    yield f"data: {json.dumps({'type': 'content_chunk', 'content': content_str})}\n\n"
+                                    content_to_send = content_str
+                            
+                            # Send content in chunks if too large
+                            if content_to_send:
+                                content_size_bytes = len(content_to_send.encode('utf-8'))
+                                
+                                # Early check: if assistant content is getting extremely large, stop early
+                                # This prevents the response from growing unbounded
+                                MAX_ASSISTANT_CONTENT_SIZE = 5 * 1024 * 1024  # 5MB max assistant content
+                                if len(content_str.encode('utf-8')) > MAX_ASSISTANT_CONTENT_SIZE:
+                                    logger.warning(f"⚠️ Assistant content too large ({len(content_str.encode('utf-8'))} bytes), stopping to prevent response bloat")
+                                    yield from _emit({'type': 'error', 'content': 'Assistant response too long. Please ask a more specific question.'})
+                                    return
+
+                                # Try to emit as a single event; if too large, chunk it.
+                                sent = yield from _emit({'type': 'content_chunk', 'content': content_to_send})
+                                if sent:
+                                    if not previous_content:
+                                        logger.info(f"✅ Streaming initial assistant content (idx={idx}): {len(content_to_send)} chars")
+                                    else:
+                                        logger.info(f"✅ Streaming content chunk (idx={idx}): +{len(content_to_send)} chars (total: {len(content_str)} chars)")
                                     assistant_content_map[idx] = content_str
+                                else:
+                                    logger.warning(f"⚠️ Assistant content too large (raw={content_size_bytes} bytes), chunking...")
+                                    ok = yield from _emit_text_chunks(
+                                        base={'type': 'content_chunk'},
+                                        text=content_to_send,
+                                        text_key='content',
+                                        index_key='chunk_index',
+                                        initial_chunk_size=15 * 1024,
+                                    )
+                                    if ok:
+                                        assistant_content_map[idx] = content_str
                         
                         # Tool call 실시간 스트리밍 (새로운 메시지에만)
                         if idx >= len(previous_response):
@@ -369,54 +485,98 @@ async def execute_task_stream(request: TaskRequest):
                             stdout = parsed_result.get('output', '') if isinstance(parsed_result, dict) else ''
                             stderr = parsed_result.get('error', '') if isinstance(parsed_result, dict) else ''
                             
-                            # Early size check - if output is extremely large, truncate it immediately
-                            # This prevents any chance of sending oversized messages
-                            MAX_SAFE_SIZE = 100 * 1024  # 100KB - absolute maximum before chunking
+                            # CRITICAL: Check raw size FIRST before any JSON serialization
+                            # This prevents memory issues and allows early chunking decision
                             stdout_size_bytes = len(stdout.encode('utf-8')) if stdout else 0
                             stderr_size_bytes = len(stderr.encode('utf-8')) if stderr else 0
+                            total_raw_size = stdout_size_bytes + stderr_size_bytes
                             
-                            # Log early warning if output is very large
-                            if stdout_size_bytes > MAX_SAFE_SIZE or stderr_size_bytes > MAX_SAFE_SIZE:
-                                logger.warning(f"⚠️ Very large tool output detected: stdout={stdout_size_bytes} bytes, stderr={stderr_size_bytes} bytes - will chunk")
-                            
-                            # Maximum size per SSE message (to avoid "Payload Too Large" errors)
-                            # Check JSON serialized size, not raw string size
-                            # Use 128KB to be very safe (some servers/proxies have strict limits)
-                            MAX_CHUNK_SIZE = 128 * 1024  # 128KB - reduced for safety
-                            
-                            # Build the full result to check serialized size
-                            structured_result = {
-                                'type': 'tool_result',
+                            # Update latest tool context (for exception-time auto summary)
+                            # Keep only small heads to avoid ballooning memory.
+                            last_tool_ctx = {
                                 'name': tool_name,
                                 'command': final_command,
-                                'success': parsed_result.get('success', True) if isinstance(parsed_result, dict) else True,
-                                'exitCode': parsed_result.get('exitCode', 0) if isinstance(parsed_result, dict) else 0,
-                                'stdout': stdout,
-                                'stderr': stderr,
+                                'total_raw_size': total_raw_size,
+                                'stdout_head': stdout[:10000] if isinstance(stdout, str) else '',
+                                'stderr_head': stderr[:2000] if isinstance(stderr, str) else '',
                             }
                             
-                            # Check serialized JSON size (this is what actually gets sent)
-                            serialized = json.dumps(structured_result, ensure_ascii=False)
-                            sse_message = f"data: {serialized}\n\n"
-                            message_size = len(sse_message.encode('utf-8'))
+                            # If output is extremely large, consider auto-summarization
+                            # This prevents "Payload Too Large" errors by summarizing before sending
+                            AUTO_SUMMARY_THRESHOLD = 5 * 1024 * 1024  # 5MB - very large output
+                            should_auto_summarize = total_raw_size > AUTO_SUMMARY_THRESHOLD
                             
-                            # Log size for debugging
-                            stdout_size = len(stdout.encode('utf-8')) if stdout else 0
-                            stderr_size = len(stderr.encode('utf-8')) if stderr else 0
-                            logger.info(f"Tool result size: stdout={stdout_size} bytes, stderr={stderr_size} bytes, total message={message_size} bytes, max={MAX_CHUNK_SIZE} bytes")
+                            # MAX_CHUNK_SIZE is defined at function level above
                             
-                            # If output is small enough, send as single message
-                            if message_size < MAX_CHUNK_SIZE:
-                                logger.info(f"Sending tool result as single message ({message_size} bytes)")
-                                yield sse_message
+                            # Estimate JSON overhead (roughly 200 bytes for structure + 20% for encoding)
+                            estimated_json_overhead = 500 + int(total_raw_size * 0.2)
+                            estimated_total_size = total_raw_size + estimated_json_overhead
+                            
+                            logger.info(f"Tool result raw size: stdout={stdout_size_bytes} bytes, stderr={stderr_size_bytes} bytes, total={total_raw_size} bytes")
+                            logger.info(f"Estimated serialized size: {estimated_total_size} bytes, max={MAX_CHUNK_SIZE} bytes")
+                            
+                            # Auto-summarize extremely large outputs to prevent errors
+                            if should_auto_summarize:
+                                logger.warning(f"⚠️ Tool result extremely large ({total_raw_size} bytes > {AUTO_SUMMARY_THRESHOLD} bytes), attempting auto-summarization...")
+                                try:
+                                    # Send notification to frontend
+                                    yield f"data: {json.dumps({'type': 'message', 'content': f'Command output is very large ({total_raw_size // 1024 // 1024}MB). Generating summary...', 'role': 'system'}, ensure_ascii=False)}\n\n"
+                                    
+                                    summary_text = _generate_summary_text(
+                                        final_command or 'unknown',
+                                        stdout[:5000] if isinstance(stdout, str) else '',
+                                        stderr[:1000] if isinstance(stderr, str) else '',
+                                        total_raw_size,
+                                    )
+                                    
+                                    if summary_text:
+                                        logger.info(f"✅ Auto-generated summary: {len(summary_text)} chars")
+                                        # Replace stdout with summary, keep stderr as-is (usually smaller)
+                                        stdout = f"[Auto-summarized from {total_raw_size} bytes]\n\n{summary_text}\n\n[Original output was {total_raw_size} bytes. Use a more specific command to see full details.]"
+                                        stdout_size_bytes = len(stdout.encode('utf-8'))
+                                        total_raw_size = stdout_size_bytes + stderr_size_bytes
+                                        logger.info(f"After summarization: total={total_raw_size} bytes")
+                                        
+                                        # Recalculate estimated size
+                                        estimated_json_overhead = 500 + int(total_raw_size * 0.2)
+                                        estimated_total_size = total_raw_size + estimated_json_overhead
+                                        
+                                        # Send summary notification
+                                        yield f"data: {json.dumps({'type': 'message', 'content': 'Summary generated successfully.', 'role': 'system'}, ensure_ascii=False)}\n\n"
+                                    else:
+                                        logger.warning("⚠️ Failed to generate summary, proceeding with chunking")
+                                        should_auto_summarize = False
+                                except Exception as summary_error:
+                                    logger.error(f"Failed to auto-summarize: {summary_error}", exc_info=True)
+                                    logger.warning("⚠️ Proceeding with chunking instead of summary")
+                                    should_auto_summarize = False
+                            
+                            # If estimated size exceeds limit, ALWAYS chunk (don't even try to serialize)
+                            if estimated_total_size >= MAX_CHUNK_SIZE or total_raw_size >= (MAX_CHUNK_SIZE - 1000):
+                                logger.warning(f"⚠️ Tool result too large (raw={total_raw_size} bytes, estimated={estimated_total_size} bytes > {MAX_CHUNK_SIZE} bytes), FORCING chunking without serialization")
+                                # Skip serialization check, go straight to chunking
+                                force_chunk = True
                             else:
-                                # Large output: send in chunks
-                                logger.warning(f"Tool result too large ({message_size} bytes > {MAX_CHUNK_SIZE} bytes), chunking...")
+                                # Build the full result to check actual serialized size
+                                structured_result = {
+                                    'type': 'tool_result',
+                                    'name': tool_name,
+                                    'command': final_command,
+                                    'success': parsed_result.get('success', True) if isinstance(parsed_result, dict) else True,
+                                    'exitCode': parsed_result.get('exitCode', 0) if isinstance(parsed_result, dict) else 0,
+                                    'stdout': stdout,
+                                    'stderr': stderr,
+                                }
                                 
-                                # Calculate raw sizes for metadata
-                                stdout_size = len(stdout.encode('utf-8')) if stdout else 0
-                                stderr_size = len(stderr.encode('utf-8')) if stderr else 0
-                                
+                                sent = yield from _emit(structured_result)
+                                if sent:
+                                    force_chunk = False
+                                else:
+                                    logger.warning("Serialized tool_result exceeds limit, chunking...")
+                                    force_chunk = True
+                            
+                            # Large output: send in chunks
+                            if force_chunk:
                                 # First, send metadata with chunked flag
                                 metadata_result = {
                                     'type': 'tool_result',
@@ -427,131 +587,43 @@ async def execute_task_stream(request: TaskRequest):
                                     'stdout': '',  # Will be sent in chunks
                                     'stderr': '',  # Will be sent in chunks
                                     'chunked': True,
-                                    'total_size': stdout_size + stderr_size,
+                                    'total_size': total_raw_size,
                                 }
-                                metadata_msg = f"data: {json.dumps(metadata_result, ensure_ascii=False)}\n\n"
-                                logger.info(f"Sending metadata message ({len(metadata_msg.encode('utf-8'))} bytes)")
-                                yield metadata_msg
-                                
-                                # Send stdout in chunks
-                                # Use a conservative chunk size to ensure we stay under limit
-                                # JSON overhead is roughly: {"type":"tool_result_chunk","name":"...","stream":"stdout","chunk":"...","index":0}
-                                # Estimate ~200 bytes overhead, so use 100KB for content (safe margin)
-                                if stdout:
-                                    content_chunk_size = 100 * 1024  # 100KB content per chunk (conservative)
-                                    chunk_index = 0
-                                    i = 0
-                                    total_chunks = 0
-                                    
-                                    while i < len(stdout):
-                                        # Get chunk of content
-                                        chunk = stdout[i:i + content_chunk_size]
-                                        
-                                        # Build chunk message
-                                        chunk_result = {
-                                            'type': 'tool_result_chunk',
-                                            'name': tool_name,
-                                            'stream': 'stdout',
-                                            'chunk': chunk,
-                                            'index': chunk_index,
-                                        }
-                                        
-                                        # Serialize and check size
-                                        chunk_serialized = json.dumps(chunk_result, ensure_ascii=False)
-                                        chunk_sse = f"data: {chunk_serialized}\n\n"
-                                        chunk_size = len(chunk_sse.encode('utf-8'))
-                                        
-                                        # If still too large, reduce content size and retry
-                                        if chunk_size >= MAX_CHUNK_SIZE:
-                                            # Reduce content size by 30% and retry
-                                            content_chunk_size = int(content_chunk_size * 0.7)
-                                            if content_chunk_size < 5000:  # Minimum 5KB
-                                                logger.error(f"Chunk size too small ({content_chunk_size} bytes), cannot send stdout")
-                                                break
-                                            logger.warning(f"Chunk too large ({chunk_size} bytes), reducing to {content_chunk_size} bytes")
-                                            continue
-                                        
-                                        # Chunk fits, send it
-                                        yield chunk_sse
-                                        total_chunks += 1
-                                        i += len(chunk)
-                                        chunk_index += 1
-                                    
-                                    logger.info(f"Sent {total_chunks} stdout chunks")
-                                
-                                # Send stderr in chunks (same logic as stdout)
-                                if stderr:
-                                    content_chunk_size = 100 * 1024  # 100KB content per chunk
-                                    chunk_index = 0
-                                    i = 0
-                                    total_chunks = 0
-                                    
-                                    while i < len(stderr):
-                                        chunk = stderr[i:i + content_chunk_size]
-                                        
-                                        chunk_result = {
-                                            'type': 'tool_result_chunk',
-                                            'name': tool_name,
-                                            'stream': 'stderr',
-                                            'chunk': chunk,
-                                            'index': chunk_index,
-                                        }
-                                        
-                                        chunk_serialized = json.dumps(chunk_result, ensure_ascii=False)
-                                        chunk_sse = f"data: {chunk_serialized}\n\n"
-                                        chunk_size = len(chunk_sse.encode('utf-8'))
-                                        
-                                        if chunk_size >= MAX_CHUNK_SIZE:
-                                            content_chunk_size = int(content_chunk_size * 0.7)
-                                            if content_chunk_size < 5000:
-                                                logger.error(f"Chunk size too small ({content_chunk_size} bytes), cannot send stderr")
-                                                break
-                                            logger.warning(f"Chunk too large ({chunk_size} bytes), reducing to {content_chunk_size} bytes")
-                                            continue
-                                        
-                                        yield chunk_sse
-                                        total_chunks += 1
-                                        i += len(chunk)
-                                        chunk_index += 1
-                                    
-                                    logger.info(f"Sent {total_chunks} stderr chunks")
-                                
-                                # Send completion signal
-                                completion_result = {
-                                    'type': 'tool_result_complete',
-                                    'name': tool_name,
-                                }
-                                yield f"data: {json.dumps(completion_result, ensure_ascii=False)}\n\n"
+                                yield from _emit(metadata_result)
+
+                                ok_stdout = yield from _emit_tool_stream_chunks(tool_name, 'stdout', stdout)
+                                ok_stderr = yield from _emit_tool_stream_chunks(tool_name, 'stderr', stderr)
+
+                                if ok_stdout and ok_stderr:
+                                    yield from _emit({'type': 'tool_result_complete', 'name': tool_name})
                         except (json.JSONDecodeError, AttributeError) as e:
                             # Fallback: if parsing fails, send as raw content
                             # But still check size and chunk if needed
                             logger.warning(f"Could not parse tool result as JSON: {e}, sending as raw content")
                             
-                            fallback_result = {'type': 'tool_result', 'name': tool_name, 'command': command, 'content': tool_content}
-                            fallback_serialized = json.dumps(fallback_result, ensure_ascii=False)
-                            fallback_sse = f"data: {fallback_serialized}\n\n"
-                            fallback_size = len(fallback_sse.encode('utf-8'))
-                            
-                            if fallback_size < MAX_CHUNK_SIZE:
-                                yield fallback_sse
-                            else:
-                                # Even fallback is too large - truncate content
-                                logger.error(f"⚠️ Fallback message also too large ({fallback_size} bytes), truncating content")
+                            sent = yield from _emit({'type': 'tool_result', 'name': tool_name, 'command': command, 'content': tool_content})
+                            if not sent:
+                                # Truncate content to fit
                                 max_content_size = MAX_CHUNK_SIZE - 500  # Reserve space for JSON
                                 truncated_content = tool_content[:max_content_size] if len(tool_content) > max_content_size else tool_content
-                                truncated_result = {'type': 'tool_result', 'name': tool_name, 'command': command, 'content': truncated_content, 'truncated': True}
-                                yield f"data: {json.dumps(truncated_result, ensure_ascii=False)}\n\n"
+                                yield from _emit({'type': 'tool_result', 'name': tool_name, 'command': command, 'content': truncated_content, 'truncated': True})
                         except Exception as e:
                             # Catch any other errors in tool result processing
                             logger.error(f"Error processing tool result: {e}", exc_info=True)
-                            error_result = {'type': 'error', 'content': f'Error processing tool result: {str(e)}'}
-                            yield f"data: {json.dumps(error_result, ensure_ascii=False)}\n\n"
+                            # Ensure error message fits in MAX_CHUNK_SIZE
+                            error_content = f'Error processing tool result: {str(e)}'
+                            max_error_content = MAX_CHUNK_SIZE - 200  # Reserve space for JSON structure
+                            if len(error_content.encode('utf-8')) > max_error_content:
+                                error_content = error_content[:max_error_content]
+                            sent = yield from _emit({'type': 'error', 'content': error_content})
+                            if not sent:
+                                yield from _emit({'type': 'error', 'content': 'Error processing tool result'})
                 
                 # 이전 response 업데이트 (중복 방지)
                 previous_response = response_chunk.copy()
             
             logger.info("Assistant run completed.")
-            yield f"data: {json.dumps({'type': 'done', 'timestamp': datetime.now().isoformat()})}\n\n"
+            yield from _emit({'type': 'done', 'timestamp': datetime.now().isoformat()})
             
         except Exception as e:
             error_msg = str(e)
@@ -561,20 +633,70 @@ async def execute_task_stream(request: TaskRequest):
             if 'Payload Too Large' in error_msg or '413' in error_msg or 'too large' in error_msg.lower():
                 logger.error("⚠️ PAYLOAD TOO LARGE ERROR DETECTED - This indicates the response exceeded server limits")
                 logger.error(f"Error details: {error_msg}")
-                # Try to send a truncated error message
+                logger.error(f"⚠️ This error occurred AFTER tool_result was sent. Likely caused by assistant content_chunk being too large.")
+                logger.error(f"⚠️ Check logs above for 'Assistant content too large' or 'Content chunk too large' messages.")
+                
+                # Try to automatically summarize the last tool output of THIS run, then send it
                 try:
-                    error_result = {'type': 'error', 'content': 'Server response exceeded size limit. The command output was too large to process.'}
-                    error_json = json.dumps(error_result, ensure_ascii=False)
-                    error_sse = f"data: {error_json}\n\n"
-                    if len(error_sse.encode('utf-8')) < 1000:  # Ensure error message itself is small
-                        yield error_sse
-                except Exception as send_error:
-                    logger.error(f"Failed to send error message: {send_error}")
+                    if last_tool_ctx and (last_tool_ctx.get('total_raw_size') or 0) > 10 * 1024:
+                        tool_name_for_summary = last_tool_ctx.get('name') or 'unknown'
+                        cmd_for_summary = last_tool_ctx.get('command') or 'unknown'
+                        original_size = int(last_tool_ctx.get('total_raw_size') or 0)
+
+                        logger.info(f"🔄 Attempting to summarize last tool output (this run): {tool_name_for_summary} ({original_size} bytes)")
+                        yield from _emit({'type': 'message', 'content': 'Large command output detected. Generating summary and retrying...', 'role': 'system'})
+
+                        summary_text = _generate_summary_text(
+                            cmd_for_summary,
+                            last_tool_ctx.get('stdout_head', ''),
+                            last_tool_ctx.get('stderr_head', ''),
+                            original_size,
+                        )
+
+                        if summary_text:
+                            summarized_stdout = (
+                                f"[Auto-summarized from {original_size} bytes]\n\n"
+                                f"{summary_text}\n\n"
+                                f"[Original output was {original_size} bytes ({original_size // 1024} KB). "
+                                f"Use a more specific command to see full details.]"
+                            )
+                            summarized_result = {
+                                'type': 'tool_result',
+                                'name': tool_name_for_summary,
+                                'command': cmd_for_summary,
+                                'success': False,
+                                'exitCode': 0,
+                                'stdout': summarized_stdout,
+                                'stderr': '',
+                                'summary': True,
+                                'originalSize': original_size,
+                            }
+
+                            summarized_json = json.dumps(summarized_result, ensure_ascii=False)
+                            summarized_sse = f"data: {summarized_json}\n\n"
+                            if len(summarized_sse.encode('utf-8')) < MAX_CHUNK_SIZE:
+                                yield summarized_sse
+                                yield from _emit({'type': 'tool_result_complete', 'name': tool_name_for_summary})
+                                yield from _emit({'type': 'message', 'content': 'Summary generated and stored. You can continue with your next command.', 'role': 'system'})
+                                return
+
+                    # Fallback: simple error if we couldn't summarize
+                    yield from _emit({'type': 'error', 'content': 'Server response exceeded size limit. The command output was too large to process.'})
+                except Exception as auto_summary_error:
+                    logger.error(f"Failed to auto-summarize: {auto_summary_error}", exc_info=True)
+                    try:
+                        yield from _emit({'type': 'error', 'content': 'Server response exceeded size limit. The command output was too large to process.'})
+                    except Exception as send_error:
+                        logger.error(f"Failed to send error message: {send_error}")
             else:
                 # Regular error
                 try:
-                    error_result = {'type': 'error', 'content': error_msg[:500]}  # Truncate to 500 chars
-                    yield f"data: {json.dumps(error_result, ensure_ascii=False)}\n\n"
+                    # Truncate error message to ensure it fits in MAX_CHUNK_SIZE
+                    max_error_content = MAX_CHUNK_SIZE - 200  # Reserve space for JSON structure
+                    truncated_error = error_msg[:max_error_content] if len(error_msg) > max_error_content else error_msg
+                    sent = yield from _emit({'type': 'error', 'content': truncated_error})
+                    if not sent:
+                        yield from _emit({'type': 'error', 'content': 'An error occurred'})
                 except Exception as send_error:
                     logger.error(f"Failed to send error message: {send_error}")
         finally:
@@ -588,6 +710,8 @@ async def execute_task_stream(request: TaskRequest):
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
             "Access-Control-Allow-Origin": "*",
+            # Disable any potential response size limits at HTTP level
+            "X-Accel-Buffering": "no",  # Disable nginx buffering if present
         }
     )
 
