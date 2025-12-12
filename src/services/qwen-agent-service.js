@@ -26,8 +26,12 @@ class QwenAgentService {
    * @returns {Promise<string>} - Final response
    */
   async executeTask(message, connectionId = null, onChunk = null, llmSettings = null, onToolResult = null, onToolCall = null, abortSignal = null, conversationId = null) {
-  // Command 큐: tool_call과 tool_result를 순차적으로 매칭하기 위한 FIFO 큐
-  const commandQueue = [];
+    // Command 큐: tool_call과 tool_result를 순차적으로 매칭하기 위한 FIFO 큐
+    const commandQueue = [];
+    
+    // Chunk accumulator for large tool results
+    const chunkAccumulators = new Map(); // tool_name -> { stdout: '', stderr: '', metadata: {} }
+    
     try {
       // Load conversation history from DB if conversationId is provided
       // This ensures context persists across app restarts
@@ -253,6 +257,7 @@ class QwenAgentService {
                 } else if (data.type === 'tool_result') {
                   // Tool execution result - Backend sends structured format:
                   // { type: 'tool_result', name: '...', success: true/false, exitCode: 0, stdout: '...', stderr: '...' }
+                  // OR chunked format: { type: 'tool_result', name: '...', chunked: true, ... }
                   // OR legacy format: { type: 'tool_result', tool_name: '...', content: '...' }
                   
                   const toolName = data.name || data.tool_name || 'unknown_tool';
@@ -265,11 +270,28 @@ class QwenAgentService {
                   } else {
                     // For other tools, track and display normally
                     
-                    // Handle structured format from backend
-                    if (data.name && (data.stdout !== undefined || data.stderr !== undefined)) {
+                    // Handle chunked format (large outputs)
+                    if (data.chunked) {
+                      // Initialize accumulator for this tool
+                      if (!chunkAccumulators.has(toolName)) {
+                        chunkAccumulators.set(toolName, {
+                          stdout: '',
+                          stderr: '',
+                          metadata: {
+                            name: data.name,
+                            command: data.command || null,
+                            success: data.success !== undefined ? data.success : true,
+                            exitCode: data.exitCode !== undefined ? data.exitCode : 0,
+                            total_size: data.total_size || 0
+                          }
+                        });
+                      }
+                      // Wait for chunks - don't process yet
+                    } else if (data.name && (data.stdout !== undefined || data.stderr !== undefined)) {
+                      // Non-chunked structured format
                       // Command 가져오기 (백엔드에서 전달된 command 우선 사용, 없으면 큐에서)
                       let command = data.command || null;
-                      if (!command && toolName === 'ash_ssh_execute' && commandQueue.length > 0) {
+                      if (!command && (toolName === 'ash_ssh_execute' || toolName === 'ash_telnet_execute') && commandQueue.length > 0) {
                         command = commandQueue.shift();
                         console.log(`[QwenAgentService] ⚠️ Backend didn't send command, using queue: '${command}'`);
                       }
@@ -306,6 +328,53 @@ class QwenAgentService {
                         onToolResult(toolName, data.content || '');
                       }
                     }
+                  }
+                } else if (data.type === 'tool_result_chunk') {
+                  // Handle chunked tool result data
+                  const toolName = data.name || 'unknown_tool';
+                  const accumulator = chunkAccumulators.get(toolName);
+                  
+                  if (accumulator) {
+                    // Append chunk to appropriate stream
+                    if (data.stream === 'stdout') {
+                      accumulator.stdout += data.chunk || '';
+                    } else if (data.stream === 'stderr') {
+                      accumulator.stderr += data.chunk || '';
+                    }
+                  }
+                } else if (data.type === 'tool_result_complete') {
+                  // All chunks received, assemble final result
+                  const toolName = data.name || 'unknown_tool';
+                  const accumulator = chunkAccumulators.get(toolName);
+                  
+                  if (accumulator) {
+                    // Command 가져오기
+                    let command = accumulator.metadata.command || null;
+                    if (!command && (toolName === 'ash_ssh_execute' || toolName === 'ash_telnet_execute') && commandQueue.length > 0) {
+                      command = commandQueue.shift();
+                      console.log(`[QwenAgentService] ⚠️ Backend didn't send command in chunked result, using queue: '${command}'`);
+                    }
+                    
+                    const toolResult = {
+                      name: accumulator.metadata.name || toolName,
+                      command: command,
+                      success: accumulator.metadata.success,
+                      exitCode: accumulator.metadata.exitCode,
+                      stdout: accumulator.stdout,
+                      stderr: accumulator.stderr
+                    };
+                    
+                    console.log(`[QwenAgentService] 📤 Tool result (chunked): name=${toolResult.name}, command=${toolResult.command || 'null'}, size=${toolResult.stdout.length + toolResult.stderr.length} bytes`);
+                    
+                    messages.push({ role: 'tool', name: toolName, toolResult });
+                    
+                    // Call onToolResult callback with structured data
+                    if (onToolResult) {
+                      onToolResult(toolName, toolResult);
+                    }
+                    
+                    // Clean up accumulator
+                    chunkAccumulators.delete(toolName);
                   }
                 } else if (data.type === 'message') {
                   // Other message types (for debugging/visibility)

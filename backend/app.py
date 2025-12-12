@@ -364,18 +364,79 @@ async def execute_task_stream(request: TaskRequest):
                             final_command = result_command or command
                             
                             # Structure the result for frontend rendering
-                            structured_result = {
-                                'type': 'tool_result',
-                                'name': tool_name,
-                                'command': final_command,  # tool_result에서 추출한 command 또는 큐에서 가져온 command
-                                'success': parsed_result.get('success', True) if isinstance(parsed_result, dict) else True,
-                                'exitCode': parsed_result.get('exitCode', 0) if isinstance(parsed_result, dict) else 0,
-                                'stdout': parsed_result.get('output', '') if isinstance(parsed_result, dict) else '',
-                                'stderr': parsed_result.get('error', '') if isinstance(parsed_result, dict) else '',
-                            }
+                            stdout = parsed_result.get('output', '') if isinstance(parsed_result, dict) else ''
+                            stderr = parsed_result.get('error', '') if isinstance(parsed_result, dict) else ''
                             
-                            # Stream structured tool result
-                            yield f"data: {json.dumps(structured_result, ensure_ascii=False)}\n\n"
+                            # Maximum size per SSE message (to avoid "Payload Too Large" errors)
+                            # Typical limit is around 1MB, but we use 512KB to be safe
+                            MAX_CHUNK_SIZE = 512 * 1024  # 512KB
+                            
+                            # Check if output is too large and needs chunking
+                            stdout_size = len(stdout.encode('utf-8')) if stdout else 0
+                            stderr_size = len(stderr.encode('utf-8')) if stderr else 0
+                            
+                            # If output is small enough, send as single message
+                            if stdout_size + stderr_size < MAX_CHUNK_SIZE:
+                                structured_result = {
+                                    'type': 'tool_result',
+                                    'name': tool_name,
+                                    'command': final_command,
+                                    'success': parsed_result.get('success', True) if isinstance(parsed_result, dict) else True,
+                                    'exitCode': parsed_result.get('exitCode', 0) if isinstance(parsed_result, dict) else 0,
+                                    'stdout': stdout,
+                                    'stderr': stderr,
+                                }
+                                yield f"data: {json.dumps(structured_result, ensure_ascii=False)}\n\n"
+                            else:
+                                # Large output: send in chunks
+                                # First, send metadata with truncated output
+                                structured_result = {
+                                    'type': 'tool_result',
+                                    'name': tool_name,
+                                    'command': final_command,
+                                    'success': parsed_result.get('success', True) if isinstance(parsed_result, dict) else True,
+                                    'exitCode': parsed_result.get('exitCode', 0) if isinstance(parsed_result, dict) else 0,
+                                    'stdout': '',  # Will be sent in chunks
+                                    'stderr': '',  # Will be sent in chunks
+                                    'chunked': True,
+                                    'total_size': stdout_size + stderr_size,
+                                }
+                                yield f"data: {json.dumps(structured_result, ensure_ascii=False)}\n\n"
+                                
+                                # Send stdout in chunks
+                                if stdout:
+                                    chunk_size = MAX_CHUNK_SIZE - 1024  # Reserve space for JSON overhead
+                                    for i in range(0, len(stdout), chunk_size):
+                                        chunk = stdout[i:i + chunk_size]
+                                        chunk_result = {
+                                            'type': 'tool_result_chunk',
+                                            'name': tool_name,
+                                            'stream': 'stdout',
+                                            'chunk': chunk,
+                                            'index': i // chunk_size,
+                                        }
+                                        yield f"data: {json.dumps(chunk_result, ensure_ascii=False)}\n\n"
+                                
+                                # Send stderr in chunks
+                                if stderr:
+                                    chunk_size = MAX_CHUNK_SIZE - 1024  # Reserve space for JSON overhead
+                                    for i in range(0, len(stderr), chunk_size):
+                                        chunk = stderr[i:i + chunk_size]
+                                        chunk_result = {
+                                            'type': 'tool_result_chunk',
+                                            'name': tool_name,
+                                            'stream': 'stderr',
+                                            'chunk': chunk,
+                                            'index': i // chunk_size,
+                                        }
+                                        yield f"data: {json.dumps(chunk_result, ensure_ascii=False)}\n\n"
+                                
+                                # Send completion signal
+                                completion_result = {
+                                    'type': 'tool_result_complete',
+                                    'name': tool_name,
+                                }
+                                yield f"data: {json.dumps(completion_result, ensure_ascii=False)}\n\n"
                         except (json.JSONDecodeError, AttributeError) as e:
                             # Fallback: if parsing fails, send as raw content
                             logger.warning(f"Could not parse tool result as JSON: {e}, sending as raw content")
