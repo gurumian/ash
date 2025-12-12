@@ -220,10 +220,10 @@ class QwenAgentService {
                   const toolName = data.name || data.tool_name || 'unknown_tool';
                   const toolArgs = data.args || data.arguments || '{}';
                   
-                  // Command 추출 및 큐에 저장 (ash_ssh_execute인 경우)
+                  // Command 추출 및 큐에 저장 (ash_ssh_execute 또는 ash_telnet_execute인 경우)
                   console.log(`[QwenAgentService] 🔧 Tool call: name=${toolName}, command=${data.command || 'null'}, hasCommand=${!!data.command}`);
                   
-                  if (toolName === 'ash_ssh_execute') {
+                  if (toolName === 'ash_ssh_execute' || toolName === 'ash_telnet_execute') {
                     // 백엔드에서 command를 전달하지 않은 경우, toolArgs에서 추출
                     let command = data.command;
                     if (!command && toolArgs) {
@@ -240,7 +240,7 @@ class QwenAgentService {
                       commandQueue.push(command);
                       console.log(`[QwenAgentService] ✅ Saved command to queue: '${command}' (queue size: ${commandQueue.length})`);
                     } else {
-                      console.warn(`[QwenAgentService] ⚠️ No command found for ash_ssh_execute, toolArgs:`, toolArgs);
+                      console.warn(`[QwenAgentService] ⚠️ No command found for ${toolName}, toolArgs:`, toolArgs);
                     }
                   }
                   

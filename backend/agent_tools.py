@@ -145,18 +145,58 @@ class SSHExecuteTool(BaseTool):
             _logger.error(f"[ash_ssh_execute] Error: {str(e)}", exc_info=True)
             raise
 
+@register_tool('ash_telnet_execute')
+class TelnetExecuteTool(BaseTool):
+    """Execute a command on a Telnet connection and return the output."""
+    description = 'Execute a shell command on a Telnet connection. Returns stdout, stderr, and exit code. Works similarly to ash_ssh_execute but for Telnet connections.'
+    parameters = [{
+        'name': 'connection_id',
+        'type': 'string',
+        'description': 'Telnet connection ID from ash_list_connections',
+        'required': True
+    }, {
+        'name': 'command',
+        'type': 'string',
+        'description': 'Command to execute (without shell prompt symbols like $, >, #)',
+        'required': True
+    }]
+    
+    def call(self, params: str, **kwargs) -> str:
+        import json5
+        
+        data = json5.loads(params)
+        connection_id = data.get('connection_id')
+        command = data.get('command')
+        
+        _logger.info(f"[ash_telnet_execute] connection_id={connection_id}, command={command}")
+        
+        try:
+            # Use the correct IPC channel name: 'telnet-exec-command'
+            result = call_ash_ipc('telnet-exec-command', connection_id, command)
+            # Command를 결과에 포함시키기 (tool_result에서 사용하기 위해)
+            result['command'] = command
+            _logger.info(f"[ash_telnet_execute] Result: success={result.get('success')}, output length={len(str(result.get('output', '')))}")
+            return json.dumps(result, ensure_ascii=False)
+        except Exception as e:
+            _logger.error(f"[ash_telnet_execute] Error: {str(e)}", exc_info=True)
+            raise
+
 @register_tool('ash_list_connections')
 class ListConnectionsTool(BaseTool):
-    """List all active SSH and Serial connections."""
-    description = 'List all active connections in ash. Returns connection IDs and their details. MUST be called first to get connection_id for other operations.'
+    """List all active SSH, Telnet, and Serial connections."""
+    description = 'List all active connections in ash (SSH, Telnet, and Serial). Returns connection IDs, types, and their details. MUST be called first to get connection_id for other operations. Each connection has a "type" field indicating "ssh", "telnet", or "serial".'
     parameters = []
     
     def call(self, params: str, **kwargs) -> str:
         _logger.info("[ash_list_connections] Calling...")
         try:
-            # Use the correct IPC channel name: 'ssh-list-connections'
+            # Use the correct IPC channel name: 'ssh-list-connections' (now returns all connection types)
             result = call_ash_ipc('ssh-list-connections')
-            _logger.info(f"[ash_list_connections] Found {len(result.get('connections', []))} connections")
+            connections = result.get('connections', [])
+            _logger.info(f"[ash_list_connections] Found {len(connections)} connections")
+            # Log connection types for debugging
+            for conn in connections:
+                _logger.debug(f"[ash_list_connections] Connection {conn.get('connectionId')}: type={conn.get('type')}, connected={conn.get('connected')}")
             return json.dumps(result, ensure_ascii=False)
         except Exception as e:
             _logger.error(f"[ash_list_connections] Error: {str(e)}", exc_info=True)

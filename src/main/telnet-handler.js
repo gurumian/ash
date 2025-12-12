@@ -318,6 +318,153 @@ export function initializeTelnetHandlers() {
 }
 
 /**
+ * Get Telnet connections Map (for IPC bridge)
+ */
+export function getTelnetConnections() {
+  return telnetConnections;
+}
+
+/**
+ * Execute command on Telnet connection (for IPC bridge)
+ * 
+ * Telnet is interactive, so we need to:
+ * 1. Send the command
+ * 2. Capture output until we see a prompt or timeout
+ * 3. Return the result
+ */
+export async function executeTelnetCommand(connectionId, command) {
+  const connInfo = telnetConnections.get(connectionId);
+  if (!connInfo || !connInfo.tSocket) {
+    const availableIds = Array.from(telnetConnections.keys());
+    throw new Error(`Telnet connection not found: ${connectionId}. Available: ${availableIds.join(', ')}`);
+  }
+  
+  return new Promise((resolve, reject) => {
+    let output = '';
+    let errorOutput = '';
+    let isResolved = false;
+    
+    // Common prompt patterns (Unix/Linux shells)
+    const promptPatterns = [
+      /\$\s*$/,           // $ prompt
+      /#\s*$/,            // # prompt (root)
+      />\s*$/,            // > prompt
+      /%\s*$/,            // % prompt (csh)
+      /:\s*$/,            // : prompt
+      /\[.*@.*\].*[#$%>]\s*$/,  // [user@host] prompt
+      /\w+@\w+[:\s]+[#$%>]\s*$/, // user@host: prompt
+    ];
+    
+    // Timeout for command execution (30 seconds)
+    const timeout = 30000;
+    const timeoutId = setTimeout(() => {
+      if (!isResolved) {
+        isResolved = true;
+        cleanup();
+        // Return what we have so far, even if incomplete
+        resolve({
+          success: false,
+          output: output.trim(),
+          error: errorOutput.trim() || 'Command execution timed out',
+          exitCode: -1
+        });
+      }
+    }, timeout);
+    
+    // Temporary data handler to capture command output
+    const dataHandler = (data) => {
+      if (isResolved) return;
+      
+      const dataString = data.toString();
+      output += dataString;
+      
+      // Check if we see a prompt (command finished)
+      // Look at the last few lines to detect prompt
+      const lines = output.split('\n');
+      const lastFewLines = lines.slice(-3).join('\n');
+      
+      // Check if last line matches a prompt pattern
+      const lastLine = lines[lines.length - 1] || '';
+      const hasPrompt = promptPatterns.some(pattern => pattern.test(lastLine.trim()));
+      
+      // Also check if we see the command echoed back (common in telnet)
+      // and then see output followed by a prompt
+      if (hasPrompt && output.includes(command)) {
+        // Wait a bit more to ensure we got all output
+        setTimeout(() => {
+          if (!isResolved) {
+            isResolved = true;
+            cleanup();
+            clearTimeout(timeoutId);
+            resolve({
+              success: true,
+              output: output.trim(),
+              error: errorOutput.trim(),
+              exitCode: 0
+            });
+          }
+        }, 200);
+      }
+    };
+    
+    const cleanup = () => {
+      // Try to remove listener - use 'off' (preferred) or 'removeListener' (fallback)
+      // Some implementations may not support removeListener
+      try {
+        if (typeof connInfo.tSocket.off === 'function') {
+          connInfo.tSocket.off('data', dataHandler);
+        } else if (typeof connInfo.tSocket.removeListener === 'function') {
+          connInfo.tSocket.removeListener('data', dataHandler);
+        }
+      } catch (error) {
+        // If removal fails, that's okay - the isResolved flag will prevent handler from doing anything
+        console.warn('Failed to remove Telnet data listener:', error.message);
+      }
+    };
+    
+    // Set up temporary data listener
+    connInfo.tSocket.on('data', dataHandler);
+    
+    // Send command with newline
+    try {
+      // Add command with newline (use \r\n for telnet compatibility)
+      connInfo.tSocket.write(command + '\r\n');
+    } catch (error) {
+      cleanup();
+      clearTimeout(timeoutId);
+      reject(new Error(`Failed to send command: ${error.message}`));
+      return;
+    }
+    
+    // Fallback: if we don't detect a prompt, resolve after a reasonable delay
+    // This handles cases where prompts don't match our patterns
+    setTimeout(() => {
+      if (!isResolved) {
+        isResolved = true;
+        cleanup();
+        clearTimeout(timeoutId);
+        // Try to extract just the command output (remove echoed command)
+        let cleanOutput = output;
+        if (output.includes(command)) {
+          // Remove the echoed command line
+          const lines = output.split('\n');
+          const commandIndex = lines.findIndex(line => line.includes(command));
+          if (commandIndex >= 0) {
+            cleanOutput = lines.slice(commandIndex + 1).join('\n');
+          }
+        }
+        resolve({
+          success: true,
+          output: cleanOutput.trim(),
+          error: errorOutput.trim(),
+          exitCode: 0
+        });
+      }
+    }, 2000); // 2 second fallback
+  });
+}
+
+/**
  * Cleanup Telnet connections
  */
 export function cleanupTelnetConnections() {

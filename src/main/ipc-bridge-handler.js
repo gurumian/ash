@@ -2,6 +2,7 @@ import { ipcMain } from 'electron';
 import http from 'node:http';
 import { URL } from 'node:url';
 import { getSSHConnections, executeSSHCommand } from './ssh-handler.js';
+import { getTelnetConnections, executeTelnetCommand } from './telnet-handler.js';
 
 /**
  * IPC Bridge Handler
@@ -60,34 +61,60 @@ export function startIPCBridge() {
             switch (handler) {
               case 'ssh-exec-command':
               case 'ssh-execute': {
-                console.log(`[IPC Bridge] Executing command on connection ${args[0]}: ${args[1]}`);
+                console.log(`[IPC Bridge] Executing SSH command on connection ${args[0]}: ${args[1]}`);
                 try {
                   result = await executeSSHCommand(args[0], args[1]);
-                  console.log(`[IPC Bridge] Command completed successfully`);
+                  console.log(`[IPC Bridge] SSH command completed successfully`);
                 } catch (error) {
-                  console.error(`[IPC Bridge] Command execution failed:`, error);
+                  console.error(`[IPC Bridge] SSH command execution failed:`, error);
                   throw error;
                 }
                 break;
               }
-                
+              
+              case 'telnet-exec-command':
+              case 'telnet-execute': {
+                console.log(`[IPC Bridge] Executing Telnet command on connection ${args[0]}: ${args[1]}`);
+                try {
+                  result = await executeTelnetCommand(args[0], args[1]);
+                  console.log(`[IPC Bridge] Telnet command completed successfully`);
+                } catch (error) {
+                  console.error(`[IPC Bridge] Telnet command execution failed:`, error);
+                  throw error;
+                }
+                break;
+              }
+              
               case 'ssh-list-connections':
               case 'list-connections': {
-                // Get all active connections
+                // Get all active connections (SSH and Telnet)
                 const sshConnections = getSSHConnections();
-                console.log(`[IPC Bridge] Listing connections. Total: ${sshConnections.size}`);
-                const connections = Array.from(sshConnections.entries()).map(([id, conn]) => {
-                  // ssh2 Client 객체가 Map에 있으면 연결이 활성화되어 있다고 간주
+                const telnetConnections = getTelnetConnections();
+                console.log(`[IPC Bridge] Listing connections. SSH: ${sshConnections.size}, Telnet: ${telnetConnections.size}`);
+                
+                const sshList = Array.from(sshConnections.entries()).map(([id, conn]) => {
                   const isConnected = conn !== null && conn !== undefined;
-                  console.log(`[IPC Bridge] Connection ${id}: exists=${isConnected}`);
+                  console.log(`[IPC Bridge] SSH Connection ${id}: exists=${isConnected}`);
                   return {
                     connectionId: id,
                     type: 'ssh',
                     connected: isConnected
                   };
                 });
+                
+                const telnetList = Array.from(telnetConnections.entries()).map(([id, connInfo]) => {
+                  const isConnected = connInfo !== null && connInfo !== undefined && connInfo.tSocket !== null;
+                  console.log(`[IPC Bridge] Telnet Connection ${id}: exists=${isConnected}`);
+                  return {
+                    connectionId: id,
+                    type: 'telnet',
+                    connected: isConnected
+                  };
+                });
+                
+                const connections = [...sshList, ...telnetList];
                 result = { success: true, connections };
-                console.log(`[IPC Bridge] Returning ${connections.length} connections`);
+                console.log(`[IPC Bridge] Returning ${connections.length} total connections`);
                 break;
               }
                 
