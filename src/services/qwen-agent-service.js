@@ -128,7 +128,23 @@ class QwenAgentService {
       }
 
       if (!response.ok) {
-        throw new Error(`Backend error: ${response.status} ${response.statusText}`);
+        // Check for specific error types
+        if (response.status === 413 || response.statusText.includes('Payload Too Large')) {
+          throw new Error('Server response is too large. An error occurred while processing the result of a command with very large output. Please try reducing the command output or use a different approach.');
+        }
+        // Try to get error message from response body
+        let errorMessage = `Backend error: ${response.status} ${response.statusText}`;
+        try {
+          const errorText = await response.text();
+          if (errorText.includes('Payload Too Large')) {
+            errorMessage = 'Server response is too large. An error occurred while processing the result of a command with very large output. Please try reducing the command output or use a different approach.';
+          } else if (errorText) {
+            errorMessage = `Backend error: ${response.status} ${response.statusText} - ${errorText.substring(0, 200)}`;
+          }
+        } catch (e) {
+          // Ignore error reading response body
+        }
+        throw new Error(errorMessage);
       }
 
       const reader = response.body.getReader();
@@ -389,11 +405,28 @@ class QwenAgentService {
                   }
                   break;
                 } else if (data.type === 'error') {
+                  // Check if it's a "Payload Too Large" error
+                  const errorContent = data.content || '';
+                  if (errorContent.includes('Payload Too Large') || errorContent.includes('<!DOCTYPE html>')) {
+                    throw new Error('Server response is too large. An error occurred while processing the result of a command with very large output. Please try reducing the command output or use a different approach.');
+                  }
                   throw new Error(data.content || 'Unknown error');
                 }
               } catch (e) {
-                // Skip invalid JSON
+                // Check if it's a JSON parse error or actual error
+                if (e instanceof Error && e.message) {
+                  // If it's already an Error object with a message, re-throw it
+                  throw e;
+                }
+                
+                // Check if the line contains HTML error (like "Payload Too Large")
+                if (line && typeof line === 'string' && (line.includes('Payload Too Large') || line.includes('<!DOCTYPE html>'))) {
+                  throw new Error('Server response is too large. An error occurred while processing the result of a command with very large output. Please try reducing the command output or use a different approach.');
+                }
+                
+                // Skip invalid JSON (but log it)
                 console.warn('Failed to parse SSE data:', line, e);
+                // Don't throw for invalid JSON - just skip that line
               }
             }
           }

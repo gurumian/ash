@@ -368,29 +368,37 @@ async def execute_task_stream(request: TaskRequest):
                             stderr = parsed_result.get('error', '') if isinstance(parsed_result, dict) else ''
                             
                             # Maximum size per SSE message (to avoid "Payload Too Large" errors)
-                            # Typical limit is around 1MB, but we use 512KB to be safe
-                            MAX_CHUNK_SIZE = 512 * 1024  # 512KB
+                            # Check JSON serialized size, not raw string size
+                            # Use 256KB to be safe (some servers have stricter limits)
+                            MAX_CHUNK_SIZE = 256 * 1024  # 256KB
                             
-                            # Check if output is too large and needs chunking
-                            stdout_size = len(stdout.encode('utf-8')) if stdout else 0
-                            stderr_size = len(stderr.encode('utf-8')) if stderr else 0
+                            # Build the full result to check serialized size
+                            structured_result = {
+                                'type': 'tool_result',
+                                'name': tool_name,
+                                'command': final_command,
+                                'success': parsed_result.get('success', True) if isinstance(parsed_result, dict) else True,
+                                'exitCode': parsed_result.get('exitCode', 0) if isinstance(parsed_result, dict) else 0,
+                                'stdout': stdout,
+                                'stderr': stderr,
+                            }
+                            
+                            # Check serialized JSON size (this is what actually gets sent)
+                            serialized = json.dumps(structured_result, ensure_ascii=False)
+                            sse_message = f"data: {serialized}\n\n"
+                            message_size = len(sse_message.encode('utf-8'))
                             
                             # If output is small enough, send as single message
-                            if stdout_size + stderr_size < MAX_CHUNK_SIZE:
-                                structured_result = {
-                                    'type': 'tool_result',
-                                    'name': tool_name,
-                                    'command': final_command,
-                                    'success': parsed_result.get('success', True) if isinstance(parsed_result, dict) else True,
-                                    'exitCode': parsed_result.get('exitCode', 0) if isinstance(parsed_result, dict) else 0,
-                                    'stdout': stdout,
-                                    'stderr': stderr,
-                                }
-                                yield f"data: {json.dumps(structured_result, ensure_ascii=False)}\n\n"
+                            if message_size < MAX_CHUNK_SIZE:
+                                yield sse_message
                             else:
                                 # Large output: send in chunks
-                                # First, send metadata with truncated output
-                                structured_result = {
+                                # Calculate raw sizes for metadata
+                                stdout_size = len(stdout.encode('utf-8')) if stdout else 0
+                                stderr_size = len(stderr.encode('utf-8')) if stderr else 0
+                                
+                                # First, send metadata with chunked flag
+                                metadata_result = {
                                     'type': 'tool_result',
                                     'name': tool_name,
                                     'command': final_command,
@@ -401,35 +409,78 @@ async def execute_task_stream(request: TaskRequest):
                                     'chunked': True,
                                     'total_size': stdout_size + stderr_size,
                                 }
-                                yield f"data: {json.dumps(structured_result, ensure_ascii=False)}\n\n"
+                                yield f"data: {json.dumps(metadata_result, ensure_ascii=False)}\n\n"
                                 
                                 # Send stdout in chunks
+                                # Use a conservative chunk size to ensure we stay under limit
+                                # JSON overhead is roughly: {"type":"tool_result_chunk","name":"...","stream":"stdout","chunk":"...","index":0}
+                                # Estimate ~150 bytes overhead, so use 200KB for content
                                 if stdout:
-                                    chunk_size = MAX_CHUNK_SIZE - 1024  # Reserve space for JSON overhead
-                                    for i in range(0, len(stdout), chunk_size):
-                                        chunk = stdout[i:i + chunk_size]
+                                    content_chunk_size = 200 * 1024  # 200KB content per chunk
+                                    chunk_index = 0
+                                    i = 0
+                                    
+                                    while i < len(stdout):
+                                        # Get chunk of content
+                                        chunk = stdout[i:i + content_chunk_size]
+                                        
+                                        # Build chunk message
                                         chunk_result = {
                                             'type': 'tool_result_chunk',
                                             'name': tool_name,
                                             'stream': 'stdout',
                                             'chunk': chunk,
-                                            'index': i // chunk_size,
+                                            'index': chunk_index,
                                         }
-                                        yield f"data: {json.dumps(chunk_result, ensure_ascii=False)}\n\n"
+                                        
+                                        # Serialize and check size
+                                        chunk_serialized = json.dumps(chunk_result, ensure_ascii=False)
+                                        chunk_sse = f"data: {chunk_serialized}\n\n"
+                                        chunk_size = len(chunk_sse.encode('utf-8'))
+                                        
+                                        # If still too large, reduce content size and retry
+                                        if chunk_size >= MAX_CHUNK_SIZE:
+                                            # Reduce content size by 20% and retry
+                                            content_chunk_size = int(content_chunk_size * 0.8)
+                                            if content_chunk_size < 10000:  # Minimum 10KB
+                                                content_chunk_size = 10000
+                                            continue
+                                        
+                                        # Chunk fits, send it
+                                        yield chunk_sse
+                                        i += len(chunk)
+                                        chunk_index += 1
                                 
-                                # Send stderr in chunks
+                                # Send stderr in chunks (same logic as stdout)
                                 if stderr:
-                                    chunk_size = MAX_CHUNK_SIZE - 1024  # Reserve space for JSON overhead
-                                    for i in range(0, len(stderr), chunk_size):
-                                        chunk = stderr[i:i + chunk_size]
+                                    content_chunk_size = 200 * 1024  # 200KB content per chunk
+                                    chunk_index = 0
+                                    i = 0
+                                    
+                                    while i < len(stderr):
+                                        chunk = stderr[i:i + content_chunk_size]
+                                        
                                         chunk_result = {
                                             'type': 'tool_result_chunk',
                                             'name': tool_name,
                                             'stream': 'stderr',
                                             'chunk': chunk,
-                                            'index': i // chunk_size,
+                                            'index': chunk_index,
                                         }
-                                        yield f"data: {json.dumps(chunk_result, ensure_ascii=False)}\n\n"
+                                        
+                                        chunk_serialized = json.dumps(chunk_result, ensure_ascii=False)
+                                        chunk_sse = f"data: {chunk_serialized}\n\n"
+                                        chunk_size = len(chunk_sse.encode('utf-8'))
+                                        
+                                        if chunk_size >= MAX_CHUNK_SIZE:
+                                            content_chunk_size = int(content_chunk_size * 0.8)
+                                            if content_chunk_size < 10000:
+                                                content_chunk_size = 10000
+                                            continue
+                                        
+                                        yield chunk_sse
+                                        i += len(chunk)
+                                        chunk_index += 1
                                 
                                 # Send completion signal
                                 completion_result = {
