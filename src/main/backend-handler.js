@@ -139,7 +139,7 @@ export async function startBackend() {
           execSync(`which ${uvCmd}`, { stdio: 'ignore' });
         }
         cmd = uvCmd;
-        args = ['run', 'uvicorn', 'app:app', '--host', '127.0.0.1', '--port', String(BACKEND_PORT), '--reload'];
+        args = ['run', 'uvicorn', 'app:app', '--host', '127.0.0.1', '--port', String(BACKEND_PORT), '--reload', '--limit-max-requests', '10000', '--timeout-keep-alive', '300'];
         console.log(`Using uv to run backend`);
       } catch (e) {
         // uv not found, try python
@@ -151,7 +151,7 @@ export async function startBackend() {
             execSync(`which ${pythonCmd}`, { stdio: 'ignore' });
           }
           cmd = pythonCmd;
-          args = ['-m', 'uvicorn', 'app:app', '--host', '127.0.0.1', '--port', String(BACKEND_PORT), '--reload'];
+          args = ['-m', 'uvicorn', 'app:app', '--host', '127.0.0.1', '--port', String(BACKEND_PORT), '--reload', '--limit-max-requests', '10000', '--timeout-keep-alive', '300'];
           console.log(`Using python to run backend`);
         } catch (e2) {
           throw new Error('Neither uv nor python found. Please install uv or python.');

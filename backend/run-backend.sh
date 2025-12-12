@@ -26,13 +26,13 @@ else
     # Try uv first
     if command -v uv &> /dev/null; then
         echo "Using uv to run backend..."
-        uv run uvicorn app:app --host 127.0.0.1 --port 54111 --reload
+        uv run uvicorn app:app --host 127.0.0.1 --port 54111 --reload --limit-max-requests 10000 --timeout-keep-alive 300
     elif command -v python3 &> /dev/null; then
         echo "Using python3 to run backend..."
-        python3 -m uvicorn app:app --host 127.0.0.1 --port 54111 --reload
+        python3 -m uvicorn app:app --host 127.0.0.1 --port 54111 --reload --limit-max-requests 10000 --timeout-keep-alive 300
     elif command -v python &> /dev/null; then
         echo "Using python to run backend..."
-        python -m uvicorn app:app --host 127.0.0.1 --port 54111 --reload
+        python -m uvicorn app:app --host 127.0.0.1 --port 54111 --reload --limit-max-requests 10000 --timeout-keep-alive 300
     else
         echo "Error: Neither uv nor python found. Please install uv or python."
         exit 1

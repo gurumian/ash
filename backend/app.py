@@ -242,6 +242,7 @@ async def execute_task_stream(request: TaskRequest):
     def generate():
         try:
             logger.info(f"Running assistant with {len(messages)} messages.")
+            logger.info(f"LLM config: model={request.llm_config.model if request.llm_config else model_config['model']}, server={request.llm_config.base_url if request.llm_config else model_config['model_server']}")
             if request.conversation_history:
                 logger.info(f"Conversation history: {len(request.conversation_history)} previous messages")
             else:
@@ -343,7 +344,8 @@ async def execute_task_stream(request: TaskRequest):
                     elif event_type in ('tool', 'function') and idx >= len(previous_response):
                         tool_name = message.get('name', 'unknown_tool')
                         tool_content = str(content) if content else ''
-                        logger.info(f"Tool {tool_name} result (role={event_type}): {tool_content[:100]}...")
+                        tool_content_size = len(tool_content.encode('utf-8')) if tool_content else 0
+                        logger.info(f"Tool {tool_name} result (role={event_type}): {tool_content[:100]}... (size: {tool_content_size} bytes)")
                         
                         # 큐에서 command 가져오기 (실행 순서대로)
                         command = None
@@ -367,10 +369,20 @@ async def execute_task_stream(request: TaskRequest):
                             stdout = parsed_result.get('output', '') if isinstance(parsed_result, dict) else ''
                             stderr = parsed_result.get('error', '') if isinstance(parsed_result, dict) else ''
                             
+                            # Early size check - if output is extremely large, truncate it immediately
+                            # This prevents any chance of sending oversized messages
+                            MAX_SAFE_SIZE = 100 * 1024  # 100KB - absolute maximum before chunking
+                            stdout_size_bytes = len(stdout.encode('utf-8')) if stdout else 0
+                            stderr_size_bytes = len(stderr.encode('utf-8')) if stderr else 0
+                            
+                            # Log early warning if output is very large
+                            if stdout_size_bytes > MAX_SAFE_SIZE or stderr_size_bytes > MAX_SAFE_SIZE:
+                                logger.warning(f"⚠️ Very large tool output detected: stdout={stdout_size_bytes} bytes, stderr={stderr_size_bytes} bytes - will chunk")
+                            
                             # Maximum size per SSE message (to avoid "Payload Too Large" errors)
                             # Check JSON serialized size, not raw string size
-                            # Use 256KB to be safe (some servers have stricter limits)
-                            MAX_CHUNK_SIZE = 256 * 1024  # 256KB
+                            # Use 128KB to be very safe (some servers/proxies have strict limits)
+                            MAX_CHUNK_SIZE = 128 * 1024  # 128KB - reduced for safety
                             
                             # Build the full result to check serialized size
                             structured_result = {
@@ -388,11 +400,19 @@ async def execute_task_stream(request: TaskRequest):
                             sse_message = f"data: {serialized}\n\n"
                             message_size = len(sse_message.encode('utf-8'))
                             
+                            # Log size for debugging
+                            stdout_size = len(stdout.encode('utf-8')) if stdout else 0
+                            stderr_size = len(stderr.encode('utf-8')) if stderr else 0
+                            logger.info(f"Tool result size: stdout={stdout_size} bytes, stderr={stderr_size} bytes, total message={message_size} bytes, max={MAX_CHUNK_SIZE} bytes")
+                            
                             # If output is small enough, send as single message
                             if message_size < MAX_CHUNK_SIZE:
+                                logger.info(f"Sending tool result as single message ({message_size} bytes)")
                                 yield sse_message
                             else:
                                 # Large output: send in chunks
+                                logger.warning(f"Tool result too large ({message_size} bytes > {MAX_CHUNK_SIZE} bytes), chunking...")
+                                
                                 # Calculate raw sizes for metadata
                                 stdout_size = len(stdout.encode('utf-8')) if stdout else 0
                                 stderr_size = len(stderr.encode('utf-8')) if stderr else 0
@@ -409,16 +429,19 @@ async def execute_task_stream(request: TaskRequest):
                                     'chunked': True,
                                     'total_size': stdout_size + stderr_size,
                                 }
-                                yield f"data: {json.dumps(metadata_result, ensure_ascii=False)}\n\n"
+                                metadata_msg = f"data: {json.dumps(metadata_result, ensure_ascii=False)}\n\n"
+                                logger.info(f"Sending metadata message ({len(metadata_msg.encode('utf-8'))} bytes)")
+                                yield metadata_msg
                                 
                                 # Send stdout in chunks
                                 # Use a conservative chunk size to ensure we stay under limit
                                 # JSON overhead is roughly: {"type":"tool_result_chunk","name":"...","stream":"stdout","chunk":"...","index":0}
-                                # Estimate ~150 bytes overhead, so use 200KB for content
+                                # Estimate ~200 bytes overhead, so use 100KB for content (safe margin)
                                 if stdout:
-                                    content_chunk_size = 200 * 1024  # 200KB content per chunk
+                                    content_chunk_size = 100 * 1024  # 100KB content per chunk (conservative)
                                     chunk_index = 0
                                     i = 0
+                                    total_chunks = 0
                                     
                                     while i < len(stdout):
                                         # Get chunk of content
@@ -440,22 +463,28 @@ async def execute_task_stream(request: TaskRequest):
                                         
                                         # If still too large, reduce content size and retry
                                         if chunk_size >= MAX_CHUNK_SIZE:
-                                            # Reduce content size by 20% and retry
-                                            content_chunk_size = int(content_chunk_size * 0.8)
-                                            if content_chunk_size < 10000:  # Minimum 10KB
-                                                content_chunk_size = 10000
+                                            # Reduce content size by 30% and retry
+                                            content_chunk_size = int(content_chunk_size * 0.7)
+                                            if content_chunk_size < 5000:  # Minimum 5KB
+                                                logger.error(f"Chunk size too small ({content_chunk_size} bytes), cannot send stdout")
+                                                break
+                                            logger.warning(f"Chunk too large ({chunk_size} bytes), reducing to {content_chunk_size} bytes")
                                             continue
                                         
                                         # Chunk fits, send it
                                         yield chunk_sse
+                                        total_chunks += 1
                                         i += len(chunk)
                                         chunk_index += 1
+                                    
+                                    logger.info(f"Sent {total_chunks} stdout chunks")
                                 
                                 # Send stderr in chunks (same logic as stdout)
                                 if stderr:
-                                    content_chunk_size = 200 * 1024  # 200KB content per chunk
+                                    content_chunk_size = 100 * 1024  # 100KB content per chunk
                                     chunk_index = 0
                                     i = 0
+                                    total_chunks = 0
                                     
                                     while i < len(stderr):
                                         chunk = stderr[i:i + content_chunk_size]
@@ -473,14 +502,19 @@ async def execute_task_stream(request: TaskRequest):
                                         chunk_size = len(chunk_sse.encode('utf-8'))
                                         
                                         if chunk_size >= MAX_CHUNK_SIZE:
-                                            content_chunk_size = int(content_chunk_size * 0.8)
-                                            if content_chunk_size < 10000:
-                                                content_chunk_size = 10000
+                                            content_chunk_size = int(content_chunk_size * 0.7)
+                                            if content_chunk_size < 5000:
+                                                logger.error(f"Chunk size too small ({content_chunk_size} bytes), cannot send stderr")
+                                                break
+                                            logger.warning(f"Chunk too large ({chunk_size} bytes), reducing to {content_chunk_size} bytes")
                                             continue
                                         
                                         yield chunk_sse
+                                        total_chunks += 1
                                         i += len(chunk)
                                         chunk_index += 1
+                                    
+                                    logger.info(f"Sent {total_chunks} stderr chunks")
                                 
                                 # Send completion signal
                                 completion_result = {
@@ -490,8 +524,28 @@ async def execute_task_stream(request: TaskRequest):
                                 yield f"data: {json.dumps(completion_result, ensure_ascii=False)}\n\n"
                         except (json.JSONDecodeError, AttributeError) as e:
                             # Fallback: if parsing fails, send as raw content
+                            # But still check size and chunk if needed
                             logger.warning(f"Could not parse tool result as JSON: {e}, sending as raw content")
-                            yield f"data: {json.dumps({'type': 'tool_result', 'name': tool_name, 'command': command, 'content': tool_content})}\n\n"
+                            
+                            fallback_result = {'type': 'tool_result', 'name': tool_name, 'command': command, 'content': tool_content}
+                            fallback_serialized = json.dumps(fallback_result, ensure_ascii=False)
+                            fallback_sse = f"data: {fallback_serialized}\n\n"
+                            fallback_size = len(fallback_sse.encode('utf-8'))
+                            
+                            if fallback_size < MAX_CHUNK_SIZE:
+                                yield fallback_sse
+                            else:
+                                # Even fallback is too large - truncate content
+                                logger.error(f"⚠️ Fallback message also too large ({fallback_size} bytes), truncating content")
+                                max_content_size = MAX_CHUNK_SIZE - 500  # Reserve space for JSON
+                                truncated_content = tool_content[:max_content_size] if len(tool_content) > max_content_size else tool_content
+                                truncated_result = {'type': 'tool_result', 'name': tool_name, 'command': command, 'content': truncated_content, 'truncated': True}
+                                yield f"data: {json.dumps(truncated_result, ensure_ascii=False)}\n\n"
+                        except Exception as e:
+                            # Catch any other errors in tool result processing
+                            logger.error(f"Error processing tool result: {e}", exc_info=True)
+                            error_result = {'type': 'error', 'content': f'Error processing tool result: {str(e)}'}
+                            yield f"data: {json.dumps(error_result, ensure_ascii=False)}\n\n"
                 
                 # 이전 response 업데이트 (중복 방지)
                 previous_response = response_chunk.copy()
@@ -500,8 +554,29 @@ async def execute_task_stream(request: TaskRequest):
             yield f"data: {json.dumps({'type': 'done', 'timestamp': datetime.now().isoformat()})}\n\n"
             
         except Exception as e:
-            logger.error(f"Streaming task error: {e}", exc_info=True)
-            yield f"data: {json.dumps({'type': 'error', 'content': str(e)})}\n\n"
+            error_msg = str(e)
+            logger.error(f"Streaming task error: {error_msg}", exc_info=True)
+            
+            # Check if error is related to payload size
+            if 'Payload Too Large' in error_msg or '413' in error_msg or 'too large' in error_msg.lower():
+                logger.error("⚠️ PAYLOAD TOO LARGE ERROR DETECTED - This indicates the response exceeded server limits")
+                logger.error(f"Error details: {error_msg}")
+                # Try to send a truncated error message
+                try:
+                    error_result = {'type': 'error', 'content': 'Server response exceeded size limit. The command output was too large to process.'}
+                    error_json = json.dumps(error_result, ensure_ascii=False)
+                    error_sse = f"data: {error_json}\n\n"
+                    if len(error_sse.encode('utf-8')) < 1000:  # Ensure error message itself is small
+                        yield error_sse
+                except Exception as send_error:
+                    logger.error(f"Failed to send error message: {send_error}")
+            else:
+                # Regular error
+                try:
+                    error_result = {'type': 'error', 'content': error_msg[:500]}  # Truncate to 500 chars
+                    yield f"data: {json.dumps(error_result, ensure_ascii=False)}\n\n"
+                except Exception as send_error:
+                    logger.error(f"Failed to send error message: {send_error}")
         finally:
             yield "data: [DONE]\n\n"
             logger.info("Sent final DONE signal")
@@ -517,5 +592,12 @@ async def execute_task_stream(request: TaskRequest):
     )
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port=54111)
+    # Configure uvicorn with increased limits for large SSE responses
+    uvicorn.run(
+        app, 
+        host="127.0.0.1", 
+        port=54111,
+        limit_max_requests=10000,  # Increase max concurrent requests
+        timeout_keep_alive=300,    # 5 minutes keep-alive for long SSE streams
+    )
 
