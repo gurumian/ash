@@ -9,11 +9,24 @@ export function useLLMSettings() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
+        const provider = parsed.provider || 'ash';
         return {
-          provider: parsed.provider || 'ollama',
+          provider,
           apiKey: parsed.apiKey || '',
-          baseURL: parsed.baseURL || (parsed.provider === 'ollama' ? 'http://localhost:11434' : ''),
-          model: parsed.model || (parsed.provider === 'ollama' ? 'llama3.2' : parsed.provider === 'ash' ? 'qwen3:14b' : ''),
+          baseURL:
+            parsed.baseURL ||
+            (provider === 'ollama'
+              ? 'http://localhost:11434'
+              : provider === 'ash'
+                ? 'https://ash.toktoktalk.com/v1'
+                : ''),
+          model:
+            parsed.model ||
+            (provider === 'ollama'
+              ? 'llama3.2'
+              : provider === 'ash'
+                ? 'qwen3:14b'
+                : ''),
           enabled: parsed.enabled !== undefined ? parsed.enabled : false,
           temperature: parsed.temperature !== undefined ? parsed.temperature : 0.7,
           maxTokens: parsed.maxTokens !== undefined ? parsed.maxTokens : 1000
@@ -31,10 +44,10 @@ export function useLLMSettings() {
   // Default settings
   function getDefaultSettings() {
     return {
-      provider: 'ollama',
+      provider: 'ash',
       apiKey: '',
-      baseURL: 'http://localhost:11434',
-      model: 'llama3.2',
+      baseURL: 'https://ash.toktoktalk.com/v1',
+      model: 'qwen3:14b',
       enabled: false,
       temperature: 0.7,
       maxTokens: 1000
