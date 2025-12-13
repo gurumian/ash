@@ -29,7 +29,7 @@
   font-size: 12px;
   color: #00ff41;
   font-weight: 600;
-  font-family: var(--ui-font-family, 'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', monospace);
+  font-family: var(--ui-font-family, 'Verdana', sans-serif);
   opacity: 0.8;
   -webkit-app-region: drag;
   white-space: nowrap;
@@ -54,7 +54,7 @@
   border: none;
   color: #00ff41;
   font-size: 12px;
-  font-family: var(--ui-font-family, 'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', monospace);
+  font-family: var(--ui-font-family, 'Verdana', sans-serif);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -93,7 +93,7 @@
   border: none;
   color: #00ff41;
   font-size: 12px;
-  font-family: var(--ui-font-family, 'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', monospace);
+  font-family: var(--ui-font-family, 'Verdana', sans-serif);
   text-align: left;
   cursor: pointer;
   display: flex;

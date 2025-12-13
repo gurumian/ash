@@ -203,7 +203,7 @@
 .tftp-output-dir-path {
   flex: 1;
   color: #00ff41;
-  font-family: var(--ui-font-family, 'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace);
+  font-family: var(--ui-font-family, 'Verdana', sans-serif);
   font-size: 12px;
   padding: 8px 12px;
   background: #1a1a1a;
@@ -314,7 +314,7 @@
 .tftp-endpoint-value {
   flex: 1;
   color: #00ff41;
-  font-family: var(--ui-font-family, 'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace);
+  font-family: var(--ui-font-family, 'Verdana', sans-serif);
   font-size: 12px;
   padding: 8px 12px;
   background: #1a1a1a;
@@ -441,7 +441,7 @@
   padding: 10px 12px;
   border-radius: 4px;
   font-size: 13px;
-  font-family: var(--ui-font-family, 'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace);
+  font-family: var(--ui-font-family, 'Verdana', sans-serif);
   cursor: text;
   overflow-x: auto;
   overflow-y: hidden;

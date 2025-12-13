@@ -426,11 +426,11 @@ function App() {
   });
   const [terminalFontFamily, setTerminalFontFamily] = useState(() => {
     const saved = localStorage.getItem('ash-terminal-font-family');
-    return saved || "'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace";
+    return saved || "'Source Code Pro', 'Courier New', monospace";
   });
   const [uiFontFamily, setUiFontFamily] = useState(() => {
     const saved = localStorage.getItem('ash-ui-font-family');
-    return saved || "'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace";
+    return saved || "'Verdana', sans-serif";
   });
   const [autoReconnect, setAutoReconnect] = useState(() => {
     const saved = localStorage.getItem('ash-auto-reconnect');

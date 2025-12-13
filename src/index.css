@@ -9,5 +9,5 @@ body,
 }
 
 body {
-  font-family: var(--ui-font-family, 'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace);
+  font-family: var(--ui-font-family, 'Verdana', sans-serif);
 }

@@ -93,7 +93,7 @@ html, body {
   width: 100vw;
   background: var(--theme-bg, #000000);
   color: var(--theme-text, #00ff41);
-  font-family: var(--ui-font-family, 'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace);
+  font-family: var(--ui-font-family, 'Verdana', sans-serif);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -578,7 +578,7 @@ button, a, input, select, textarea, [role="button"] {
   flex: 1;
   background: var(--theme-bg, #000000);
   color: var(--theme-text, #00ff41);
-  font-family: var(--ui-font-family, 'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace);
+  font-family: var(--ui-font-family, 'Verdana', sans-serif);
   font-size: 13px;
   line-height: 1.0;
   padding: 0;
@@ -1541,7 +1541,7 @@ button, a, input, select, textarea, [role="button"] {
   font-weight: 600;
   padding: 2px 4px;
   border-radius: 2px;
-  font-family: var(--ui-font-family, 'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace);
+  font-family: var(--ui-font-family, 'Verdana', sans-serif);
 }
 
 .group-name-input:focus {
@@ -1738,7 +1738,7 @@ button, a, input, select, textarea, [role="button"] {
   border-radius: 4px;
   transition: all 0.2s;
   -webkit-app-region: no-drag;
-  font-family: var(--ui-font-family, 'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace);
+  font-family: var(--ui-font-family, 'Verdana', sans-serif);
 }
 
 .new-library-btn:hover {
@@ -1757,7 +1757,7 @@ button, a, input, select, textarea, [role="button"] {
   border-radius: 4px;
   transition: all 0.2s;
   -webkit-app-region: no-drag;
-  font-family: var(--ui-font-family, 'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace);
+  font-family: var(--ui-font-family, 'Verdana', sans-serif);
 }
 
 .new-group-btn:hover {
@@ -1850,7 +1850,7 @@ button, a, input, select, textarea, [role="button"] {
   border: 1px solid rgba(0, 255, 65, 0.3);
   color: #00ff41;
   padding: 8px 12px;
-  font-family: var(--ui-font-family, 'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace);
+  font-family: var(--ui-font-family, 'Verdana', sans-serif);
   font-size: 13px;
   border-radius: 4px;
   outline: none;
@@ -1912,7 +1912,7 @@ button, a, input, select, textarea, [role="button"] {
   border: 1px solid rgba(68, 68, 68, 0.5);
   color: #00ff41;
   padding: 6px 12px;
-  font-family: var(--ui-font-family, 'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace);
+  font-family: var(--ui-font-family, 'Verdana', sans-serif);
   font-size: 13px;
   border-radius: 4px;
   outline: none;
