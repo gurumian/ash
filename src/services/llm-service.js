@@ -826,8 +826,22 @@ Command:`;
       throw new Error('Empty response from LLM');
     }
 
+    // Some models may include chain-of-thought in <think>...</think>.
+    // Never treat that as a command.
+    const stripThinkBlocks = (text) => {
+      if (!text || typeof text !== 'string') return '';
+      // Remove complete think blocks
+      let out = text.replace(/<think>[\s\S]*?<\/think>/g, '');
+      // If an unterminated <think> exists, drop everything after it
+      const start = out.indexOf('<think>');
+      if (start !== -1) {
+        out = out.slice(0, start);
+      }
+      return out;
+    };
+
     // Remove markdown code blocks if present
-    let command = response.trim();
+    let command = stripThinkBlocks(response).trim();
     command = command.replace(/^```[\w]*\n?/g, '');
     command = command.replace(/\n?```$/g, '');
     command = command.trim();
@@ -835,8 +849,11 @@ Command:`;
     // Remove any leading $ or > prompts
     command = command.replace(/^[\$>]\s*/, '');
 
-    // Take first line if multiple lines
-    command = command.split('\n')[0].trim();
+    // Take first non-empty line if multiple lines
+    command = command
+      .split('\n')
+      .map((l) => l.trim())
+      .find((l) => l.length > 0) || '';
 
     if (!command) {
       if (process.env.NODE_ENV === 'development') {

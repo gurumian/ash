@@ -646,6 +646,10 @@ export function useAICommand({
         currentDirectory: 'unknown' // TODO: Get actual current directory from terminal
       };
 
+      // Create AbortController for cancellation (ask mode)
+      abortControllerRef.current = new AbortController();
+      const abortSignal = abortControllerRef.current.signal;
+
       // Ensure conversation exists for ask mode
       let currentConversationId = conversationId;
       if (!currentConversationId && activeSessionId) {
