@@ -268,30 +268,30 @@ class QwenAgentService {
                   // Tool call request - LLM is requesting to call a tool
                   const toolName = data.name || data.tool_name || 'unknown_tool';
                   const toolArgs = data.args || data.arguments || '{}';
+                  let extractedCommand = data.command || null;
                   
                   // Command 추출 및 큐에 저장 (ash_ssh_execute 또는 ash_telnet_execute인 경우)
                   console.log(`[QwenAgentService] 🔧 Tool call: name=${toolName}, command=${data.command || 'null'}, hasCommand=${!!data.command}`);
                   
                   if (toolName === 'ash_ssh_execute' || toolName === 'ash_telnet_execute') {
                     // 백엔드에서 command를 전달하지 않은 경우, toolArgs에서 추출
-                    let command = data.command;
-                    if (!command && toolArgs) {
+                    if (!extractedCommand && toolArgs) {
                       if (typeof toolArgs === 'object') {
-                        command = toolArgs.command || null;
+                        extractedCommand = toolArgs.command || null;
                       } else {
                         try {
                           const args = JSON.parse(toolArgs);
-                          command = args.command || null;
+                          extractedCommand = args.command || null;
                         } catch (e) {
                           // JSON 파싱 실패시: 비어있지 않으면 그대로 사용
-                          command = typeof toolArgs === 'string' && toolArgs.trim() ? toolArgs : null;
+                          extractedCommand = typeof toolArgs === 'string' && toolArgs.trim() ? toolArgs : null;
                         }
                       }
                     }
                     
-                    if (command) {
-                      commandQueue.push(command);
-                      console.log(`[QwenAgentService] ✅ Saved command to queue: '${command}' (queue size: ${commandQueue.length})`);
+                    if (extractedCommand) {
+                      commandQueue.push(extractedCommand);
+                      console.log(`[QwenAgentService] ✅ Saved command to queue: '${extractedCommand}' (queue size: ${commandQueue.length})`);
                     } else {
                       const argsStr = typeof toolArgs === 'string' ? toolArgs.trim() : '';
                       // Some models may emit an empty/placeholder tool_call before correcting.
@@ -306,7 +306,10 @@ class QwenAgentService {
                   
                   // Call tool call callback if provided (for displaying to user)
                   if (onToolCall) {
-                    onToolCall(toolName, toolArgs);
+                    onToolCall(toolName, {
+                      args: toolArgs,
+                      command: extractedCommand
+                    });
                   }
                   
                   // Track for history but don't add to messages array (handled by backend)

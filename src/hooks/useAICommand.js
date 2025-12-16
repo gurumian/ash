@@ -535,9 +535,19 @@ export function useAICommand({
               }
             }
           },
-          // Tool call callback (when LLM requests to call a tool) - don't display
-          (toolName, toolArgs) => {
-            // Don't display tool calls to user
+          // Tool call callback (when LLM requests to call a tool)
+          (toolName, toolCall) => {
+            if (abortSignal?.aborted) return;
+            // Show "Executing ..." immediately so long-running commands don't feel stuck
+            const command = typeof toolCall === 'string'
+              ? null
+              : (toolCall?.command || null);
+            setStreamingToolResult({
+              name: toolName,
+              command,
+              stdout: '',
+              stderr: ''
+            });
           },
           // AbortSignal for cancellation
           abortSignal,
