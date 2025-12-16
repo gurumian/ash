@@ -9,24 +9,17 @@ export function useLLMSettings() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        const provider = parsed.provider || 'ash';
+        // Only 'ash' and 'ollama' are supported for now. Normalize legacy values.
+        const provider = (parsed.provider === 'ollama' || parsed.provider === 'ash') ? parsed.provider : 'ash';
         return {
           provider,
           apiKey: parsed.apiKey || '',
           baseURL:
             parsed.baseURL ||
-            (provider === 'ollama'
-              ? 'http://localhost:11434'
-              : provider === 'ash'
-                ? 'https://ash.toktoktalk.com/v1'
-                : ''),
+            (provider === 'ollama' ? 'http://localhost:11434' : 'https://ash.toktoktalk.com/v1'),
           model:
             parsed.model ||
-            (provider === 'ollama'
-              ? 'llama3.2'
-              : provider === 'ash'
-                ? 'qwen3:14b'
-                : ''),
+            (provider === 'ollama' ? 'llama3.2' : 'qwen3:14b'),
           enabled: parsed.enabled !== undefined ? parsed.enabled : false,
           temperature: parsed.temperature !== undefined ? parsed.temperature : 0.7,
           maxTokens: parsed.maxTokens !== undefined ? parsed.maxTokens : 1000

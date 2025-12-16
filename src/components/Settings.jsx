@@ -631,15 +631,9 @@ export const Settings = memo(function Settings({
                       }}
                     >
                       <span>
-                        {llmSettings?.provider === 'ollama' 
-                          ? 'Ollama (Local)' 
-                          : llmSettings?.provider === 'openai' 
-                          ? 'OpenAI' 
-                          : llmSettings?.provider === 'anthropic'
-                          ? 'Anthropic (Claude)'
-                          : llmSettings?.provider === 'ash'
-                          ? 'Ash'
-                          : 'Ollama (Local)'}
+                        {llmSettings?.provider === 'ollama'
+                          ? 'Ollama (Local)'
+                          : 'Ash'}
                       </span>
                       <span style={{
                         fontSize: '8px',
@@ -682,7 +676,6 @@ export const Settings = memo(function Settings({
                               updates.baseURL = 'http://localhost:11434';
                             }
                             if (!llmSettings?.model || 
-                                llmSettings?.model === 'gpt-4o-mini' || 
                                 llmSettings?.model.includes('claude')) {
                               updates.model = 'llama3.2';
                             }
@@ -716,82 +709,6 @@ export const Settings = memo(function Settings({
                         <button
                           type="button"
                           onClick={() => {
-                            const provider = 'openai';
-                            const updates = { provider };
-                            if (!llmSettings?.baseURL || llmSettings?.baseURL === 'http://localhost:11434') {
-                              updates.baseURL = 'https://api.openai.com/v1';
-                            }
-                            if (!llmSettings?.model || llmSettings?.model === 'llama3.2') {
-                              updates.model = 'gpt-4o-mini';
-                            }
-                            onChangeLlmSettings?.(updates);
-                            setShowProviderDropdown(false);
-                          }}
-                          style={{
-                            width: '100%',
-                            padding: '8px 12px',
-                            background: llmSettings?.provider === 'openai' ? 'rgba(0, 255, 65, 0.15)' : 'transparent',
-                            border: 'none',
-                            color: '#00ff41',
-                            fontSize: '13px',
-                            textAlign: 'left',
-                            cursor: 'pointer',
-                            transition: 'background 0.15s'
-                          }}
-                          onMouseEnter={(e) => {
-                            if (llmSettings?.provider !== 'openai') {
-                              e.currentTarget.style.backgroundColor = 'rgba(0, 255, 65, 0.1)';
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            if (llmSettings?.provider !== 'openai') {
-                              e.currentTarget.style.backgroundColor = 'transparent';
-                            }
-                          }}
-                        >
-                          OpenAI
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const provider = 'anthropic';
-                            const updates = { provider };
-                            if (!llmSettings?.baseURL || llmSettings?.baseURL === 'http://localhost:11434') {
-                              updates.baseURL = 'https://api.anthropic.com/v1';
-                            }
-                            if (!llmSettings?.model || llmSettings?.model === 'llama3.2') {
-                              updates.model = 'claude-3-5-sonnet-20241022';
-                            }
-                            onChangeLlmSettings?.(updates);
-                            setShowProviderDropdown(false);
-                          }}
-                          style={{
-                            width: '100%',
-                            padding: '8px 12px',
-                            background: llmSettings?.provider === 'anthropic' ? 'rgba(0, 255, 65, 0.15)' : 'transparent',
-                            border: 'none',
-                            color: '#00ff41',
-                            fontSize: '13px',
-                            textAlign: 'left',
-                            cursor: 'pointer',
-                            transition: 'background 0.15s'
-                          }}
-                          onMouseEnter={(e) => {
-                            if (llmSettings?.provider !== 'anthropic') {
-                              e.currentTarget.style.backgroundColor = 'rgba(0, 255, 65, 0.1)';
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            if (llmSettings?.provider !== 'anthropic') {
-                              e.currentTarget.style.backgroundColor = 'transparent';
-                            }
-                          }}
-                        >
-                          Anthropic (Claude)
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
                             const provider = 'ash';
                             const updates = { provider };
                             if (!llmSettings?.baseURL || 
@@ -802,7 +719,6 @@ export const Settings = memo(function Settings({
                             }
                             if (!llmSettings?.model || 
                                 llmSettings?.model === 'llama3.2' ||
-                                llmSettings?.model === 'gpt-4o-mini' ||
                                 llmSettings?.model.includes('claude')) {
                               updates.model = 'qwen3:14b';
                             }
@@ -841,21 +757,6 @@ export const Settings = memo(function Settings({
                   </p>
                 </div>
 
-                {(llmSettings?.provider !== 'ollama' && llmSettings?.provider !== 'ash') && (
-                  <div className="setting-group">
-                    <label>{t('settings:apiKey')}</label>
-                    <input
-                      type="password"
-                      value={llmSettings?.apiKey || ''}
-                      onChange={(e) => onChangeLlmSettings?.({ apiKey: e.target.value })}
-                      placeholder={llmSettings?.provider === 'openai' ? 'sk-...' : 'sk-ant-...'}
-                      style={{ width: '400px', padding: '8px 12px', background: '#1a1a1a', border: '1px solid #1a1a1a', borderRadius: '4px', color: '#00ff41', fontSize: '13px' }}
-                    />
-                    <p className="setting-description">
-                      {t('settings:apiKeyDesc', { provider: llmSettings?.provider === 'openai' ? 'OpenAI' : 'Anthropic' })}
-                    </p>
-                  </div>
-                )}
                 {llmSettings?.provider === 'ash' && (
                   <div className="setting-group">
                     <label>{t('settings:apiKey')}</label>
@@ -879,15 +780,9 @@ export const Settings = memo(function Settings({
                     value={llmSettings?.baseURL || ''}
                     onChange={(e) => onChangeLlmSettings?.({ baseURL: e.target.value })}
                     placeholder={
-                      llmSettings?.provider === 'ollama' 
-                        ? 'http://localhost:11434' 
-                        : llmSettings?.provider === 'openai'
-                        ? 'https://api.openai.com/v1'
-                        : llmSettings?.provider === 'anthropic'
-                        ? 'https://api.anthropic.com/v1'
-                        : llmSettings?.provider === 'ash'
-                        ? 'https://ash.toktoktalk.com/v1'
-                        : ''
+                      llmSettings?.provider === 'ollama'
+                        ? 'http://localhost:11434'
+                        : 'https://ash.toktoktalk.com/v1'
                     }
                     style={{ width: '400px', padding: '8px 12px', background: '#1a1a1a', border: '1px solid #1a1a1a', borderRadius: '4px', color: '#00ff41', fontSize: '13px' }}
                   />
@@ -950,7 +845,7 @@ export const Settings = memo(function Settings({
                             }
                           }
                         }}
-                        placeholder={llmSettings?.provider === 'ollama' ? 'llama3.2' : llmSettings?.provider === 'openai' ? 'gpt-4o-mini' : llmSettings?.provider === 'anthropic' ? 'claude-3-5-sonnet-20241022' : llmSettings?.provider === 'ash' ? 'qwen3:14b' : 'llama3.2'}
+                        placeholder={llmSettings?.provider === 'ollama' ? 'llama3.2' : 'qwen3:14b'}
                         style={{ 
                           width: '100%', 
                           padding: '8px 32px 8px 12px', 
