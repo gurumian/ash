@@ -276,12 +276,16 @@ class QwenAgentService {
                     // 백엔드에서 command를 전달하지 않은 경우, toolArgs에서 추출
                     let command = data.command;
                     if (!command && toolArgs) {
-                      try {
-                        const args = JSON.parse(toolArgs);
-                        command = args.command || null;
-                      } catch (e) {
-                        // JSON 파싱 실패시 그대로 사용
-                        command = toolArgs;
+                      if (typeof toolArgs === 'object') {
+                        command = toolArgs.command || null;
+                      } else {
+                        try {
+                          const args = JSON.parse(toolArgs);
+                          command = args.command || null;
+                        } catch (e) {
+                          // JSON 파싱 실패시: 비어있지 않으면 그대로 사용
+                          command = typeof toolArgs === 'string' && toolArgs.trim() ? toolArgs : null;
+                        }
                       }
                     }
                     
@@ -289,7 +293,14 @@ class QwenAgentService {
                       commandQueue.push(command);
                       console.log(`[QwenAgentService] ✅ Saved command to queue: '${command}' (queue size: ${commandQueue.length})`);
                     } else {
-                      console.warn(`[QwenAgentService] ⚠️ No command found for ${toolName}, toolArgs:`, toolArgs);
+                      const argsStr = typeof toolArgs === 'string' ? toolArgs.trim() : '';
+                      // Some models may emit an empty/placeholder tool_call before correcting.
+                      // This is usually harmless if the backend includes the command in tool_result.
+                      if (argsStr && argsStr !== '{}' && argsStr !== 'null') {
+                        console.warn(`[QwenAgentService] ⚠️ No command found for ${toolName}, toolArgs:`, toolArgs);
+                      } else if (process.env.NODE_ENV === 'development') {
+                        console.debug(`[QwenAgentService] ℹ️ Tool call without command for ${toolName} (likely placeholder), toolArgs:`, toolArgs);
+                      }
                     }
                   }
                   

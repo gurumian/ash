@@ -422,9 +422,9 @@ Summary:"""
                                 tool_name = function_call.get('name', 'unknown_tool')
                                 tool_args = function_call.get('arguments', '{}')
                                 
-                                # Command 추출 (ash_ssh_execute인 경우)
+                                # Command 추출 (ash_ssh_execute / ash_telnet_execute인 경우)
                                 command = None
-                                if tool_name == 'ash_ssh_execute':
+                                if tool_name in ('ash_ssh_execute', 'ash_telnet_execute'):
                                     # tool_args가 빈 문자열이거나 None인 경우 처리
                                     if tool_args and tool_args.strip():
                                         try:
