@@ -371,9 +371,10 @@ export function useAICommand({
             // qwen-agent-service sends full accumulated content
             assistantContent = String(fullContent || '');
             
-            if (process.env.NODE_ENV === 'development') {
-              console.log(`[useAICommand] 📝 Content chunk callback: ${assistantContent.length} chars`);
-            }
+            // NOTE: very noisy; keep disabled unless actively debugging streaming.
+            // if (process.env.NODE_ENV === 'development') {
+            //   console.log(`[useAICommand] 📝 Content chunk callback: ${assistantContent.length} chars`);
+            // }
             
             // Update only content, don't touch toolResults to avoid flickering
             // Only update if this is still the active conversation

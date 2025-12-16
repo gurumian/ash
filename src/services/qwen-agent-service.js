@@ -224,11 +224,14 @@ class QwenAgentService {
                     
                     // Call onChunk with accumulated full content
                     if (onChunk) {
-                      if (chunkIndex !== undefined) {
-                        console.log(`[QwenAgentService] 📝 Content chunk ${chunkIndex}: ${chunkContent.length} chars, total: ${fullResponse.length} chars`);
-                      } else {
-                        console.log(`[QwenAgentService] 📝 Content chunk received: ${chunkContent.length} chars, total: ${fullResponse.length} chars`);
-                      }
+                      // NOTE: very noisy; keep disabled unless actively debugging streaming.
+                      // if (process.env.NODE_ENV === 'development') {
+                      //   if (chunkIndex !== undefined) {
+                      //     console.log(`[QwenAgentService] 📝 Content chunk ${chunkIndex}: ${chunkContent.length} chars, total: ${fullResponse.length} chars`);
+                      //   } else {
+                      //     console.log(`[QwenAgentService] 📝 Content chunk received: ${chunkContent.length} chars, total: ${fullResponse.length} chars`);
+                      //   }
+                      // }
                       onChunk(fullResponse);  // Send full accumulated content
                     }
                     
