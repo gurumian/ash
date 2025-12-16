@@ -401,6 +401,8 @@ function App() {
   const [activeSecondaryTab, setActiveSecondaryTab] = useState('ai-chat'); // 'ai-chat' | 'iperf-client'
   const [isAIProcessing, setIsAIProcessing] = useState(false);
   const [aiMessages, setAiMessages] = useState([]);
+  // If the user explicitly closes the AI sidebar, don't auto-reopen until settings change
+  const aiSidebarAutoRef = useRef({ dismissed: false, sig: '' });
   // Error dialog state
   const [errorDialog, setErrorDialog] = useState({
     isOpen: false,
@@ -526,6 +528,101 @@ function App() {
     reconnectRetry,
     updateConnectionIdMap
   });
+
+  // Auto-show AI chat sidebar when a session is open AND LLM is enabled + reachable/authenticated
+  useEffect(() => {
+    let cancelled = false;
+    let timeoutId = null;
+
+    const provider = llmSettings?.provider;
+    const enabled = !!llmSettings?.enabled;
+    const baseURL = (llmSettings?.baseURL || '').trim();
+    const apiKey = (llmSettings?.apiKey || '').trim();
+    const sessionId = activeSessionId || '';
+    const session = sessionId ? sessions.find(s => s.id === sessionId) : null;
+    const sessionConnected = !!session?.isConnected;
+    const sessionType = session?.connectionType || null;
+
+    // Reset dismissal if LLM disabled
+    if (!enabled) {
+      aiSidebarAutoRef.current.dismissed = false;
+      aiSidebarAutoRef.current.sig = '';
+      return undefined;
+    }
+
+    // Only auto-open when a usable session is actually open
+    if (!sessionId || !sessionConnected) {
+      return undefined;
+    }
+    // Only show AI panel for ssh/telnet sessions (agent tools)
+    if (sessionType && sessionType !== 'ssh' && sessionType !== 'telnet') {
+      return undefined;
+    }
+
+    // If user has manually closed it, don't auto-reopen until provider/baseURL/apiKey changes
+    const signature = `${provider}|${baseURL}|${apiKey}|${sessionId}`;
+    if (aiSidebarAutoRef.current.dismissed && signature === aiSidebarAutoRef.current.sig) {
+      return undefined;
+    }
+    // store signature (keeps state local without re-renders)
+    aiSidebarAutoRef.current.sig = signature;
+
+    // Already visible → nothing to do
+    if (showAIChatSidebar) {
+      return undefined;
+    }
+
+    const validate = async () => {
+      try {
+        if (provider === 'ash') {
+          if (!baseURL || !apiKey) return false;
+          const base = baseURL.endsWith('/v1') ? baseURL : `${baseURL.replace(/\/$/, '')}/v1`;
+          const url = `${base}/tags`;
+          const res = await fetch(url, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-API-Key': apiKey
+            }
+          });
+          return res.ok;
+        }
+
+        if (provider === 'ollama') {
+          // Ollama doesn't require API keys
+          const url = `${(baseURL || 'http://localhost:11434').replace(/\/$/, '')}/api/tags`;
+          const res = await fetch(url, { method: 'GET' });
+          return res.ok;
+        }
+
+        return false;
+      } catch {
+        return false;
+      }
+    };
+
+    timeoutId = setTimeout(async () => {
+      const ok = await validate();
+      if (cancelled) return;
+      if (ok && !showAIChatSidebar && !aiSidebarAutoRef.current.dismissed) {
+        setShowAIChatSidebar(true);
+        setActiveSecondaryTab('ai-chat');
+      }
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [
+    llmSettings?.enabled,
+    llmSettings?.provider,
+    llmSettings?.baseURL,
+    llmSettings?.apiKey,
+    showAIChatSidebar,
+    activeSessionId,
+    sessions
+  ]);
 
   // Keyboard shortcuts hook (must be after useConnectionManagement to access reconnectSession)
   useKeyboardShortcuts({
@@ -1267,6 +1364,10 @@ function App() {
               const newValue = !prev;
               if (newValue) {
                 setActiveSecondaryTab('ai-chat');
+                aiSidebarAutoRef.current.dismissed = false;
+              }
+              if (!newValue) {
+                aiSidebarAutoRef.current.dismissed = true;
               }
               return newValue;
             });
@@ -1369,6 +1470,7 @@ function App() {
           }}
           onClose={() => {
             // Close both sidebars
+            aiSidebarAutoRef.current.dismissed = true;
             setShowAIChatSidebar(false);
             setShowIperfClientSidebar(false);
             if (clearAIMessages) {
@@ -1376,6 +1478,7 @@ function App() {
             }
           }}
           onCloseAIChat={() => {
+            aiSidebarAutoRef.current.dismissed = true;
             setShowAIChatSidebar(false);
             if (clearAIMessages) {
               clearAIMessages();
@@ -1412,6 +1515,7 @@ function App() {
             onDeleteConversation={deleteConversation}
             onUpdateConversationTitle={updateConversationTitle}
             onClose={showAIChatSidebar && showIperfClientSidebar ? () => {
+              aiSidebarAutoRef.current.dismissed = true;
               setShowAIChatSidebar(false);
               if (clearAIMessages) {
                 clearAIMessages();
@@ -1421,6 +1525,7 @@ function App() {
                 setActiveSecondaryTab('iperf-client');
               }
             } : () => {
+              aiSidebarAutoRef.current.dismissed = true;
               setShowAIChatSidebar(false);
               if (clearAIMessages) {
                 clearAIMessages();

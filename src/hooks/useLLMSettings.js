@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from 'react';
  * Custom hook for LLM settings management
  */
 export function useLLMSettings() {
+  const DEFAULT_ASH_API_KEY = 'ash-00000000-0000-0000-0000-000000000001';
+
   const [llmSettings, setLlmSettings] = useState(() => {
     const saved = localStorage.getItem('ash-llm-settings');
     if (saved) {
@@ -13,14 +15,17 @@ export function useLLMSettings() {
         const provider = (parsed.provider === 'ollama' || parsed.provider === 'ash') ? parsed.provider : 'ash';
         return {
           provider,
-          apiKey: parsed.apiKey || '',
+          // Use default test key only when apiKey is missing (don't override explicit empty string)
+          apiKey: (parsed.apiKey !== undefined)
+            ? (parsed.apiKey || '')
+            : (provider === 'ash' ? DEFAULT_ASH_API_KEY : ''),
           baseURL:
             parsed.baseURL ||
             (provider === 'ollama' ? 'http://localhost:11434' : 'https://ash.toktoktalk.com/v1'),
           model:
             parsed.model ||
             (provider === 'ollama' ? 'llama3.2' : 'qwen3:14b'),
-          enabled: parsed.enabled !== undefined ? parsed.enabled : false,
+          enabled: parsed.enabled !== undefined ? parsed.enabled : true,
           temperature: parsed.temperature !== undefined ? parsed.temperature : 0.7,
           maxTokens: parsed.maxTokens !== undefined ? parsed.maxTokens : 1000
         };
@@ -38,10 +43,10 @@ export function useLLMSettings() {
   function getDefaultSettings() {
     return {
       provider: 'ash',
-      apiKey: '',
+      apiKey: DEFAULT_ASH_API_KEY,
       baseURL: 'https://ash.toktoktalk.com/v1',
       model: 'qwen3:14b',
-      enabled: false,
+      enabled: true,
       temperature: 0.7,
       maxTokens: 1000
     };
