@@ -84,7 +84,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
   // Load mode from localStorage, default to 'ask'
   const [mode, setMode] = useState(() => {
     const savedMode = localStorage.getItem('ash-ai-mode');
-    return (savedMode === 'ask' || savedMode === 'agent') ? savedMode : 'ask';
+    return (savedMode === 'ask' || savedMode === 'agent') ? savedMode : 'agent';
   });
   const [showModeDropdown, setShowModeDropdown] = useState(false);
   const [editingConversationId, setEditingConversationId] = useState(null); // ID of conversation being edited
