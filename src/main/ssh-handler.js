@@ -105,15 +105,20 @@ export function initializeSSHHandlers() {
   });
 
   // Send data to SSH terminal
-  ipcMain.handle('ssh-write', async (event, { connectionId, data }) => {
+  ipcMain.on('ssh-write', (event, { connectionId, data }) => {
     const streamInfo = sshStreams.get(connectionId);
     if (!streamInfo || !streamInfo.stream) {
-      throw new Error('SSH stream not found');
+      // For one-way IPC, we can't throw/return error to caller, so we log it
+      console.warn('SSH stream not found for write:', connectionId);
+      return;
     }
 
     // Removed console.log for performance - logs on every write cause significant overhead
-    streamInfo.stream.write(data);
-    return { success: true };
+    try {
+      streamInfo.stream.write(data);
+    } catch (error) {
+      console.error('SSH write error:', error);
+    }
   });
 
   // Resize SSH terminal

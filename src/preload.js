@@ -15,7 +15,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   sshResize: (connectionId, cols, rows) => ipcRenderer.invoke('ssh-resize', connectionId, cols, rows),
 
   // Send data to SSH terminal
-  sshWrite: (connectionId, data) => ipcRenderer.invoke('ssh-write', { connectionId, data }),
+  sshWrite: (connectionId, data) => ipcRenderer.send('ssh-write', { connectionId, data }),
 
   // Disconnect SSH connection
   sshDisconnect: (connectionId) => ipcRenderer.invoke('ssh-disconnect', connectionId),
