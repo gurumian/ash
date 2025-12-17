@@ -24,17 +24,26 @@ export function initializeSerialHandlers() {
         console.error('SerialPort not available');
         return [];
       }
-      
+
       const ports = await SerialPort.list();
-      return ports.map(port => ({
-        path: port.path,
-        manufacturer: port.manufacturer,
-        serialNumber: port.serialNumber,
-        pnpId: port.pnpId,
-        locationId: port.locationId,
-        vendorId: port.vendorId,
-        productId: port.productId
-      }));
+      return ports.map(port => {
+        let portPath = port.path;
+        // On macOS, prefer /dev/cu.* over /dev/tty.* for outgoing connections
+        // to avoid waiting for DCD (Data Carrier Detect)
+        if (process.platform === 'darwin' && portPath.startsWith('/dev/tty.')) {
+          portPath = portPath.replace('/dev/tty.', '/dev/cu.');
+        }
+
+        return {
+          path: portPath,
+          manufacturer: port.manufacturer,
+          serialNumber: port.serialNumber,
+          pnpId: port.pnpId,
+          locationId: port.locationId,
+          vendorId: port.vendorId,
+          productId: port.productId
+        };
+      });
     } catch (error) {
       console.error('Error listing serial ports:', error);
       return [];
@@ -114,7 +123,7 @@ export function initializeSerialHandlers() {
       return { success: false, error: error.message };
     }
   });
-  
+
   // Disconnect serial port
   ipcMain.handle('serial-disconnect', async (event, sessionId) => {
     try {
