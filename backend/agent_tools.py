@@ -181,6 +181,42 @@ class TelnetExecuteTool(BaseTool):
             _logger.error(f"[ash_telnet_execute] Error: {str(e)}", exc_info=True)
             raise
 
+@register_tool('ash_serial_execute')
+class SerialExecuteTool(BaseTool):
+    """Execute a command on a Serial connection and return the output."""
+    description = 'Execute a shell command on a Serial connection. Returns stdout, stderr, and exit code. Works similarly to ash_ssh_execute but for Serial connections.'
+    parameters = [{
+        'name': 'connection_id',
+        'type': 'string',
+        'description': 'Serial connection ID from ash_list_connections',
+        'required': True
+    }, {
+        'name': 'command',
+        'type': 'string',
+        'description': 'Command to execute (without shell prompt symbols like $, >, #)',
+        'required': True
+    }]
+    
+    def call(self, params: str, **kwargs) -> str:
+        import json5
+        
+        data = json5.loads(params)
+        connection_id = data.get('connection_id')
+        command = data.get('command')
+        
+        _logger.info(f"[ash_serial_execute] connection_id={connection_id}, command={command}")
+        
+        try:
+            # Use the correct IPC channel name: 'serial-exec-command'
+            result = call_ash_ipc('serial-exec-command', connection_id, command)
+            # Command를 결과에 포함시키기 (tool_result에서 사용하기 위해)
+            result['command'] = command
+            _logger.info(f"[ash_serial_execute] Result: success={result.get('success')}, output length={len(str(result.get('output', '')))}")
+            return json.dumps(result, ensure_ascii=False)
+        except Exception as e:
+            _logger.error(f"[ash_serial_execute] Error: {str(e)}", exc_info=True)
+            raise
+
 @register_tool('ash_list_connections')
 class ListConnectionsTool(BaseTool):
     """List all active SSH, Telnet, and Serial connections."""

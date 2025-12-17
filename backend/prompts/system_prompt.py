@@ -41,7 +41,7 @@ def build_system_prompt(connection_id: str = None) -> str:
         "- When calling ash_list_connections, check the 'type' field:\n"
         "  • 'ssh'    → use ash_ssh_execute\n"
         "  • 'telnet' → use ash_telnet_execute\n"
-        "  • 'serial' → treat as not supported for command execution unless a serial tool exists\n\n"
+        "  • 'serial' → use ash_serial_execute\n\n"
     )
 
     if connection_id:
@@ -52,7 +52,8 @@ def build_system_prompt(connection_id: str = None) -> str:
             "- Remember the type and DO NOT call ash_list_connections repeatedly\n"
             "- Then use:\n"
             f"  • ssh    → ash_ssh_execute(connection_id='{connection_id}', command='...')\n"
-            f"  • telnet → ash_telnet_execute(connection_id='{connection_id}', command='...')\n\n"
+            f"  • telnet → ash_telnet_execute(connection_id='{connection_id}', command='...')\n"
+            f"  • serial → ash_serial_execute(connection_id='{connection_id}', command='...')\n\n"
         )
     else:
         base_prompt += (

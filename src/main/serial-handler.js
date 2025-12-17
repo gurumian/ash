@@ -152,3 +152,143 @@ export function cleanupSerialConnections() {
   serialConnections.clear();
 }
 
+
+/**
+ * Get Serial connections Map (for IPC bridge)
+ */
+export function getSerialConnections() {
+  return serialConnections;
+}
+
+/**
+ * Execute command on Serial connection (for IPC bridge)
+ * 
+ * Works similarly to Telnet:
+ * 1. Send the command
+ * 2. Capture output until we see a prompt or timeout
+ * 3. Return the result
+ */
+export async function executeSerialCommand(connectionId, command) {
+  const connInfo = serialConnections.get(connectionId);
+  if (!connInfo || !connInfo.port) {
+    const availableIds = Array.from(serialConnections.keys());
+    throw new Error(`Serial connection not found: ${connectionId}. Available: ${availableIds.join(', ')}`);
+  }
+
+  if (!connInfo.port.isOpen) {
+    throw new Error(`Serial port is closed: ${connectionId}`);
+  }
+
+  return new Promise((resolve, reject) => {
+    let output = '';
+    let errorOutput = '';
+    let isResolved = false;
+
+    // Common prompt patterns for embedded/serial devices
+    const promptPatterns = [
+      /\$\s*$/,           // $ prompt
+      /#\s*$/,            // # prompt (root)
+      />\s*$/,            // > prompt (common in routers/switches)
+      /%\s*$/,            // % prompt
+      /:\s*$/,            // : prompt
+      /\[.*@.*\].*[#$%>]\s*$/,  // [user@host] prompt
+      /\w+@\w+[:\s]+[#$%>]\s*$/, // user@host: prompt
+      /Login:\s*$/i,      // Login prompt
+      /Password:\s*$/i,   // Password prompt
+    ];
+
+    // Timeout for command execution (20 seconds for serial - can be slow)
+    const timeout = 20000;
+    const timeoutId = setTimeout(() => {
+      if (!isResolved) {
+        isResolved = true;
+        cleanup();
+        // Return what we have so far
+        resolve({
+          success: false,
+          output: output.trim(),
+          error: errorOutput.trim() || 'Command execution timed out (Serial)',
+          exitCode: -1
+        });
+      }
+    }, timeout);
+
+    // Temporary data handler
+    const dataHandler = (data) => {
+      if (isResolved) return;
+
+      const dataString = data.toString();
+      output += dataString;
+
+      // Check if we see a prompt
+      const lines = output.split('\n');
+      const lastLine = lines[lines.length - 1] || '';
+      const hasPrompt = promptPatterns.some(pattern => pattern.test(lastLine.trim()));
+
+      // Also check if we see echoing of the command plus a prompt
+      if (hasPrompt && output.includes(command)) {
+        // Wait a tiny bit more for flush
+        setTimeout(() => {
+          if (!isResolved) {
+            isResolved = true;
+            cleanup();
+            clearTimeout(timeoutId);
+            resolve({
+              success: true,
+              output: output.trim(),
+              error: errorOutput.trim(),
+              exitCode: 0
+            });
+          }
+        }, 300);
+      }
+    };
+
+    const cleanup = () => {
+      try {
+        if (connInfo.port) {
+          connInfo.port.removeListener('data', dataHandler);
+        }
+      } catch (error) {
+        console.warn('Failed to remove Serial data listener:', error.message);
+      }
+    };
+
+    // Add temporary listener
+    connInfo.port.on('data', dataHandler);
+
+    // Send command
+    try {
+      // Use \r for max compatibility with serial consoles
+      connInfo.port.write(command + '\r');
+    } catch (error) {
+      cleanup();
+      clearTimeout(timeoutId);
+      reject(new Error(`Failed to send Serial command: ${error.message}`));
+      return;
+    }
+
+    // Fallback: If no prompt detected within 3 seconds, assume command updated state and return
+    // This is crucial for serial where prompts might be weird or non-echoing
+    setTimeout(() => {
+      if (!isResolved) {
+        isResolved = true;
+        cleanup();
+        clearTimeout(timeoutId);
+
+        let cleanOutput = output;
+        // Try to verify if it's just the command echo
+        if (cleanOutput.trim() === command.trim()) {
+          // It's just an echo, wait longer? No, just return.
+        }
+
+        resolve({
+          success: true,
+          output: cleanOutput.trim(),
+          error: errorOutput.trim(),
+          exitCode: 0
+        });
+      }
+    }, 3000);
+  });
+}

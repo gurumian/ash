@@ -83,6 +83,7 @@ model_config = {
 ash_tool_names = [
     'ash_ssh_execute',
     'ash_telnet_execute',
+    'ash_serial_execute',
     'ash_list_connections',
     'ash_ask_user',
 ]

@@ -3,6 +3,7 @@ import http from 'node:http';
 import { URL } from 'node:url';
 import { getSSHConnections, executeSSHCommand } from './ssh-handler.js';
 import { getTelnetConnections, executeTelnetCommand } from './telnet-handler.js';
+import { getSerialConnections, executeSerialCommand } from './serial-handler.js';
 
 /**
  * IPC Bridge Handler
@@ -51,9 +52,10 @@ export function startIPCBridge() {
         });
 
         req.on('end', async () => {
+          let handler = 'unknown'; // Define here to be accessible in catch block
           try {
             const data = JSON.parse(body);
-            const handler = data.channel || data.handler;
+            handler = data.channel || data.handler;
             const args = data.args || [];
 
             console.log(`[IPC Bridge] Received request: handler=${handler}, args count=${args.length}`);
@@ -90,12 +92,26 @@ export function startIPCBridge() {
                 break;
               }
 
+              case 'serial-exec-command':
+              case 'serial-execute': {
+                console.log(`[IPC Bridge] Executing Serial command on connection ${args[0]}: ${args[1]}`);
+                try {
+                  result = await executeSerialCommand(args[0], args[1]);
+                  console.log(`[IPC Bridge] Serial command completed successfully`);
+                } catch (error) {
+                  console.error(`[IPC Bridge] Serial command execution failed:`, error);
+                  throw error;
+                }
+                break;
+              }
+
               case 'ssh-list-connections':
               case 'list-connections': {
-                // Get all active connections (SSH and Telnet)
+                // Get all active connections (SSH, Telnet, Serial)
                 const sshConnections = getSSHConnections();
                 const telnetConnections = getTelnetConnections();
-                console.log(`[IPC Bridge] Listing connections. SSH: ${sshConnections.size}, Telnet: ${telnetConnections.size}`);
+                const serialConnections = getSerialConnections();
+                console.log(`[IPC Bridge] Listing connections. SSH: ${sshConnections.size}, Telnet: ${telnetConnections.size}, Serial: ${serialConnections.size}`);
 
                 const sshList = Array.from(sshConnections.entries()).map(([id, conn]) => {
                   const isConnected = conn !== null && conn !== undefined;
@@ -117,7 +133,17 @@ export function startIPCBridge() {
                   };
                 });
 
-                const connections = [...sshList, ...telnetList];
+                const serialList = Array.from(serialConnections.entries()).map(([id, connInfo]) => {
+                  const isConnected = connInfo && connInfo.port && connInfo.port.isOpen;
+                  console.log(`[IPC Bridge] Serial Connection ${id}: exists=${isConnected}`);
+                  return {
+                    connectionId: id,
+                    type: 'serial',
+                    connected: !!isConnected
+                  };
+                });
+
+                const connections = [...sshList, ...telnetList, ...serialList];
                 result = { success: true, connections };
                 console.log(`[IPC Bridge] Returning ${connections.length} total connections`);
                 break;
