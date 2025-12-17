@@ -86,6 +86,7 @@ ash_tool_names = [
     'ash_serial_execute',
     'ash_list_connections',
     'ash_ask_user',
+    'ash_web_search',
 ]
 
 from prompts.system_prompt import build_system_prompt

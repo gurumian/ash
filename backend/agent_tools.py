@@ -273,3 +273,52 @@ class AshAskUserTool(BaseTool):
             _logger.error(f"[ash_ask_user] Error: {str(e)}", exc_info=True)
             raise
 
+@register_tool('ash_web_search')
+class WebSearchTool(BaseTool):
+    """Perform a web search using DuckDuckGo."""
+    description = 'Search the web for information using DuckDuckGo. Useful for finding documentation, solutions to errors, or general knowledge. Returns a list of search results with titles, URLs, and snippets.'
+    parameters = [{
+        'name': 'query',
+        'type': 'string',
+        'description': 'The search query',
+        'required': True
+    }, {
+        'name': 'max_results',
+        'type': 'integer',
+        'description': 'Maximum number of results to return (default: 5)',
+        'required': False
+    }]
+    
+    def call(self, params: str, **kwargs) -> str:
+        import json5
+        from duckduckgo_search import DDGS
+        
+        data = json5.loads(params)
+        query = data.get('query')
+        max_results = data.get('max_results', 5)
+        
+        _logger.info(f"[ash_web_search] Searching for: {query} (max={max_results})")
+        
+        try:
+            results = []
+            with DDGS() as ddgs:
+                # Use 'text' backend for standard web search
+                # max_results defaults to 5 if not specified
+                search_gen = ddgs.text(query, max_results=max_results)
+                for r in search_gen:
+                    results.append({
+                        'title': r.get('title'),
+                        'href': r.get('href'),
+                        'body': r.get('body'),
+                    })
+            
+            _logger.info(f"[ash_web_search] Found {len(results)} results")
+            return json.dumps(results, ensure_ascii=False)
+        except Exception as e:
+            _logger.error(f"[ash_web_search] Error: {str(e)}", exc_info=True)
+            return json.dumps({
+                "error": str(e),
+                "message": "Failed to perform web search. Please try again with a different query."
+            }, ensure_ascii=False)
+
+
