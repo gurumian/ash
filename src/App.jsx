@@ -657,6 +657,13 @@ function App() {
     sessions
   ]);
 
+  // Auto-hide AI chat sidebar when all sessions are closed
+  useEffect(() => {
+    if (sessions.length === 0 && showAIChatSidebar) {
+      setShowAIChatSidebar(false);
+    }
+  }, [sessions, showAIChatSidebar]);
+
   // Keyboard shortcuts hook (must be after useConnectionManagement to access reconnectSession)
   useKeyboardShortcuts({
     activeSessionId,
