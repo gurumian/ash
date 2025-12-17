@@ -4,7 +4,7 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   build: {
     rollupOptions: {
-      external: ['ssh2', 'telnet-stream']
+      external: ['ssh2', 'telnet-stream', 'serialport']
     }
   }
 });
