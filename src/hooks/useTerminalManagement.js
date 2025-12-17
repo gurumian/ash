@@ -66,13 +66,13 @@ export function useTerminalManagement({
   // Execute post-processing commands
   const executePostProcessing = useCallback((sessionId, session, connection) => {
     if (!session || !connection) return;
-    
+
     // Check if post-processing is enabled
     if (session.postProcessingEnabled === false) return;
-    
+
     const commands = session.postProcessing || [];
     if (commands.length === 0) return;
-    
+
     // Execute commands sequentially with delay between them
     commands.forEach((cmd, index) => {
       setTimeout(() => {
@@ -80,7 +80,7 @@ export function useTerminalManagement({
           // Convert old format (string) to new format if needed
           const command = typeof cmd === 'string' ? cmd : cmd.command;
           const enabled = typeof cmd === 'string' ? true : (cmd.enabled !== false);
-          
+
           if (enabled && command) {
             connection.write(command + '\r\n');
           }
@@ -95,18 +95,18 @@ export function useTerminalManagement({
     if (pendingResizeRef.current !== null) {
       cancelAnimationFrame(pendingResizeRef.current);
     }
-    
+
     // Schedule resize for next animation frame (only once per frame)
     pendingResizeRef.current = requestAnimationFrame(() => {
       pendingResizeRef.current = null;
-      
+
       // Resize all active terminals, prioritizing the active one
       // First, resize the active terminal
       if (activeSessionId && fitAddons.current[activeSessionId]) {
         const fitAddon = fitAddons.current[activeSessionId];
         const terminal = terminalInstances.current[activeSessionId];
         const terminalRef = terminalRefs.current[activeSessionId];
-        
+
         if (fitAddon && terminal && terminalRef) {
           try {
             // Check if terminal is visible (not display: none)
@@ -115,7 +115,7 @@ export function useTerminalManagement({
               // Force a layout recalculation before fitting
               terminalRef.offsetHeight;
               fitAddon.fit();
-              
+
               // Notify SSH server of terminal size change
               const session = sessions.find(s => s.id === activeSessionId);
               if (session && session.connectionType === 'ssh' && sshConnections.current[activeSessionId]) {
@@ -129,15 +129,15 @@ export function useTerminalManagement({
           }
         }
       }
-      
+
       // Then resize other terminals (if needed)
       Object.keys(fitAddons.current).forEach(sessionId => {
         if (sessionId === activeSessionId) return; // Already handled above
-        
+
         const fitAddon = fitAddons.current[sessionId];
         const terminal = terminalInstances.current[sessionId];
         const terminalRef = terminalRefs.current[sessionId];
-        
+
         if (fitAddon && terminal && terminalRef) {
           try {
             // Check if terminal is visible (not display: none)
@@ -146,7 +146,7 @@ export function useTerminalManagement({
               // Force a layout recalculation before fitting
               terminalRef.offsetHeight;
               fitAddon.fit();
-              
+
               // Notify SSH server of terminal size change
               const session = sessions.find(s => s.id === sessionId);
               if (session && session.connectionType === 'ssh' && sshConnections.current[sessionId]) {
@@ -173,23 +173,23 @@ export function useTerminalManagement({
       }
       delete terminalContextMenuHandlers.current[sessionId];
     }
-    
+
     // Dispose terminal - this automatically removes all event listeners
     if (terminalInstances.current[sessionId]) {
       terminalInstances.current[sessionId].dispose();
       delete terminalInstances.current[sessionId];
     }
-    
+
     // Clean up input handler
     if (terminalInputHandlers.current[sessionId]) {
       delete terminalInputHandlers.current[sessionId];
     }
-    
+
     // Clean up terminal ref
     if (terminalRefs.current[sessionId]) {
       delete terminalRefs.current[sessionId];
     }
-    
+
     // Clean up connection ID from map if exists
     // Check connectionIdMap for any entries matching this sessionId
     for (const [connectionId, mapSessionId] of connectionIdMapRef.current.entries()) {
@@ -212,10 +212,10 @@ export function useTerminalManagement({
 
     // Get the current theme configuration
     const currentTheme = themes[theme].terminal;
-    
+
     // Get scrollback limit from settings (stored in localStorage)
     const scrollbackLimit = scrollbackLines;
-    
+
     // Create terminal with default size - FitAddon will adjust it accurately
     const terminal = new Terminal({
       cols: 80, // Default, will be adjusted by FitAddon
@@ -247,16 +247,16 @@ export function useTerminalManagement({
     terminal.loadAddon(searchAddon);
 
     terminal.open(terminalRef);
-    
+
     // Ensure theme is applied (in case it wasn't applied during construction)
     if (terminal.options.theme !== currentTheme) {
       terminal.options.theme = currentTheme;
     }
-    
+
     terminalInstances.current[sessionId] = terminal;
     fitAddons.current[sessionId] = fitAddon;
     searchAddons.current[sessionId] = searchAddon;
-    
+
     // CRITICAL: Flush any buffered data now that terminal is ready
     // Find connectionId for this sessionId and flush its buffer
     // Also check all buffers and match by connectionId if mapping exists
@@ -275,7 +275,7 @@ export function useTerminalManagement({
         }
       }
     }
-    
+
     // Also check for any unmapped buffers that might match this sessionId now that mapping is updated
     updateConnectionIdMap();
     dataBufferRef.current.forEach((buffer, bufferedConnectionId) => {
@@ -287,7 +287,7 @@ export function useTerminalManagement({
         dataBufferRef.current.delete(bufferedConnectionId);
       }
     });
-    
+
     // Enable copy/paste functionality
     terminal.attachCustomKeyEventHandler((event) => {
       // Ctrl+Shift+C - copy selected text
@@ -366,7 +366,7 @@ export function useTerminalManagement({
       }
       return true;
     });
-    
+
     // Also handle selection changes
     let lastSelection = '';
     terminal.onSelectionChange(() => {
@@ -375,12 +375,12 @@ export function useTerminalManagement({
         lastSelection = selection;
       }
     });
-    
+
     // Add context menu (right-click) handler
     const handleContextMenu = (event) => {
       event.preventDefault();
       event.stopPropagation();
-      
+
       // Check if click is inside terminal element or its children
       const clickedElement = event.target;
       if (terminalRef && (terminalRef.contains(clickedElement) || terminalRef === clickedElement)) {
@@ -392,19 +392,19 @@ export function useTerminalManagement({
         });
       }
     };
-    
+
     // Add contextmenu event listener to terminal element
     setTimeout(() => {
       if (terminalRef) {
         terminalRef.addEventListener('contextmenu', handleContextMenu);
-        
+
         // Cleanup: Store handler reference for removal
         if (!terminalContextMenuHandlers.current[sessionId]) {
           terminalContextMenuHandlers.current[sessionId] = { handler: handleContextMenu, element: terminalRef };
         }
       }
     }, 100);
-    
+
     // Get session info to determine connection type (already declared above for buffer flushing)
     if (!session) return;
 
@@ -416,7 +416,7 @@ export function useTerminalManagement({
           const terminalElement = terminalRef;
           terminalElement.offsetHeight; // Force layout recalculation
           fitAddon.fit();
-          
+
           // Start SSH shell after terminal is properly fitted
           if (session.connectionType === 'ssh') {
             // Use a small delay to ensure fit() has taken effect
@@ -428,7 +428,7 @@ export function useTerminalManagement({
                   await sshConnections.current[sessionId].startShell(cols, rows);
                   // Don't write message here - let SSH server's initial prompt come first
                   // The server will send its own prompt after shell starts
-                  
+
                   // Execute post-processing commands after shell is ready
                   executePostProcessing(sessionId, session, sshConnections.current[sessionId]);
                 }
@@ -442,7 +442,7 @@ export function useTerminalManagement({
             // Telnet connection - connection is already established, just ready for data
             terminal.write(`\x1b[90mTelnet connected to ${session.host}:${session.port || '23'}\x1b[0m\r\n`);
             terminal.write('\x1b[90mTelnet terminal ready\x1b[0m\r\n');
-            
+
             // Execute post-processing commands after telnet connection is ready
             setTimeout(() => {
               executePostProcessing(sessionId, session, sshConnections.current[sessionId]);
@@ -451,7 +451,7 @@ export function useTerminalManagement({
             // Serial port connection - use grey color for status messages
             terminal.write(`\x1b[90mSerial port ${session.serialPort} connected at ${session.baudRate} baud\x1b[0m\r\n`);
             terminal.write('\x1b[90mSerial terminal ready\x1b[0m\r\n');
-            
+
             // Execute post-processing commands after serial connection is ready
             setTimeout(() => {
               executePostProcessing(sessionId, session, sshConnections.current[sessionId]);
@@ -473,7 +473,7 @@ export function useTerminalManagement({
           // Direct write - works for both SSH, Telnet, and Serial connections
           connection.write(data);
         }
-        
+
         // Log synchronously but non-blocking - optimized append
         // Use startTransition to mark logging as low priority
         if (sessionLogs.current[sessionId]?.isLogging) {
@@ -484,11 +484,11 @@ export function useTerminalManagement({
       };
     }
     terminal.onData(terminalInputHandlers.current[sessionId]);
-    
+
     // Update connectionId map when terminal is initialized with SSH or Telnet connection
     // This ensures map includes the connectionId after connection.connect() completes
-    if ((session.connectionType === 'ssh' || session.connectionType === 'telnet') && 
-        sshConnections.current[sessionId]?.connectionId) {
+    if ((session.connectionType === 'ssh' || session.connectionType === 'telnet') &&
+      sshConnections.current[sessionId]?.connectionId) {
       updateConnectionIdMap();
     }
   }, [theme, themes, scrollbackLines, activeSessionId, sessions, sshConnections, sessionLogs, appendToLog, setContextMenu, setShowSearchBar, updateConnectionIdMap, cleanupTerminal, showAICommandInput, setShowAICommandInput]);
@@ -510,7 +510,7 @@ export function useTerminalManagement({
   useEffect(() => {
     let resizeObserver;
     let throttleTimeout = null;
-    
+
     // Debounce function for window resize (throttle to reduce frequency)
     // Returns both the throttled function and a cleanup function
     function throttle(func, wait) {
@@ -519,7 +519,7 @@ export function useTerminalManagement({
       const throttled = function executedFunction(...args) {
         const now = Date.now();
         const timeSinceLastCall = now - lastCall;
-        
+
         if (timeSinceLastCall >= wait) {
           lastCall = now;
           func(...args);
@@ -534,7 +534,7 @@ export function useTerminalManagement({
           }, wait - timeSinceLastCall);
         }
       };
-      
+
       // Add cleanup method to throttled function
       throttled.cleanup = () => {
         if (timeout) {
@@ -542,7 +542,7 @@ export function useTerminalManagement({
           timeout = null;
         }
       };
-      
+
       return throttled;
     }
 
@@ -557,9 +557,9 @@ export function useTerminalManagement({
       resizeObserver = new ResizeObserver((entries) => {
         resizeTerminal();
       });
-      
+
       resizeObserver.observe(terminalContainer);
-      
+
       // Also observe the terminal area for layout changes
       const terminalArea = document.querySelector('.terminal-area');
       if (terminalArea) {
@@ -569,7 +569,7 @@ export function useTerminalManagement({
 
     // Listen to window resize events (throttled)
     window.addEventListener('resize', throttledResize);
-    
+
     return () => {
       window.removeEventListener('resize', throttledResize);
       // Clean up throttle timeout
@@ -597,14 +597,14 @@ export function useTerminalManagement({
   useEffect(() => {
     // Update map initially and when connections change
     updateConnectionIdMap();
-    
+
     const handleSshData = (event, { connectionId, data }) => {
       // Use cached map for O(1) lookup - much faster than building map each time
       const sessionId = connectionIdMapRef.current.get(connectionId);
-      
+
       if (sessionId && terminalInstances.current[sessionId]) {
         const terminal = terminalInstances.current[sessionId];
-        
+
         // Optimized: Split large data chunks to prevent blocking
         // Large synchronous writes can block the UI thread
         if (data.length > 8192) { // 8KB threshold
@@ -625,7 +625,7 @@ export function useTerminalManagement({
           // Write to terminal immediately for small data to preserve output order
           terminal.write(data);
         }
-        
+
         // Log asynchronously without blocking display - use ref to get latest function
         if (sessionLogs.current[sessionId] && sessionLogs.current[sessionId].isLogging) {
           startTransition(() => {
@@ -638,7 +638,7 @@ export function useTerminalManagement({
     const handleSshClose = (event, { connectionId }) => {
       // Use cached map for O(1) lookup
       const sessionId = connectionIdMapRef.current.get(connectionId);
-      
+
       if (sessionId && terminalInstances.current[sessionId]) {
         // Use grey color for connection status messages
         terminalInstances.current[sessionId].write('\r\n\x1b[90mSSH connection closed.\x1b[0m\r\n');
@@ -646,13 +646,13 @@ export function useTerminalManagement({
         // Using box drawing characters to make it look like a keyboard key in one line: ┌─F5─┐
         terminalInstances.current[sessionId].write('\x1b[90mPress \x1b[0m\x1b[92m┌─F5─┐\x1b[0m\x1b[90m to reconnect.\x1b[0m\r\n');
       }
-      
+
       // Remove from map when connection closes
       // Also rebuild map to ensure consistency (in case of race conditions)
       connectionIdMapRef.current.delete(connectionId);
       // Rebuild map to ensure it's in sync with actual connections
       updateConnectionIdMap();
-      
+
       // Call callback if provided (for auto-reconnect)
       // Use ref to get latest callback
       if (onSshCloseRef.current && sessionId) {
@@ -663,10 +663,10 @@ export function useTerminalManagement({
     const handleTelnetData = (event, { connectionId, data }) => {
       // Use cached map for O(1) lookup - much faster than building map each time
       const sessionId = connectionIdMapRef.current.get(connectionId);
-      
+
       if (sessionId && terminalInstances.current[sessionId]) {
         const terminal = terminalInstances.current[sessionId];
-        
+
         // Flush any buffered data first (in order)
         const buffer = dataBufferRef.current.get(connectionId);
         if (buffer && buffer.length > 0) {
@@ -675,7 +675,7 @@ export function useTerminalManagement({
           });
           dataBufferRef.current.delete(connectionId);
         }
-        
+
         // Optimized: Split large data chunks to prevent blocking
         // Large synchronous writes can block the UI thread
         if (data.length > 8192) { // 8KB threshold
@@ -696,7 +696,7 @@ export function useTerminalManagement({
           // Write to terminal immediately for small data to preserve output order
           terminal.write(data);
         }
-        
+
         // Log asynchronously without blocking display - use ref to get latest function
         if (sessionLogs.current[sessionId] && sessionLogs.current[sessionId].isLogging) {
           startTransition(() => {
@@ -720,18 +720,18 @@ export function useTerminalManagement({
 
     const handleTelnetClose = (event, { connectionId }) => {
       const sessionId = connectionIdMapRef.current.get(connectionId);
-      
+
       if (sessionId && terminalInstances.current[sessionId]) {
         // Use grey color for connection status messages
         terminalInstances.current[sessionId].write('\r\n\x1b[90mTelnet connection closed.\x1b[0m\r\n');
         // Add F5 reconnect hint with keyboard-style key representation
         terminalInstances.current[sessionId].write('\x1b[90mPress \x1b[0m\x1b[92m┌─F5─┐\x1b[0m\x1b[90m to reconnect.\x1b[0m\r\n');
       }
-      
+
       // Remove from map when connection closes
       connectionIdMapRef.current.delete(connectionId);
       updateConnectionIdMap();
-      
+
       // Call callback if provided (for auto-reconnect)
       if (onSshCloseRef.current && sessionId) {
         onSshCloseRef.current(sessionId, connectionId);
@@ -756,7 +756,7 @@ export function useTerminalManagement({
     const handleSerialData = (event, receivedSessionId, data) => {
       if (terminalInstances.current[receivedSessionId]) {
         const terminal = terminalInstances.current[receivedSessionId];
-        
+
         // Write to terminal immediately for better responsiveness
         if (data.length < 1024) {
           terminal.write(data);
@@ -765,7 +765,7 @@ export function useTerminalManagement({
             terminal.write(data);
           });
         }
-        
+
         // Log asynchronously without blocking display - use ref to get latest function
         if (sessionLogs.current[receivedSessionId]?.isLogging) {
           startTransition(() => {
@@ -779,6 +779,8 @@ export function useTerminalManagement({
       if (terminalInstances.current[receivedSessionId]) {
         // Use grey color for connection status messages
         terminalInstances.current[receivedSessionId].write('\r\n\x1b[90mSerial connection closed.\x1b[0m\r\n');
+        // Add F5 reconnect hint with keyboard-style key representation
+        terminalInstances.current[receivedSessionId].write('\x1b[90mPress \x1b[0m\x1b[92m┌─F5─┐\x1b[0m\x1b[90m to reconnect.\x1b[0m\r\n');
       }
     };
 

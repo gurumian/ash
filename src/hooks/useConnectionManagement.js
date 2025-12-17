@@ -38,11 +38,11 @@ export function useConnectionManagement({
   const formatConnectionError = useCallback((error) => {
     const errorMessage = error.message || String(error);
     const errorCode = error.code || '';
-    
+
     let title = 'Connection Failed';
     let message = 'Failed to establish connection';
     let detail = errorMessage;
-    
+
     // Parse common SSH error codes
     if (errorCode === 'EHOSTUNREACH' || errorMessage.includes('EHOSTUNREACH')) {
       title = 'Host Unreachable';
@@ -71,7 +71,7 @@ export function useConnectionManagement({
       message = 'Invalid credentials';
       detail = `Authentication failed.\n\nPlease check:\n- Username is correct\n- Password is correct\n- User has SSH access permissions`;
     }
-    
+
     return { title, message, detail };
   }, []);
 
@@ -116,7 +116,7 @@ export function useConnectionManagement({
       executePostProcessing(connection, session.id);
     }
 
-    setSessions(prev => prev.map(s => 
+    setSessions(prev => prev.map(s =>
       s.id === session.id ? { ...s, isConnected: true } : s
     ));
   }, [initializeTerminal, executePostProcessing, setSessions, terminalInstances]);
@@ -138,7 +138,7 @@ export function useConnectionManagement({
       executePostProcessing(connection, session.id);
     }
 
-    setSessions(prev => prev.map(s => 
+    setSessions(prev => prev.map(s =>
       s.id === session.id ? { ...s, isConnected: true } : s
     ));
   }, [initializeTerminal, executePostProcessing, setSessions, terminalInstances]);
@@ -146,11 +146,11 @@ export function useConnectionManagement({
   // Create new session with provided data (returns sessionId if successful)
   const createNewSessionWithData = useCallback(async (formData, skipFormReset = false) => {
     setFormError('');
-    
+
     if (formData.connectionType === 'ssh') {
       // Check if using telnet
       const useTelnet = formData.useTelnet || false;
-      
+
       if (useTelnet) {
         // Telnet connection - only host and port required
         if (!formData.host) {
@@ -172,7 +172,7 @@ export function useConnectionManagement({
     }
 
     setIsConnecting(true);
-    
+
     try {
       const sessionId = Date.now().toString();
       let sessionName;
@@ -186,14 +186,14 @@ export function useConnectionManagement({
       } else {
         sessionName = formData.sessionName || `Serial: ${formData.serialPort}`;
       }
-      
+
       // Create connection based on type
       let connection;
       let session;
-      
+
       if (formData.connectionType === 'ssh') {
         const useTelnet = formData.useTelnet || false;
-        
+
         if (useTelnet) {
           // For Telnet: Initialize terminal FIRST before connecting
           // This ensures terminal is ready to receive data immediately when connection is established
@@ -208,11 +208,11 @@ export function useConnectionManagement({
             postProcessing: formData.postProcessing || [],
             postProcessingEnabled: formData.postProcessingEnabled !== false
           };
-          
+
           // Create session first so terminal can be initialized
           setSessions(prev => [...prev, session]);
           setActiveSessionId(sessionId);
-          
+
           // Initialize terminal BEFORE connection to catch initial data
           // Use Promise to ensure terminal is fully initialized before connecting
           await new Promise((resolve) => {
@@ -226,7 +226,7 @@ export function useConnectionManagement({
               });
             }, 0);
           });
-          
+
           // Wait a bit more to ensure terminal is in terminalInstances map
           // Poll until terminal is ready (with timeout)
           let attempts = 0;
@@ -235,25 +235,25 @@ export function useConnectionManagement({
             await new Promise(resolve => setTimeout(resolve, 10));
             attempts++;
           }
-          
+
           // Terminal is ready or will be initialized later
-          
+
           // Now connect - terminal should be ready
           connection = new TelnetConnection();
-          
+
           // Store connection BEFORE connecting so buffer can map connectionId
           sshConnections.current[sessionId] = connection;
-          
+
           await connection.connect(
             formData.host,
             formData.port || '23'
           );
-          
+
           // Update session as connected
-          setSessions(prev => prev.map(s => 
+          setSessions(prev => prev.map(s =>
             s.id === sessionId ? { ...s, isConnected: true } : s
           ));
-          
+
           // Save connection history
           saveConnectionHistory({
             connectionType: 'telnet',
@@ -264,12 +264,12 @@ export function useConnectionManagement({
             postProcessing: formData.postProcessing || [],
             postProcessingEnabled: formData.postProcessingEnabled !== false
           });
-          
+
           // Update connectionId map immediately
           if (updateConnectionIdMap && connection.connectionId) {
             updateConnectionIdMap();
           }
-          
+
           // Execute post-processing
           setTimeout(() => {
             executePostProcessing(connection, sessionId);
@@ -282,7 +282,7 @@ export function useConnectionManagement({
             formData.user,
             formData.password
           );
-          
+
           session = {
             id: sessionId,
             name: sessionName,
@@ -296,7 +296,7 @@ export function useConnectionManagement({
             postProcessing: formData.postProcessing || [],
             postProcessingEnabled: formData.postProcessingEnabled !== false
           };
-          
+
           // Save connection history
           saveConnectionHistory({
             connectionType: 'ssh',
@@ -320,7 +320,7 @@ export function useConnectionManagement({
           parity: formData.parity,
           flowControl: formData.flowControl
         });
-        
+
         session = {
           id: sessionId,
           name: sessionName,
@@ -336,7 +336,7 @@ export function useConnectionManagement({
           postProcessing: formData.postProcessing || [],
           postProcessingEnabled: formData.postProcessingEnabled !== false
         };
-        
+
         // Save connection history for Serial connections too
         saveConnectionHistory({
           connectionType: 'serial',
@@ -352,7 +352,7 @@ export function useConnectionManagement({
           postProcessingEnabled: formData.postProcessingEnabled !== false
         });
       }
-      
+
       // Common session setup
       // Note: Telnet session is already added earlier (line 144) to allow terminal initialization before connection
       if (formData.connectionType !== 'ssh' || !formData.useTelnet) {
@@ -366,7 +366,7 @@ export function useConnectionManagement({
         sshConnections.current[sessionId] = connection; // Store Serial connection
       }
       // Note: Telnet connection is already stored at line 245 before connection.connect()
-      
+
       // Reset form (unless skipFormReset is true)
       if (!skipFormReset) {
         setConnectionForm({
@@ -389,9 +389,9 @@ export function useConnectionManagement({
         setShowConnectionForm(false);
       }
       setIsConnecting(false);
-      
+
       return sessionId; // Return sessionId for use in drag-and-drop
-      
+
     } catch (error) {
       console.error('Connection failed:', error);
       setIsConnecting(false);
@@ -427,38 +427,38 @@ export function useConnectionManagement({
   // Disconnect session
   const disconnectSession = useCallback(async (sessionId) => {
     const session = sessions.find(s => s.id === sessionId);
-    
+
     // Clean up terminal resources first (including refs and handlers)
     if (cleanupTerminal) {
       cleanupTerminal(sessionId);
     }
-    
+
     // Use polymorphic disconnect
     if (session && sshConnections.current[sessionId]) {
       sshConnections.current[sessionId].disconnect();
       delete sshConnections.current[sessionId];
     }
-    
+
     // Clean up fit addon
     if (fitAddons.current[sessionId]) {
       delete fitAddons.current[sessionId];
     }
-    
+
     // Clean up search addon
     if (searchAddons.current[sessionId]) {
       delete searchAddons.current[sessionId];
     }
-    
+
     // Clean up session logs
     await cleanupLog(sessionId);
-    
+
     // Clean up stopwatch
     if (cleanupStopwatch) {
       cleanupStopwatch(sessionId);
     }
-    
+
     setSessions(prev => prev.filter(s => s.id !== sessionId));
-    
+
     if (activeSessionId === sessionId) {
       const remainingSessions = sessions.filter(s => s.id !== sessionId);
       setActiveSessionId(remainingSessions.length > 0 ? remainingSessions[0].id : null);
@@ -480,10 +480,10 @@ export function useConnectionManagement({
   // Helper: Find password from connection history
   const findPasswordFromHistory = useCallback((session) => {
     if (session.connectionType === 'ssh') {
-      const historyEntry = connectionHistory.find(c => 
+      const historyEntry = connectionHistory.find(c =>
         c.connectionType === 'ssh' &&
-        c.host === session.host && 
-        c.user === session.user && 
+        c.host === session.host &&
+        c.user === session.user &&
         (c.port || '22') === (session.port || '22')
       );
       return session.password || historyEntry?.password || '';
@@ -503,17 +503,17 @@ export function useConnectionManagement({
       }
       delete sshConnections.current[session.id];
     }
-    
+
     const password = findPasswordFromHistory(session);
     const retryEnabled = reconnectRetry?.enabled !== false;
     const retryInterval = reconnectRetry?.interval || 1000;
     const maxAttempts = reconnectRetry?.maxAttempts || 60;
-    
+
     // Get terminal instance for status messages
     const terminal = terminalInstances.current[session.id];
-    
+
     let connection = null;
-    
+
     if (!retryEnabled) {
       // No retry - single attempt
       connection = new SSHConnection();
@@ -522,19 +522,19 @@ export function useConnectionManagement({
     } else {
       // Retry logic
       let lastError = null;
-      
+
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         // Update terminal with attempt status
         if (terminal) {
           // Clear previous attempt line and show new one
           terminal.write(`\r\x1b[K\x1b[90mAttempting ${attempt}/${maxAttempts}...\x1b[0m`);
         }
-        
+
         try {
           connection = new SSHConnection();
           await connection.connect(session.host, session.port, session.user, password);
           sshConnections.current[session.id] = connection;
-          
+
           // Success - clear attempt message
           if (terminal) {
             terminal.write(`\r\x1b[K\x1b[90mConnected successfully.\x1b[0m\r\n`);
@@ -543,7 +543,7 @@ export function useConnectionManagement({
         } catch (error) {
           lastError = error;
           console.log(`SSH reconnection attempt ${attempt}/${maxAttempts} failed:`, error.message);
-          
+
           if (attempt < maxAttempts) {
             // Wait before next attempt
             await new Promise(resolve => setTimeout(resolve, retryInterval));
@@ -557,7 +557,7 @@ export function useConnectionManagement({
         }
       }
     }
-    
+
     // Complete session setup after successful connection
     if (connection) {
       await completeSSHSessionSetup(session, connection);
@@ -576,16 +576,16 @@ export function useConnectionManagement({
       }
       delete sshConnections.current[session.id];
     }
-    
+
     const retryEnabled = reconnectRetry?.enabled !== false;
     const retryInterval = reconnectRetry?.interval || 1000;
     const maxAttempts = reconnectRetry?.maxAttempts || 60;
-    
+
     // Get terminal instance for status messages
     const terminal = terminalInstances.current[session.id];
-    
+
     let connection = null;
-    
+
     if (!retryEnabled) {
       // No retry - single attempt
       connection = new TelnetConnection();
@@ -594,19 +594,19 @@ export function useConnectionManagement({
     } else {
       // Retry logic
       let lastError = null;
-      
+
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         // Update terminal with attempt status
         if (terminal) {
           // Clear previous attempt line and show new one
           terminal.write(`\r\x1b[K\x1b[90mAttempting ${attempt}/${maxAttempts}...\x1b[0m`);
         }
-        
+
         try {
           connection = new TelnetConnection();
           await connection.connect(session.host, session.port || '23');
           sshConnections.current[session.id] = connection;
-          
+
           // Success - clear attempt message
           if (terminal) {
             terminal.write(`\r\x1b[K\x1b[90mConnected successfully.\x1b[0m\r\n`);
@@ -615,7 +615,7 @@ export function useConnectionManagement({
         } catch (error) {
           lastError = error;
           console.log(`Telnet reconnection attempt ${attempt}/${maxAttempts} failed:`, error.message);
-          
+
           if (attempt < maxAttempts) {
             // Wait before next attempt
             await new Promise(resolve => setTimeout(resolve, retryInterval));
@@ -629,7 +629,7 @@ export function useConnectionManagement({
         }
       }
     }
-    
+
     // Complete session setup after successful connection
     if (connection) {
       await completeTelnetSessionSetup(session, connection);
@@ -638,16 +638,44 @@ export function useConnectionManagement({
 
   // Helper: Reconnect Serial session
   const reconnectSerialSession = useCallback(async (session) => {
-    const connection = new SerialConnection();
-    await connection.connect(session.id, {
-      path: session.serialPort,
-      baudRate: parseInt(session.baudRate),
-      dataBits: parseInt(session.dataBits || '8'),
-      stopBits: parseInt(session.stopBits || '1'),
-      parity: session.parity || 'none',
-      flowControl: session.flowControl || 'none'
-    });
-    sshConnections.current[session.id] = connection;
+    // Get terminal instance for status messages
+    const terminal = terminalInstances.current[session.id];
+
+    // Disconnect old connection if it exists
+    if (sshConnections.current[session.id]) {
+      try {
+        if (terminal) {
+          terminal.write('\r\n\x1b[90mResetting connection...\x1b[0m\r\n');
+        }
+        sshConnections.current[session.id].disconnect();
+      } catch (error) {
+        console.log('Error disconnecting old Serial connection:', error);
+      }
+      delete sshConnections.current[session.id];
+    }
+
+    // Small delay to ensure port release (important for serial)
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    try {
+      const connection = new SerialConnection();
+      await connection.connect(session.id, {
+        path: session.serialPort,
+        baudRate: parseInt(session.baudRate),
+        dataBits: parseInt(session.dataBits || '8'),
+        stopBits: parseInt(session.stopBits || '1'),
+        parity: session.parity || 'none',
+        flowControl: session.flowControl || 'none'
+      });
+      sshConnections.current[session.id] = connection;
+    } catch (error) {
+      if (terminal) {
+        terminal.write(`\x1b[31mConnection failed: ${error.message}\x1b[0m\r\n`);
+        terminal.write('\r\n\x1b[90mSerial connection closed.\x1b[0m\r\n');
+        terminal.write('\x1b[90mPress \x1b[0m\x1b[92m┌─F5─┐\x1b[0m\x1b[90m to reconnect.\x1b[0m\r\n');
+      }
+      throw error;
+    }
 
     // Initialize terminal if not already initialized
     if (!terminalInstances.current[session.id]) {
@@ -656,15 +684,18 @@ export function useConnectionManagement({
       }, 100);
     } else {
       // Terminal already exists, execute post-processing after connection
+      if (terminal) {
+        terminal.write('\x1b[90mConnected successfully.\x1b[0m\r\n');
+      }
       setTimeout(() => {
         executePostProcessing(connection, session.id);
       }, 300);
     }
 
-    setSessions(prev => prev.map(s => 
+    setSessions(prev => prev.map(s =>
       s.id === session.id ? { ...s, isConnected: true } : s
     ));
-  }, [initializeTerminal, executePostProcessing, setSessions]);
+  }, [initializeTerminal, executePostProcessing, setSessions, terminalInstances]);
 
   // Helper: Reconnect session (type-agnostic)
   const reconnectSession = useCallback(async (session) => {
@@ -678,7 +709,7 @@ export function useConnectionManagement({
       }
     } catch (error) {
       console.error(`Failed to reconnect session ${session.id}:`, error);
-      
+
       // Show error dialog for max retry attempts reached
       const isMaxRetriesReached = error.message?.includes('Max retry attempts') || error.message?.includes('after');
       if (setErrorDialog && isMaxRetriesReached) {
@@ -748,11 +779,11 @@ export function useConnectionManagement({
 
     // Get all saved sessions (connection info) from the group
     const savedSessions = group.savedSessions || [];
-    
+
     if (process.env.NODE_ENV === 'development') {
       console.log('Saved sessions to connect:', savedSessions.length);
     }
-    
+
     // Connect each saved session instance
     // Each savedSession is an independent instance - always create a new session
     // This allows multiple sessions with the same connection info (duplicate sessions)
@@ -764,7 +795,7 @@ export function useConnectionManagement({
         // each one will open as a separate session (allowing duplicates)
         const connectionFormData = prepareConnectionFormData(savedSession);
         const sessionId = await createNewSessionWithData(connectionFormData, true);
-        
+
         if (process.env.NODE_ENV === 'development' && sessionId) {
           console.log('Created new session from savedSession:', { sessionId, savedSessionId: savedSession.id, label: savedSession.label });
         }
@@ -816,18 +847,18 @@ export function useConnectionManagement({
       if (process.env.NODE_ENV === 'development') {
         console.log('Removing detached session:', sessionId);
       }
-      
+
       // Use functional updates to avoid stale closure issues
       setSessions(prev => {
         const session = prev.find(s => s.id === sessionId);
-        
+
         // Disconnect the connection in the original window
         // (new window will reconnect automatically)
         if (session && sshConnections.current[sessionId]) {
           sshConnections.current[sessionId].disconnect();
           delete sshConnections.current[sessionId];
         }
-        
+
         // Clean up local references
         if (cleanupTerminal) {
           cleanupTerminal(sessionId);
@@ -838,10 +869,10 @@ export function useConnectionManagement({
         if (searchAddons.current[sessionId]) {
           delete searchAddons.current[sessionId];
         }
-        
+
         // Remove from sessions list
         const remainingSessions = prev.filter(s => s.id !== sessionId);
-        
+
         // Update active session if needed
         setActiveSessionId(currentActiveId => {
           if (currentActiveId === sessionId) {
@@ -849,7 +880,7 @@ export function useConnectionManagement({
           }
           return currentActiveId;
         });
-        
+
         return remainingSessions;
       });
     };
@@ -861,14 +892,14 @@ export function useConnectionManagement({
         if (process.env.NODE_ENV === 'development') {
           console.log('Received detached session:', session);
         }
-        
+
         // Mark as disconnected since connection objects can't be transferred
         const newSession = { ...session, isConnected: false };
-        
+
         // Add session to this window
         setSessions(prev => [...prev, newSession]);
         setActiveSessionId(newSession.id);
-        
+
         // Try to reconnect automatically if it was connected
         if (session.isConnected) {
           // Small delay to ensure terminal is initialized
@@ -878,31 +909,31 @@ export function useConnectionManagement({
                 // Get password from connection history if not in session - use ref to get latest
                 let password = newSession.password;
                 if (!password && connectionHistoryRef.current) {
-                  const historyEntry = connectionHistoryRef.current.find(c => 
+                  const historyEntry = connectionHistoryRef.current.find(c =>
                     c.connectionType === 'ssh' &&
-                    c.host === newSession.host && 
-                    c.user === newSession.user && 
+                    c.host === newSession.host &&
+                    c.user === newSession.user &&
                     (c.port || '22') === (newSession.port || '22')
                   );
                   password = historyEntry?.password || '';
                 }
-                
+
                 if (!password) {
                   console.warn('No password available for reconnection, marking as disconnected');
-                  setSessions(prev => prev.map(s => 
+                  setSessions(prev => prev.map(s =>
                     s.id === newSession.id ? { ...s, isConnected: false } : s
                   ));
                   return;
                 }
-                
+
                 const connection = new SSHConnection();
                 await connection.connect(newSession.host, newSession.port, newSession.user, password);
                 sshConnections.current[newSession.id] = connection;
-                
-                setSessions(prev => prev.map(s => 
+
+                setSessions(prev => prev.map(s =>
                   s.id === newSession.id ? { ...s, isConnected: true } : s
                 ));
-                
+
                 // Initialize terminal - use ref to get latest function
                 // Terminal initialization will start the SSH shell with correct size
                 setTimeout(() => {
@@ -910,13 +941,13 @@ export function useConnectionManagement({
                 }, 100);
               } else if (newSession.connectionType === 'serial') {
                 // Serial reconnection would go here
-                setSessions(prev => prev.map(s => 
+                setSessions(prev => prev.map(s =>
                   s.id === newSession.id ? { ...s, isConnected: false } : s
                 ));
               }
             } catch (error) {
               console.error('Failed to reconnect detached session:', error);
-              setSessions(prev => prev.map(s => 
+              setSessions(prev => prev.map(s =>
                 s.id === newSession.id ? { ...s, isConnected: false } : s
               ));
             }

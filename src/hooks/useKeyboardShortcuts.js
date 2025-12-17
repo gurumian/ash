@@ -27,7 +27,8 @@ export function useKeyboardShortcuts({
       if (event.key === 'F5') {
         if (activeSessionId && onReconnectSession && sessions) {
           const activeSession = sessions.find(s => s.id === activeSessionId);
-          if (activeSession && !activeSession.isConnected && !(reconnectingSessions?.get(activeSessionId))) {
+          if (activeSession && !(reconnectingSessions?.get(activeSessionId))) {
+            // Allow F5 to reconnect even if connected (refresh)
             onReconnectSession(activeSessionId);
             event.preventDefault();
             event.stopPropagation();
@@ -43,10 +44,10 @@ export function useKeyboardShortcuts({
       // Allow standard text editing shortcuts in input/textarea fields
       // This includes Ctrl+Z (undo), Ctrl+Y (redo), Ctrl+A (select all), etc.
       if (event.target.matches('input, textarea')) {
-        const isStandardEditShortcut = (event.ctrlKey || event.metaKey) && 
-          (event.key === 'z' || event.key === 'Z' || event.key === 'y' || event.key === 'Y' || 
-           event.key === 'a' || event.key === 'A' || event.key === 'x' || event.key === 'X' || 
-           event.key === 'c' || event.key === 'C' || event.key === 'v' || event.key === 'V');
+        const isStandardEditShortcut = (event.ctrlKey || event.metaKey) &&
+          (event.key === 'z' || event.key === 'Z' || event.key === 'y' || event.key === 'Y' ||
+            event.key === 'a' || event.key === 'A' || event.key === 'x' || event.key === 'X' ||
+            event.key === 'c' || event.key === 'C' || event.key === 'v' || event.key === 'V');
         if (isStandardEditShortcut) {
           // Let browser handle these shortcuts natively - don't interfere
           return;
@@ -76,8 +77,8 @@ export function useKeyboardShortcuts({
 
       // Don't handle other shortcuts when typing in input fields (but allow Ctrl+Shift+A above)
       // Exception: don't block Ctrl+Shift+A even in input fields
-      if (event.target.matches('input, textarea') && 
-          !((event.ctrlKey || event.metaKey) && event.shiftKey && (event.key === 'a' || event.key === 'A'))) {
+      if (event.target.matches('input, textarea') &&
+        !((event.ctrlKey || event.metaKey) && event.shiftKey && (event.key === 'a' || event.key === 'A'))) {
         return;
       }
 

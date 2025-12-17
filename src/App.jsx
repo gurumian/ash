@@ -998,10 +998,16 @@ function App() {
       ));
 
       // Auto-reconnect only if enabled in Settings
+      // User feedback: Don't auto-reconnect for serial, let user press F5
+      console.log('[Auto-reconnect] Serial connection closed. Auto-reconnect disabled by policy (use F5).');
+      return;
+
+      /* Auto-reconnect logic disabled for Serial
       if (!autoReconnect) {
         console.log('[Auto-reconnect] Auto-reconnect is disabled in Settings, skipping');
         return;
       }
+      */
 
       if (reconnectSession) {
         console.log('[Auto-reconnect] Serial connection closed, will attempt reconnect for session:', receivedSessionId);

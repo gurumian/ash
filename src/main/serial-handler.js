@@ -63,7 +63,19 @@ export function initializeSerialHandlers() {
         dataBits: options.dataBits || 8,
         stopBits: options.stopBits || 1,
         parity: options.parity || 'none',
-        flowControl: options.flowControl || 'none'
+        flowControl: options.flowControl || 'none',
+        autoOpen: false
+      });
+
+      // Wait for port to open
+      await new Promise((resolve, reject) => {
+        port.open((err) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve();
+          }
+        });
       });
 
       const webContents = event.sender;

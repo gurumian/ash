@@ -42,7 +42,7 @@
   "sessionList": "세션 목록",
   "createGroup": "그룹 생성",
   "groupName": "그룹 이름",
-  "reconnect": "재연결",
+  "reconnect": "재연결 (F5)",
   "reconnecting": "재연결 중...",
   "aiCommand": "AI 명령",
   "recording": "녹화 중",
@@ -72,4 +72,3 @@
   "aiChat": "AI 채팅",
   "iperfClient": "iperf3 클라이언트"
 }
-

@@ -42,7 +42,7 @@
   "sessionList": "Session List",
   "createGroup": "Create Group",
   "groupName": "Group Name",
-  "reconnect": "Reconnect",
+  "reconnect": "Reconnect (F5)",
   "reconnecting": "Reconnecting...",
   "aiCommand": "AI Command",
   "recording": "Recording",
@@ -72,4 +72,3 @@
   "aiChat": "AI Chat",
   "iperfClient": "iperf3 Client"
 }
-
