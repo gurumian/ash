@@ -1,4 +1,6 @@
 import { ipcMain } from 'electron';
+import { SerialBufferedTransform } from './serial-buffer-transform.js';
+
 
 // Serial port support
 const serialConnections = new Map();
@@ -81,7 +83,21 @@ export function initializeSerialHandlers() {
       const webContents = event.sender;
       serialConnections.set(sessionId, { port, webContents });
 
-      port.on('data', (data) => {
+      // Use buffered transform stream to prevent IPC flooding
+      // This is necessary for macOS 'cu' devices which may emit single-byte chunks
+      const parser = port.pipe(new SerialBufferedTransform({
+        maxBufferSize: 8192,
+        flushInterval: 16
+      }));
+
+      // Store parser reference for cleanup
+      // We store it on the connection object so we can unpipe/destroy it later
+      const connInfo = serialConnections.get(sessionId);
+      if (connInfo) {
+        connInfo.parser = parser;
+      }
+
+      parser.on('data', (data) => {
         try {
           if (!webContents.isDestroyed()) {
             webContents.send('serial-data', sessionId, data.toString());
@@ -141,6 +157,9 @@ export function initializeSerialHandlers() {
     try {
       const connInfo = serialConnections.get(sessionId);
       if (connInfo && connInfo.port) {
+        if (connInfo.parser) {
+          connInfo.parser.destroy();
+        }
         connInfo.port.close();
         serialConnections.delete(sessionId);
       }
@@ -158,6 +177,9 @@ export function initializeSerialHandlers() {
 export function cleanupSerialConnections() {
   serialConnections.forEach((connInfo) => {
     if (connInfo.port) {
+      if (connInfo.parser) {
+        connInfo.parser.destroy();
+      }
       connInfo.port.close();
     }
   });

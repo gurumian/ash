@@ -657,8 +657,9 @@ export function useConnectionManagement({
     // Small delay to ensure port release (important for serial)
     await new Promise(resolve => setTimeout(resolve, 500));
 
+    let connection;
     try {
-      const connection = new SerialConnection();
+      connection = new SerialConnection();
       await connection.connect(session.id, {
         path: session.serialPort,
         baudRate: parseInt(session.baudRate),
