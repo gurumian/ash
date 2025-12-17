@@ -13,34 +13,38 @@ let Client;
 export function initializeSSHHandlers() {
   // SSH connection IPC handler
   ipcMain.handle('ssh-connect', async (event, connectionInfo) => {
-    const { host, port, username, password } = connectionInfo;
+    const { host, port, username, password, keepaliveInterval, keepaliveCount, readyTimeout } = connectionInfo;
     const connectionId = require('crypto').randomUUID();
-    
+
     try {
       // Dynamically import ssh2
       if (!Client) {
         const ssh2 = require('ssh2');
         Client = ssh2.Client;
       }
-      
+
       const conn = new Client();
-      
+
       return new Promise((resolve, reject) => {
         conn.on('ready', () => {
           sshConnections.set(connectionId, conn);
           console.log(`SSH connection established: ${connectionId}`);
           resolve({ success: true, connectionId });
         });
-        
+
         conn.on('error', (err) => {
           reject(new Error(`SSH connection failed: ${err.message}`));
         });
-        
+
         conn.connect({
           host: host,
           port: parseInt(port),
           username: username,
-          password: password
+          password: password,
+          // Apply keepalive settings if provided
+          keepaliveInterval: keepaliveInterval || 0, // Default to 0 (disabled) if not provided
+          keepaliveCount: keepaliveCount || 3,        // Default to 3
+          readyTimeout: readyTimeout || 20000         // Default to 20s
         });
       });
     } catch (error) {
@@ -54,7 +58,7 @@ export function initializeSSHHandlers() {
     if (!conn) {
       throw new Error('SSH connection not found');
     }
-    
+
     return new Promise((resolve, reject) => {
       conn.shell({
         cols: cols,
@@ -66,13 +70,13 @@ export function initializeSSHHandlers() {
           reject(new Error(`Failed to start shell: ${err.message}`));
           return;
         }
-        
+
         // Save stream with webContents reference
         const webContents = event.sender;
         sshStreams.set(connectionId, { stream, webContents });
-        
+
         resolve({ success: true, streamId: stream.id });
-        
+
         // Send terminal data to renderer
         stream.on('data', (data) => {
           // Removed console.log for performance - logs on every data chunk cause significant overhead
@@ -84,7 +88,7 @@ export function initializeSSHHandlers() {
             console.warn('Failed to send SSH data:', error.message);
           }
         });
-        
+
         stream.on('close', () => {
           console.log(`SSH connection closed: ${connectionId}`);
           try {
@@ -106,19 +110,19 @@ export function initializeSSHHandlers() {
     if (!streamInfo || !streamInfo.stream) {
       throw new Error('SSH stream not found');
     }
-    
+
     // Removed console.log for performance - logs on every write cause significant overhead
     streamInfo.stream.write(data);
     return { success: true };
   });
-  
+
   // Resize SSH terminal
   ipcMain.handle('ssh-resize', async (event, connectionId, cols, rows) => {
     const streamInfo = sshStreams.get(connectionId);
     if (!streamInfo || !streamInfo.stream) {
       return { success: false, error: 'SSH stream not found' };
     }
-    
+
     try {
       streamInfo.stream.setWindow(rows, cols, 0, 0);
       return { success: true };
@@ -135,7 +139,7 @@ export function initializeSSHHandlers() {
       streamInfo.stream.end();
       sshStreams.delete(connectionId);
     }
-    
+
     const conn = sshConnections.get(connectionId);
     if (conn) {
       conn.end();
@@ -215,18 +219,18 @@ export function initializeSSHHandlers() {
     } catch (sftpError) {
       // SFTP failed, try fallback: cat via SSH exec
       console.log('SFTP not available, using cat fallback method...');
-      
+
       try {
         return await new Promise((resolve, reject) => {
           // Create remote directory if needed
           const remoteDir = path.dirname(remotePath);
-          
+
           // Use cat to write file directly via stdin
           // This is simpler and more efficient than base64 encoding
           const command = `mkdir -p "${remoteDir}" && cat > "${remotePath}"`;
-          
+
           console.log(`[SSH Upload] Starting cat fallback: ${localPath} -> ${remotePath}`);
-          
+
           // Execute command via SSH
           conn.exec(command, (err, stream) => {
             if (err) {
@@ -234,18 +238,18 @@ export function initializeSSHHandlers() {
               reject(new Error(`Fallback upload failed: ${err.message}`));
               return;
             }
-            
+
             let errorOutput = '';
             let stdoutOutput = '';
             let transferred = 0;
             let isComplete = false;
             let fileStreamEnded = false;
-            
+
             // Read file as stream
             const fileStream = fs.createReadStream(localPath);
-            
+
             console.log(`[SSH Upload] File stream created, size: ${fileSize} bytes`);
-            
+
             // Track progress
             const sendProgress = () => {
               const progress = Math.min(100, (transferred / fileSize) * 100);
@@ -259,12 +263,12 @@ export function initializeSSHHandlers() {
                 });
               }
             };
-            
+
             // Track transferred bytes and write to stream
             fileStream.on('data', (chunk) => {
               transferred += chunk.length;
               sendProgress();
-              
+
               // Write chunk to SSH stream
               const canContinue = stream.write(chunk);
               if (!canContinue) {
@@ -275,39 +279,39 @@ export function initializeSSHHandlers() {
                 });
               }
             });
-            
+
             fileStream.on('end', () => {
               console.log(`[SSH Upload] File stream ended, transferred: ${transferred}/${fileSize}`);
               fileStreamEnded = true;
               // End the SSH stream after all data is written
               stream.end();
             });
-            
+
             fileStream.on('error', (err) => {
               console.error(`[SSH Upload] File stream error:`, err);
               if (!isComplete) {
                 reject(new Error(`File read error: ${err.message}`));
               }
             });
-            
+
             stream.stdout.on('data', (data) => {
               stdoutOutput += data.toString();
             });
-            
+
             stream.stderr.on('data', (data) => {
               errorOutput += data.toString();
               console.log(`[SSH Upload] stderr:`, data.toString());
             });
-            
+
             stream.on('close', (code, signal) => {
               console.log(`[SSH Upload] Stream closed, code: ${code}, signal: ${signal}`);
               console.log(`[SSH Upload] stdout:`, stdoutOutput);
               console.log(`[SSH Upload] stderr:`, errorOutput);
-              
+
               isComplete = true;
               transferred = fileSize;
               sendProgress();
-              
+
               if (code === 0) {
                 console.log(`[SSH Upload] Upload completed successfully`);
                 resolve({
@@ -322,7 +326,7 @@ export function initializeSSHHandlers() {
                 reject(new Error(`Fallback upload failed with exit code ${code}: ${errorOutput || stdoutOutput || 'Unknown error'}`));
               }
             });
-            
+
             stream.on('error', (err) => {
               console.error(`[SSH Upload] Stream error:`, err);
               if (!isComplete) {
@@ -357,25 +361,25 @@ export async function executeSSHCommand(connectionId, command) {
     const availableIds = Array.from(sshConnections.keys());
     throw new Error(`SSH connection not found: ${connectionId}. Available: ${availableIds.join(', ')}`);
   }
-  
+
   return new Promise((resolve, reject) => {
     conn.exec(command, (err, stream) => {
       if (err) {
         reject(new Error(`Failed to execute command: ${err.message}`));
         return;
       }
-      
+
       let output = '';
       let errorOutput = '';
-      
+
       stream.on('data', (data) => {
         output += data.toString();
       });
-      
+
       stream.stderr.on('data', (data) => {
         errorOutput += data.toString();
       });
-      
+
       stream.on('close', (code) => {
         resolve({
           success: code === 0,
@@ -384,7 +388,7 @@ export async function executeSSHCommand(connectionId, command) {
           exitCode: code
         });
       });
-      
+
       stream.on('error', (error) => {
         reject(new Error(`Command execution error: ${error.message}`));
       });

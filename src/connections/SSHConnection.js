@@ -15,11 +15,15 @@ export class SSHConnection {
         host,
         port: parseInt(port),
         username: user,
-        password
+        password,
+        // Add aggressive keepalive settings for faster disconnection detection (1s check)
+        keepaliveInterval: 1000, // 1 second
+        keepaliveCount: 3,       // 3 failures = disconnect (~3s total)
+        readyTimeout: 5000       // 5s connection timeout
       });
-      
+
       console.log('SSH connect result:', result);
-      
+
       if (result.success) {
         this.connectionId = result.connectionId;
         this.isConnected = true;
@@ -51,7 +55,7 @@ export class SSHConnection {
     if (!this.isConnected) {
       return;
     }
-    
+
     window.electronAPI.sshResize(this.connectionId, cols, rows);
   }
 
@@ -59,7 +63,7 @@ export class SSHConnection {
     if (!this.isConnected) {
       return;
     }
-    
+
     window.electronAPI.sshWrite(this.connectionId, data);
   }
 
