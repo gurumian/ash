@@ -50,10 +50,10 @@ function App() {
   const [sessions, setSessions] = useState([]);
   const [activeSessionId, setActiveSessionId] = useState(null);
   const [reconnectingSessions, setReconnectingSessions] = useState(new Map());
-  
+
   // Connection refs
   const sshConnections = useRef({});
-  
+
   // Use custom hooks
   const {
     groups,
@@ -74,26 +74,26 @@ function App() {
     removeSessionFromGroup,
     matchSavedSessionWithActiveSession
   } = useGroups();
-  
+
   // Wrapper for addSessionToGroup to find session
   const addSessionToGroup = (sessionId, groupId, skipSavedSessions = false) => {
     const session = sessions.find(s => s.id === sessionId);
     addSessionToGroupHook(sessionId, groupId, session, skipSavedSessions);
   };
-  
+
   // Disconnect all sessions in a group (but keep the group and savedSessions)
   const handleDisconnectGroup = (groupId) => {
     const group = groups.find(g => g.id === groupId);
     if (!group) return;
-    
+
     // Find all active sessions that belong to this group
     const savedSessions = group.savedSessions || [];
     const groupSessions = sessions.filter(session => {
-      return savedSessions.some(savedSession => 
+      return savedSessions.some(savedSession =>
         matchSavedSessionWithActiveSession(savedSession, session)
       );
     });
-    
+
     // Disconnect all sessions in the group
     groupSessions.forEach(session => {
       if (session.isConnected) {
@@ -101,16 +101,16 @@ function App() {
       }
     });
   };
-  
+
   // Delete group completely (remove group and savedSessions from localStorage)
   const handleDeleteGroup = (groupId) => {
     deleteGroup(groupId);
   };
-  
+
   const [showGroupNameDialog, setShowGroupNameDialog] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [pendingSessionForGroup, setPendingSessionForGroup] = useState(null);
-  
+
   // Wrapper for createGroupWithName to handle sessionId
   const createGroupWithSession = (name, sessionId = null) => {
     const newGroupId = createGroupWithName(name);
@@ -147,7 +147,7 @@ function App() {
   const [showSessionManager, setShowSessionManager] = useState(true);
   const [sessionManagerWidth, setSessionManagerWidth] = useState(250);
   const [isResizingState, setIsResizingState] = useState(false);
-  
+
   const isWindows = window.electronAPI?.platform !== 'darwin';
 
   // Use custom hooks
@@ -155,7 +155,7 @@ function App() {
   const { sessionLogs, logStates, appendToLog, startLogging, stopLogging, saveLog, clearLog, cleanupLog } = useLogging(sessions, groups);
   const { getStopwatchState, startStopwatch, stopStopwatch, resetStopwatch, cleanupStopwatch } = useStopwatch();
   const { availableSerialPorts, loadSerialPorts } = useSerialPorts();
-  
+
   // Libraries hook
   const {
     libraries,
@@ -165,13 +165,13 @@ function App() {
     toggleLibraryExpanded,
     importLibrary
   } = useLibraries();
-  
+
   // LLM Settings hook
   const {
     llmSettings,
     updateLlmSettings
   } = useLLMSettings();
-  
+
   const [showSettings, setShowSettings] = useState(false);
   const [showAboutDialog, setShowAboutDialog] = useState(false);
   const [showLicensesDialog, setShowLicensesDialog] = useState(false);
@@ -187,7 +187,7 @@ function App() {
   const [iperfClientSidebarWidth, setIperfClientSidebarWidth] = useState(500);
   const [iperfAvailable, setIperfAvailable] = useState(true); // Default to true, will be checked on mount
   const [appInfo, setAppInfo] = useState({ version: '', author: { name: 'Bryce Ghim', email: 'admin@toktoktalk.com' } });
-  
+
   // Load app info on mount
   useEffect(() => {
     const loadAppInfo = async () => {
@@ -383,7 +383,7 @@ function App() {
       window.electronAPI?.offTftpServerError?.(handleTftpServerError);
     };
   }, []);
-  
+
   // Terminal context menu state
   const [contextMenu, setContextMenu] = useState({
     visible: false,
@@ -391,7 +391,7 @@ function App() {
     y: 0,
     sessionId: null,
   });
-  
+
   // Terminal search state
   const [showSearchBar, setShowSearchBar] = useState(false);
   // AI Command input state
@@ -403,7 +403,40 @@ function App() {
   const [aiMessages, setAiMessages] = useState([]);
   // If the user explicitly closes the AI sidebar, don't auto-reopen until settings change
   const aiSidebarAutoRef = useRef({ dismissed: false, sig: '' });
-  // Error dialog state
+  // Pending user request state (for AI Ask User tool)
+  const [pendingUserRequest, setPendingUserRequest] = useState(null);
+
+  // Listen for Ask User requests from Agent
+  useEffect(() => {
+    const handleAskUser = (data) => {
+      console.log('Received Ask User request:', data);
+      setPendingUserRequest({
+        requestId: data.requestId,
+        question: data.question,
+        isPassword: data.isPassword
+      });
+      // Auto-open sidebar when request comes in
+      setShowAIChatSidebar(true);
+    };
+
+    window.electronAPI?.onAskUser?.(handleAskUser);
+
+    return () => {
+      window.electronAPI?.offAskUser?.(handleAskUser);
+    };
+  }, []);
+
+  const handleAskUserResponse = async (response) => {
+    try {
+      if (pendingUserRequest?.requestId) {
+        await window.electronAPI.sendAskUserResponse(pendingUserRequest.requestId, response);
+        setPendingUserRequest(null); // Clear request after responding
+      }
+    } catch (err) {
+      console.error('Failed to send ask user response:', err);
+    }
+  };
+
   const [errorDialog, setErrorDialog] = useState({
     isOpen: false,
     title: '',
@@ -449,17 +482,17 @@ function App() {
     }
     return { enabled: true, interval: 1000, maxAttempts: 60 }; // Default: enabled, 1s interval, 60 attempts
   });
-  
-  
+
+
   // Create a ref for terminalInstances that useTheme can use
   const terminalInstancesRef = useRef({});
-  
+
   // Theme hook - call first, but pass ref that will be updated
   const { theme, setTheme: changeTheme, currentTheme, themes } = useTheme(terminalInstancesRef);
-  
+
   // Create ref for onSshClose callback to avoid circular dependency
   const onSshCloseRef = useRef(null);
-  
+
   // Terminal management hook - now can use theme and themes
   const {
     terminalRefs,
@@ -487,15 +520,15 @@ function App() {
     showAICommandInput,
     onSshClose: onSshCloseRef.current
   });
-  
+
   // Update ref for useTheme after terminalInstances is available
   useEffect(() => {
     terminalInstancesRef.current = terminalInstances;
   }, [terminalInstances]);
-  
+
   // Window controls hook
   const { isMaximized, handleMinimize, handleMaximize, handleClose } = useWindowControls(isWindows);
-  
+
   // Connection management hook
   const {
     createNewSessionWithData,
@@ -641,22 +674,22 @@ function App() {
     onReconnectSession: async (sessionId) => {
       const session = sessions.find(s => s.id === sessionId);
       if (!session) return;
-      
+
       // Mark as reconnecting
       setReconnectingSessions(prev => {
         const next = new Map(prev);
         next.set(sessionId, true);
         return next;
       });
-      
+
       try {
         await reconnectSession(session);
-        
+
         // Update connectionId map after reconnection
         if (updateConnectionIdMap) {
           updateConnectionIdMap();
         }
-        
+
         // Success message is already shown in reconnectSSHSession
       } catch (error) {
         // Error is already handled by reconnectSession (shows error dialog)
@@ -677,31 +710,31 @@ function App() {
   // Handle SSH close for auto-reconnect (must be after useConnectionManagement to access reconnectSession)
   const handleSshCloseForReconnect = useCallback((sessionId, connectionId) => {
     console.log('[Auto-reconnect] handleSshCloseForReconnect called, sessionId:', sessionId, 'connectionId:', connectionId, 'autoReconnect:', autoReconnect);
-    
+
     // Find session by sessionId
     const foundSession = sessions.find(s => s.id === sessionId);
-    
+
     if (!foundSession) {
       console.log('[Auto-reconnect] Session not found for sessionId:', sessionId);
       return;
     }
-    
+
     console.log('[Auto-reconnect] Found session:', foundSession.id, foundSession.name);
-    
+
     // Update session state to disconnected
-    setSessions(prev => prev.map(s => 
+    setSessions(prev => prev.map(s =>
       s.id === foundSession.id ? { ...s, isConnected: false } : s
     ));
-    
+
     // Auto-reconnect only if enabled in Settings
     if (!autoReconnect) {
       console.log('[Auto-reconnect] Auto-reconnect is disabled in Settings, skipping');
       return;
     }
-    
+
     if (reconnectSession) {
       console.log('[Auto-reconnect] SSH connection closed, will attempt reconnect for session:', foundSession.id);
-      
+
       // Small delay before attempting reconnect
       setTimeout(async () => {
         // Check if already reconnecting
@@ -710,13 +743,13 @@ function App() {
             console.log('[Auto-reconnect] Already reconnecting, skipping');
             return prev; // Already reconnecting
           }
-          
+
           // Mark as reconnecting (this will make the refresh button spin)
           const next = new Map(prev);
           next.set(foundSession.id, true);
-          
+
           console.log('[Auto-reconnect] Starting reconnection for session:', foundSession.id);
-          
+
           // Get current session state
           let sessionToReconnect = null;
           setSessions(currentSessions => {
@@ -726,7 +759,7 @@ function App() {
             }
             return currentSessions;
           });
-          
+
           if (!sessionToReconnect) {
             console.log('[Auto-reconnect] Session already connected or not found');
             setReconnectingSessions(prev => {
@@ -736,7 +769,7 @@ function App() {
             });
             return next;
           }
-          
+
           // Start reconnection (this will show "Attempting 1/60..." in terminal)
           reconnectSession(sessionToReconnect).then(() => {
             console.log('[Auto-reconnect] Reconnection successful');
@@ -755,7 +788,7 @@ function App() {
               return next;
             });
           });
-          
+
           return next;
         });
       }, 500); // 500ms delay before auto-reconnect
@@ -793,11 +826,11 @@ function App() {
   const { status: backendStatus, setStarting: setBackendStarting } = useBackendStatus(showAIChatSidebar);
 
   // AI Command hook
-  const { 
+  const {
     executeAICommand,
     stopAICommand,
-    aiMessages: hookAiMessages, 
-    clearAIMessages, 
+    aiMessages: hookAiMessages,
+    clearAIMessages,
     streamingToolResult,
     processingConversationId,
     processingConversations,
@@ -885,7 +918,7 @@ function App() {
   const handleResizeStart = useCallback((e) => {
     e.preventDefault();
     if (!showSessionManager) return;
-    
+
     handleMouseDownBase(e);
     setIsResizingState(true);
     const startX = e.clientX;
@@ -898,7 +931,7 @@ function App() {
       // Only enforce minimum width, no maximum limit (but prevent negative width)
       const newWidth = Math.max(150, startWidth + diff);
       setSessionManagerWidth(newWidth);
-      
+
       // Throttle resize calls - clear previous timeout and set new one
       if (resizeTerminalTimeoutRef.current) {
         clearTimeout(resizeTerminalTimeoutRef.current);
@@ -930,17 +963,17 @@ function App() {
     setSessions(prev => {
       const newSessions = [...prev];
       const draggedIndex = newSessions.findIndex(s => s.id === draggedSessionId);
-      
+
       if (draggedIndex === -1 || draggedIndex === targetIndex) {
         return prev; // No change needed
       }
-      
+
       // Remove dragged item
       const [draggedSession] = newSessions.splice(draggedIndex, 1);
-      
+
       // Insert at target position
       newSessions.splice(targetIndex, 0, draggedSession);
-      
+
       return newSessions;
     });
   }, []);
@@ -960,19 +993,19 @@ function App() {
   // Handle serial close to update session state and auto-reconnect
   useEffect(() => {
     const handleSerialClose = async (event, receivedSessionId) => {
-      setSessions(prev => prev.map(s => 
+      setSessions(prev => prev.map(s =>
         s.id === receivedSessionId ? { ...s, isConnected: false } : s
       ));
-      
+
       // Auto-reconnect only if enabled in Settings
       if (!autoReconnect) {
         console.log('[Auto-reconnect] Auto-reconnect is disabled in Settings, skipping');
         return;
       }
-      
+
       if (reconnectSession) {
         console.log('[Auto-reconnect] Serial connection closed, will attempt reconnect for session:', receivedSessionId);
-        
+
         // Small delay before attempting reconnect
         setTimeout(async () => {
           // Get current session state
@@ -984,25 +1017,25 @@ function App() {
             }
             return currentSessions;
           });
-          
+
           if (!sessionToReconnect) {
             console.log('[Auto-reconnect] Session already connected or not found');
             return;
           }
-          
+
           // Check if already reconnecting
           setReconnectingSessions(prev => {
             if (prev.has(receivedSessionId)) {
               console.log('[Auto-reconnect] Already reconnecting, skipping');
               return prev; // Already reconnecting
             }
-            
+
             // Mark as reconnecting
             const next = new Map(prev);
             next.set(receivedSessionId, true);
-            
+
             console.log('[Auto-reconnect] Starting reconnection for session:', receivedSessionId);
-            
+
             // Start reconnection
             reconnectSession(sessionToReconnect).catch((error) => {
               // Error is already handled by reconnectSession (shows error dialog)
@@ -1015,7 +1048,7 @@ function App() {
                 return next;
               });
             });
-            
+
             return next;
           });
         }, 500); // 500ms delay before auto-reconnect
@@ -1046,7 +1079,7 @@ function App() {
         const timer = setTimeout(() => {
           initializeTerminal(activeSessionId);
         }, 200);
-        
+
         return () => clearTimeout(timer);
       }
     }
@@ -1055,7 +1088,7 @@ function App() {
   // Terminal resize and keyboard shortcuts are now in useTerminalManagement and useKeyboardShortcuts hooks
 
   // Memoize activeSession to avoid recalculation on every render
-  const activeSession = useMemo(() => 
+  const activeSession = useMemo(() =>
     sessions.find(s => s.id === activeSessionId),
     [sessions, activeSessionId]
   );
@@ -1066,7 +1099,7 @@ function App() {
     return sessions.filter(session => {
       // Check if this session matches any savedSession in any group
       return !groups.some(group => {
-        return (group.savedSessions || []).some(savedSession => 
+        return (group.savedSessions || []).some(savedSession =>
           matchSavedSessionWithActiveSession(savedSession, session)
         );
       });
@@ -1165,9 +1198,9 @@ function App() {
   }, []);
 
   // Apply theme with CSS variables (currentTheme is from useTheme hook)
-  
+
   return (
-    <div 
+    <div
       className="securecrt-app"
       style={{
         '--theme-bg': currentTheme.background,
@@ -1322,10 +1355,10 @@ function App() {
           }}
           setErrorDialog={setErrorDialog}
         />
-        
+
         {/* Resize handle */}
         {showSessionManager && (
-          <div 
+          <div
             ref={resizeHandleRef}
             className="resize-handle"
             onMouseDown={handleResizeStart}
@@ -1375,22 +1408,22 @@ function App() {
           onReconnectSession={async (sessionId) => {
             const session = sessions.find(s => s.id === sessionId);
             if (!session) return;
-            
+
             // Mark as reconnecting
             setReconnectingSessions(prev => {
               const next = new Map(prev);
               next.set(sessionId, true);
               return next;
             });
-            
+
             try {
               await reconnectSession(session);
-              
+
               // Update connectionId map after reconnection
               if (updateConnectionIdMap) {
                 updateConnectionIdMap();
               }
-              
+
               // Success message is already shown in reconnectSSHSession
             } catch (error) {
               // Error is already handled by reconnectSession (shows error dialog)
@@ -1413,7 +1446,7 @@ function App() {
 
         {/* Resize handle for Secondary Sidebar Container */}
         {(showAIChatSidebar || showIperfClientSidebar) && (
-          <div 
+          <div
             className="resize-handle"
             style={{
               width: '4px',
@@ -1427,11 +1460,11 @@ function App() {
             onMouseDown={(e) => {
               e.preventDefault();
               const startX = e.clientX;
-              const currentWidth = showAIChatSidebar && showIperfClientSidebar 
+              const currentWidth = showAIChatSidebar && showIperfClientSidebar
                 ? Math.max(aiChatSidebarWidth, iperfClientSidebarWidth)
                 : (showAIChatSidebar ? aiChatSidebarWidth : iperfClientSidebarWidth);
               const startWidth = currentWidth;
-              
+
               const handleMouseMove = (e) => {
                 const diff = startX - e.clientX; // Reverse because it's on the right
                 const newWidth = Math.max(300, Math.min(1000, startWidth + diff));
@@ -1439,12 +1472,12 @@ function App() {
                 if (showAIChatSidebar) setAiChatSidebarWidth(newWidth);
                 if (showIperfClientSidebar) setIperfClientSidebarWidth(newWidth);
               };
-              
+
               const handleMouseUp = () => {
                 document.removeEventListener('mousemove', handleMouseMove);
                 document.removeEventListener('mouseup', handleMouseUp);
               };
-              
+
               document.addEventListener('mousemove', handleMouseMove);
               document.addEventListener('mouseup', handleMouseUp);
             }}
@@ -1453,7 +1486,7 @@ function App() {
 
         {/* Secondary Sidebar Container with Tabs */}
         <SecondarySidebarContainer
-          width={showAIChatSidebar && showIperfClientSidebar 
+          width={showAIChatSidebar && showIperfClientSidebar
             ? Math.max(aiChatSidebarWidth, iperfClientSidebarWidth)
             : (showAIChatSidebar ? aiChatSidebarWidth : (showIperfClientSidebar ? iperfClientSidebarWidth : 0))}
           showAIChat={showAIChatSidebar}
@@ -1515,23 +1548,27 @@ function App() {
             onDeleteConversation={deleteConversation}
             onUpdateConversationTitle={updateConversationTitle}
             onClose={showAIChatSidebar && showIperfClientSidebar ? () => {
-              aiSidebarAutoRef.current.dismissed = true;
+              // If iperf client is also open, switch to it by hiding AI sidebar
+              // (which will trigger re-render with only iperf sidebar visible)
               setShowAIChatSidebar(false);
-              if (clearAIMessages) {
-                clearAIMessages();
-              }
-              // If iperf client is also open, switch to it
-              if (showIperfClientSidebar) {
-                setActiveSecondaryTab('iperf-client');
-              }
+              setActiveSecondaryTab('iperf-client');
             } : () => {
-              aiSidebarAutoRef.current.dismissed = true;
-              setShowAIChatSidebar(false);
-              if (clearAIMessages) {
-                clearAIMessages();
+              // If only AI sidebar is open, close it completely
+              if (!pendingUserRequest) {
+                aiSidebarAutoRef.current.dismissed = true;
+                setShowAIChatSidebar(false);
+                if (clearAIMessages) {
+                  clearAIMessages();
+                }
+              } else {
+                // If pending request, just close visually but keep state?
+                // Or force user to respond? For now just allow closing.
+                setShowAIChatSidebar(false);
               }
             }}
             showHeader={!showIperfClientSidebar}
+            pendingUserRequest={pendingUserRequest}
+            onRespondToRequest={handleAskUserResponse}
           />
 
           {/* iperf3 Client Sidebar */}
@@ -1552,7 +1589,7 @@ function App() {
             showHeader={!showAIChatSidebar}
           />
         </SecondarySidebarContainer>
-        
+
         {/* Terminal Context Menu */}
         <TerminalContextMenu
           visible={contextMenu.visible}
@@ -1621,7 +1658,7 @@ function App() {
       </div>
 
       {/* Bottom status bar */}
-      <StatusBar 
+      <StatusBar
         activeSession={activeSession}
         sessionsCount={sessions.length}
         tftpStatus={tftpStatus}
@@ -1738,29 +1775,29 @@ function App() {
         }}
         onSave={(sessionId, postProcessing, enabled) => {
           // Update session
-          setSessions(prev => prev.map(s => 
-            s.id === sessionId 
+          setSessions(prev => prev.map(s =>
+            s.id === sessionId
               ? { ...s, postProcessing, postProcessingEnabled: enabled }
               : s
           ));
-          
+
           // Update connection history
           const session = sessions.find(s => s.id === sessionId);
           if (session) {
             const historyEntry = connectionHistory.find(c => {
               if (session.connectionType === 'serial') {
-                return c.connectionType === 'serial' && 
-                       c.serialPort === session.serialPort &&
-                       (c.sessionName || c.name || '') === (session.name || '');
+                return c.connectionType === 'serial' &&
+                  c.serialPort === session.serialPort &&
+                  (c.sessionName || c.name || '') === (session.name || '');
               } else {
                 return c.connectionType === 'ssh' &&
-                       c.host === session.host && 
-                       c.user === session.user && 
-                       (c.port || '22') === (session.port || '22') &&
-                       (c.sessionName || c.name || '') === (session.name || '');
+                  c.host === session.host &&
+                  c.user === session.user &&
+                  (c.port || '22') === (session.port || '22') &&
+                  (c.sessionName || c.name || '') === (session.name || '');
               }
             });
-            
+
             if (historyEntry) {
               // Update localStorage
               const updatedHistory = connectionHistory.map(c => {

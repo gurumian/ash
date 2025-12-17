@@ -70,14 +70,16 @@ export const AIChatSidebar = memo(function AIChatSidebar({
   onDeleteConversation = null, // Function to delete a conversation
   onUpdateConversationTitle = null, // Function to update conversation title
   processingConversations = new Set(), // Set of conversation IDs currently being processed
-  showHeader = true // Show header (hidden when in tabbed mode)
+  showHeader = true, // Show header (hidden when in tabbed mode)
+  pendingUserRequest = null, // Pending user request object { requestId, question, isPassword }
+  onRespondToRequest = null // Function to respond to user request
 }) {
   const messagesEndRef = useRef(null);
   const sidebarRef = useRef(null);
   const inputRef = useRef(null);
   const modeDropdownRef = useRef(null);
   const titleEditInputRef = useRef(null);
-  
+
   const [input, setInput] = useState('');
   // Load mode from localStorage, default to 'ask'
   const [mode, setMode] = useState(() => {
@@ -87,7 +89,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
   const [showModeDropdown, setShowModeDropdown] = useState(false);
   const [editingConversationId, setEditingConversationId] = useState(null); // ID of conversation being edited
   const [editingTitle, setEditingTitle] = useState(''); // Temporary title during editing
-  
+
   // Save mode to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem('ash-ai-mode', mode);
@@ -211,96 +213,96 @@ export const AIChatSidebar = memo(function AIChatSidebar({
     >
       {/* Header */}
       {showHeader && (
-      <div
-        style={{
-          padding: '12px 16px',
-          borderBottom: '1px solid #1a1a1a',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '8px',
-          background: '#000000'
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <h3 style={{ margin: 0, fontSize: '13px', fontWeight: '600', color: '#00ff41' }}>
-              AI Chat
-            </h3>
-            {/* Backend Status Indicator - Circular Lamp */}
-            <div
-              style={{
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                backgroundColor: 
-                  backendStatus === 'ready' ? '#00ff41' :
-                  backendStatus === 'starting' ? '#ffaa00' : '#666',
-                boxShadow: 
-                  backendStatus === 'ready' ? '0 0 4px rgba(0, 255, 65, 0.5)' :
-                  backendStatus === 'starting' ? '0 0 4px rgba(255, 170, 0, 0.5)' : 'none',
-                transition: 'background-color 0.3s, box-shadow 0.3s',
-                flexShrink: 0
-              }}
-              title={
-                backendStatus === 'ready' ? 'Backend Ready' :
-                backendStatus === 'starting' ? 'Backend Starting' : 'Backend Not Ready'
-              }
-            />
-          </div>
-          {onClose && (
-            <button
-              onClick={onClose}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#00ff41',
-                cursor: 'pointer',
-                fontSize: '18px',
-                lineHeight: '1',
-                padding: '4px 8px',
-                opacity: 0.7,
-                transition: 'opacity 0.2s'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
-              onMouseLeave={(e) => e.currentTarget.style.opacity = '0.7'}
-              title="Close"
-            >
-              ×
-            </button>
-          )}
-        </div>
-        
-        {/* Conversation Tabs */}
         <div
           style={{
+            padding: '12px 16px',
+            borderBottom: '1px solid #1a1a1a',
             display: 'flex',
-            alignItems: 'center',
+            flexDirection: 'column',
             gap: '8px',
-            padding: '8px 12px',
-            borderTop: '1px solid #1a1a1a'
+            background: '#000000'
           }}
         >
-          {/* Scrollable tabs container */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h3 style={{ margin: 0, fontSize: '13px', fontWeight: '600', color: '#00ff41' }}>
+                AI Chat
+              </h3>
+              {/* Backend Status Indicator - Circular Lamp */}
+              <div
+                style={{
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  backgroundColor:
+                    backendStatus === 'ready' ? '#00ff41' :
+                      backendStatus === 'starting' ? '#ffaa00' : '#666',
+                  boxShadow:
+                    backendStatus === 'ready' ? '0 0 4px rgba(0, 255, 65, 0.5)' :
+                      backendStatus === 'starting' ? '0 0 4px rgba(255, 170, 0, 0.5)' : 'none',
+                  transition: 'background-color 0.3s, box-shadow 0.3s',
+                  flexShrink: 0
+                }}
+                title={
+                  backendStatus === 'ready' ? 'Backend Ready' :
+                    backendStatus === 'starting' ? 'Backend Starting' : 'Backend Not Ready'
+                }
+              />
+            </div>
+            {onClose && (
+              <button
+                onClick={onClose}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#00ff41',
+                  cursor: 'pointer',
+                  fontSize: '18px',
+                  lineHeight: '1',
+                  padding: '4px 8px',
+                  opacity: 0.7,
+                  transition: 'opacity 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+                onMouseLeave={(e) => e.currentTarget.style.opacity = '0.7'}
+                title="Close"
+              >
+                ×
+              </button>
+            )}
+          </div>
+
+          {/* Conversation Tabs */}
           <div
-            className="ai-chat-tabs-scroll"
             style={{
-              flex: 1,
               display: 'flex',
               alignItems: 'center',
-              gap: '4px',
-              overflowX: 'auto',
-              overflowY: 'hidden',
-              minWidth: 0
+              gap: '8px',
+              padding: '8px 12px',
+              borderTop: '1px solid #1a1a1a'
             }}
           >
-            {conversations.map((conv) => {
+            {/* Scrollable tabs container */}
+            <div
+              className="ai-chat-tabs-scroll"
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                overflowX: 'auto',
+                overflowY: 'hidden',
+                minWidth: 0
+              }}
+            >
+              {conversations.map((conv) => {
                 const isActive = conv.id === activeConversationId;
                 const isProcessing = processingConversations.has(conv.id);
                 const isEditing = editingConversationId === conv.id;
-                const displayTitle = conv.title && conv.title.length > 15 
-                  ? conv.title.substring(0, 15) + '...' 
+                const displayTitle = conv.title && conv.title.length > 15
+                  ? conv.title.substring(0, 15) + '...'
                   : conv.title || 'New Chat';
-                
+
                 const handleStartEdit = (e) => {
                   e.stopPropagation();
                   setEditingConversationId(conv.id);
@@ -495,48 +497,48 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                     )}
                   </div>
                 );
-            })}
+              })}
+            </div>
+
+            {/* New Chat button - Fixed on the right */}
+            {onCreateNewConversation && (
+              <button
+                onClick={onCreateNewConversation}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid rgba(0, 255, 65, 0.3)',
+                  borderRadius: '4px',
+                  color: '#00ff41',
+                  cursor: 'pointer',
+                  fontSize: '18px',
+                  lineHeight: '1',
+                  padding: '6px 10px',
+                  minWidth: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  opacity: 0.8,
+                  transition: 'all 0.2s',
+                  flexShrink: 0
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.opacity = '1';
+                  e.currentTarget.style.borderColor = 'rgba(0, 255, 65, 0.5)';
+                  e.currentTarget.style.background = 'rgba(0, 255, 65, 0.05)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.opacity = '0.8';
+                  e.currentTarget.style.borderColor = 'rgba(0, 255, 65, 0.3)';
+                  e.currentTarget.style.background = 'transparent';
+                }}
+                title="New Chat"
+              >
+                +
+              </button>
+            )}
           </div>
-          
-          {/* New Chat button - Fixed on the right */}
-          {onCreateNewConversation && (
-            <button
-              onClick={onCreateNewConversation}
-              style={{
-                background: 'transparent',
-                border: '1px solid rgba(0, 255, 65, 0.3)',
-                borderRadius: '4px',
-                color: '#00ff41',
-                cursor: 'pointer',
-                fontSize: '18px',
-                lineHeight: '1',
-                padding: '6px 10px',
-                minWidth: '32px',
-                height: '32px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                opacity: 0.8,
-                transition: 'all 0.2s',
-                flexShrink: 0
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.opacity = '1';
-                e.currentTarget.style.borderColor = 'rgba(0, 255, 65, 0.5)';
-                e.currentTarget.style.background = 'rgba(0, 255, 65, 0.05)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.opacity = '0.8';
-                e.currentTarget.style.borderColor = 'rgba(0, 255, 65, 0.3)';
-                e.currentTarget.style.background = 'transparent';
-              }}
-              title="New Chat"
-            >
-              +
-            </button>
-          )}
         </div>
-      </div>
       )}
 
       {/* Messages */}
@@ -562,11 +564,11 @@ export const AIChatSidebar = memo(function AIChatSidebar({
             // Parse function results, thinking, plan, and todos from content
             // Note: We keep raw tool data in content for display (styled differently)
             const { functionResults, cleanedContent, thinking, plan, todos } = parseAndCleanContent(msg.content || '');
-            
+
             // Tool results from array (these are actual executed commands)
             // Show toolResults array first (actual execution), then functionResults from content (thinking)
             const allToolResults = [];
-            
+
             // First priority: toolResults array (actual executed commands)
             if (msg.toolResults && msg.toolResults.length > 0) {
               msg.toolResults.forEach(toolResult => {
@@ -576,17 +578,17 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                 });
               });
             }
-            
+
             // Second: functionResults from content (thinking/reasoning, may include planned executions)
             // Only add if not already in toolResults to avoid duplication
             functionResults.forEach(funcResult => {
               // Check if this result is already in toolResults
-              const alreadyExists = msg.toolResults && msg.toolResults.some(tr => 
-                tr.name === funcResult.name && 
-                tr.stdout === funcResult.stdout && 
+              const alreadyExists = msg.toolResults && msg.toolResults.some(tr =>
+                tr.name === funcResult.name &&
+                tr.stdout === funcResult.stdout &&
                 tr.stderr === funcResult.stderr
               );
-              
+
               if (!alreadyExists) {
                 allToolResults.push({
                   name: funcResult.name,
@@ -598,7 +600,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                 });
               }
             });
-            
+
             // Legacy: single toolResult (for backward compatibility)
             if (msg.toolResult && !msg.toolResults) {
               allToolResults.push({
@@ -606,409 +608,409 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                 source: 'legacy'
               });
             }
-            
+
             // Check if this is a completed assistant message (not currently processing)
             const isCompleted = msg.role === 'assistant' && !isActiveProcessing;
-            const isLastAssistantMessage = msg.role === 'assistant' && 
-              (index === messages.length - 1 || 
-               messages.slice(index + 1).every(m => m.role !== 'assistant'));
+            const isLastAssistantMessage = msg.role === 'assistant' &&
+              (index === messages.length - 1 ||
+                messages.slice(index + 1).every(m => m.role !== 'assistant'));
             const showCopyButton = isCompleted && isLastAssistantMessage && msg.content;
-            
+
             return (
-            <div
-              key={msg.id || `msg-${msg.role}-${index}`}
-              style={{
-                padding: '12px',
-                background: msg.role === 'user' ? 'rgba(0, 255, 65, 0.05)' : 'rgba(0, 255, 65, 0.02)',
-                border: `1px solid ${msg.role === 'user' ? 'rgba(0, 255, 65, 0.2)' : 'rgba(0, 255, 65, 0.1)'}`,
-                borderRadius: '6px',
-                wordBreak: 'break-word'
-              }}
-            >
               <div
+                key={msg.id || `msg-${msg.role}-${index}`}
                 style={{
-                  fontSize: '11px',
-                  color: '#888',
-                  marginBottom: '6px',
-                  fontWeight: '600',
-                  textTransform: 'uppercase'
+                  padding: '12px',
+                  background: msg.role === 'user' ? 'rgba(0, 255, 65, 0.05)' : 'rgba(0, 255, 65, 0.02)',
+                  border: `1px solid ${msg.role === 'user' ? 'rgba(0, 255, 65, 0.2)' : 'rgba(0, 255, 65, 0.1)'}`,
+                  borderRadius: '6px',
+                  wordBreak: 'break-word'
                 }}
               >
-                {msg.role === 'user' ? 'You' : msg.role === 'assistant' ? 'AI' : msg.role}
-              </div>
-              
-              {/* Thinking Section - Fixed height, collapsible */}
-              {msg.role === 'assistant' && (thinking || plan || (todos && todos.length > 0)) && (
-                <ThinkingSection
-                  thinking={thinking}
-                  plan={plan}
-                  todos={todos}
-                  messageId={msg.id || `msg-${index}`}
-                />
-              )}
-              
-              <div
-                style={{
-                  color: '#00ff41',
-                  fontSize: '13px',
-                  lineHeight: '1.6',
-                  fontFamily: 'var(--ui-font-family)'
-                }}
-              >
-                <ReactMarkdown
-                  remarkPlugins={[
-                    // Custom plugin to unwrap code blocks from paragraphs at Markdown AST level
-                    // This prevents <p><pre> hydration errors by removing paragraphs that contain code blocks
-                    () => {
-                      return (tree) => {
-                        visit(tree, 'paragraph', (node, index, parent) => {
-                          if (!parent || typeof index !== 'number' || !parent.children) return;
-                          
-                          // Check if paragraph contains block-like content that shouldn't be in <p>
-                          const hasBlockLike = node.children?.some((child) => {
-                            // Fenced code block (```language)
-                            if (child.type === 'code') return true;
-                            
-                            // HTML content with <pre>, <div>, or <code> tags (defensive check)
-                            if (
-                              child.type === 'html' &&
-                              /<(pre|div|code)[\s>]/i.test(child.value || '')
-                            ) {
-                              return true;
-                            }
-                            
-                            return false;
-                          });
-                          
-                          if (!hasBlockLike) return;
-                          
-                          // Unwrap: remove paragraph and promote its children to parent level
-                          parent.children.splice(index, 1, ...(node.children || []));
-                        });
-                      };
-                    }
-                  ]}
-                  components={{
-                    // Customize markdown components to match terminal theme
-                    p: ({ children, ...props }) => {
-                      // Helper to recursively process children and style tool result JSON
-                      const processChildren = (children) => {
-                        if (typeof children === 'string') {
-                          // Check if this string contains tool result pattern
-                          if (/\[function\]:\s*\{[^}]*"success"/.test(children) || 
-                              /\{"success":\s*(?:true|false)[^}]+\}/.test(children)) {
-                            // Split by tool result pattern and wrap matches
-                            const parts = children.split(/(\[function\]:\s*\{[^}]*"success"[^}]*\}|\{"success":\s*(?:true|false)[^}]+\})/);
-                            return parts.map((part, idx) => {
-                              if (part && (/\[function\]:\s*\{[^}]*"success"/.test(part) || 
-                                  /\{"success":\s*(?:true|false)[^}]+\}/.test(part))) {
-                                return (
-                                  <span
-                                    key={idx}
-                                    style={{
-                                      color: '#666',
-                                      fontStyle: 'italic',
-                                      opacity: 0.7,
-                                      fontFamily: 'monospace',
-                                      fontSize: '11px'
-                                    }}
-                                  >
-                                    {part}
-                                  </span>
-                                );
+                <div
+                  style={{
+                    fontSize: '11px',
+                    color: '#888',
+                    marginBottom: '6px',
+                    fontWeight: '600',
+                    textTransform: 'uppercase'
+                  }}
+                >
+                  {msg.role === 'user' ? 'You' : msg.role === 'assistant' ? 'AI' : msg.role}
+                </div>
+
+                {/* Thinking Section - Fixed height, collapsible */}
+                {msg.role === 'assistant' && (thinking || plan || (todos && todos.length > 0)) && (
+                  <ThinkingSection
+                    thinking={thinking}
+                    plan={plan}
+                    todos={todos}
+                    messageId={msg.id || `msg-${index}`}
+                  />
+                )}
+
+                <div
+                  style={{
+                    color: '#00ff41',
+                    fontSize: '13px',
+                    lineHeight: '1.6',
+                    fontFamily: 'var(--ui-font-family)'
+                  }}
+                >
+                  <ReactMarkdown
+                    remarkPlugins={[
+                      // Custom plugin to unwrap code blocks from paragraphs at Markdown AST level
+                      // This prevents <p><pre> hydration errors by removing paragraphs that contain code blocks
+                      () => {
+                        return (tree) => {
+                          visit(tree, 'paragraph', (node, index, parent) => {
+                            if (!parent || typeof index !== 'number' || !parent.children) return;
+
+                            // Check if paragraph contains block-like content that shouldn't be in <p>
+                            const hasBlockLike = node.children?.some((child) => {
+                              // Fenced code block (```language)
+                              if (child.type === 'code') return true;
+
+                              // HTML content with <pre>, <div>, or <code> tags (defensive check)
+                              if (
+                                child.type === 'html' &&
+                                /<(pre|div|code)[\s>]/i.test(child.value || '')
+                              ) {
+                                return true;
                               }
-                              return part;
-                            }).filter(Boolean);
+
+                              return false;
+                            });
+
+                            if (!hasBlockLike) return;
+
+                            // Unwrap: remove paragraph and promote its children to parent level
+                            parent.children.splice(index, 1, ...(node.children || []));
+                          });
+                        };
+                      }
+                    ]}
+                    components={{
+                      // Customize markdown components to match terminal theme
+                      p: ({ children, ...props }) => {
+                        // Helper to recursively process children and style tool result JSON
+                        const processChildren = (children) => {
+                          if (typeof children === 'string') {
+                            // Check if this string contains tool result pattern
+                            if (/\[function\]:\s*\{[^}]*"success"/.test(children) ||
+                              /\{"success":\s*(?:true|false)[^}]+\}/.test(children)) {
+                              // Split by tool result pattern and wrap matches
+                              const parts = children.split(/(\[function\]:\s*\{[^}]*"success"[^}]*\}|\{"success":\s*(?:true|false)[^}]+\})/);
+                              return parts.map((part, idx) => {
+                                if (part && (/\[function\]:\s*\{[^}]*"success"/.test(part) ||
+                                  /\{"success":\s*(?:true|false)[^}]+\}/.test(part))) {
+                                  return (
+                                    <span
+                                      key={idx}
+                                      style={{
+                                        color: '#666',
+                                        fontStyle: 'italic',
+                                        opacity: 0.7,
+                                        fontFamily: 'monospace',
+                                        fontSize: '11px'
+                                      }}
+                                    >
+                                      {part}
+                                    </span>
+                                  );
+                                }
+                                return part;
+                              }).filter(Boolean);
+                            }
+                            return children;
+                          }
+                          if (Array.isArray(children)) {
+                            return children.flatMap((child, idx) => {
+                              const processed = processChildren(child);
+                              return Array.isArray(processed) ? processed : [processed];
+                            });
+                          }
+                          if (children && typeof children === 'object' && 'props' in children) {
+                            // React element - process its children if it has any
+                            return React.cloneElement(children, {
+                              ...children.props,
+                              children: processChildren(children.props.children)
+                            });
                           }
                           return children;
-                        }
-                        if (Array.isArray(children)) {
-                          return children.flatMap((child, idx) => {
-                            const processed = processChildren(child);
-                            return Array.isArray(processed) ? processed : [processed];
-                          });
-                        }
-                        if (children && typeof children === 'object' && 'props' in children) {
-                          // React element - process its children if it has any
-                          return React.cloneElement(children, {
-                            ...children.props,
-                            children: processChildren(children.props.children)
-                          });
-                        }
-                        return children;
-                      };
-                      
-                      try {
-                        const processedChildren = processChildren(children);
-                        return (
-                          <p style={{ margin: '0 0 8px 0' }} {...props}>
-                            {processedChildren}
-                          </p>
-                        );
-                      } catch (e) {
-                        // Fallback to simple rendering if processing fails
-                        return (
-                          <p style={{ margin: '0 0 8px 0' }} {...props}>
-                            {children}
-                          </p>
-                        );
-                      }
-                    },
-                    h1: ({ children }) => <h1 style={{ fontSize: '18px', margin: '12px 0 8px 0', fontWeight: '600' }}>{children}</h1>,
-                    h2: ({ children }) => <h2 style={{ fontSize: '16px', margin: '10px 0 6px 0', fontWeight: '600' }}>{children}</h2>,
-                    h3: ({ children }) => <h3 style={{ fontSize: '14px', margin: '8px 0 4px 0', fontWeight: '600' }}>{children}</h3>,
-                    code: ({ inline, className, children, ...props }) => {
-                      // Check if this is a tool result raw data
-                      const isToolResult = props['data-tool-result'] === 'true' || 
-                                         className?.includes('tool-result-raw') ||
-                                         (typeof children === 'string' && 
-                                          (/\[function\]:\s*\{[^}]*"success"/.test(children) || 
-                                           /\{"success":\s*(?:true|false)[^}]+\}/.test(children)));
-                      
-                      // Check if this is a fenced code block (has language class)
-                      const match = /language-(\w+)/.exec(className || '');
-                      
-                      // Tool result raw data - style with gray/italic
-                      if (isToolResult) {
-                        if (inline || !match) {
+                        };
+
+                        try {
+                          const processedChildren = processChildren(children);
                           return (
-                            <code 
-                              {...props} 
-                              className={className}
+                            <p style={{ margin: '0 0 8px 0' }} {...props}>
+                              {processedChildren}
+                            </p>
+                          );
+                        } catch (e) {
+                          // Fallback to simple rendering if processing fails
+                          return (
+                            <p style={{ margin: '0 0 8px 0' }} {...props}>
+                              {children}
+                            </p>
+                          );
+                        }
+                      },
+                      h1: ({ children }) => <h1 style={{ fontSize: '18px', margin: '12px 0 8px 0', fontWeight: '600' }}>{children}</h1>,
+                      h2: ({ children }) => <h2 style={{ fontSize: '16px', margin: '10px 0 6px 0', fontWeight: '600' }}>{children}</h2>,
+                      h3: ({ children }) => <h3 style={{ fontSize: '14px', margin: '8px 0 4px 0', fontWeight: '600' }}>{children}</h3>,
+                      code: ({ inline, className, children, ...props }) => {
+                        // Check if this is a tool result raw data
+                        const isToolResult = props['data-tool-result'] === 'true' ||
+                          className?.includes('tool-result-raw') ||
+                          (typeof children === 'string' &&
+                            (/\[function\]:\s*\{[^}]*"success"/.test(children) ||
+                              /\{"success":\s*(?:true|false)[^}]+\}/.test(children)));
+
+                        // Check if this is a fenced code block (has language class)
+                        const match = /language-(\w+)/.exec(className || '');
+
+                        // Tool result raw data - style with gray/italic
+                        if (isToolResult) {
+                          if (inline || !match) {
+                            return (
+                              <code
+                                {...props}
+                                className={className}
+                                style={{
+                                  background: 'transparent',
+                                  padding: '2px 4px',
+                                  borderRadius: '3px',
+                                  fontFamily: 'monospace',
+                                  fontSize: '11px',
+                                  color: '#666',
+                                  fontStyle: 'italic',
+                                  opacity: 0.7
+                                }}
+                              >
+                                {children}
+                              </code>
+                            );
+                          }
+
+                          // Fenced code block for tool result
+                          return (
+                            <pre
                               style={{
                                 background: 'transparent',
+                                border: 'none',
+                                borderRadius: '4px',
+                                padding: '4px 8px',
+                                overflow: 'auto',
+                                margin: '4px 0',
+                                fontSize: '11px'
+                              }}
+                              {...props}
+                            >
+                              <code
+                                className={className}
+                                style={{
+                                  fontFamily: 'monospace',
+                                  fontSize: '11px',
+                                  color: '#666',
+                                  fontStyle: 'italic',
+                                  opacity: 0.7
+                                }}
+                              >
+                                {children}
+                              </code>
+                            </pre>
+                          );
+                        }
+
+                        // Inline code (``name``)
+                        if (inline || !match) {
+                          return (
+                            <code
+                              {...props}
+                              className={className}
+                              style={{
+                                background: 'rgba(0, 255, 65, 0.1)',
                                 padding: '2px 4px',
                                 borderRadius: '3px',
                                 fontFamily: 'monospace',
-                                fontSize: '11px',
-                                color: '#666',
-                                fontStyle: 'italic',
-                                opacity: 0.7
+                                fontSize: '12px'
                               }}
                             >
                               {children}
                             </code>
                           );
                         }
-                        
-                        // Fenced code block for tool result
+
+                        // Fenced code block (```language)
                         return (
                           <pre
                             style={{
-                              background: 'transparent',
-                              border: 'none',
+                              background: 'rgba(0, 255, 65, 0.05)',
+                              border: '1px solid rgba(0, 255, 65, 0.2)',
                               borderRadius: '4px',
-                              padding: '4px 8px',
+                              padding: '8px',
                               overflow: 'auto',
-                              margin: '4px 0',
-                              fontSize: '11px'
+                              margin: '8px 0',
+                              fontSize: '12px'
                             }}
                             {...props}
                           >
-                            <code 
+                            <code
                               className={className}
                               style={{
                                 fontFamily: 'monospace',
-                                fontSize: '11px',
-                                color: '#666',
-                                fontStyle: 'italic',
-                                opacity: 0.7
+                                fontSize: '12px',
+                                color: '#00ff41'
                               }}
                             >
                               {children}
                             </code>
                           </pre>
                         );
-                      }
-                      
-                      // Inline code (``name``)
-                      if (inline || !match) {
-                        return (
-                          <code 
-                            {...props} 
-                            className={className}
-                            style={{
-                              background: 'rgba(0, 255, 65, 0.1)',
-                              padding: '2px 4px',
-                              borderRadius: '3px',
-                              fontFamily: 'monospace',
-                              fontSize: '12px'
-                            }}
-                          >
-                            {children}
-                          </code>
-                        );
-                      }
-                      
-                      // Fenced code block (```language)
-                      return (
-                        <pre
+                      },
+                      ul: ({ children }) => <ul style={{ margin: '4px 0', paddingLeft: '20px' }}>{children}</ul>,
+                      ol: ({ children }) => <ol style={{ margin: '4px 0', paddingLeft: '20px' }}>{children}</ol>,
+                      li: ({ children }) => <li style={{ margin: '2px 0' }}>{children}</li>,
+                      blockquote: ({ children }) => (
+                        <blockquote style={{
+                          borderLeft: '3px solid rgba(0, 255, 65, 0.3)',
+                          paddingLeft: '12px',
+                          margin: '8px 0',
+                          color: '#888'
+                        }}>
+                          {children}
+                        </blockquote>
+                      ),
+                      a: ({ href, children }) => (
+                        <a
+                          href={href}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           style={{
-                            background: 'rgba(0, 255, 65, 0.05)',
-                            border: '1px solid rgba(0, 255, 65, 0.2)',
-                            borderRadius: '4px',
-                            padding: '8px',
-                            overflow: 'auto',
-                            margin: '8px 0',
-                            fontSize: '12px'
+                            color: '#00ff41',
+                            textDecoration: 'underline',
+                            textDecorationColor: 'rgba(0, 255, 65, 0.5)'
                           }}
-                          {...props}
                         >
-                          <code 
-                            className={className}
-                            style={{
-                              fontFamily: 'monospace',
-                              fontSize: '12px',
-                              color: '#00ff41'
-                            }}
-                          >
-                            {children}
-                          </code>
-                        </pre>
-                      );
-                    },
-                    ul: ({ children }) => <ul style={{ margin: '4px 0', paddingLeft: '20px' }}>{children}</ul>,
-                    ol: ({ children }) => <ol style={{ margin: '4px 0', paddingLeft: '20px' }}>{children}</ol>,
-                    li: ({ children }) => <li style={{ margin: '2px 0' }}>{children}</li>,
-                    blockquote: ({ children }) => (
-                      <blockquote style={{
-                        borderLeft: '3px solid rgba(0, 255, 65, 0.3)',
-                        paddingLeft: '12px',
-                        margin: '8px 0',
-                        color: '#888'
-                      }}>
-                        {children}
-                      </blockquote>
-                    ),
-                    a: ({ href, children }) => (
-                      <a
-                        href={href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{
-                          color: '#00ff41',
-                          textDecoration: 'underline',
-                          textDecorationColor: 'rgba(0, 255, 65, 0.5)'
-                        }}
-                      >
-                        {children}
-                      </a>
-                    ),
-                    strong: ({ children }) => <strong style={{ fontWeight: '600' }}>{children}</strong>,
-                    em: ({ children }) => <em style={{ fontStyle: 'italic' }}>{children}</em>,
-                    // Style tool result raw data spans
-                    span: ({ className, children, ...props }) => {
-                      if (className?.includes('tool-result-raw') || props['data-tool-result'] === 'true') {
-                        return (
-                          <span
-                            {...props}
-                            style={{
-                              color: '#666',
-                              fontStyle: 'italic',
-                              opacity: 0.7,
-                              fontFamily: 'monospace',
-                              fontSize: '11px'
-                            }}
-                          >
-                            {children}
-                          </span>
-                        );
-                      }
-                      return <span {...props}>{children}</span>;
-                    },
-                    hr: () => <hr style={{ border: 'none', borderTop: '1px solid rgba(0, 255, 65, 0.2)', margin: '12px 0' }} />,
-                    table: ({ children }) => (
-                      <table style={{
-                        borderCollapse: 'collapse',
-                        width: '100%',
-                        margin: '8px 0',
-                        border: '1px solid rgba(0, 255, 65, 0.2)'
-                      }}>
-                        {children}
-                      </table>
-                    ),
-                    th: ({ children }) => (
-                      <th style={{
-                        border: '1px solid rgba(0, 255, 65, 0.2)',
-                        padding: '6px',
-                        background: 'rgba(0, 255, 65, 0.1)',
-                        textAlign: 'left'
-                      }}>
-                        {children}
-                      </th>
-                    ),
-                    td: ({ children }) => (
-                      <td style={{
-                        border: '1px solid rgba(0, 255, 65, 0.2)',
-                        padding: '6px'
-                      }}>
-                        {children}
-                      </td>
-                    )
-                  }}
-                >
-                  {cleanedContent}
-                </ReactMarkdown>
-              </div>
-              
-              {/* Function Results Section - Fixed height, collapsible */}
-              {allToolResults.length > 0 && (
-                <FunctionResultsSection
-                  toolResults={allToolResults.filter(tr => tr.source === 'execution' || tr.source === 'legacy')}
-                  messageId={msg.id || `msg-${index}`}
-                />
-              )}
-              
-              {/* Done indicator and Copy button - Bottom of message */}
-              {showCopyButton && (
-                <div
-                  style={{
-                    marginTop: '12px',
-                    paddingTop: '8px',
-                    borderTop: '1px solid rgba(0, 255, 65, 0.1)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '8px'
-                  }}
-                >
-                  <span style={{ color: '#00ff41', fontSize: '10px', opacity: 0.8 }}>
-                    ✓ Done
-                  </span>
-                  <button
-                    onClick={() => handleCopy(msg.content)}
+                          {children}
+                        </a>
+                      ),
+                      strong: ({ children }) => <strong style={{ fontWeight: '600' }}>{children}</strong>,
+                      em: ({ children }) => <em style={{ fontStyle: 'italic' }}>{children}</em>,
+                      // Style tool result raw data spans
+                      span: ({ className, children, ...props }) => {
+                        if (className?.includes('tool-result-raw') || props['data-tool-result'] === 'true') {
+                          return (
+                            <span
+                              {...props}
+                              style={{
+                                color: '#666',
+                                fontStyle: 'italic',
+                                opacity: 0.7,
+                                fontFamily: 'monospace',
+                                fontSize: '11px'
+                              }}
+                            >
+                              {children}
+                            </span>
+                          );
+                        }
+                        return <span {...props}>{children}</span>;
+                      },
+                      hr: () => <hr style={{ border: 'none', borderTop: '1px solid rgba(0, 255, 65, 0.2)', margin: '12px 0' }} />,
+                      table: ({ children }) => (
+                        <table style={{
+                          borderCollapse: 'collapse',
+                          width: '100%',
+                          margin: '8px 0',
+                          border: '1px solid rgba(0, 255, 65, 0.2)'
+                        }}>
+                          {children}
+                        </table>
+                      ),
+                      th: ({ children }) => (
+                        <th style={{
+                          border: '1px solid rgba(0, 255, 65, 0.2)',
+                          padding: '6px',
+                          background: 'rgba(0, 255, 65, 0.1)',
+                          textAlign: 'left'
+                        }}>
+                          {children}
+                        </th>
+                      ),
+                      td: ({ children }) => (
+                        <td style={{
+                          border: '1px solid rgba(0, 255, 65, 0.2)',
+                          padding: '6px'
+                        }}>
+                          {children}
+                        </td>
+                      )
+                    }}
+                  >
+                    {cleanedContent}
+                  </ReactMarkdown>
+                </div>
+
+                {/* Function Results Section - Fixed height, collapsible */}
+                {allToolResults.length > 0 && (
+                  <FunctionResultsSection
+                    toolResults={allToolResults.filter(tr => tr.source === 'execution' || tr.source === 'legacy')}
+                    messageId={msg.id || `msg-${index}`}
+                  />
+                )}
+
+                {/* Done indicator and Copy button - Bottom of message */}
+                {showCopyButton && (
+                  <div
                     style={{
-                      background: 'transparent',
-                      border: '1px solid rgba(0, 255, 65, 0.3)',
-                      borderRadius: '4px',
-                      padding: '6px',
-                      color: '#00ff41',
-                      cursor: 'pointer',
-                      opacity: 0.8,
-                      transition: 'all 0.2s',
+                      marginTop: '12px',
+                      paddingTop: '8px',
+                      borderTop: '1px solid rgba(0, 255, 65, 0.1)',
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
-                      width: '28px',
-                      height: '28px'
+                      justifyContent: 'space-between',
+                      gap: '8px'
                     }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.opacity = '1';
-                      e.currentTarget.style.borderColor = 'rgba(0, 255, 65, 0.5)';
-                      e.currentTarget.style.background = 'rgba(0, 255, 65, 0.05)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.opacity = '0.8';
-                      e.currentTarget.style.borderColor = 'rgba(0, 255, 65, 0.3)';
-                      e.currentTarget.style.background = 'transparent';
-                    }}
-                    title="Copy message"
                   >
-                    <CopyIcon size={18} color="#00ff41" />
-                  </button>
-                </div>
-              )}
-            </div>
+                    <span style={{ color: '#00ff41', fontSize: '10px', opacity: 0.8 }}>
+                      ✓ Done
+                    </span>
+                    <button
+                      onClick={() => handleCopy(msg.content)}
+                      style={{
+                        background: 'transparent',
+                        border: '1px solid rgba(0, 255, 65, 0.3)',
+                        borderRadius: '4px',
+                        padding: '6px',
+                        color: '#00ff41',
+                        cursor: 'pointer',
+                        opacity: 0.8,
+                        transition: 'all 0.2s',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '28px',
+                        height: '28px'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.opacity = '1';
+                        e.currentTarget.style.borderColor = 'rgba(0, 255, 65, 0.5)';
+                        e.currentTarget.style.background = 'rgba(0, 255, 65, 0.05)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.opacity = '0.8';
+                        e.currentTarget.style.borderColor = 'rgba(0, 255, 65, 0.3)';
+                        e.currentTarget.style.background = 'transparent';
+                      }}
+                      title="Copy message"
+                    >
+                      <CopyIcon size={18} color="#00ff41" />
+                    </button>
+                  </div>
+                )}
+              </div>
             );
           })
         )}
@@ -1046,7 +1048,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                     // Prevent event propagation
                     e.preventDefault();
                     e.stopPropagation();
-                    
+
                     // Handle stop command - wrap in promise to catch any async rejections
                     try {
                       const result = onStopAICommand();
@@ -1055,9 +1057,9 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                         result.catch((error) => {
                           // Silently ignore abort errors - they're expected
                           // Other errors are unlikely but if they occur, we log them in dev
-                          if (process.env.NODE_ENV === 'development' && 
-                              error?.name !== 'AbortError' && 
-                              !error?.message?.includes('aborted')) {
+                          if (process.env.NODE_ENV === 'development' &&
+                            error?.name !== 'AbortError' &&
+                            !error?.message?.includes('aborted')) {
                             console.debug('Unexpected error in stopAICommand:', error);
                           }
                         });
@@ -1110,7 +1112,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                 </button>
               )}
             </div>
-            
+
             {/* Show streaming tool result stdout/stderr in real-time */}
             {streamingToolResult && (
               <div
@@ -1176,6 +1178,130 @@ export const AIChatSidebar = memo(function AIChatSidebar({
             )}
           </div>
         )}
+
+        {/* Pending User Request Bubble */}
+        {pendingUserRequest && (
+          <div
+            style={{
+              padding: '12px',
+              background: 'rgba(0, 255, 65, 0.05)',
+              border: '1px solid #00ff41',
+              borderRadius: '6px',
+              wordBreak: 'break-word',
+              animation: 'fadeIn 0.3s ease-in-out',
+              boxShadow: '0 0 10px rgba(0, 255, 65, 0.1)'
+            }}
+          >
+            <div
+              style={{
+                fontSize: '11px',
+                color: '#00ff41',
+                marginBottom: '8px',
+                fontWeight: '600',
+                textTransform: 'uppercase',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                letterSpacing: '0.5px'
+              }}
+            >
+              <span>AGENT REQUEST</span>
+              <span className="typing-indicator" style={{ color: '#00ff41', opacity: 0.7 }}>waiting for input...</span>
+            </div>
+
+            <div
+              style={{
+                color: '#00ff41',
+                fontSize: '13px',
+                marginBottom: '12px',
+                lineHeight: '1.5',
+                fontFamily: 'var(--ui-font-family)'
+              }}
+            >
+              {pendingUserRequest.question}
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const form = e.target;
+                const value = form.elements.response.value;
+                if (onRespondToRequest) {
+                  onRespondToRequest({ rejected: false, value });
+                }
+              }}
+              style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}
+            >
+              <input
+                name="response"
+                type={pendingUserRequest.isPassword ? "password" : "text"}
+                placeholder={pendingUserRequest.isPassword ? "Enter sensitive data..." : "Enter your response..."}
+                autoFocus
+                style={{
+                  background: '#000000',
+                  border: '1px solid #333',
+                  borderRadius: '4px',
+                  color: '#00ff41',
+                  padding: '8px 12px',
+                  fontSize: '13px',
+                  outline: 'none',
+                  fontFamily: 'monospace',
+                  width: '100%',
+                  boxSizing: 'border-box'
+                }}
+                onKeyDown={(e) => {
+                  e.stopPropagation(); // Prevent sidebar keyboard shortcuts
+                }}
+              />
+
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => onRespondToRequest && onRespondToRequest({ rejected: true })}
+                  style={{
+                    background: 'transparent',
+                    border: '1px solid #666',
+                    borderRadius: '4px',
+                    color: '#888',
+                    padding: '6px 12px',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = '#ff4141';
+                    e.currentTarget.style.color = '#ff4141';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = '#666';
+                    e.currentTarget.style.color = '#888';
+                  }}
+                >
+                  Reject
+                </button>
+                <button
+                  type="submit"
+                  style={{
+                    background: 'rgba(0, 255, 65, 0.1)',
+                    border: '1px solid #00ff41',
+                    borderRadius: '4px',
+                    color: '#00ff41',
+                    padding: '6px 12px',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    fontWeight: '600',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0, 255, 65, 0.2)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(0, 255, 65, 0.1)'}
+                >
+                  Submit
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
         <div ref={messagesEndRef} />
       </div>
 
@@ -1188,7 +1314,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
           flexShrink: 0
         }}
       >
-        <div style={{ 
+        <div style={{
           position: 'relative',
           filter: backendStatus !== 'ready' ? 'blur(4px)' : 'blur(0px)',
           animation: backendStatus !== 'ready' ? 'blur-pulse 2s ease-in-out infinite' : 'none',
@@ -1225,7 +1351,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
               e.target.style.borderColor = 'rgba(0, 255, 65, 0.3)';
             }}
           />
-          
+
           {/* Controls at bottom right of textarea */}
           <div style={{
             position: 'absolute',
@@ -1332,7 +1458,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                 </div>
               )}
             </div>
-            
+
             {/* Execute button */}
             <button
               onClick={handleExecute}

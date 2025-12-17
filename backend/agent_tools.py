@@ -202,3 +202,38 @@ class ListConnectionsTool(BaseTool):
             _logger.error(f"[ash_list_connections] Error: {str(e)}", exc_info=True)
             raise
 
+@register_tool('ash_ask_user')
+class AshAskUserTool(BaseTool):
+    """Ask the user a question and wait for their input/approval."""
+    description = 'Ask the user a question and wait for their response. Useful for getting approvals, passwords, or additional information. Returns the user\'s input. If the user rejects, it may raise an error or return a rejection message.'
+    parameters = [{
+        'name': 'question',
+        'type': 'string',
+        'description': 'The question to ask the user',
+        'required': True
+    }, {
+        'name': 'is_password',
+        'type': 'boolean',
+        'description': 'Set to true if asking for a password or sensitive information (input will be masked)',
+        'required': False
+    }]
+    
+    def call(self, params: str, **kwargs) -> str:
+        import json5
+        
+        data = json5.loads(params)
+        question = data.get('question')
+        is_password = data.get('is_password', False)
+        
+        _logger.info(f"[ash_ask_user] Asking user: {question} (is_password={is_password})")
+        
+        try:
+            # Call IPC bridge to show dialog to user
+            result = call_ash_ipc('ask-user', question, is_password)
+            
+            _logger.info(f"[ash_ask_user] User responded: {'(hidden)' if is_password else result}")
+            return result
+        except Exception as e:
+            _logger.error(f"[ash_ask_user] Error: {str(e)}", exc_info=True)
+            raise
+

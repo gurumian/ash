@@ -11,7 +11,7 @@ import { initializeTftpHandlers, cleanupTftpServer, setMainWindow as setTftpMain
 import { initializeWebHandlers, cleanupWebServer, setMainWindow as setWebMainWindow } from './main/web-handler.js';
 import { initializeIperfHandlers, cleanupIperfServer, setMainWindow as setIperfMainWindow, initializeIperfClientHandlers, cleanupIperfClient } from './main/iperf-handler.js';
 import { startBackend, stopBackend, initializeBackendHandlers } from './main/backend-handler.js';
-import { startIPCBridge, stopIPCBridge } from './main/ipc-bridge-handler.js';
+import { startIPCBridge, stopIPCBridge, setMainWindow as setIpcMainWindow } from './main/ipc-bridge-handler.js';
 
 // Set app name
 app.setName('ash');
@@ -38,14 +38,15 @@ initializeBackendHandlers(); // Initialize backend handlers for on-demand startu
 app.whenReady().then(async () => {
   // Start IPC Bridge first (backend needs it)
   startIPCBridge();
-  
+
   createMenu(); // Create system menu
   const mainWindow = await createWindow();
-  
+
   // Set main window reference for TFTP, Web, and iperf handlers
   setTftpMainWindow(mainWindow);
   setWebMainWindow(mainWindow);
   setIperfMainWindow(mainWindow);
+  setIpcMainWindow(mainWindow);
 
   // Initialize update handlers after app is ready
   initializeUpdateHandlers(scheduleStartupCheck);
@@ -73,7 +74,7 @@ app.on('before-quit', async () => {
   } catch (error) {
     console.error('Error stopping backend/IPC bridge:', error);
   }
-  
+
   cleanupSSHConnections();
   cleanupTelnetConnections();
   cleanupSerialConnections();

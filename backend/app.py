@@ -84,6 +84,7 @@ ash_tool_names = [
     'ash_ssh_execute',
     'ash_telnet_execute',
     'ash_list_connections',
+    'ash_ask_user',
 ]
 
 from prompts.system_prompt import build_system_prompt
