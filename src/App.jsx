@@ -333,6 +333,15 @@ function App() {
       // Append final output if available
       if (data && data.output) {
         setIperfClientOutput(prev => prev + data.output);
+        // Also update active session's output
+        if (activeSessionId) {
+          setSessions(prev => prev.map(s => {
+            if (s.id === activeSessionId) {
+              return { ...s, iperfClientOutput: (s.iperfClientOutput || '') + data.output };
+            }
+            return s;
+          }));
+        }
       }
     };
 
@@ -340,6 +349,15 @@ function App() {
     const handleClientOutput = (data) => {
       if (data && data.output) {
         setIperfClientOutput(prev => prev + data.output);
+        // Also update active session's output
+        if (activeSessionId) {
+          setSessions(prev => prev.map(s => {
+            if (s.id === activeSessionId) {
+              return { ...s, iperfClientOutput: (s.iperfClientOutput || '') + data.output };
+            }
+            return s;
+          }));
+        }
       }
     };
 
@@ -359,7 +377,7 @@ function App() {
         window.electronAPI?.offIperfClientOutput?.(handleClientOutput);
       }
     };
-  }, []);
+  }, [activeSessionId]);
 
   // Listen for Web Server error events
   useEffect(() => {
