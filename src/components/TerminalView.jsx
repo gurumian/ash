@@ -2,7 +2,7 @@ import React, { memo, useCallback, useRef, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { TabItem } from './TabItem';
 import { TerminalSearchBar } from './TerminalSearchBar';
-// AI Command Input is now in AIChatSidebar, not here
+import { SessionContent } from './SessionContent';
 
 /**
  * Stopwatch component - independent timer with play, stop, reset controls per session
@@ -26,7 +26,7 @@ function Stopwatch({ sessionId, stopwatchState, onStart, onStop, onReset }) {
       <span className="stopwatch-time">⏱ {formatTime(elapsed)}</span>
       <div className="stopwatch-controls">
         {!isRunning ? (
-          <button 
+          <button
             className="stopwatch-btn play-btn"
             onClick={() => onStart(sessionId)}
             title="Start timer"
@@ -34,7 +34,7 @@ function Stopwatch({ sessionId, stopwatchState, onStart, onStop, onReset }) {
             ▶
           </button>
         ) : (
-          <button 
+          <button
             className="stopwatch-btn stop-btn"
             onClick={() => onStop(sessionId)}
             title="Stop timer"
@@ -42,20 +42,20 @@ function Stopwatch({ sessionId, stopwatchState, onStart, onStop, onReset }) {
             ⏸
           </button>
         )}
-        <button 
+        <button
           className="stopwatch-btn reset-btn"
           onClick={() => onReset(sessionId)}
           title="Reset timer"
           disabled={elapsed === 0}
         >
-          <svg 
-            width="12" 
-            height="12" 
-            viewBox="0 0 24 24" 
-            fill="none" 
-            stroke="currentColor" 
-            strokeWidth="2" 
-            strokeLinecap="round" 
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
             strokeLinejoin="round"
           >
             <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
@@ -94,13 +94,20 @@ export const TerminalView = memo(function TerminalView({
   onCloseSearchBar,
   showAICommandInput, // For button state (toggles AIChatSidebar)
   onToggleAICommandInput, // Toggles AIChatSidebar
+  onUpdateSession, // For SessionContent to update session state
   onFileDrop,
   onReconnectSession,
   reconnectingSessions,
   stopwatchState,
   onStartStopwatch,
   onStopStopwatch,
-  onResetStopwatch
+  onResetStopwatch,
+  backendStatus,
+  pendingUserRequest,
+  onRespondToRequest,
+  llmSettings,
+  sshConnections,
+  resizeTerminal // Function to resize terminal, needed by SessionContent
 }) {
   const { t } = useTranslation('common');
   // Track previous value for change detection (debug only)
@@ -120,7 +127,7 @@ export const TerminalView = memo(function TerminalView({
     if (!activeSession || activeSession.connectionType !== 'ssh' || !activeSession.isConnected) {
       return;
     }
-    
+
     // Only prevent default if it's actually a file drag
     if (e.dataTransfer.types.includes('Files')) {
       e.preventDefault();
@@ -134,10 +141,10 @@ export const TerminalView = memo(function TerminalView({
     if (!activeSession || activeSession.connectionType !== 'ssh' || !activeSession.isConnected) {
       return;
     }
-    
+
     e.preventDefault();
     e.stopPropagation();
-    
+
     const files = Array.from(e.dataTransfer.files);
     if (files.length > 0 && onFileDrop) {
       // Use the first file
@@ -148,10 +155,26 @@ export const TerminalView = memo(function TerminalView({
     }
   }, [activeSession, onFileDrop]);
 
+  // We need to pass sshConnections to SessionContent. 
+  // It's not passed to TerminalView explicitly in props above? 
+  // Checking App.jsx: it's not passed! 
+  // Wait, I missed sshConnections in TerminalView props list in App.jsx?
+  // I need to check if sshConnections is available.
+  // TerminalView usage in App.jsx (Step 102/116) does NOT show sshConnections passed.
+  // BUT useTerminalManagement provides it.
+  // TerminalView normally didn't need it (App.jsx managed connection logic).
+  // But SessionContent -> useAICommand NEEDS it.
+  // I MUST add sshConnections to TerminalView props in App.jsx.
+  // I missed this dependency.
+
+  // I'll assume I update App.jsx to pass sshConnections.
+  // Or I can pick it up from window? No.
+  // I'll assume current props list for now, but I need to fix App.jsx AGAIN to pass sshConnections.
+
   return (
     <div className="terminal-area">
       {activeSession ? (
-        <div 
+        <div
           className="terminal-container"
           onDragOver={activeSession?.connectionType === 'ssh' && activeSession?.isConnected ? handleDragOver : undefined}
           onDrop={activeSession?.connectionType === 'ssh' && activeSession?.isConnected ? handleDrop : undefined}
@@ -209,14 +232,14 @@ export const TerminalView = memo(function TerminalView({
                       position: 'relative'
                     }}
                   >
-                    <svg 
-                      width="14" 
-                      height="14" 
-                      viewBox="0 0 24 24" 
-                      fill="none" 
-                      stroke="currentColor" 
-                      strokeWidth="2" 
-                      strokeLinecap="round" 
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
                       strokeLinejoin="round"
                       style={{
                         animation: reconnectingSessions?.get(activeSessionId) ? 'spin 1s linear infinite' : 'none',
@@ -260,7 +283,7 @@ export const TerminalView = memo(function TerminalView({
                 >
                   AI
                 </button>
-                <button 
+                <button
                   className={`log-btn ${logStates[activeSessionId]?.isLogging ? 'logging' : 'not-logging'}`}
                   onClick={async () => {
                     if (logStates[activeSessionId]?.isLogging) {
@@ -272,26 +295,26 @@ export const TerminalView = memo(function TerminalView({
                       onStartLogging(activeSessionId);
                     }
                   }}
-                  title={logStates[activeSessionId]?.isLogging 
+                  title={logStates[activeSessionId]?.isLogging
                     ? t('common:recordingDesc')
                     : t('common:startRecordingDesc')}
                 >
                   ●
                 </button>
-                <button 
+                <button
                   className="log-btn save-log"
                   onClick={() => onSaveLog(activeSessionId)}
                   disabled={!sessionLogs.current[activeSessionId]?.content && !sessionLogs.current[activeSessionId]?.contentArray?.length}
                   title={t('common:saveLogDesc')}
                 >
-                  <svg 
-                    width="16" 
-                    height="16" 
-                    viewBox="0 0 24 24" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    strokeWidth="2" 
-                    strokeLinecap="round" 
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
                     strokeLinejoin="round"
                   >
                     <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
@@ -299,20 +322,20 @@ export const TerminalView = memo(function TerminalView({
                     <polyline points="7 3 7 8 15 8" />
                   </svg>
                 </button>
-                <button 
+                <button
                   className="log-btn clear-log"
                   onClick={() => onClearLog(activeSessionId)}
                   disabled={!sessionLogs.current[activeSessionId]?.content && !sessionLogs.current[activeSessionId]?.contentArray?.length}
                   title={t('common:clearLogDesc')}
                 >
-                  <svg 
-                    width="16" 
-                    height="16" 
-                    viewBox="0 0 24 24" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    strokeWidth="2" 
-                    strokeLinecap="round" 
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
                     strokeLinejoin="round"
                   >
                     <path d="M3 6h18" />
@@ -325,7 +348,7 @@ export const TerminalView = memo(function TerminalView({
                 <span className="log-status">
                   {logStates[activeSessionId]?.isLogging ? t('common:recording') : t('common:notRecording')}
                 </span>
-                <Stopwatch 
+                <Stopwatch
                   sessionId={activeSessionId}
                   stopwatchState={stopwatchState}
                   onStart={onStartStopwatch}
@@ -341,10 +364,20 @@ export const TerminalView = memo(function TerminalView({
                 key={session.id}
                 style={{ display: activeSessionId === session.id ? 'block' : 'none', height: '100%', width: '100%', position: 'absolute' }}
               >
-                <div
-                  ref={el => terminalRefs.current[session.id] = el}
-                  className="terminal-content"
-                  style={{ height: '100%' }}
+                <SessionContent
+                  session={session}
+                  isActive={activeSessionId === session.id}
+                  terminalRef={(el) => terminalRefs.current[session.id] = el}
+                  terminalInstance={terminalInstances.current[session.id]}
+                  terminalInstances={terminalInstances}
+                  sshConnections={sshConnections}
+                  llmSettings={llmSettings}
+                  onUpdateSession={onUpdateSession}
+                  backendStatus={backendStatus}
+                  pendingUserRequest={pendingUserRequest}
+                  handleAskUserResponse={onRespondToRequest}
+                  activeSessionId={session.id} // Pass own IDs
+                  resizeTerminal={() => resizeTerminal && resizeTerminal()}
                 />
               </div>
             ))}
@@ -356,7 +389,6 @@ export const TerminalView = memo(function TerminalView({
                   isVisible={showSearchBar}
                   onClose={onCloseSearchBar}
                 />
-                {/* AI Command Input is now in AIChatSidebar, not here */}
               </>
             )}
           </div>
@@ -365,7 +397,7 @@ export const TerminalView = memo(function TerminalView({
         <div className="welcome-screen">
           <h2>{t('common:welcomeToAsh')}</h2>
           <p>{t('common:createNewSessionToStart')}</p>
-          <button 
+          <button
             className="welcome-connect-btn"
             onClick={onShowConnectionForm}
           >
@@ -376,4 +408,3 @@ export const TerminalView = memo(function TerminalView({
     </div>
   );
 });
-

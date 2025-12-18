@@ -206,7 +206,14 @@ export function useConnectionManagement({
             isConnected: false, // Will be set to true after connection
             createdAt: new Date().toISOString(),
             postProcessing: formData.postProcessing || [],
-            postProcessingEnabled: formData.postProcessingEnabled !== false
+            postProcessingEnabled: formData.postProcessingEnabled !== false,
+            // Session-scoped sidebar state
+            aiSidebarVisible: false,
+            iperfSidebarVisible: false,
+            aiMessages: [],
+            activeSecondaryTab: 'ai-chat',
+            aiChatSidebarWidth: 400,
+            iperfClientSidebarWidth: 500
           };
 
           // Create session first so terminal can be initialized
@@ -294,7 +301,14 @@ export function useConnectionManagement({
             isConnected: true,
             createdAt: new Date().toISOString(),
             postProcessing: formData.postProcessing || [],
-            postProcessingEnabled: formData.postProcessingEnabled !== false
+            postProcessingEnabled: formData.postProcessingEnabled !== false,
+            // Session-scoped sidebar state
+            aiSidebarVisible: false,
+            iperfSidebarVisible: false,
+            aiMessages: [],
+            activeSecondaryTab: 'ai-chat',
+            aiChatSidebarWidth: 400,
+            iperfClientSidebarWidth: 500
           };
 
           // Save connection history
@@ -334,7 +348,14 @@ export function useConnectionManagement({
           isConnected: true,
           createdAt: new Date().toISOString(),
           postProcessing: formData.postProcessing || [],
-          postProcessingEnabled: formData.postProcessingEnabled !== false
+          postProcessingEnabled: formData.postProcessingEnabled !== false,
+          // Session-scoped sidebar state
+          aiSidebarVisible: false,
+          iperfSidebarVisible: false,
+          aiMessages: [],
+          activeSecondaryTab: 'ai-chat',
+          aiChatSidebarWidth: 400,
+          iperfClientSidebarWidth: 500
         };
 
         // Save connection history for Serial connections too

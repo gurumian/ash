@@ -19,7 +19,7 @@ import { useDragAndDrop } from './hooks/useDragAndDrop';
 import { useTerminalManagement } from './hooks/useTerminalManagement';
 import { useConnectionManagement } from './hooks/useConnectionManagement';
 import { useAppHandlers } from './hooks/useAppHandlers';
-import { useAICommand } from './hooks/useAICommand';
+// import { useAICommand } from './hooks/useAICommand';
 import { useBackendStatus } from './hooks/useBackendStatus';
 import { CustomTitleBar } from './components/CustomTitleBar';
 import { SessionManager } from './components/SessionManager';
@@ -34,15 +34,13 @@ import { ErrorDialog } from './components/ErrorDialog';
 import { TerminalContextMenu } from './components/TerminalContextMenu';
 import { TerminalSearchBar } from './components/TerminalSearchBar';
 // TerminalAICommandInput is now replaced by AIChatSidebar
-import { AIChatSidebar } from './components/AIChatSidebar';
+// Sidebars are now in SessionContent
 import { SessionDialog } from './components/SessionDialog';
 import { LibraryDialog } from './components/LibraryDialog';
 import { LibraryImportDialog } from './components/LibraryImportDialog';
 import { TftpServerDialog } from './components/TftpServerDialog';
 import { WebServerDialog } from './components/WebServerDialog';
 import { IperfServerDialog } from './components/IperfServerDialog';
-import { IperfClientSidebar } from './components/IperfClientSidebar';
-import { SecondarySidebarContainer } from './components/SecondarySidebarContainer';
 import { FileUploadDialog } from './components/FileUploadDialog';
 
 function App() {
@@ -177,14 +175,28 @@ function App() {
   const [showLicensesDialog, setShowLicensesDialog] = useState(false);
   const [showTftpServerDialog, setShowTftpServerDialog] = useState(false);
   const [tftpStatus, setTftpStatus] = useState({ running: false, port: null });
+
   const [showWebServerDialog, setShowWebServerDialog] = useState(false);
   const [webStatus, setWebStatus] = useState({ running: false, port: null });
   const [iperfStatus, setIperfStatus] = useState({ running: false, port: null });
   const [iperfClientStatus, setIperfClientStatus] = useState({ running: false });
   const [iperfClientOutput, setIperfClientOutput] = useState(''); // Persistent output data
   const [showIperfServerDialog, setShowIperfServerDialog] = useState(false);
-  const [showIperfClientSidebar, setShowIperfClientSidebar] = useState(false);
-  const [iperfClientSidebarWidth, setIperfClientSidebarWidth] = useState(500);
+  // Iperf Client Sidebar is now session state, but we need compatibility for menu handlers
+  const setShowIperfClientSidebar = (val) => {
+    if (!activeSessionId) return;
+    setSessions(prev => prev.map(s => {
+      if (s.id === activeSessionId) {
+        const visible = typeof val === 'function' ? val(s.iperfSidebarVisible) : val;
+        // Also sync activeSecondaryTab if showing
+        const updates = { iperfSidebarVisible: visible };
+        if (visible) updates.activeSecondaryTab = 'iperf-client';
+        return { ...s, ...updates };
+      }
+      return s;
+    }));
+  };
+  // const [iperfClientSidebarWidth, setIperfClientSidebarWidth] = useState(500);
   const [iperfAvailable, setIperfAvailable] = useState(true); // Default to true, will be checked on mount
   const [appInfo, setAppInfo] = useState({ version: '', author: { name: 'Bryce Ghim', email: 'admin@toktoktalk.com' } });
 
@@ -395,14 +407,32 @@ function App() {
   // Terminal search state
   const [showSearchBar, setShowSearchBar] = useState(false);
   // AI Command input state
-  const [showAICommandInput, setShowAICommandInput] = useState(false);
-  const [showAIChatSidebar, setShowAIChatSidebar] = useState(false);
-  const [aiChatSidebarWidth, setAiChatSidebarWidth] = useState(400);
-  const [activeSecondaryTab, setActiveSecondaryTab] = useState('ai-chat'); // 'ai-chat' | 'iperf-client'
-  const [isAIProcessing, setIsAIProcessing] = useState(false);
-  const [aiMessages, setAiMessages] = useState([]);
+  // AI Command input state - Derived from active session
+  const showAICommandInput = activeSessionId ? (sessions.find(s => s.id === activeSessionId)?.aiSidebarVisible || false) : false;
+
+  const setShowAICommandInput = (val) => {
+    if (!activeSessionId) return;
+    setSessions(prev => prev.map(s => {
+      if (s.id === activeSessionId) {
+        const visible = typeof val === 'function' ? val(s.aiSidebarVisible) : val;
+        // Also sync activeSecondaryTab if showing
+        const updates = { aiSidebarVisible: visible };
+        if (visible) updates.activeSecondaryTab = 'ai-chat';
+        return { ...s, ...updates };
+      }
+      return s;
+    }));
+  };
+
+  // Aliases for compatibility if needed
+  const showAIChatSidebar = showAICommandInput;
+  const setShowAIChatSidebar = setShowAICommandInput;
+
+  // const [activeSecondaryTab, setActiveSecondaryTab] = useState('ai-chat'); // 'ai-chat' | 'iperf-client'
+  // const [isAIProcessing, setIsAIProcessing] = useState(false);
+  // const [aiMessages, setAiMessages] = useState([]);
   // If the user explicitly closes the AI sidebar, don't auto-reopen until settings change
-  const aiSidebarAutoRef = useRef({ dismissed: false, sig: '' });
+  // const aiSidebarAutoRef = useRef({ dismissed: false, sig: '' });
   // Pending user request state (for AI Ask User tool)
   const [pendingUserRequest, setPendingUserRequest] = useState(null);
 
@@ -415,8 +445,12 @@ function App() {
         question: data.question,
         isPassword: data.isPassword
       });
-      // Auto-open sidebar when request comes in
-      setShowAIChatSidebar(true);
+      // Auto-open sidebar for active session when request comes in
+      if (activeSessionId) {
+        setSessions(prev => prev.map(s =>
+          s.id === activeSessionId ? { ...s, aiSidebarVisible: true, activeSecondaryTab: 'ai-chat' } : s
+        ));
+      }
     };
 
     window.electronAPI?.onAskUser?.(handleAskUser);
@@ -424,7 +458,7 @@ function App() {
     return () => {
       window.electronAPI?.offAskUser?.(handleAskUser);
     };
-  }, []);
+  }, [activeSessionId]); // Add activeSessionId dependency
 
   const handleAskUserResponse = async (response) => {
     try {
@@ -562,117 +596,45 @@ function App() {
     updateConnectionIdMap
   });
 
-  // Auto-show AI chat sidebar when a session is open AND LLM is enabled + reachable/authenticated
-  useEffect(() => {
-    let cancelled = false;
-    let timeoutId = null;
 
-    const provider = llmSettings?.provider;
-    const enabled = !!llmSettings?.enabled;
-    const baseURL = (llmSettings?.baseURL || '').trim();
-    const apiKey = (llmSettings?.apiKey || '').trim();
-    const sessionId = activeSessionId || '';
-    const session = sessionId ? sessions.find(s => s.id === sessionId) : null;
-    const sessionConnected = !!session?.isConnected;
-    const sessionType = session?.connectionType || null;
 
-    // Reset dismissal if LLM disabled
-    if (!enabled) {
-      aiSidebarAutoRef.current.dismissed = false;
-      aiSidebarAutoRef.current.sig = '';
-      return undefined;
-    }
 
-    // Only auto-open when a usable session is actually open
-    if (!sessionId || !sessionConnected) {
-      return undefined;
-    }
-    // Only show AI panel for ssh/telnet sessions (agent tools)
-    if (sessionType && sessionType !== 'ssh' && sessionType !== 'telnet') {
-      return undefined;
-    }
-
-    // If user has manually closed it, don't auto-reopen until provider/baseURL/apiKey changes
-    const signature = `${provider}|${baseURL}|${apiKey}|${sessionId}`;
-    if (aiSidebarAutoRef.current.dismissed && signature === aiSidebarAutoRef.current.sig) {
-      return undefined;
-    }
-    // store signature (keeps state local without re-renders)
-    aiSidebarAutoRef.current.sig = signature;
-
-    // Already visible → nothing to do
-    if (showAIChatSidebar) {
-      return undefined;
-    }
-
-    const validate = async () => {
-      try {
-        if (provider === 'ash') {
-          if (!baseURL || !apiKey) return false;
-          const base = baseURL.endsWith('/v1') ? baseURL : `${baseURL.replace(/\/$/, '')}/v1`;
-          const url = `${base}/tags`;
-          const res = await fetch(url, {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-API-Key': apiKey
-            }
-          });
-          return res.ok;
-        }
-
-        if (provider === 'ollama') {
-          // Ollama doesn't require API keys
-          const url = `${(baseURL || 'http://localhost:11434').replace(/\/$/, '')}/api/tags`;
-          const res = await fetch(url, { method: 'GET' });
-          return res.ok;
-        }
-
-        return false;
-      } catch {
-        return false;
-      }
-    };
-
-    timeoutId = setTimeout(async () => {
-      const ok = await validate();
-      if (cancelled) return;
-      if (ok && !showAIChatSidebar && !aiSidebarAutoRef.current.dismissed) {
-        setShowAIChatSidebar(true);
-        setActiveSecondaryTab('ai-chat');
-      }
-    }, 300);
-
-    return () => {
-      cancelled = true;
-      if (timeoutId) clearTimeout(timeoutId);
-    };
-  }, [
-    llmSettings?.enabled,
-    llmSettings?.provider,
-    llmSettings?.baseURL,
-    llmSettings?.apiKey,
-    showAIChatSidebar,
-    activeSessionId,
-    sessions
-  ]);
-
-  // Auto-hide AI chat sidebar when all sessions are closed
-  useEffect(() => {
-    if (sessions.length === 0 && showAIChatSidebar) {
-      setShowAIChatSidebar(false);
-    }
-  }, [sessions, showAIChatSidebar]);
+  // Active Session Memo - Moved up to be available for useKeyboardShortcuts
+  const activeSession = useMemo(() =>
+    sessions.find(s => s.id === activeSessionId),
+    [sessions, activeSessionId]
+  );
 
   // Keyboard shortcuts hook (must be after useConnectionManagement to access reconnectSession)
   useKeyboardShortcuts({
     activeSessionId,
     showSearchBar,
     setShowSearchBar,
-    showAICommandInput,
-    setShowAICommandInput,
-    showAIChatSidebar,
-    setShowAIChatSidebar,
+    // showSearchBar is defined in useKeyboardShortcuts parameters
+    showAICommandInput: activeSession ? !!activeSession.aiSidebarVisible : false,
+    setShowAICommandInput: (val) => {
+      // Compatibility for shortcuts calling this
+      if (!activeSessionId) return;
+      setSessions(prev => prev.map(s => {
+        if (s.id === activeSessionId) {
+          const visible = typeof val === 'function' ? val(s.aiSidebarVisible) : val;
+          return { ...s, aiSidebarVisible: visible, activeSecondaryTab: 'ai-chat' };
+        }
+        return s;
+      }));
+    },
+    // showAIChatSidebar aliases to showAICommandInput in logic now, keeping consistent
+    showAIChatSidebar: activeSession ? !!activeSession.aiSidebarVisible : false,
+    setShowAIChatSidebar: (val) => {
+      if (!activeSessionId) return;
+      setSessions(prev => prev.map(s => {
+        if (s.id === activeSessionId) {
+          const visible = typeof val === 'function' ? val(s.aiSidebarVisible) : val;
+          return { ...s, aiSidebarVisible: visible, activeSecondaryTab: 'ai-chat' };
+        }
+        return s;
+      }));
+    },
     llmSettings,
     terminalInstances,
     terminalFontSize,
@@ -832,39 +794,7 @@ function App() {
   // Backend status monitoring (only when AI Chat Sidebar is visible)
   const { status: backendStatus, setStarting: setBackendStarting } = useBackendStatus(showAIChatSidebar);
 
-  // AI Command hook
-  const {
-    executeAICommand,
-    stopAICommand,
-    aiMessages: hookAiMessages,
-    clearAIMessages,
-    streamingToolResult,
-    processingConversationId,
-    processingConversations,
-    conversations,
-    activeConversationId,
-    switchConversation,
-    createNewConversation,
-    deleteConversation,
-    updateConversationTitle
-  } = useAICommand({
-    activeSessionId,
-    terminalInstances,
-    sshConnections,
-    llmSettings,
-    setErrorDialog,
-    setIsAIProcessing,
-    setShowAICommandInput,
-    onBackendStarting: setBackendStarting, // Pass setStarting callback for on-demand loading
-    isSidebarVisible: showAIChatSidebar, // Only load conversations when sidebar is visible
-    onAIMessageUpdate: (messages) => {
-      setAiMessages(messages);
-      // Auto-show sidebar when messages arrive
-      if (messages.length > 0 && !showAIChatSidebar) {
-        setShowAIChatSidebar(true);
-      }
-    }
-  });
+
 
   // Resize handle refs
   const resizeHandleRef = useRef(null);
@@ -1101,10 +1031,7 @@ function App() {
   // Terminal resize and keyboard shortcuts are now in useTerminalManagement and useKeyboardShortcuts hooks
 
   // Memoize activeSession to avoid recalculation on every render
-  const activeSession = useMemo(() =>
-    sessions.find(s => s.id === activeSessionId),
-    [sessions, activeSessionId]
-  );
+
 
   // Memoize ungrouped sessions to avoid recalculation
   // A session is ungrouped if it doesn't match any savedSession in any group
@@ -1403,20 +1330,10 @@ function App() {
           searchAddons={searchAddons}
           showSearchBar={showSearchBar}
           onCloseSearchBar={() => setShowSearchBar(false)}
-          showAICommandInput={showAIChatSidebar || false} // Button state (toggles AIChatSidebar)
-          onToggleAICommandInput={() => {
-            // Toggle AI Chat Sidebar
-            setShowAIChatSidebar(prev => {
-              const newValue = !prev;
-              if (newValue) {
-                setActiveSecondaryTab('ai-chat');
-                aiSidebarAutoRef.current.dismissed = false;
-              }
-              if (!newValue) {
-                aiSidebarAutoRef.current.dismissed = true;
-              }
-              return newValue;
-            });
+          onUpdateSession={(sessionId, updates) => {
+            setSessions(prev => prev.map(s =>
+              s.id === sessionId ? { ...s, ...updates } : s
+            ));
           }}
           onReconnectSession={async (sessionId) => {
             const session = sessions.find(s => s.id === sessionId);
@@ -1450,6 +1367,23 @@ function App() {
               });
             }
           }}
+
+          backendStatus={backendStatus}
+          pendingUserRequest={pendingUserRequest}
+          onRespondToRequest={handleAskUserResponse}
+          llmSettings={llmSettings}
+          sshConnections={sshConnections}
+          showAICommandInput={activeSessionId ? sessions.find(s => s.id === activeSessionId)?.aiSidebarVisible : false}
+          onToggleAICommandInput={() => {
+            if (activeSessionId) {
+              setSessions(prev => prev.map(s => {
+                if (s.id === activeSessionId) {
+                  return { ...s, aiSidebarVisible: !s.aiSidebarVisible, activeSecondaryTab: 'ai-chat' };
+                }
+                return s;
+              }));
+            }
+          }}
           reconnectingSessions={reconnectingSessions}
           stopwatchState={activeSessionId ? getStopwatchState(activeSessionId) : null}
           onStartStopwatch={startStopwatch}
@@ -1457,151 +1391,7 @@ function App() {
           onResetStopwatch={resetStopwatch}
         />
 
-        {/* Resize handle for Secondary Sidebar Container */}
-        {(showAIChatSidebar || showIperfClientSidebar) && (
-          <div
-            className="resize-handle"
-            style={{
-              width: '4px',
-              background: 'transparent',
-              cursor: 'col-resize',
-              flexShrink: 0,
-              transition: 'background 0.2s'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.background = '#4a90e2'}
-            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-            onMouseDown={(e) => {
-              e.preventDefault();
-              const startX = e.clientX;
-              const currentWidth = showAIChatSidebar && showIperfClientSidebar
-                ? Math.max(aiChatSidebarWidth, iperfClientSidebarWidth)
-                : (showAIChatSidebar ? aiChatSidebarWidth : iperfClientSidebarWidth);
-              const startWidth = currentWidth;
 
-              const handleMouseMove = (e) => {
-                const diff = startX - e.clientX; // Reverse because it's on the right
-                const newWidth = Math.max(300, Math.min(1000, startWidth + diff));
-                // Update both widths to keep them in sync
-                if (showAIChatSidebar) setAiChatSidebarWidth(newWidth);
-                if (showIperfClientSidebar) setIperfClientSidebarWidth(newWidth);
-              };
-
-              const handleMouseUp = () => {
-                document.removeEventListener('mousemove', handleMouseMove);
-                document.removeEventListener('mouseup', handleMouseUp);
-              };
-
-              document.addEventListener('mousemove', handleMouseMove);
-              document.addEventListener('mouseup', handleMouseUp);
-            }}
-          />
-        )}
-
-        {/* Secondary Sidebar Container with Tabs */}
-        <SecondarySidebarContainer
-          width={showAIChatSidebar && showIperfClientSidebar
-            ? Math.max(aiChatSidebarWidth, iperfClientSidebarWidth)
-            : (showAIChatSidebar ? aiChatSidebarWidth : (showIperfClientSidebar ? iperfClientSidebarWidth : 0))}
-          showAIChat={showAIChatSidebar}
-          showIperfClient={showIperfClientSidebar}
-          activeTab={activeSecondaryTab}
-          onTabChange={(tab) => {
-            setActiveSecondaryTab(tab);
-            // Auto-show the selected sidebar if it's not visible
-            if (tab === 'ai-chat' && !showAIChatSidebar) {
-              setShowAIChatSidebar(true);
-            } else if (tab === 'iperf-client' && !showIperfClientSidebar) {
-              setShowIperfClientSidebar(true);
-            }
-          }}
-          onClose={() => {
-            // Close both sidebars
-            aiSidebarAutoRef.current.dismissed = true;
-            setShowAIChatSidebar(false);
-            setShowIperfClientSidebar(false);
-            if (clearAIMessages) {
-              clearAIMessages();
-            }
-          }}
-          onCloseAIChat={() => {
-            aiSidebarAutoRef.current.dismissed = true;
-            setShowAIChatSidebar(false);
-            if (clearAIMessages) {
-              clearAIMessages();
-            }
-            // If iperf client is also open, switch to it
-            if (showIperfClientSidebar) {
-              setActiveSecondaryTab('iperf-client');
-            }
-          }}
-          onCloseIperfClient={() => {
-            setShowIperfClientSidebar(false);
-            // If AI chat is also open, switch to it
-            if (showAIChatSidebar) {
-              setActiveSecondaryTab('ai-chat');
-            }
-          }}
-        >
-          {/* AI Chat Sidebar */}
-          <AIChatSidebar
-            isVisible={showAIChatSidebar && (!showIperfClientSidebar || activeSecondaryTab === 'ai-chat')}
-            width={aiChatSidebarWidth}
-            messages={aiMessages}
-            isProcessing={isAIProcessing && processingConversationId === activeConversationId}
-            streamingToolResult={processingConversationId === activeConversationId ? streamingToolResult : null}
-            processingConversations={processingConversations}
-            backendStatus={backendStatus}
-            terminal={activeSessionId ? terminalInstances.current[activeSessionId] : null}
-            onExecuteAICommand={executeAICommand}
-            onStopAICommand={stopAICommand}
-            conversations={conversations || []}
-            activeConversationId={activeConversationId}
-            onSwitchConversation={switchConversation}
-            onCreateNewConversation={createNewConversation}
-            onDeleteConversation={deleteConversation}
-            onUpdateConversationTitle={updateConversationTitle}
-            onClose={showAIChatSidebar && showIperfClientSidebar ? () => {
-              // If iperf client is also open, switch to it by hiding AI sidebar
-              // (which will trigger re-render with only iperf sidebar visible)
-              setShowAIChatSidebar(false);
-              setActiveSecondaryTab('iperf-client');
-            } : () => {
-              // If only AI sidebar is open, close it completely
-              if (!pendingUserRequest) {
-                aiSidebarAutoRef.current.dismissed = true;
-                setShowAIChatSidebar(false);
-                if (clearAIMessages) {
-                  clearAIMessages();
-                }
-              } else {
-                // If pending request, just close visually but keep state?
-                // Or force user to respond? For now just allow closing.
-                setShowAIChatSidebar(false);
-              }
-            }}
-            showHeader={!showIperfClientSidebar}
-            pendingUserRequest={pendingUserRequest}
-            onRespondToRequest={handleAskUserResponse}
-          />
-
-          {/* iperf3 Client Sidebar */}
-          <IperfClientSidebar
-            isVisible={showIperfClientSidebar && (!showAIChatSidebar || activeSecondaryTab === 'iperf-client')}
-            width={iperfClientSidebarWidth}
-            activeSession={activeSession}
-            output={iperfClientOutput}
-            onClearOutput={() => setIperfClientOutput('')}
-            onStartTest={() => setIperfClientOutput('')}
-            onClose={showAIChatSidebar && showIperfClientSidebar ? () => {
-              setShowIperfClientSidebar(false);
-              // If AI chat is also open, switch to it
-              if (showAIChatSidebar) {
-                setActiveSecondaryTab('ai-chat');
-              }
-            } : () => setShowIperfClientSidebar(false)}
-            showHeader={!showAIChatSidebar}
-          />
-        </SecondarySidebarContainer>
 
         {/* Terminal Context Menu */}
         <TerminalContextMenu
