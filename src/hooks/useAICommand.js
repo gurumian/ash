@@ -39,6 +39,7 @@ export function useAICommand({
   const [streamingToolResult, setStreamingToolResult] = useState(null); // Current executing tool result
   const [processingConversationId, setProcessingConversationId] = useState(null); // ID of conversation currently being processed (for active display)
   const [processingConversations, setProcessingConversations] = useState(new Set()); // Set of conversation IDs currently being processed
+  const [input, setInput] = useState(''); // Lifted input state
   const onAIMessageUpdateRef = useRef(onAIMessageUpdate);
   const lastConnectionIdRef = useRef(null);
   const assistantMessageRef = useRef(null); // Stable reference to current assistant message
@@ -208,19 +209,57 @@ export function useAICommand({
           throw new Error('LLM is not enabled. Please enable it in Settings.');
         }
 
+        // Extract terminal content for context
+        let terminalContext = '';
+        try {
+          if (terminalInstances && terminalInstances.current && activeSessionId) {
+            const terminal = terminalInstances.current[activeSessionId];
+            if (terminal && terminal.buffer && terminal.buffer.active) {
+              const buffer = terminal.buffer.active;
+              // Get last 100 lines to provide sufficient context
+              const startLine = Math.max(0, buffer.baseY + buffer.cursorY - 100);
+              const endLine = buffer.baseY + buffer.cursorY;
+
+              const lines = [];
+              for (let i = startLine; i <= endLine; i++) {
+                const line = buffer.getLine(i);
+                if (line) {
+                  lines.push(line.translateToString(true));
+                }
+              }
+              const content = lines.join('\n').trim();
+              if (content) {
+                terminalContext = `\n\n[Current Terminal Content (Last ${lines.length} lines)]:\n${content}\n\n[End Terminal Content]`;
+              }
+            }
+          }
+        } catch (err) {
+          console.warn('Failed to extract terminal content:', err);
+        }
+
+        // Retrieve connectionId safely
+        let connectionId = null;
+        if (activeSessionId && sshConnections.current[activeSessionId]) {
+          const connection = sshConnections.current[activeSessionId];
+          if (connection.isConnected) {
+            connectionId = connection.connectionId || activeSessionId;
+          }
+        }
+
+        // Prepend context to message for agent/ask modes to ensure AI sees what user sees
+        // User Request FIRST, then Context.
+        const augmentedMessage = terminalContext
+          ? `User Request: ${naturalLanguage}\n(Active Connection ID: ${connectionId || 'unknown'})\n\nTerminal Context:\n${terminalContext}`
+          : `User Request: ${naturalLanguage}\n(Active Connection ID: ${connectionId || 'unknown'})`;
+
         // Handle agent mode with Qwen-Agent
         if (mode === 'agent') {
-          if (!activeSessionId || !sshConnections.current[activeSessionId]) {
-            throw new Error('No active session');
+          if (!connectionId) {
+            // Fallback or error if agent needs a connection but none is found
+            // But for now, let's allow it to proceed potentially for general questions, 
+            // though qwenAgent.executeTask might expect an ID.
+            // If !connectionId, executeTask will treat it as no connection.
           }
-
-          const connection = sshConnections.current[activeSessionId];
-          if (!connection.isConnected) {
-            throw new Error('Session is not connected');
-          }
-
-          // Get connection ID from SSHConnection object
-          const connectionId = connection.connectionId || activeSessionId;
 
           if (process.env.NODE_ENV === 'development') {
             console.log('Agent mode - connectionId:', connectionId, 'activeSessionId:', activeSessionId);
@@ -360,7 +399,7 @@ export function useAICommand({
           // Wrap in try-catch to handle abort errors gracefully
           try {
             await qwenAgent.executeTask(
-              naturalLanguage,
+              augmentedMessage,
               connectionId,
               (fullContent) => {
                 // Check if aborted before processing
@@ -1190,6 +1229,8 @@ Title:`,
     switchConversation, // Function to switch to a different conversation
     createNewConversation, // Function to create a new conversation
     deleteConversation, // Function to delete a conversation
-    updateConversationTitle // Function to update conversation title
+    updateConversationTitle, // Function to update conversation title
+    input,
+    setInput
   };
 }

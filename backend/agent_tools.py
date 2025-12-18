@@ -107,21 +107,19 @@ def call_ash_ipc(channel: str, *args) -> Dict[str, Any]:
         _logger.error(f"[IPC] Unexpected error: {str(e)}")
         raise Exception(f"IPC bridge error: {str(e)}")
 
-# --- SSH Tools ---
-
-@register_tool('ash_ssh_execute')
-class SSHExecuteTool(BaseTool):
-    """Execute a command on an SSH connection and return the output."""
-    description = 'Execute a shell command on an SSH connection. Returns stdout, stderr, and exit code.'
+@register_tool('ash_execute_command')
+class UnifiedExecuteTool(BaseTool):
+    """Execute a command on ANY connection (SSH, Telnet, Serial)."""
+    description = 'Universal command execution tool. Automatically detects the connection type (SSH/Telnet/Serial) and routes the command. ALWAYS use this instead of specific ssh/telnet/serial tools. Returns stdout, stderr, and exit code.'
     parameters = [{
         'name': 'connection_id',
         'type': 'string',
-        'description': 'SSH connection ID from ash_list_connections',
+        'description': 'Active connection ID',
         'required': True
     }, {
         'name': 'command',
         'type': 'string',
-        'description': 'Command to execute (without shell prompt symbols like $, >, #)',
+        'description': 'Command to execute',
         'required': True
     }]
     
@@ -132,90 +130,45 @@ class SSHExecuteTool(BaseTool):
         connection_id = data.get('connection_id')
         command = data.get('command')
         
-        _logger.info(f"[ash_ssh_execute] connection_id={connection_id}, command={command}")
-        
-        try:
-            # Use the correct IPC channel name: 'ssh-exec-command'
-            result = call_ash_ipc('ssh-exec-command', connection_id, command)
-            # Command를 결과에 포함시키기 (tool_result에서 사용하기 위해)
-            result['command'] = command
-            _logger.info(f"[ash_ssh_execute] Result: success={result.get('success')}, output length={len(str(result.get('output', '')))}")
-            return json.dumps(result, ensure_ascii=False)
-        except Exception as e:
-            _logger.error(f"[ash_ssh_execute] Error: {str(e)}", exc_info=True)
-            raise
+        _logger.info(f"[ash_execute_command] Processing: id={connection_id}, cmd={command}")
 
-@register_tool('ash_telnet_execute')
-class TelnetExecuteTool(BaseTool):
-    """Execute a command on a Telnet connection and return the output."""
-    description = 'Execute a shell command on a Telnet connection. Returns stdout, stderr, and exit code. Works similarly to ash_ssh_execute but for Telnet connections.'
-    parameters = [{
-        'name': 'connection_id',
-        'type': 'string',
-        'description': 'Telnet connection ID from ash_list_connections',
-        'required': True
-    }, {
-        'name': 'command',
-        'type': 'string',
-        'description': 'Command to execute (without shell prompt symbols like $, >, #)',
-        'required': True
-    }]
-    
-    def call(self, params: str, **kwargs) -> str:
-        import json5
-        
-        data = json5.loads(params)
-        connection_id = data.get('connection_id')
-        command = data.get('command')
-        
-        _logger.info(f"[ash_telnet_execute] connection_id={connection_id}, command={command}")
-        
+        # 1. Internal Type Lookup (No AI Guessing)
         try:
-            # Use the correct IPC channel name: 'telnet-exec-command'
-            result = call_ash_ipc('telnet-exec-command', connection_id, command)
-            # Command를 결과에 포함시키기 (tool_result에서 사용하기 위해)
+            list_result = call_ash_ipc('ssh-list-connections')
+            connections = list_result.get('connections', [])
+            target = next((c for c in connections if c.get('connectionId') == connection_id), None)
+            
+            if not target:
+                return json.dumps({
+                    "success": False, 
+                    "error": f"Connection ID {connection_id} not found. active connections: {len(connections)}"
+                }, ensure_ascii=False)
+            
+            conn_type = target.get('type', 'ssh') # Default to ssh if missing
+            
+            # 2. Route to correct internal channel
+            channel_map = {
+                'ssh': 'ssh-exec-command',
+                'telnet': 'telnet-exec-command',
+                'serial': 'serial-exec-command'
+            }
+            
+            ipc_channel = channel_map.get(conn_type, 'ssh-exec-command')
+            _logger.info(f"[ash_execute_command] Routing to {ipc_channel} (type={conn_type})")
+            
+            # 3. Execute
+            result = call_ash_ipc(ipc_channel, connection_id, command)
             result['command'] = command
-            _logger.info(f"[ash_telnet_execute] Result: success={result.get('success')}, output length={len(str(result.get('output', '')))}")
             return json.dumps(result, ensure_ascii=False)
-        except Exception as e:
-            _logger.error(f"[ash_telnet_execute] Error: {str(e)}", exc_info=True)
-            raise
 
-@register_tool('ash_serial_execute')
-class SerialExecuteTool(BaseTool):
-    """Execute a command on a Serial connection and return the output."""
-    description = 'Execute a shell command on a Serial connection. Returns stdout, stderr, and exit code. Works similarly to ash_ssh_execute but for Serial connections.'
-    parameters = [{
-        'name': 'connection_id',
-        'type': 'string',
-        'description': 'Serial connection ID from ash_list_connections',
-        'required': True
-    }, {
-        'name': 'command',
-        'type': 'string',
-        'description': 'Command to execute (without shell prompt symbols like $, >, #)',
-        'required': True
-    }]
-    
-    def call(self, params: str, **kwargs) -> str:
-        import json5
-        
-        data = json5.loads(params)
-        connection_id = data.get('connection_id')
-        command = data.get('command')
-        
-        _logger.info(f"[ash_serial_execute] connection_id={connection_id}, command={command}")
-        
-        try:
-            # Use the correct IPC channel name: 'serial-exec-command'
-            result = call_ash_ipc('serial-exec-command', connection_id, command)
-            # Command를 결과에 포함시키기 (tool_result에서 사용하기 위해)
-            result['command'] = command
-            _logger.info(f"[ash_serial_execute] Result: success={result.get('success')}, output length={len(str(result.get('output', '')))}")
-            return json.dumps(result, ensure_ascii=False)
         except Exception as e:
-            _logger.error(f"[ash_serial_execute] Error: {str(e)}", exc_info=True)
-            raise
+            _logger.error(f"[ash_execute_command] Error: {str(e)}", exc_info=True)
+            return json.dumps({"success": False, "error": str(e)}, ensure_ascii=False)
+
+
+# Legacy Tools (Kept for compatibility but marked deprecated in prompts/docs if needed)
+# ... individual tools removed to force usage of Unified Tool ...
+
 
 @register_tool('ash_list_connections')
 class ListConnectionsTool(BaseTool):

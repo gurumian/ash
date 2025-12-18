@@ -81,9 +81,7 @@ model_config = {
 
 # Tool names that will be registered with Qwen-Agent
 ash_tool_names = [
-    'ash_ssh_execute',
-    'ash_telnet_execute',
-    'ash_serial_execute',
+    'ash_execute_command',  # Unified execution tool
     'ash_list_connections',
     'ash_ask_user',
     'ash_web_search',

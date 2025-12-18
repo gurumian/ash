@@ -1337,7 +1337,37 @@ function App() {
           onResetStopwatch={resetStopwatch}
         />
 
-
+        {/* Global Sidebar Container for Portals */}
+        <div
+          id="secondary-sidebars-root"
+          className="secondary-sidebars-root"
+          style={{
+            height: '100%',
+            flexShrink: 0,
+            background: '#000000',
+            borderLeft: '1px solid #1a1a1a',
+            // Display is controlled by content presence, but we need strict layout
+            display: 'flex',
+            flexDirection: 'column'
+          }}
+        >
+          {sessions.map(session => {
+            // Only show the slot for the active session, and only if a sidebar is actually visible
+            // The SessionContent will portal into it regardless, but we control visibility via style
+            const isVisible = activeSessionId === session.id && (session.aiSidebarVisible || session.iperfSidebarVisible);
+            return (
+              <div
+                key={session.id}
+                id={`sidebar-slot-${session.id}`}
+                style={{
+                  display: isVisible ? 'block' : 'none',
+                  height: '100%',
+                  width: '100%'
+                }}
+              />
+            );
+          })}
+        </div>
 
         {/* Terminal Context Menu */}
         <TerminalContextMenu

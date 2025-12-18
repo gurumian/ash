@@ -72,7 +72,9 @@ export const AIChatSidebar = memo(function AIChatSidebar({
   processingConversations = new Set(), // Set of conversation IDs currently being processed
   showHeader = true, // Show header (hidden when in tabbed mode)
   pendingUserRequest = null, // Pending user request object { requestId, question, isPassword }
-  onRespondToRequest = null // Function to respond to user request
+  onRespondToRequest = null, // Function to respond to user request
+  inputValue = '', // Lifted input state
+  onInputChange = () => { } // Function to update lifted input state
 }) {
   const messagesEndRef = useRef(null);
   const sidebarRef = useRef(null);
@@ -80,7 +82,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
   const modeDropdownRef = useRef(null);
   const titleEditInputRef = useRef(null);
 
-  const [input, setInput] = useState('');
+  // const [input, setInput] = useState(''); // REMOVED local state
   // Load mode from localStorage, default to 'ask'
   const [mode, setMode] = useState(() => {
     const savedMode = localStorage.getItem('ash-ai-mode');
@@ -155,7 +157,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
     } else if (e.key === 'Enter' && !e.shiftKey) {
       // Enter without Shift: execute command
       e.preventDefault();
-      if (input.trim() && !isActiveProcessing && backendStatus === 'ready') {
+      if (inputValue.trim() && !isActiveProcessing && backendStatus === 'ready') {
         handleExecute();
       }
     }
@@ -163,10 +165,10 @@ export const AIChatSidebar = memo(function AIChatSidebar({
   };
 
   const handleExecute = useCallback(() => {
-    if (input.trim() && !isActiveProcessing && backendStatus === 'ready') {
-      const command = input.trim();
+    if (inputValue.trim() && !isActiveProcessing && backendStatus === 'ready') {
+      const command = inputValue.trim();
       const selectedMode = mode;
-      setInput(''); // Clear input after execution
+      onInputChange(''); // Clear input after execution
       // Handle promise rejection to avoid unhandled promise warnings
       onExecuteAICommand(command, selectedMode).catch((error) => {
         // Silently handle abort errors (user-initiated cancellation)
@@ -177,7 +179,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
         console.error('AI command execution error:', error);
       });
     }
-  }, [input, mode, isActiveProcessing, backendStatus, onExecuteAICommand]);
+  }, [inputValue, mode, isActiveProcessing, backendStatus, onExecuteAICommand, onInputChange]);
 
   const handleCopy = useCallback(async (text) => {
     try {
@@ -1328,37 +1330,34 @@ export const AIChatSidebar = memo(function AIChatSidebar({
           animation: backendStatus !== 'ready' ? 'blur-pulse 2s ease-in-out infinite' : 'none',
           transition: 'filter 0.3s ease-out'
         }}>
-          <textarea
-            ref={inputRef}
-            placeholder={backendStatus === 'ready' ? "Describe what you want to do..." : "Waiting for backend to be ready..."}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={isProcessing || backendStatus !== 'ready'}
-            rows={3}
-            style={{
-              width: '100%',
-              padding: '8px 12px 32px 12px',
-              background: 'transparent',
-              border: '1px solid rgba(0, 255, 65, 0.3)',
-              borderRadius: '4px',
-              color: '#00ff41',
-              fontSize: '13px',
-              fontFamily: 'var(--ui-font-family)',
-              opacity: isActiveProcessing || backendStatus !== 'ready' ? 0.6 : 1,
-              resize: 'none',
-              overflowY: 'auto',
-              lineHeight: '1.5',
-              outline: 'none',
-              transition: 'border-color 0.2s'
-            }}
-            onFocus={(e) => {
-              e.target.style.borderColor = '#00ff41';
-            }}
-            onBlur={(e) => {
-              e.target.style.borderColor = 'rgba(0, 255, 65, 0.3)';
-            }}
-          />
+          <div className="ai-chat-input-container">
+            <textarea
+              ref={inputRef}
+              value={inputValue}
+              onChange={(e) => onInputChange(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={isActiveProcessing ? "Wait for AI to finish..." : "Ask AI a question..."}
+              disabled={isActiveProcessing || backendStatus !== 'ready'}
+              rows={1}
+              style={{
+                width: '100%',
+                background: 'transparent',
+                border: 'none',
+                color: '#00ff41',
+                fontSize: '13px',
+                lineHeight: '1.4',
+                resize: 'none',
+                padding: '0',
+                outline: 'none',
+                fontFamily: 'inherit',
+                maxHeight: '120px',
+                overflowY: 'auto'
+              }}
+            />
+          </div>
+
+          {/* Controls at bottom right of textarea */}
+          {/* Mode selector */}
 
           {/* Controls at bottom right of textarea */}
           <div style={{
@@ -1470,14 +1469,14 @@ export const AIChatSidebar = memo(function AIChatSidebar({
             {/* Execute button */}
             <button
               onClick={handleExecute}
-              disabled={!input.trim() || isActiveProcessing || backendStatus !== 'ready'}
+              disabled={!inputValue.trim() || isActiveProcessing || backendStatus === 'ready'}
               style={{
                 padding: '4px 8px',
-                background: input.trim() && !isProcessing && backendStatus === 'ready' ? 'rgba(0, 255, 65, 0.2)' : 'rgba(26, 26, 26, 0.3)',
-                border: `1px solid ${input.trim() && !isProcessing && backendStatus === 'ready' ? '#00ff41' : 'rgba(0, 255, 65, 0.3)'}`,
+                background: inputValue.trim() && !isActiveProcessing && backendStatus === 'ready' ? 'rgba(0, 255, 65, 0.2)' : 'rgba(26, 26, 26, 0.3)',
+                border: `1px solid ${inputValue.trim() && !isActiveProcessing && backendStatus === 'ready' ? '#00ff41' : 'rgba(0, 255, 65, 0.3)'}`,
                 borderRadius: '3px',
                 color: '#00ff41',
-                cursor: input.trim() && !isProcessing && backendStatus === 'ready' ? 'pointer' : 'not-allowed',
+                cursor: inputValue.trim() && !isActiveProcessing && backendStatus === 'ready' ? 'pointer' : 'not-allowed',
                 fontSize: '14px',
                 lineHeight: '1',
                 width: '24px',

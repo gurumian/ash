@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { SecondarySidebarContainer } from './SecondarySidebarContainer';
 import { AIChatSidebar } from './AIChatSidebar';
 import { IperfClientSidebar } from './IperfClientSidebar';
@@ -64,6 +65,9 @@ export const SessionContent = ({
         processingConversations,
         conversations,
         activeConversationId, // Hook state
+        // Returns needed for input persistence
+        input,
+        setInput,
         switchConversation,
         createNewConversation,
         deleteConversation,
@@ -78,20 +82,6 @@ export const SessionContent = ({
         setShowAICommandInput, // Pass our stable setter
         isSidebarVisible: aiSidebarVisible // Important for lifecycle
     });
-
-    // State for internal processing tracking if hook doesn't expose everything (Hook seems to expose specific states? I need to check useAICommand returns)
-    // Re-checking useAICommand returns: 
-    /*
-    return {
-      executeAICommand,
-      aiMessages,
-      setAiMessages,
-      clearAIMessages,
-      stopAICommand, // wait, did I see stopAICommand in the hook? 
-      // ...
-    }
-    */
-    // I need to verify useAICommand exports.
 
     // Handlers for Sidebar
     const handleTabChange = (tab) => {
@@ -119,7 +109,8 @@ export const SessionContent = ({
 
     const handleClose = () => {
         onUpdateSession(sessionId, { aiSidebarVisible: false, iperfSidebarVisible: false });
-        if (clearAIMessages) clearAIMessages();
+        // NOTE: we do NOT clear AI messages on close to preserve history
+        // if (clearAIMessages) clearAIMessages(); 
     };
 
     // Resize logic
@@ -132,6 +123,9 @@ export const SessionContent = ({
         }
     };
 
+    // Find the portal target for this session
+    const portalTarget = document.getElementById(`sidebar-slot-${sessionId}`);
+
     return (
         <div style={{ display: 'flex', width: '100%', height: '100%', position: 'relative' }}>
             {/* Terminal Area */}
@@ -143,102 +137,107 @@ export const SessionContent = ({
                 />
             </div>
 
-            {/* Resize Handle */}
-            {(aiSidebarVisible || iperfSidebarVisible) && (
-                <div
-                    className="resize-handle"
-                    style={{
-                        width: '4px',
-                        background: 'transparent',
-                        cursor: 'col-resize',
-                        flexShrink: 0,
-                        zIndex: 10,
-                        transition: 'background 0.2s',
-                        position: 'relative' // Flex item
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = '#4a90e2'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                    onMouseDown={(e) => {
-                        e.preventDefault();
-                        const startX = e.clientX;
-                        const currentWidth = aiSidebarVisible && iperfSidebarVisible
+            {/* Sidebar - Rendered via Portal to App.jsx global container */}
+            {portalTarget && (aiSidebarVisible || iperfSidebarVisible) && createPortal(
+                <div style={{ height: '100%', width: '100%', display: 'flex' }}>
+                    {/* Resize Handle - Now inside the portal to be next to sidebar */}
+                    <div
+                        className="resize-handle"
+                        style={{
+                            width: '4px',
+                            background: 'transparent',
+                            cursor: 'col-resize',
+                            flexShrink: 0,
+                            zIndex: 10,
+                            transition: 'background 0.2s',
+                            position: 'relative'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = '#4a90e2'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                        onMouseDown={(e) => {
+                            e.preventDefault();
+                            const startX = e.clientX;
+                            const currentWidth = aiSidebarVisible && iperfSidebarVisible
+                                ? Math.max(aiChatSidebarWidth, iperfClientSidebarWidth)
+                                : (aiSidebarVisible ? aiChatSidebarWidth : iperfClientSidebarWidth);
+                            const startWidth = currentWidth;
+
+                            const handleMouseMove = (e) => {
+                                const diff = startX - e.clientX; // Reverse because right sidebar
+                                const newWidth = Math.max(300, Math.min(1000, startWidth + diff));
+                                handleResize(newWidth);
+                            };
+
+                            const handleMouseUp = () => {
+                                document.removeEventListener('mousemove', handleMouseMove);
+                                document.removeEventListener('mouseup', handleMouseUp);
+                            };
+
+                            document.addEventListener('mousemove', handleMouseMove);
+                            document.addEventListener('mouseup', handleMouseUp);
+                        }}
+                    />
+
+                    <SecondarySidebarContainer
+                        width={aiSidebarVisible && iperfSidebarVisible
                             ? Math.max(aiChatSidebarWidth, iperfClientSidebarWidth)
-                            : (aiSidebarVisible ? aiChatSidebarWidth : iperfClientSidebarWidth);
-                        const startWidth = currentWidth;
+                            : (aiSidebarVisible ? aiChatSidebarWidth : (iperfSidebarVisible ? iperfClientSidebarWidth : 0))}
+                        showAIChat={aiSidebarVisible}
+                        showIperfClient={iperfSidebarVisible}
+                        activeTab={activeSecondaryTab}
+                        onTabChange={handleTabChange}
+                        onClose={handleClose}
+                        onCloseAIChat={handleCloseAIChat}
+                        onCloseIperfClient={handleCloseIperfClient}
+                    >
+                        <AIChatSidebar
+                            isVisible={aiSidebarVisible && (!iperfSidebarVisible || activeSecondaryTab === 'ai-chat')}
+                            width={aiChatSidebarWidth}
+                            messages={aiMessages}
+                            // Props from useAICommand
+                            isProcessing={isAIProcessing}
+                            streamingToolResult={streamingToolResult}
+                            processingConversations={processingConversations}
+                            backendStatus={backendStatus}
+                            terminal={terminalInstance}
+                            onExecuteAICommand={executeAICommand}
+                            onStopAICommand={stopAICommand}
+                            conversations={conversations || []}
+                            activeConversationId={activeConversationId}
+                            onSwitchConversation={switchConversation}
+                            onCreateNewConversation={createNewConversation}
+                            onDeleteConversation={deleteConversation}
+                            onUpdateConversationTitle={updateConversationTitle}
+                            onClose={aiSidebarVisible && iperfSidebarVisible ? () => {
+                                onUpdateSession(sessionId, { aiSidebarVisible: false, activeSecondaryTab: 'iperf-client' });
+                            } : () => {
+                                onUpdateSession(sessionId, { aiSidebarVisible: false });
+                                // We do not clear messages here anymore, handled by session persistence
+                            }}
+                            showHeader={!iperfSidebarVisible}
+                            pendingUserRequest={pendingUserRequest}
+                            onRespondToRequest={handleAskUserResponse}
+                            // Input persistence props
+                            inputValue={input}
+                            onInputChange={setInput}
+                        />
 
-                        const handleMouseMove = (e) => {
-                            const diff = startX - e.clientX; // Reverse because right sidebar
-                            const newWidth = Math.max(300, Math.min(1000, startWidth + diff));
-                            handleResize(newWidth);
-                        };
-
-                        const handleMouseUp = () => {
-                            document.removeEventListener('mousemove', handleMouseMove);
-                            document.removeEventListener('mouseup', handleMouseUp);
-                        };
-
-                        document.addEventListener('mousemove', handleMouseMove);
-                        document.addEventListener('mouseup', handleMouseUp);
-                    }}
-                />
+                        <IperfClientSidebar
+                            isVisible={iperfSidebarVisible && (!aiSidebarVisible || activeSecondaryTab === 'iperf-client')}
+                            width={iperfClientSidebarWidth}
+                            activeSession={session}
+                            output={iperfClientOutput || ''}
+                            onClearOutput={() => onUpdateSession(sessionId, { iperfClientOutput: '' })}
+                            onStartTest={() => onUpdateSession(sessionId, { iperfClientOutput: '' })}
+                            onClose={aiSidebarVisible && iperfSidebarVisible ? () => {
+                                onUpdateSession(sessionId, { iperfSidebarVisible: false, activeSecondaryTab: 'ai-chat' });
+                            } : () => onUpdateSession(sessionId, { iperfSidebarVisible: false })}
+                            showHeader={!aiSidebarVisible}
+                        />
+                    </SecondarySidebarContainer>
+                </div>,
+                portalTarget
             )}
-
-            {/* Sidebar */}
-            <SecondarySidebarContainer
-                width={aiSidebarVisible && iperfSidebarVisible
-                    ? Math.max(aiChatSidebarWidth, iperfClientSidebarWidth)
-                    : (aiSidebarVisible ? aiChatSidebarWidth : (iperfSidebarVisible ? iperfClientSidebarWidth : 0))}
-                showAIChat={aiSidebarVisible}
-                showIperfClient={iperfSidebarVisible}
-                activeTab={activeSecondaryTab}
-                onTabChange={handleTabChange}
-                onClose={handleClose}
-                onCloseAIChat={handleCloseAIChat}
-                onCloseIperfClient={handleCloseIperfClient}
-            >
-                <AIChatSidebar
-                    isVisible={aiSidebarVisible && (!iperfSidebarVisible || activeSecondaryTab === 'ai-chat')}
-                    width={aiChatSidebarWidth}
-                    messages={aiMessages}
-                    // Props from useAICommand needed here
-                    isProcessing={isAIProcessing}
-                    streamingToolResult={streamingToolResult}
-                    processingConversations={processingConversations}
-                    backendStatus={backendStatus}
-                    terminal={terminalInstance}
-                    onExecuteAICommand={executeAICommand}
-                    onStopAICommand={stopAICommand} // TODO: Verify
-                    conversations={conversations || []}
-                    activeConversationId={activeConversationId}
-                    onSwitchConversation={switchConversation}
-                    onCreateNewConversation={createNewConversation}
-                    onDeleteConversation={deleteConversation}
-                    onUpdateConversationTitle={updateConversationTitle}
-                    onClose={aiSidebarVisible && iperfSidebarVisible ? () => {
-                        onUpdateSession(sessionId, { aiSidebarVisible: false, activeSecondaryTab: 'iperf-client' });
-                    } : () => {
-                        // If pending request... logic from App.jsx
-                        onUpdateSession(sessionId, { aiSidebarVisible: false });
-                        if (clearAIMessages) clearAIMessages();
-                    }}
-                    showHeader={!iperfSidebarVisible}
-                    pendingUserRequest={pendingUserRequest}
-                    onRespondToRequest={handleAskUserResponse}
-                />
-
-                <IperfClientSidebar
-                    isVisible={iperfSidebarVisible && (!aiSidebarVisible || activeSecondaryTab === 'iperf-client')}
-                    width={iperfClientSidebarWidth}
-                    activeSession={session}
-                    output={iperfClientOutput || ''}
-                    onClearOutput={() => onUpdateSession(sessionId, { iperfClientOutput: '' })}
-                    onStartTest={() => onUpdateSession(sessionId, { iperfClientOutput: '' })} // Should probably clear
-                    onClose={aiSidebarVisible && iperfSidebarVisible ? () => {
-                        onUpdateSession(sessionId, { iperfSidebarVisible: false, activeSecondaryTab: 'ai-chat' });
-                    } : () => onUpdateSession(sessionId, { iperfSidebarVisible: false })}
-                    showHeader={!aiSidebarVisible}
-                />
-            </SecondarySidebarContainer>
         </div>
     );
 };
