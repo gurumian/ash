@@ -106,10 +106,18 @@ export const AIChatSidebar = memo(function AIChatSidebar({
   // Check if the active conversation is processing
   const isActiveProcessing = activeConversationId && processingConversations.has(activeConversationId);
 
+  // Track previous messages length to determine scroll behavior
+  const prevMessagesLengthRef = useRef(0);
+
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      const isBulkLoad = messages.length - prevMessagesLengthRef.current > 1 || prevMessagesLengthRef.current === 0;
+      prevMessagesLengthRef.current = messages.length;
+
+      messagesEndRef.current.scrollIntoView({
+        behavior: isBulkLoad ? 'auto' : 'smooth'
+      });
     }
   }, [messages]);
 

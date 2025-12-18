@@ -39,6 +39,16 @@ export function useMenuHandlers({
     resizeTerminalRef.current = resizeTerminal;
   }, [resizeTerminal]);
 
+  const setShowIperfClientSidebarRef = useRef(setShowIperfClientSidebar);
+  useEffect(() => {
+    setShowIperfClientSidebarRef.current = setShowIperfClientSidebar;
+  }, [setShowIperfClientSidebar]);
+
+  const setShowAICommandInputRef = useRef(setShowAICommandInput);
+  useEffect(() => {
+    setShowAICommandInputRef.current = setShowAICommandInput;
+  }, [setShowAICommandInput]);
+
   // Register event listeners only once
   useEffect(() => {
     // New session menu event
@@ -71,7 +81,7 @@ export function useMenuHandlers({
         }
         return prev;
       });
-      
+
       // Resize terminal after toggle - use ref to get latest function
       setTimeout(() => {
         resizeTerminalRef.current();
@@ -176,14 +186,15 @@ export function useMenuHandlers({
     });
 
     // iperf3 Client menu event
+    // iperf3 Client menu event
     window.electronAPI.onMenuIperfClient?.(() => {
-      setShowIperfClientSidebar(true);
+      setShowIperfClientSidebarRef.current?.(true);
     });
 
     // AI Command menu event
     window.electronAPI.onMenuAICommand(() => {
       if (activeSessionIdRef.current) {
-        setShowAICommandInput(true);
+        setShowAICommandInputRef.current?.(true);
       }
     });
 

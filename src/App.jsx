@@ -183,11 +183,14 @@ function App() {
   const [iperfClientOutput, setIperfClientOutput] = useState(''); // Persistent output data
   const [showIperfServerDialog, setShowIperfServerDialog] = useState(false);
   // Iperf Client Sidebar is now session state, but we need compatibility for menu handlers
-  const setShowIperfClientSidebar = (val) => {
+  // Iperf Client Sidebar is now session state, but we need compatibility for menu handlers
+  const setShowIperfClientSidebar = useCallback((val) => {
+    console.log('[App] setShowIperfClientSidebar called:', val, 'activeSessionId:', activeSessionId);
     if (!activeSessionId) return;
     setSessions(prev => prev.map(s => {
       if (s.id === activeSessionId) {
         const visible = typeof val === 'function' ? val(s.iperfSidebarVisible) : val;
+        console.log(`[App] Updating session ${s.id} iperfSidebarVisible to:`, visible);
         // Also sync activeSecondaryTab if showing
         const updates = { iperfSidebarVisible: visible };
         if (visible) updates.activeSecondaryTab = 'iperf-client';
@@ -195,7 +198,7 @@ function App() {
       }
       return s;
     }));
-  };
+  }, [activeSessionId]);
   // const [iperfClientSidebarWidth, setIperfClientSidebarWidth] = useState(500);
   const [iperfAvailable, setIperfAvailable] = useState(true); // Default to true, will be checked on mount
   const [appInfo, setAppInfo] = useState({ version: '', author: { name: 'Bryce Ghim', email: 'admin@toktoktalk.com' } });
@@ -929,73 +932,16 @@ function App() {
   // Serial data handling is now in useTerminalManagement hook
   // Handle serial close to update session state and auto-reconnect
   useEffect(() => {
-    const handleSerialClose = async (event, receivedSessionId) => {
+    // Use stable ref for reconnectSession to avoid effect re-running
+    const handleSerialClose = (event, receivedSessionId) => {
+      // Update session state
       setSessions(prev => prev.map(s =>
         s.id === receivedSessionId ? { ...s, isConnected: false } : s
       ));
 
-      // Auto-reconnect only if enabled in Settings
-      // User feedback: Don't auto-reconnect for serial, let user press F5
-      console.log('[Auto-reconnect] Serial connection closed. Auto-reconnect disabled by policy (use F5).');
-      return;
+      console.log('[Auto-reconnect] Serial connection closed. Use F5 to reconnect.');
 
-      /* Auto-reconnect logic disabled for Serial
-      if (!autoReconnect) {
-        console.log('[Auto-reconnect] Auto-reconnect is disabled in Settings, skipping');
-        return;
-      }
-      */
-
-      if (reconnectSession) {
-        console.log('[Auto-reconnect] Serial connection closed, will attempt reconnect for session:', receivedSessionId);
-
-        // Small delay before attempting reconnect
-        setTimeout(async () => {
-          // Get current session state
-          let sessionToReconnect = null;
-          setSessions(currentSessions => {
-            const currentSession = currentSessions.find(s => s.id === receivedSessionId);
-            if (currentSession && !currentSession.isConnected) {
-              sessionToReconnect = currentSession;
-            }
-            return currentSessions;
-          });
-
-          if (!sessionToReconnect) {
-            console.log('[Auto-reconnect] Session already connected or not found');
-            return;
-          }
-
-          // Check if already reconnecting
-          setReconnectingSessions(prev => {
-            if (prev.has(receivedSessionId)) {
-              console.log('[Auto-reconnect] Already reconnecting, skipping');
-              return prev; // Already reconnecting
-            }
-
-            // Mark as reconnecting
-            const next = new Map(prev);
-            next.set(receivedSessionId, true);
-
-            console.log('[Auto-reconnect] Starting reconnection for session:', receivedSessionId);
-
-            // Start reconnection
-            reconnectSession(sessionToReconnect).catch((error) => {
-              // Error is already handled by reconnectSession (shows error dialog)
-              console.error('[Auto-reconnect] Reconnection failed:', error);
-            }).finally(() => {
-              // Remove from reconnecting map
-              setReconnectingSessions(prev => {
-                const next = new Map(prev);
-                next.delete(receivedSessionId);
-                return next;
-              });
-            });
-
-            return next;
-          });
-        }, 500); // 500ms delay before auto-reconnect
-      }
+      // We don't need complex reconnect logic here as it's handled by manual F5 in useTerminalManagement
     };
 
     window.electronAPI.onSerialClose(handleSerialClose);
@@ -1003,7 +949,7 @@ function App() {
     return () => {
       window.electronAPI.offSerialClose(handleSerialClose);
     };
-  }, [autoReconnect, reconnectSession]);
+  }, []); // Stable listener, no dependencies needed as we don't use reconnectSession inside anymore
 
 
 
