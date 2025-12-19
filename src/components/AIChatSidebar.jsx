@@ -128,9 +128,20 @@ export const AIChatSidebar = memo(function AIChatSidebar({
     if (isVisible && inputRef.current) {
       setTimeout(() => {
         inputRef.current?.focus();
+        // Trigger resize on show
+        inputRef.current.style.height = 'auto';
+        inputRef.current.style.height = inputRef.current.scrollHeight + 'px';
       }, 100);
     }
   }, [isVisible]);
+
+  // Auto-resize input textarea
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto'; // Reset to auto to allow shrinking
+      inputRef.current.style.height = inputRef.current.scrollHeight + 'px'; // Set to scrollHeight
+    }
+  }, [inputValue]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
