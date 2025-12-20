@@ -270,7 +270,7 @@ class QwenAgentService {
                   // Command 추출 및 큐에 저장 (ash_ssh_execute 또는 ash_telnet_execute인 경우)
                   console.log(`[QwenAgentService] 🔧 Tool call: name=${toolName}, command=${data.command || 'null'}, hasCommand=${!!data.command}`);
 
-                  if (toolName === 'ash_ssh_execute' || toolName === 'ash_telnet_execute') {
+                  if (toolName === 'ash_ssh_execute' || toolName === 'ash_telnet_execute' || toolName === 'ash_execute_command') {
                     // 백엔드에서 command를 전달하지 않은 경우, toolArgs에서 추출
                     if (!extractedCommand && toolArgs) {
                       if (typeof toolArgs === 'object') {
@@ -347,7 +347,7 @@ class QwenAgentService {
                       // Non-chunked structured format
                       // Command 가져오기 (백엔드에서 전달된 command 우선 사용, 없으면 큐에서)
                       let command = data.command || null;
-                      if (!command && (toolName === 'ash_ssh_execute' || toolName === 'ash_telnet_execute') && commandQueue.length > 0) {
+                      if (!command && (toolName === 'ash_ssh_execute' || toolName === 'ash_telnet_execute' || toolName === 'ash_execute_command') && commandQueue.length > 0) {
                         command = commandQueue.shift();
                         console.log(`[QwenAgentService] ⚠️ Backend didn't send command, using queue: '${command}'`);
                       }
@@ -421,7 +421,7 @@ class QwenAgentService {
                   if (accumulator) {
                     // Command 가져오기
                     let command = accumulator.metadata.command || null;
-                    if (!command && (toolName === 'ash_ssh_execute' || toolName === 'ash_telnet_execute') && commandQueue.length > 0) {
+                    if (!command && (toolName === 'ash_ssh_execute' || toolName === 'ash_telnet_execute' || toolName === 'ash_execute_command') && commandQueue.length > 0) {
                       command = commandQueue.shift();
                       console.log(`[QwenAgentService] ⚠️ Backend didn't send command in chunked result, using queue: '${command}'`);
                     }
@@ -455,7 +455,30 @@ class QwenAgentService {
                     // Clean up accumulator
                     chunkAccumulators.delete(toolName);
                   } else {
-                    console.error(`[QwenAgentService] ❌ Received tool_result_complete for ${toolName} but accumulator not found - data may be lost!`);
+                    console.warn(`[QwenAgentService] ⚠️ Received tool_result_complete for ${toolName} but accumulator not found. Creating fallback result.`);
+
+                    // Fallback: Create result even if accumulator missing (to prevent hanging state)
+                    let command = null;
+                    // Try to get command from queue for known execution tools
+                    if ((toolName === 'ash_ssh_execute' || toolName === 'ash_telnet_execute' || toolName === 'ash_execute_command') && commandQueue.length > 0) {
+                      command = commandQueue.shift();
+                      console.log(`[QwenAgentService] ⚠️ Using queued command for fallback: '${command}'`);
+                    }
+
+                    const toolResult = {
+                      name: toolName,
+                      command: command,
+                      success: data.success !== undefined ? data.success : false,
+                      exitCode: data.exitCode !== undefined ? data.exitCode : -1,
+                      stdout: '',
+                      stderr: '[Error: Output data stream was missing or interrupted]'
+                    };
+
+                    messages.push({ role: 'tool', name: toolName, toolResult });
+
+                    if (onToolResult) {
+                      onToolResult(toolName, toolResult);
+                    }
                   }
                 } else if (data.type === 'message') {
                   // Other message types (for debugging/visibility)
