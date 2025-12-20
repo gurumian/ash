@@ -1337,10 +1337,12 @@ export const AIChatSidebar = memo(function AIChatSidebar({
         }}
       >
         <div style={{
-          position: 'relative',
           filter: backendStatus !== 'ready' ? 'blur(4px)' : 'blur(0px)',
           animation: backendStatus !== 'ready' ? 'blur-pulse 2s ease-in-out infinite' : 'none',
-          transition: 'filter 0.3s ease-out'
+          transition: 'filter 0.3s ease-out',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px'
         }}>
           <div className="ai-chat-input-container">
             <textarea
@@ -1363,146 +1365,155 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                 outline: 'none',
                 fontFamily: 'inherit',
                 maxHeight: '120px',
-                overflowY: 'auto'
+                overflowY: 'auto',
+                boxSizing: 'border-box'
               }}
             />
           </div>
 
-          {/* Controls at bottom right of textarea */}
-          {/* Mode selector */}
-
-          {/* Controls at bottom right of textarea */}
+          {/* Controls Layout (Bottom Row) */}
           <div style={{
-            position: 'absolute',
-            bottom: '4px',
-            right: '4px',
             display: 'flex',
-            gap: '4px',
+            justifyContent: 'space-between',
             alignItems: 'center'
           }}>
-            {/* Mode selector */}
-            <div style={{ position: 'relative', display: 'inline-block' }}>
-              <button
-                type="button"
-                onClick={() => setShowModeDropdown(!showModeDropdown)}
-                disabled={isProcessing || backendStatus !== 'ready'}
-                style={{
-                  padding: '4px 20px 4px 8px',
-                  background: 'rgba(26, 26, 26, 0.8)',
-                  border: '1px solid rgba(0, 255, 65, 0.3)',
-                  borderRadius: '3px',
-                  color: '#00ff41',
-                  fontSize: '11px',
-                  fontWeight: '600',
-                  cursor: isActiveProcessing || backendStatus !== 'ready' ? 'not-allowed' : 'pointer',
-                  fontFamily: 'var(--ui-font-family)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  opacity: isActiveProcessing || backendStatus !== 'ready' ? 0.6 : 1,
-                  position: 'relative',
-                  minWidth: '60px'
-                }}
-                title="Select AI mode: ask (simple) or agent (multi-step)"
-              >
-                <span>{mode === 'ask' ? 'ask' : 'agent'}</span>
-                <span style={{
-                  fontSize: '8px',
-                  position: 'absolute',
-                  right: '4px',
-                  top: '50%',
-                  transform: 'translateY(-50%)'
-                }}>▲</span>
-              </button>
-              {showModeDropdown && (
-                <div
-                  ref={modeDropdownRef}
-                  style={{
-                    position: 'absolute',
-                    bottom: '100%',
-                    left: 0,
-                    marginBottom: '4px',
-                    background: '#1a1a1a',
-                    border: '1px solid #2a2a2a',
-                    borderRadius: '4px',
-                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)',
-                    zIndex: 1000,
-                    minWidth: '100px'
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMode('ask');
-                      setShowModeDropdown(false);
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '6px 10px',
-                      background: mode === 'ask' ? 'rgba(0, 255, 65, 0.15)' : 'transparent',
-                      border: 'none',
-                      color: '#00ff41',
-                      fontSize: '11px',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      transition: 'background 0.15s'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0, 255, 65, 0.1)'}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = mode === 'ask' ? 'rgba(0, 255, 65, 0.15)' : 'transparent'}
-                  >
-                    ask
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMode('agent');
-                      setShowModeDropdown(false);
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '6px 10px',
-                      background: mode === 'agent' ? 'rgba(0, 255, 65, 0.15)' : 'transparent',
-                      border: 'none',
-                      color: '#00ff41',
-                      fontSize: '11px',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      transition: 'background 0.15s'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0, 255, 65, 0.1)'}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = mode === 'agent' ? 'rgba(0, 255, 65, 0.15)' : 'transparent'}
-                  >
-                    agent
-                  </button>
-                </div>
-              )}
+            {/* Left side: Hint text */}
+            <div style={{ fontSize: '10px', color: '#666', fontFamily: 'var(--ui-font-family)' }}>
+              Enter to run, Shift+Enter for new line
             </div>
 
-            {/* Execute button */}
-            <button
-              onClick={handleExecute}
-              disabled={!inputValue.trim() || isActiveProcessing || backendStatus === 'ready'}
-              style={{
-                padding: '4px 8px',
-                background: inputValue.trim() && !isActiveProcessing && backendStatus === 'ready' ? 'rgba(0, 255, 65, 0.2)' : 'rgba(26, 26, 26, 0.3)',
-                border: `1px solid ${inputValue.trim() && !isActiveProcessing && backendStatus === 'ready' ? '#00ff41' : 'rgba(0, 255, 65, 0.3)'}`,
-                borderRadius: '3px',
-                color: '#00ff41',
-                cursor: inputValue.trim() && !isActiveProcessing && backendStatus === 'ready' ? 'pointer' : 'not-allowed',
-                fontSize: '14px',
-                lineHeight: '1',
-                width: '24px',
-                height: '24px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'all 0.2s',
-                fontFamily: 'var(--ui-font-family)'
-              }}
-              title="Execute (Enter)"
-            >
-              ▲
-            </button>
+            {/* Right side: Controls */}
+            <div style={{
+              display: 'flex',
+              gap: '6px',
+              alignItems: 'center'
+            }}>
+              {/* Mode selector */}
+              <div style={{ position: 'relative', display: 'inline-block' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowModeDropdown(!showModeDropdown)}
+                  disabled={isActiveProcessing || backendStatus !== 'ready'}
+                  style={{
+                    padding: '4px 20px 4px 8px',
+                    background: 'rgba(26, 26, 26, 0.8)',
+                    border: '1px solid rgba(0, 255, 65, 0.3)',
+                    borderRadius: '3px',
+                    color: '#00ff41',
+                    fontSize: '11px',
+                    fontWeight: '600',
+                    cursor: isActiveProcessing || backendStatus !== 'ready' ? 'not-allowed' : 'pointer',
+                    fontFamily: 'var(--ui-font-family)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    opacity: isActiveProcessing || backendStatus !== 'ready' ? 0.6 : 1,
+                    position: 'relative',
+                    minWidth: '60px'
+                  }}
+                  title="Select AI mode: ask (simple) or agent (multi-step)"
+                >
+                  <span>{mode === 'ask' ? 'ask' : 'agent'}</span>
+                  <span style={{
+                    fontSize: '8px',
+                    position: 'absolute',
+                    right: '4px',
+                    top: '50%',
+                    transform: 'translateY(-50%)'
+                  }}>▲</span>
+                </button>
+                {/* Dropdown Menu (Positioned upwards) */}
+                {showModeDropdown && (
+                  <div
+                    ref={modeDropdownRef}
+                    style={{
+                      position: 'absolute',
+                      bottom: '100%',
+                      right: 0, // Align to right edge of button
+                      left: 'auto',
+                      marginBottom: '4px',
+                      background: '#1a1a1a',
+                      border: '1px solid #2a2a2a',
+                      borderRadius: '4px',
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)',
+                      zIndex: 1000,
+                      minWidth: '100px'
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMode('ask');
+                        setShowModeDropdown(false);
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '6px 10px',
+                        background: mode === 'ask' ? 'rgba(0, 255, 65, 0.15)' : 'transparent',
+                        border: 'none',
+                        color: '#00ff41',
+                        fontSize: '11px',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        transition: 'background 0.15s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0, 255, 65, 0.1)'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = mode === 'ask' ? 'rgba(0, 255, 65, 0.15)' : 'transparent'}
+                    >
+                      ask
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMode('agent');
+                        setShowModeDropdown(false);
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '6px 10px',
+                        background: mode === 'agent' ? 'rgba(0, 255, 65, 0.15)' : 'transparent',
+                        border: 'none',
+                        color: '#00ff41',
+                        fontSize: '11px',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        transition: 'background 0.15s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0, 255, 65, 0.1)'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = mode === 'agent' ? 'rgba(0, 255, 65, 0.15)' : 'transparent'}
+                    >
+                      agent
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Execute button */}
+              <button
+                onClick={handleExecute}
+                disabled={!inputValue.trim() || isActiveProcessing || backendStatus !== 'ready'}
+                style={{
+                  padding: '4px 8px',
+                  background: inputValue.trim() && !isActiveProcessing && backendStatus === 'ready' ? 'rgba(0, 255, 65, 0.2)' : 'rgba(26, 26, 26, 0.3)',
+                  border: `1px solid ${inputValue.trim() && !isActiveProcessing && backendStatus === 'ready' ? '#00ff41' : 'rgba(0, 255, 65, 0.3)'}`,
+                  borderRadius: '3px',
+                  color: '#00ff41',
+                  cursor: inputValue.trim() && !isActiveProcessing && backendStatus === 'ready' ? 'pointer' : 'not-allowed',
+                  fontSize: '14px',
+                  lineHeight: '1',
+                  width: '28px',
+                  height: '24px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.2s',
+                  fontFamily: 'var(--ui-font-family)'
+                }}
+                title="Execute (Enter)"
+              >
+                ▲
+              </button>
+            </div>
           </div>
         </div>
       </div>
