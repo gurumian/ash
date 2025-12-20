@@ -485,9 +485,9 @@ export function useTerminalManagement({
     }
     terminal.onData(terminalInputHandlers.current[sessionId]);
 
-    // Update connectionId map when terminal is initialized with SSH or Telnet connection
+    // Update connectionId map when terminal is initialized with SSH, Telnet, or Serial connection
     // This ensures map includes the connectionId after connection.connect() completes
-    if ((session.connectionType === 'ssh' || session.connectionType === 'telnet') &&
+    if ((session.connectionType === 'ssh' || session.connectionType === 'telnet' || session.connectionType === 'serial') &&
       sshConnections.current[sessionId]?.connectionId) {
       updateConnectionIdMap();
     }
@@ -753,9 +753,15 @@ export function useTerminalManagement({
 
   // Handle Serial data events - register only once
   useEffect(() => {
-    const handleSerialData = (event, receivedSessionId, data) => {
-      if (terminalInstances.current[receivedSessionId]) {
-        const terminal = terminalInstances.current[receivedSessionId];
+    // Update map initially and when connections change (shared with SSH/Telnet logic via ref, but executed here too for safety)
+    updateConnectionIdMap();
+
+    const handleSerialData = (event, connectionId, data) => {
+      // Use cached map for O(1) lookup
+      const sessionId = connectionIdMapRef.current.get(connectionId);
+
+      if (sessionId && terminalInstances.current[sessionId]) {
+        const terminal = terminalInstances.current[sessionId];
 
         // Write to terminal immediately for better responsiveness
         if (data.length < 1024) {
@@ -767,21 +773,28 @@ export function useTerminalManagement({
         }
 
         // Log asynchronously without blocking display - use ref to get latest function
-        if (sessionLogs.current[receivedSessionId]?.isLogging) {
+        if (sessionLogs.current[sessionId]?.isLogging) {
           startTransition(() => {
-            appendToLogRef.current(receivedSessionId, data);
+            appendToLogRef.current(sessionId, data);
           });
         }
       }
     };
 
-    const handleSerialClose = (event, receivedSessionId) => {
-      if (terminalInstances.current[receivedSessionId]) {
+    const handleSerialClose = (event, connectionId) => {
+      // Use cached map for O(1) lookup
+      const sessionId = connectionIdMapRef.current.get(connectionId);
+
+      if (sessionId && terminalInstances.current[sessionId]) {
         // Use grey color for connection status messages
-        terminalInstances.current[receivedSessionId].write('\r\n\x1b[90mSerial connection closed.\x1b[0m\r\n');
+        terminalInstances.current[sessionId].write('\r\n\x1b[90mSerial connection closed.\x1b[0m\r\n');
         // Add F5 reconnect hint with keyboard-style key representation
-        terminalInstances.current[receivedSessionId].write('\x1b[90mPress \x1b[0m\x1b[92m┌─F5─┐\x1b[0m\x1b[90m to reconnect.\x1b[0m\r\n');
+        terminalInstances.current[sessionId].write('\x1b[90mPress \x1b[0m\x1b[92m┌─F5─┐\x1b[0m\x1b[90m to reconnect.\x1b[0m\r\n');
       }
+
+      // Remove from map when connection closes
+      connectionIdMapRef.current.delete(connectionId);
+      updateConnectionIdMap();
     };
 
     window.electronAPI.onSerialData(handleSerialData);
@@ -791,7 +804,7 @@ export function useTerminalManagement({
       window.electronAPI.offSerialData(handleSerialData);
       window.electronAPI.offSerialClose(handleSerialClose);
     };
-  }, []); // Empty dependency array - listeners registered only once
+  }, [updateConnectionIdMap]);
 
   return {
     terminalRefs,

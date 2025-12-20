@@ -56,12 +56,14 @@ export function initializeSerialHandlers() {
   // Connect to serial port
   ipcMain.handle('serial-connect', async (event, sessionId, options) => {
     try {
-      if (!SerialPort) {
-        throw new Error('SerialPort not available');
+      // On macOS, prefer /dev/cu.* over /dev/tty.* for proper non-blocking input/output
+      let portPath = options.path;
+      if (process.platform === 'darwin' && portPath.startsWith('/dev/tty.')) {
+        portPath = portPath.replace('/dev/tty.', '/dev/cu.');
       }
 
       const port = new SerialPort({
-        path: options.path,
+        path: portPath,
         baudRate: options.baudRate || 9600,
         dataBits: options.dataBits || 8,
         stopBits: options.stopBits || 1,
@@ -81,22 +83,8 @@ export function initializeSerialHandlers() {
         });
       });
 
-      // Generate deterministic connection ID
-      const sessionName = options.sessionName || '';
-      const connectionString = `${sessionName}:serial:${options.path}`;
-      const connectionId = crypto.createHash('sha256').update(connectionString).digest('hex');
-
-      // If connection exists, close it first
-      if (serialConnections.has(connectionId)) {
-        const oldConn = serialConnections.get(connectionId);
-        try {
-          if (oldConn.port && oldConn.port.isOpen) {
-            oldConn.port.close();
-          }
-        } catch (e) {
-          // ignore
-        }
-      }
+      // Use Random UUID to match v1.1.16 behavior (avoids collision logic issues)
+      const connectionId = crypto.randomUUID();
 
       const webContents = event.sender;
       serialConnections.set(connectionId, { port, webContents });
