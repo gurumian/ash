@@ -166,7 +166,19 @@ export function initializeSerialHandlers() {
         if (connInfo.parser) {
           connInfo.parser.destroy();
         }
-        connInfo.port.close();
+        // Check if port is open before closing to prevent native crashes
+        if (connInfo.port.isOpen) {
+          try {
+            await new Promise((resolve) => {
+              connInfo.port.close((err) => {
+                // Ignore errors on close, just ensure it's done
+                resolve();
+              });
+            });
+          } catch (e) {
+            console.warn(`Error closing port ${connectionId}:`, e.message);
+          }
+        }
         serialConnections.delete(connectionId);
       }
       return { success: true };
@@ -179,17 +191,52 @@ export function initializeSerialHandlers() {
 
 /**
  * Cleanup serial connections
+ * Returns a Promise that resolves when all connections are closed.
  */
-export function cleanupSerialConnections() {
-  serialConnections.forEach((connInfo) => {
-    if (connInfo.port) {
-      if (connInfo.parser) {
+export async function cleanupSerialConnections() {
+  const closePromises = [];
+
+  serialConnections.forEach((connInfo, connectionId) => {
+    // Destroy parser first
+    if (connInfo.parser) {
+      try {
         connInfo.parser.destroy();
+      } catch (e) {
+        console.warn(`Error destroying parser for ${connectionId}:`, e.message);
       }
-      connInfo.port.close();
+    }
+
+    if (connInfo.port && connInfo.port.isOpen) {
+      const closePromise = new Promise((resolve) => {
+        try {
+          connInfo.port.close((err) => {
+            if (err) {
+              console.warn(`Error closing port ${connectionId} during cleanup:`, err.message);
+            }
+            resolve();
+          });
+        } catch (e) {
+          console.warn(`Exception closing port ${connectionId} during cleanup:`, e.message);
+          resolve();
+        }
+      });
+      closePromises.push(closePromise);
     }
   });
+
   serialConnections.clear();
+
+  if (closePromises.length > 0) {
+    try {
+      // Wait for all ports to close, with a timeout to prevent hanging
+      await Promise.race([
+        Promise.all(closePromises),
+        new Promise(resolve => setTimeout(resolve, 1000)) // 1s timeout
+      ]);
+    } catch (e) {
+      console.warn('Error during serial cleanup wait:', e.message);
+    }
+  }
 }
 
 

@@ -77,7 +77,7 @@ app.on('before-quit', async () => {
 
   cleanupSSHConnections();
   cleanupTelnetConnections();
-  cleanupSerialConnections();
+  await cleanupSerialConnections();
   cleanupUpdateHandlers();
   cleanupTftpServer();
   cleanupWebServer();
