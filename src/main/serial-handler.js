@@ -83,10 +83,23 @@ export function initializeSerialHandlers() {
         });
       });
 
-      // Use Random UUID to match v1.1.16 behavior (avoids collision logic issues)
-      const connectionId = crypto.randomUUID();
+      // Generate deterministic connection ID
+      // This allows chat history to be persisted across sessions
+      // We include sessionName if provided, similar to SSH
+      const sessionName = options.sessionName || '';
+      const connectionString = `serial:${sessionName}:${portPath}`;
+      const connectionId = crypto.createHash('sha256').update(connectionString).digest('hex');
 
       const webContents = event.sender;
+
+      // Cleanup existing connection/parser if exists
+      if (serialConnections.has(connectionId)) {
+        const oldConn = serialConnections.get(connectionId);
+        if (oldConn.parser) {
+          try { oldConn.parser.destroy(); } catch (e) { /* ignore */ }
+        }
+        // Note: oldConn.port is likely already closed/invalid if we successfully opened a new one
+      }
       serialConnections.set(connectionId, { port, webContents });
 
       // Use buffered transform stream to prevent IPC flooding
