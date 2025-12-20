@@ -8,14 +8,16 @@ export class SSHConnection {
     this.terminal = null;
   }
 
-  async connect(host, port, user, password) {
+  async connect(host, port, user, password, sessionName) {
     try {
-      console.log(`SSH connecting to ${user}@${host}:${port}`);
+      console.log(`SSH connecting to ${user}@${host}:${port} (${sessionName || 'no session name'})`);
       const result = await window.electronAPI.sshConnect({
         host,
         port: parseInt(port),
         username: user,
         password,
+        sessionName: sessionName || '',
+        // Add aggressive keepalive settings for faster disconnection detection (1s check)
         // Add aggressive keepalive settings for faster disconnection detection (1s check)
         keepaliveInterval: 1000, // 1 second
         keepaliveCount: 3,       // 3 failures = disconnect (~3s total)

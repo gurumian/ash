@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron';
 import { SerialBufferedTransform } from './serial-buffer-transform.js';
+import crypto from 'crypto';
 
 
 // Serial port support
@@ -80,8 +81,25 @@ export function initializeSerialHandlers() {
         });
       });
 
+      // Generate deterministic connection ID
+      const sessionName = options.sessionName || '';
+      const connectionString = `${sessionName}:serial:${options.path}`;
+      const connectionId = crypto.createHash('sha256').update(connectionString).digest('hex');
+
+      // If connection exists, close it first
+      if (serialConnections.has(connectionId)) {
+        const oldConn = serialConnections.get(connectionId);
+        try {
+          if (oldConn.port && oldConn.port.isOpen) {
+            oldConn.port.close();
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+
       const webContents = event.sender;
-      serialConnections.set(sessionId, { port, webContents });
+      serialConnections.set(connectionId, { port, webContents });
 
       // Use buffered transform stream to prevent IPC flooding
       // This is necessary for macOS 'cu' devices which may emit single-byte chunks
@@ -92,7 +110,7 @@ export function initializeSerialHandlers() {
 
       // Store parser reference for cleanup
       // We store it on the connection object so we can unpipe/destroy it later
-      const connInfo = serialConnections.get(sessionId);
+      const connInfo = serialConnections.get(connectionId);
       if (connInfo) {
         connInfo.parser = parser;
       }
@@ -100,7 +118,7 @@ export function initializeSerialHandlers() {
       parser.on('data', (data) => {
         try {
           if (!webContents.isDestroyed()) {
-            webContents.send('serial-data', sessionId, data.toString());
+            webContents.send('serial-data', connectionId, data.toString());
           }
         } catch (error) {
           console.warn('Failed to send serial data:', error.message);
@@ -110,26 +128,26 @@ export function initializeSerialHandlers() {
       port.on('close', () => {
         try {
           if (!webContents.isDestroyed()) {
-            webContents.send('serial-close', sessionId);
+            webContents.send('serial-close', connectionId);
           }
         } catch (error) {
           console.warn('Failed to send serial close event:', error.message);
         }
-        serialConnections.delete(sessionId);
+        serialConnections.delete(connectionId);
       });
 
       port.on('error', (error) => {
         console.error('Serial port error:', error);
         try {
           if (!webContents.isDestroyed()) {
-            webContents.send('serial-error', sessionId, error.message);
+            webContents.send('serial-error', connectionId, error.message);
           }
         } catch (sendError) {
           console.warn('Failed to send serial error event:', sendError.message);
         }
       });
 
-      return { success: true };
+      return { success: true, connectionId };
     } catch (error) {
       console.error('Serial connection error:', error);
       return { success: false, error: error.message };
@@ -137,9 +155,9 @@ export function initializeSerialHandlers() {
   });
 
   // Write to serial port
-  ipcMain.handle('serial-write', async (event, sessionId, data) => {
+  ipcMain.handle('serial-write', async (event, connectionId, data) => {
     try {
-      const connInfo = serialConnections.get(sessionId);
+      const connInfo = serialConnections.get(connectionId);
       if (!connInfo || !connInfo.port) {
         throw new Error('Serial port not connected');
       }
@@ -153,15 +171,15 @@ export function initializeSerialHandlers() {
   });
 
   // Disconnect serial port
-  ipcMain.handle('serial-disconnect', async (event, sessionId) => {
+  ipcMain.handle('serial-disconnect', async (event, connectionId) => {
     try {
-      const connInfo = serialConnections.get(sessionId);
+      const connInfo = serialConnections.get(connectionId);
       if (connInfo && connInfo.port) {
         if (connInfo.parser) {
           connInfo.parser.destroy();
         }
         connInfo.port.close();
-        serialConnections.delete(sessionId);
+        serialConnections.delete(connectionId);
       }
       return { success: true };
     } catch (error) {

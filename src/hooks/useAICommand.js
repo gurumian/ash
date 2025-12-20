@@ -1096,7 +1096,12 @@ Title:`,
       };
 
       const title = await llmService.callLLM(prompt);
-      const cleanTitle = title.trim().replace(/^["']|["']$/g, '').substring(0, 50);
+      // Remove <think> tags and clean up
+      const cleanTitle = title
+        .replace(/<think>[\s\S]*?<\/think>/g, '') // Remove think blocks
+        .trim()
+        .replace(/^["']|["']$/g, '')
+        .substring(0, 50);
 
       if (cleanTitle && cleanTitle.length > 0) {
         await chatHistoryService.updateConversation(targetConversationId, { title: cleanTitle });

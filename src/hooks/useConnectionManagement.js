@@ -287,7 +287,8 @@ export function useConnectionManagement({
             formData.host,
             formData.port,
             formData.user,
-            formData.password
+            formData.password,
+            sessionName
           );
 
           session = {
@@ -332,7 +333,8 @@ export function useConnectionManagement({
           dataBits: parseInt(formData.dataBits),
           stopBits: parseInt(formData.stopBits),
           parity: formData.parity,
-          flowControl: formData.flowControl
+          flowControl: formData.flowControl,
+          sessionName: sessionName
         });
 
         session = {
@@ -538,7 +540,7 @@ export function useConnectionManagement({
     if (!retryEnabled) {
       // No retry - single attempt
       connection = new SSHConnection();
-      await connection.connect(session.host, session.port, session.user, password);
+      await connection.connect(session.host, session.port, session.user, password, session.name);
       sshConnections.current[session.id] = connection;
     } else {
       // Retry logic
@@ -553,7 +555,7 @@ export function useConnectionManagement({
 
         try {
           connection = new SSHConnection();
-          await connection.connect(session.host, session.port, session.user, password);
+          await connection.connect(session.host, session.port, session.user, password, session.name);
           sshConnections.current[session.id] = connection;
 
           // Success - clear attempt message
@@ -687,7 +689,8 @@ export function useConnectionManagement({
         dataBits: parseInt(session.dataBits || '8'),
         stopBits: parseInt(session.stopBits || '1'),
         parity: session.parity || 'none',
-        flowControl: session.flowControl || 'none'
+        flowControl: session.flowControl || 'none',
+        sessionName: session.name
       });
       sshConnections.current[session.id] = connection;
     } catch (error) {

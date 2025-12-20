@@ -14,21 +14,39 @@ export function initializeSSHHandlers() {
   // SSH connection IPC handler
   ipcMain.handle('ssh-connect', async (event, connectionInfo) => {
     const { host, port, username, password, keepaliveInterval, keepaliveCount, readyTimeout } = connectionInfo;
-    const connectionId = require('crypto').randomUUID();
 
     try {
-      // Dynamically import ssh2
+      // Dynamically import ssh2 and crypto
       if (!Client) {
         const ssh2 = require('ssh2');
         Client = ssh2.Client;
       }
+      const crypto = require('crypto');
+
+      // Generate deterministic connection ID
+      // This allows chat history to be persisted across sessions
+      const sessionName = connectionInfo.sessionName || '';
+      const connectionString = `${sessionName}:${username}@${host}:${port}`;
+      const connectionId = crypto.createHash('sha256').update(connectionString).digest('hex');
 
       const conn = new Client();
 
       return new Promise((resolve, reject) => {
         conn.on('ready', () => {
+          // If a connection with this ID already exists, it might be stale or concurrent.
+          // Since we use deterministic IDs, we should update the map.
+          // The old connection object will be overwritten.
+          if (sshConnections.has(connectionId)) {
+            const oldConn = sshConnections.get(connectionId);
+            try {
+              oldConn.end();
+            } catch (e) {
+              // ignore
+            }
+          }
+
           sshConnections.set(connectionId, conn);
-          console.log(`SSH connection established: ${connectionId}`);
+          console.log(`SSH connection established: ${connectionId} (Deterministic ID)`);
           resolve({ success: true, connectionId });
         });
 
@@ -414,4 +432,3 @@ export function cleanupSSHConnections() {
   sshStreams.clear();
   sshConnections.clear();
 }
-

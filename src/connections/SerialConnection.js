@@ -12,9 +12,10 @@ export class SerialConnection {
     try {
       this.sessionId = sessionId;
       const result = await window.electronAPI.serialConnect(this.sessionId, options);
-      
+
       if (result.success) {
-        this.connectionId = this.sessionId;
+        // Use the deterministic connectionId returned by backend
+        this.connectionId = result.connectionId;
         this.isConnected = true;
         return result;
       } else {
@@ -34,7 +35,7 @@ export class SerialConnection {
     if (!this.isConnected) {
       return;
     }
-    
+
     window.electronAPI.serialWrite(this.connectionId, data);
   }
 
