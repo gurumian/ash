@@ -268,7 +268,7 @@ class QwenAgentService {
                   let extractedCommand = data.command || null;
 
                   // Command 추출 및 큐에 저장 (ash_ssh_execute 또는 ash_telnet_execute인 경우)
-                  console.log(`[QwenAgentService] 🔧 Tool call: name=${toolName}, command=${data.command || 'null'}, hasCommand=${!!data.command}`);
+                  // console.log(`[QwenAgentService] 🔧 Tool call: name=${toolName}, command=${data.command || 'null'}, hasCommand=${!!data.command}`);
 
                   if (toolName === 'ash_ssh_execute' || toolName === 'ash_telnet_execute' || toolName === 'ash_execute_command') {
                     // 백엔드에서 command를 전달하지 않은 경우, toolArgs에서 추출
@@ -300,6 +300,9 @@ class QwenAgentService {
                       }
                     }
                   }
+
+                  // Log final extracted command state
+                  console.log(`[QwenAgentService] 🔧 Tool call: name=${toolName}, command=${extractedCommand || 'null'}, args=${typeof toolArgs === 'string' ? toolArgs.substring(0, 50) + '...' : 'object'}`);
 
                   // Call tool call callback if provided (for displaying to user)
                   if (onToolCall) {
