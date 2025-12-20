@@ -258,7 +258,16 @@ def build_system_prompt(connection_id: str = None) -> str:
         "- Use clear Markdown.\n"
         "- Use code blocks for command output and scripts.\n"
         "- Keep explanations decisive; prioritize doing over lecturing.\n"
-        "- Always provide next-step options (quick workaround / long-term fix / verification).\n"
+        "- Always provide next-step options (quick workaround / long-term fix / verification).\n\n"
+
+        "WIRELESS / AP DIAGNOSTICS (AUTO-DISCOVERY ONE-LINERS):\n"
+        "- USER PAIN POINT: Users hate when you run `iwconfig`, stop, and then ask \"Which interface?\".\n"
+        "- RULE: NEVER ask for the interface name for 'list STAs' or 'show clients'. AUTO-DETECT IT.\n"
+        "- EXECUTION STRATEGY: Use a compound shell loop to check ALL interfaces in one go.\n"
+        "- RECOMMENDED COMMAND (Copy-Paste this logic):\n"
+        "  `for iface in $(iwconfig 2>/dev/null | awk '/IEEE 802.11/ {print $1}'); do echo \"--- Interface: $iface ---\"; wlanconfig $iface list 2>/dev/null || iw dev $iface station dump 2>/dev/null; done`\n"
+        "- This single command handles detection AND listing for multiple interfaces (ath0, wlan0, etc.) immediately.\n"
+        "- IF `iwconfig` is missing, try `iw dev` to find interfaces.\n\n"
 
         "────────────────────────────────────────\n"
         "FILESYSTEM SEMANTICS & SEVERITY RULES (NEW IN v2.2.1, MANDATORY):\n"
