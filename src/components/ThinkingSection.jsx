@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 
 /**
@@ -9,18 +9,34 @@ import ReactMarkdown from 'react-markdown';
  * - Collapsible with expand/collapse button
  * - Scrollable content when expanded
  * - Shows thinking, plan, and todos
+ * - Auto-scrolls when streaming
  */
-export function ThinkingSection({ thinking, plan, todos, messageId }) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  
+export function ThinkingSection({ thinking, plan, todos, messageId, isStreaming = false }) {
+  const [isExpanded, setIsExpanded] = useState(isStreaming);
+  const contentRef = useRef(null);
+
   const hasContent = thinking || plan || (todos && todos.length > 0);
-  
+
+  // Auto-expand when streaming starts, auto-collapse when it ends
+  useEffect(() => {
+    if (isStreaming) {
+      setIsExpanded(true);
+    } else {
+      setIsExpanded(false);
+    }
+  }, [isStreaming]);
+
+  // Auto-scroll to bottom when content updates and is streaming
+  useEffect(() => {
+    if (isStreaming && isExpanded && contentRef.current) {
+      contentRef.current.scrollTop = contentRef.current.scrollHeight;
+    }
+  }, [thinking, plan, todos, isStreaming, isExpanded]);
+
   if (!hasContent) {
     return null;
   }
-  
-  const fixedHeight = isExpanded ? '150px' : '40px';
-  
+
   return (
     <div
       style={{
@@ -29,7 +45,9 @@ export function ThinkingSection({ thinking, plan, todos, messageId }) {
         borderRadius: '4px',
         background: 'rgba(0, 255, 65, 0.02)',
         overflow: 'hidden',
-        transition: 'height 0.2s ease'
+        transition: 'height 0.2s ease',
+        display: 'flex',
+        flexDirection: 'column'
       }}
     >
       {/* Header - always visible */}
@@ -42,13 +60,14 @@ export function ThinkingSection({ thinking, plan, todos, messageId }) {
           justifyContent: 'space-between',
           cursor: 'pointer',
           background: 'rgba(0, 255, 65, 0.05)',
-          borderBottom: isExpanded ? '1px solid rgba(0, 255, 65, 0.1)' : 'none'
+          borderBottom: isExpanded ? '1px solid rgba(0, 255, 65, 0.1)' : 'none',
+          flexShrink: 0
         }}
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontSize: '11px', fontWeight: '600', color: '#00ff41' }}>
-            💭 AI Thinking
+            {isStreaming ? '🧠 AI Thinking...' : '💭 AI Thinking'}
           </span>
           {(thinking || plan || (todos && todos.length > 0)) && (
             <span style={{ fontSize: '9px', color: '#888' }}>
@@ -71,12 +90,13 @@ export function ThinkingSection({ thinking, plan, todos, messageId }) {
           ▼
         </span>
       </div>
-      
+
       {/* Content - scrollable when expanded */}
       {isExpanded && (
         <div
+          ref={contentRef}
           style={{
-            height: '110px', // 150px total - 40px header
+            height: '150px',
             overflowY: 'auto',
             padding: '12px',
             fontSize: '11px',
@@ -111,7 +131,7 @@ export function ThinkingSection({ thinking, plan, todos, messageId }) {
               </div>
             </div>
           )}
-          
+
           {/* Plan */}
           {plan && (
             <div style={{ marginBottom: '12px' }}>
@@ -131,7 +151,7 @@ export function ThinkingSection({ thinking, plan, todos, messageId }) {
               </div>
             </div>
           )}
-          
+
           {/* Todos */}
           {todos && todos.length > 0 && (
             <div>

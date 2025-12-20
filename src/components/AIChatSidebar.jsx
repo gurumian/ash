@@ -667,6 +667,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                     plan={plan}
                     todos={todos}
                     messageId={msg.id || `msg-${index}`}
+                    isStreaming={isActiveProcessing && isLastAssistantMessage}
                   />
                 )}
 

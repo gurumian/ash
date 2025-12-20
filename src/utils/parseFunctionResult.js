@@ -79,6 +79,7 @@ export function removeFunctionPatterns(content) {
 /**
  * Extract thinking/reasoning content from text
  * Handles patterns like <think>...</think>, <thinking>...</thinking> or <reasoning>...</reasoning>
+ * Supports partial/unclosed tags for streaming
  * @param {string} content - Content that may contain thinking tags
  * @returns {string} Extracted thinking content
  */
@@ -87,8 +88,12 @@ export function extractThinking(content) {
     return '';
   }
 
-  // Pattern: <think>...</think>, <thinking>...</thinking> or <reasoning>...</reasoning>
-  const thinkingPattern = /<(?:think|thinking|reasoning)>(.*?)<\/(?:think|thinking|reasoning)>/gis;
+  // Pattern: <think>... (optional </think>)
+  // We use a non-global regex loop or specific match to handle the "open at end" case
+  // But matchAll works if we construct the regex correctly to match closed OR open-at-end
+
+  // Regex: <tag> content (</tag> OR end-of-string)
+  const thinkingPattern = /<(?:think|thinking|reasoning)>([\s\S]*?)(?:<\/(?:think|thinking|reasoning)>|$)/gis;
   const matches = [...content.matchAll(thinkingPattern)];
 
   if (matches.length > 0) {
@@ -109,8 +114,8 @@ export function removeThinkingTags(content) {
     return content;
   }
 
-  // Remove <think>...</think>, <thinking>...</thinking> or <reasoning>...</reasoning> tags
-  const thinkingPattern = /<(?:think|thinking|reasoning)>.*?<\/(?:think|thinking|reasoning)>/gis;
+  // Remove <think>...</think> (closed) OR <think>...$ (unclosed)
+  const thinkingPattern = /<(?:think|thinking|reasoning)>[\s\S]*?(?:<\/(?:think|thinking|reasoning)>|$)/gis;
   let cleaned = content.replace(thinkingPattern, '');
 
   // Clean up extra newlines
