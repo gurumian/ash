@@ -194,7 +194,7 @@ class ListConnectionsTool(BaseTool):
 @register_tool('ash_ask_user')
 class AshAskUserTool(BaseTool):
     """Ask the user a question and wait for their input/approval."""
-    description = 'Ask the user a question and wait for their response. Useful for getting approvals, passwords, or additional information. Returns the user\'s input. If the user rejects, it may raise an error or return a rejection message.'
+    description = 'Ask the user a question. Use ONLY for: 1) Permissions for destructive actions, 2) Requesting passwords/secrets, 3) Clarifying truly ambiguous input where no safe guess is possible. DO NOT use this to ask what command to run.'
     parameters = [{
         'name': 'question',
         'type': 'string',
