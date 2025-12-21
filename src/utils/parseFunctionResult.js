@@ -10,6 +10,11 @@
  * @param {string} content - Content that may contain [function]: {...} patterns
  * @returns {Array<Object>} Array of parsed function results
  */
+/**
+ * Extract and parse function result patterns from text
+ * @param {string} content - Content that may contain [function]: {...} patterns
+ * @returns {Array<Object>} Array of parsed function results
+ */
 export function parseFunctionResults(content) {
   if (!content || typeof content !== 'string') {
     return [];
@@ -17,30 +22,68 @@ export function parseFunctionResults(content) {
 
   const results = [];
 
-  // Pattern: [function]: {"success": true, ...} OR standalone {"name":..., "success":...}
-  // Match [function]: {...} OR {... "success": ... ...}
-  const functionPattern = /(?:\[function\]:\s*)?(\{[^{}]*"success"\s*:\s*(?:true|false)[^{}]*\})/gs;
+  // Find all potential starts: [function]: { OR just { matching our pattern
+  // We scan the string manually to handle nested braces correctly
 
-  let match;
-  while ((match = functionPattern.exec(content)) !== null) {
-    try {
-      const jsonStr = match[1];
-      const parsed = JSON.parse(jsonStr);
+  let i = 0;
+  while (i < content.length) {
+    // Optimization: fast forward to next '{'
+    const nextBrace = content.indexOf('{', i);
+    if (nextBrace === -1) break;
 
-      results.push({
-        name: parsed.name || 'function',
-        success: parsed.success !== undefined ? parsed.success : true,
-        exitCode: parsed.exitCode !== undefined ? parsed.exitCode : 0,
-        stdout: parsed.output || '',
-        stderr: parsed.error || '',
-        raw: match[0], // Original matched string for removal
-        startIndex: match.index,
-        endIndex: match.index + match[0].length
-      });
-    } catch (e) {
-      // Skip invalid JSON
-      console.warn('Failed to parse function result JSON:', jsonStr, e);
+    // Check if this looks like a function result candidate
+    // 1. Preceded by [function]:
+    // 2. Or is a standalone JSON that looks like a result (contains "success":)
+
+    let startIndex = nextBrace;
+    let prefix = '';
+
+    // Check for [function]: prefix
+    const potentialPrefixStart = content.lastIndexOf('[function]:', nextBrace);
+    if (potentialPrefixStart !== -1) {
+      const gap = content.slice(potentialPrefixStart + 11, nextBrace);
+      if (!gap.trim()) {
+        startIndex = potentialPrefixStart;
+        prefix = content.slice(potentialPrefixStart, nextBrace);
+      }
     }
+
+    // Now attempt to extract a balanced JSON object starting at nextBrace
+    const extraction = extractBalancedJson(content, nextBrace);
+
+    if (extraction) {
+      try {
+        const jsonStr = extraction.text;
+        // Optimization check before parsing: must contain "success"
+        if (jsonStr.includes('"success"')) {
+          const parsed = JSON.parse(jsonStr);
+
+          // Double check it has the structure we expect
+          if (parsed.success !== undefined) {
+            results.push({
+              name: parsed.name || 'function',
+              success: parsed.success,
+              exitCode: parsed.exitCode !== undefined ? parsed.exitCode : 0,
+              stdout: parsed.output || parsed.stdout || '',
+              stderr: parsed.error || parsed.stderr || '',
+              // include prefix in raw so it can be stripped too
+              raw: prefix + jsonStr,
+              startIndex: startIndex,
+              endIndex: nextBrace + extraction.length
+            });
+
+            // Move index past this object
+            i = nextBrace + extraction.length;
+            continue;
+          }
+        }
+      } catch (e) {
+        // Not valid JSON, ignore
+      }
+    }
+
+    // If we didn't match a valid object, just move past the brace
+    i = nextBrace + 1;
   }
 
   return results;
@@ -50,30 +93,74 @@ export function parseFunctionResults(content) {
  * Remove function result patterns from content
  * @param {string} content - Content to clean
  * @returns {string} Content with function patterns removed
- * 
- * NOTE: Currently we keep tool result patterns in content but style them differently
- * If you want to remove them completely, uncomment the removal logic below
  */
 export function removeFunctionPatterns(content) {
   if (!content || typeof content !== 'string') {
     return content;
   }
 
+  // Use the same parser to identify ranges to remove
+  // We process from end to start to preserve indices
+  const results = parseFunctionResults(content);
+
+  // Sort by start index descending
+  results.sort((a, b) => b.startIndex - a.startIndex);
+
   let cleaned = content;
+  for (const result of results) {
+    cleaned = cleaned.slice(0, result.startIndex) + cleaned.slice(result.endIndex);
+  }
 
-  // Remove [function]: {...} patterns
-  const functionPattern = /\[function\]:\s*(\{[^}]*"success"[^}]*\}|\{[^}]+\})/gs;
-  cleaned = cleaned.replace(functionPattern, '');
-
-  // Remove standalone JSON patterns like {"name": "...", "success": ...}
-  // We look for JSON objects that contain "success": true/false
-  const jsonPattern = /\{[^{}]*"success"\s*:\s*(?:true|false)[^{}]*\}/gs;
-  cleaned = cleaned.replace(jsonPattern, '');
-
-  // Clean up extra newlines
+  // Clean up extra newlines left behind
   cleaned = cleaned.replace(/\n\s*\n\s*\n+/g, '\n\n').trim();
 
   return cleaned;
+}
+
+/**
+ * Helper to extract a balanced JSON string starting at a given index
+ * Handles nested braces and strings
+ * @param {string} text 
+ * @param {number} startIndex - index of the first '{'
+ * @returns {{text: string, length: number} | null}
+ */
+function extractBalancedJson(text, startIndex) {
+  if (text[startIndex] !== '{') return null;
+
+  let braceCount = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = startIndex; i < text.length; i++) {
+    const char = text[i];
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else {
+        if (char === '\\') {
+          escaped = true;
+        } else if (char === '"') {
+          inString = false;
+        }
+      }
+    } else {
+      if (char === '"') {
+        inString = true;
+      } else if (char === '{') {
+        braceCount++;
+      } else if (char === '}') {
+        braceCount--;
+        if (braceCount === 0) {
+          // Found the matching closing brace
+          const jsonText = text.slice(startIndex, i + 1);
+          return { text: jsonText, length: i + 1 - startIndex };
+        }
+      }
+    }
+  }
+
+  return null; // Unbalanced or malformed
 }
 
 /**
