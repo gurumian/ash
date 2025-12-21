@@ -92,14 +92,9 @@ from prompts.system_prompt import build_system_prompt
 # Default system prompt (will be customized per request if connection_id is provided)
 ash_system_prompt = build_system_prompt()
 
-# Cache for assistant instances
-assistant_cache: Dict[str, Assistant] = {
-    "default": Assistant(
-        llm=model_config,
-        system_message=ash_system_prompt,
-        function_list=ash_tool_names,
-    )
-}
+# Default system prompt (will be customized per request if connection_id is provided)
+ash_system_prompt = build_system_prompt()
+
 
 # --- Pydantic Models ---
 
@@ -142,89 +137,74 @@ async def execute_task_stream(request: TaskRequest):
     """
     logger.info(f"Streaming task request: {request.message[:100]}...")
     
-    # Generate a cache key based on LLM config and connection ID
+    # Create new assistant for each request to ensure statelessness
+    # (Qwen-Agent Assistant might maintain internal state/history if reused)
+    logger.info(f"Creating new assistant for task")
+    system_prompt = build_system_prompt(request.connection_id)
+    
     if request.llm_config:
-        config_dict = request.llm_config.dict()
-        config_dict['connection_id'] = request.connection_id
-        # Sort the dictionary to ensure consistent key format
-        cache_key = json.dumps(config_dict, sort_keys=True)
-    else:
-        # Use a key that also depends on the connection_id for the default config
-        cache_key = f"default_conn_{request.connection_id}" if request.connection_id else "default"
-
-    assistant = assistant_cache.get(cache_key)
-
-    if not assistant:
-        logger.info(f"Creating new assistant for cache key: {cache_key}")
-        system_prompt = build_system_prompt(request.connection_id)
-        
-        if request.llm_config:
-            # Build model config from request
-            llm_config_data = {
-                'model': request.llm_config.model or model_config['model'],
-                'model_server': request.llm_config.base_url or model_config['model_server'],
-                'api_key': request.llm_config.api_key or model_config['api_key'],
-                'generate_cfg': {
-                    'temperature': request.llm_config.temperature if request.llm_config.temperature is not None else model_config['generate_cfg']['temperature'],
-                    'max_tokens': request.llm_config.max_tokens if request.llm_config.max_tokens is not None else model_config['generate_cfg']['max_tokens'],
-                    'top_p': model_config['generate_cfg']['top_p'],
-                }
+        # Build model config from request
+        llm_config_data = {
+            'model': request.llm_config.model or model_config['model'],
+            'model_server': request.llm_config.base_url or model_config['model_server'],
+            'api_key': request.llm_config.api_key or model_config['api_key'],
+            'generate_cfg': {
+                'temperature': request.llm_config.temperature if request.llm_config.temperature is not None else model_config['generate_cfg']['temperature'],
+                'max_tokens': request.llm_config.max_tokens if request.llm_config.max_tokens is not None else model_config['generate_cfg']['max_tokens'],
+                'top_p': model_config['generate_cfg']['top_p'],
             }
-            
-            # Convert provider-specific URLs
-            if request.llm_config.provider == 'ollama':
-                base_url = request.llm_config.base_url or 'http://localhost:11434'
-                if not base_url.endswith('/v1'):
-                    base_url = base_url.rstrip('/') + '/v1'
-                llm_config_data['model_server'] = base_url
-                llm_config_data['api_key'] = 'ollama'
-            elif request.llm_config.provider == 'ash':
-                # Ash backend proxies to Ollama, so use the same format
-                base_url = request.llm_config.base_url or 'https://ash.toktoktalk.com/v1'
-                if not base_url.endswith('/v1'):
-                    base_url = base_url.rstrip('/') + '/v1'
-                llm_config_data['model_server'] = base_url
-                # Use the API key from request, or default to 'ollama' if not provided
-                api_key = request.llm_config.api_key or 'ollama'
-                llm_config_data['api_key'] = api_key
-                # Qwen-Agent may use api_key as Authorization header, but ash server needs X-API-Key
-                # Try to add custom headers if Qwen-Agent supports it
-                # Note: This depends on Qwen-Agent's implementation
-                if 'headers' not in llm_config_data:
-                    llm_config_data['headers'] = {}
-                llm_config_data['headers']['X-API-Key'] = api_key
-            elif request.llm_config.provider == 'openai':
-                llm_config_data['model_server'] = request.llm_config.base_url or 'https://api.openai.com/v1'
-            elif request.llm_config.provider == 'anthropic':
-                base_url = request.llm_config.base_url or 'https://api.anthropic.com'
-                if not base_url.endswith('/v1'):
-                     if '/v1' not in base_url:
-                        base_url = base_url.rstrip('/') + '/v1'
-                llm_config_data['model_server'] = base_url
-
-            logger.info(f"Using LLM config: provider={request.llm_config.provider}, model={llm_config_data['model']}, server={llm_config_data['model_server']}")
-            if request.llm_config.provider == 'ash':
-                logger.info(f"Ash API key: {api_key[:10]}... (truncated for security)")
-                logger.info(f"Ash LLM config keys: {list(llm_config_data.keys())}")
-                if 'headers' in llm_config_data:
-                    logger.info(f"Ash custom headers: {list(llm_config_data['headers'].keys())}")
-            
-            assistant = Assistant(
-                llm=llm_config_data,
-                system_message=system_prompt,
-                function_list=ash_tool_names,
-            )
-        else:
-            # This branch is for the default assistant with a connection_id
-            assistant = Assistant(
-                llm=model_config,
-                system_message=system_prompt,
-                function_list=ash_tool_names,
-            )
+        }
         
-        assistant_cache[cache_key] = assistant
+        # Convert provider-specific URLs
+        if request.llm_config.provider == 'ollama':
+            base_url = request.llm_config.base_url or 'http://localhost:11434'
+            if not base_url.endswith('/v1'):
+                base_url = base_url.rstrip('/') + '/v1'
+            llm_config_data['model_server'] = base_url
+            llm_config_data['api_key'] = 'ollama'
+        elif request.llm_config.provider == 'ash':
+            # Ash backend proxies to Ollama, so use the same format
+            base_url = request.llm_config.base_url or 'https://ash.toktoktalk.com/v1'
+            if not base_url.endswith('/v1'):
+                base_url = base_url.rstrip('/') + '/v1'
+            llm_config_data['model_server'] = base_url
+            # Use the API key from request, or default to 'ollama' if not provided
+            api_key = request.llm_config.api_key or 'ollama'
+            llm_config_data['api_key'] = api_key
+            # Qwen-Agent may use api_key as Authorization header, but ash server needs X-API-Key
+            # Try to add custom headers if Qwen-Agent supports it
+            # Note: This depends on Qwen-Agent's implementation
+            if 'headers' not in llm_config_data:
+                llm_config_data['headers'] = {}
+            llm_config_data['headers']['X-API-Key'] = api_key
+        elif request.llm_config.provider == 'openai':
+            llm_config_data['model_server'] = request.llm_config.base_url or 'https://api.openai.com/v1'
+        elif request.llm_config.provider == 'anthropic':
+            base_url = request.llm_config.base_url or 'https://api.anthropic.com'
+            if not base_url.endswith('/v1'):
+                if '/v1' not in base_url:
+                    base_url = base_url.rstrip('/') + '/v1'
+            llm_config_data['model_server'] = base_url
+
+        logger.info(f"Using LLM config: provider={request.llm_config.provider}, model={llm_config_data['model']}, server={llm_config_data['model_server']}")
+        if request.llm_config.provider == 'ash':
+            logger.info(f"Ash API key: {api_key[:10]}... (truncated for security)")
+            logger.info(f"Ash LLM config keys: {list(llm_config_data.keys())}")
+            if 'headers' in llm_config_data:
+                logger.info(f"Ash custom headers: {list(llm_config_data['headers'].keys())}")
+        
+        assistant = Assistant(
+            llm=llm_config_data,
+            system_message=system_prompt,
+            function_list=ash_tool_names,
+        )
     else:
-        logger.info(f"Using cached assistant for key: {cache_key}")
+        # This branch is for the default assistant with a connection_id
+        assistant = Assistant(
+            llm=model_config,
+            system_message=system_prompt,
+            function_list=ash_tool_names,
+        )
 
     messages = []
     if request.conversation_history:
