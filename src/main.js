@@ -10,6 +10,7 @@ import { initializeUpdateHandlers, cleanupUpdateHandlers, scheduleStartupCheck }
 import { initializeTftpHandlers, cleanupTftpServer, setMainWindow as setTftpMainWindow } from './main/tftp-handler.js';
 import { initializeWebHandlers, cleanupWebServer, setMainWindow as setWebMainWindow } from './main/web-handler.js';
 import { initializeIperfHandlers, cleanupIperfServer, setMainWindow as setIperfMainWindow, initializeIperfClientHandlers, cleanupIperfClient } from './main/iperf-handler.js';
+import { initializeNetcatHandlers, cleanupNetcat, setMainWindow as setNetcatMainWindow } from './main/netcat-handler.js';
 import { startBackend, stopBackend, initializeBackendHandlers } from './main/backend-handler.js';
 import { startIPCBridge, stopIPCBridge, setMainWindow as setIpcMainWindow } from './main/ipc-bridge-handler.js';
 
@@ -30,6 +31,7 @@ initializeTftpHandlers();
 initializeWebHandlers();
 initializeIperfHandlers();
 initializeIperfClientHandlers();
+initializeNetcatHandlers();
 initializeBackendHandlers(); // Initialize backend handlers for on-demand startup
 
 // This method will be called when Electron has finished
@@ -47,6 +49,7 @@ app.whenReady().then(async () => {
   setWebMainWindow(mainWindow);
   setIperfMainWindow(mainWindow);
   setIpcMainWindow(mainWindow);
+  setNetcatMainWindow(mainWindow);
 
   // Initialize update handlers after app is ready
   initializeUpdateHandlers(scheduleStartupCheck);
@@ -83,4 +86,5 @@ app.on('before-quit', async () => {
   cleanupWebServer();
   cleanupIperfServer();
   cleanupIperfClient();
+  cleanupNetcat();
 });

@@ -180,6 +180,20 @@ export function createMenu() {
               console.error('Failed to send menu-iperf-client:', error);
             }
           }
+        },
+        {
+          label: 'Netcat',
+          accelerator: 'CmdOrCtrl+Shift+N',
+          click: () => {
+            const focusedWindow = BrowserWindow.getFocusedWindow();
+            try {
+              if (focusedWindow && !focusedWindow.isDestroyed() && !focusedWindow.webContents.isDestroyed()) {
+                focusedWindow.webContents.send('menu-netcat');
+              }
+            } catch (error) {
+              console.error('Failed to send menu-netcat:', error);
+            }
+          }
         }
       ]
     },

@@ -199,6 +199,19 @@ function App() {
       return s;
     }));
   }, [activeSessionId]);
+  const setShowNetcatSidebar = useCallback((val) => {
+    console.log('[App] setShowNetcatSidebar called:', val, 'activeSessionId:', activeSessionId);
+    if (!activeSessionId) return;
+    setSessions(prev => prev.map(s => {
+      if (s.id === activeSessionId) {
+        const visible = typeof val === 'function' ? val(s.netcatSidebarVisible) : val;
+        const updates = { netcatSidebarVisible: visible };
+        if (visible) updates.activeSecondaryTab = 'netcat';
+        return { ...s, ...updates };
+      }
+      return s;
+    }));
+  }, [activeSessionId]);
   // const [iperfClientSidebarWidth, setIperfClientSidebarWidth] = useState(500);
   const [iperfAvailable, setIperfAvailable] = useState(true); // Default to true, will be checked on mount
   const [appInfo, setAppInfo] = useState({ version: '', author: { name: 'Bryce Ghim', email: 'admin@toktoktalk.com' } });
@@ -1069,6 +1082,7 @@ function App() {
     setShowWebServerDialog,
     setShowIperfServerDialog,
     setShowIperfClientSidebar,
+    setShowNetcatSidebar,
     setShowAICommandInput,
     setAppInfo,
     disconnectSession,
@@ -1372,7 +1386,7 @@ function App() {
           {sessions.map(session => {
             // Only show the slot for the active session, and only if a sidebar is actually visible
             // The SessionContent will portal into it regardless, but we control visibility via style
-            const isVisible = activeSessionId === session.id && (session.aiSidebarVisible || session.iperfSidebarVisible);
+            const isVisible = activeSessionId === session.id && (session.aiSidebarVisible || session.iperfSidebarVisible || session.netcatSidebarVisible);
             return (
               <div
                 key={session.id}
@@ -1466,7 +1480,6 @@ function App() {
         onIperfClick={() => setShowIperfServerDialog(true)}
         onIperfClientClick={() => {
           setShowIperfClientSidebar(true);
-          setActiveSecondaryTab('iperf-client');
         }}
         iperfClientStatus={iperfClientStatus}
         iperfAvailable={iperfAvailable}
