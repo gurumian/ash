@@ -1183,7 +1183,6 @@ function App() {
           onWebServer={() => setShowWebServerDialog(true)}
           onIperfServer={() => setShowIperfServerDialog(true)}
           onIperfClient={() => setShowIperfClientSidebar(true)}
-          onNetcat={() => setShowNetcatSidebar(true)}
           iperfAvailable={iperfAvailable}
           showSessionManager={showSessionManager}
           onToggleSessionManager={(checked) => {

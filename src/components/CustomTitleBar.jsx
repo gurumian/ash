@@ -20,7 +20,6 @@ export function CustomTitleBar({
   onWebServer,
   onIperfServer,
   onIperfClient,
-  onNetcat,
   showSessionManager,
   onToggleSessionManager,
   iperfAvailable = true,
@@ -112,11 +111,6 @@ export function CustomTitleBar({
           onClick: iperfAvailable ? onIperfClient : null,
           disabled: !iperfAvailable,
           sublabel: iperfAvailable ? '' : t('menu:iperf3NotAvailable')
-        },
-        {
-          label: 'Netcat',
-          shortcut: 'Ctrl+Shift+N',
-          onClick: onNetcat,
         },
       ],
     },
