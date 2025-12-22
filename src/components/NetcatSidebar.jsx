@@ -211,7 +211,7 @@ export const NetcatSidebar = memo(function NetcatSidebar({
                             ) : status === 'listening' ? (
                                 <span>((•))</span>
                             ) : (
-                                <span>⚡</span>
+                                <span>Status</span>
                             )}
                         </div>
                         <div className="netcat-status-control">
