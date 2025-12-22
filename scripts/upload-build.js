@@ -103,7 +103,7 @@ function uploadFile(filePath, platform, arch) {
 }
 
 /**
- * Upload Windows builds (x64 only - 32-bit/ia32 not supported)
+ * Upload Windows builds (x64 and arm64 - 32-bit/ia32 not supported)
  */
 async function uploadWindows() {
   console.log('📦 Processing Windows builds...\n');
@@ -120,6 +120,8 @@ async function uploadWindows() {
   
   const uploaded = [];
   
+  const uploaded = [];
+  
   // Upload x64 build - only current version
   const x64Dir = path.join(nsisDir, 'x64');
   if (fs.existsSync(x64Dir)) {
@@ -131,6 +133,20 @@ async function uploadWindows() {
     }
     if (x64Files.length === 0) {
       console.warn(`⚠️  Expected x64 installer not found: ${expectedX64Name}`);
+    }
+  }
+
+  // Upload arm64 build - only current version
+  const arm64Dir = path.join(nsisDir, 'arm64');
+  if (fs.existsSync(arm64Dir)) {
+    const expectedArm64Name = `ash-arm64-Setup-${VERSION}.exe`;
+    const arm64Files = fs.readdirSync(arm64Dir).filter(f => f === expectedArm64Name);
+    for (const file of arm64Files) {
+      await uploadFile(path.join(arm64Dir, file), 'win32', 'arm64');
+      uploaded.push({ file, arch: 'arm64' });
+    }
+    if (arm64Files.length === 0) {
+      console.warn(`⚠️  Expected arm64 installer not found: ${expectedArm64Name}`);
     }
   }
   

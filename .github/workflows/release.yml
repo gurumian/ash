@@ -1,0 +1,133 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # e.g., v1.0.0, v1.1.21
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g., v1.0.0)'
+        required: true
+        type: string
+
+jobs:
+  build-and-release:
+    strategy:
+      matrix:
+        platform: [windows, macos, linux]
+        include:
+          - platform: windows
+            os: windows-latest
+            arch: x64
+            artifact-name: windows-x64
+          - platform: macos
+            os: macos-14
+            arch: arm64
+            artifact-name: macos-arm64
+          - platform: linux
+            os: ubuntu-latest
+            arch: x64
+            artifact-name: linux-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install uv (Windows)
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          powershell -ExecutionPolicy Bypass -Command "irm https://astral.sh/uv/install.ps1 | iex"
+          echo "$env:USERPROFILE\.local\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      
+      - name: Install uv (Unix)
+        if: matrix.platform != 'windows'
+        shell: bash
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build backend
+        shell: bash
+        run: |
+          if [ "${{ matrix.platform }}" == "macos" ] && [ "${{ matrix.arch }}" == "arm64" ]; then
+            npm run build-backend
+          else
+            npm run build-backend
+          fi
+        env:
+          APPLE_IDENTITY: ${{ secrets.APPLE_IDENTITY }}
+        continue-on-error: true
+      
+      - name: Build Electron app
+        shell: bash
+        run: |
+          if [ "${{ matrix.platform }}" == "windows" ]; then
+            npm run make:x64
+          elif [ "${{ matrix.platform }}" == "macos" ]; then
+            npm run make -- --arch=${{ matrix.arch }}
+          else
+            npm run make:x64
+          fi
+        env:
+          APPLE_IDENTITY: ${{ secrets.APPLE_IDENTITY }}
+        continue-on-error: true
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact-name }}
+          path: |
+            out/make/**/*
+          retention-days: 30
+          if-no-files-found: warn
+
+  create-release:
+    needs: build-and-release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      
+      - name: Extract version from tag
+        id: version
+        run: |
+          if [ -n "${{ github.ref_type }}" ] && [ "${{ github.ref_type }}" == "tag" ]; then
+            VERSION="${{ github.ref_name }}"
+          else
+            VERSION="${{ github.event.inputs.version }}"
+          fi
+          echo "version=${VERSION#v}" >> $GITHUB_OUTPUT
+          echo "tag=${VERSION}" >> $GITHUB_OUTPUT
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Release ${{ steps.version.outputs.tag }}
+          files: artifacts/**/*
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.tag, '-') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

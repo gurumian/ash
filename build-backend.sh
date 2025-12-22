@@ -11,9 +11,12 @@ echo "Installing PyInstaller..."
 uv add pyinstaller
 
 # Detect architecture (32-bit/ia32 not supported)
-ARCH=$(uname -m)
+# Allow ARCH to be set via environment variable (for cross-compilation scenarios)
+if [ -z "$ARCH" ]; then
+    ARCH=$(uname -m)
+fi
 case "$ARCH" in
-    x86_64)
+    x86_64|x64)
         ARCH="x64"
         ;;
     arm64|aarch64)

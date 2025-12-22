@@ -1,0 +1,163 @@
+name: Build
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    strategy:
+      matrix:
+        # Note: GitHub Actions Windows runners are x64 only
+        # arm64 Windows builds would need a separate arm64 runner (not available on GitHub Actions)
+        arch: [x64]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install uv
+        shell: pwsh
+        run: |
+          powershell -ExecutionPolicy Bypass -Command "irm https://astral.sh/uv/install.ps1 | iex"
+          $env:PATH = "$env:USERPROFILE\.local\bin;$env:PATH"
+          echo "$env:USERPROFILE\.local\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build backend
+        run: npm run build-backend
+      
+      - name: Build Electron app
+        run: npm run make:x64
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64
+          path: |
+            out/make/**/*.exe
+            out/make/**/*.zip
+          retention-days: 7
+          if-no-files-found: warn
+
+  build-macos:
+    strategy:
+      matrix:
+        # macOS runners are arm64 (Apple Silicon)
+        # We can build both arm64 (native) and x64 (via Rosetta 2) on the same runner
+        arch: [arm64, x64]
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+        env:
+          PATH: ${{ env.HOME }}/.cargo/bin:${{ env.PATH }}
+      
+      - name: Add uv to PATH
+        run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build backend for ${{ matrix.arch }}
+        run: |
+          if [ "${{ matrix.arch }}" == "arm64" ]; then
+            npm run build-backend
+          else
+            # For x64 on arm64 runner, use Rosetta 2
+            arch -x86_64 bash -c "ARCH=x64 npm run build-backend"
+          fi
+        continue-on-error: true
+        env:
+          APPLE_IDENTITY: ${{ secrets.APPLE_IDENTITY }}
+      
+      - name: Build Electron app for ${{ matrix.arch }}
+        run: npm run make -- --arch=${{ matrix.arch }}
+        continue-on-error: true
+        env:
+          APPLE_IDENTITY: ${{ secrets.APPLE_IDENTITY }}
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ matrix.arch }}
+          path: |
+            out/make/**/*.dmg
+            out/make/**/*.zip
+          retention-days: 7
+          if-no-files-found: warn
+
+  build-linux:
+    strategy:
+      matrix:
+        # GitHub Actions Linux runners are x64 only
+        # For arm64, would need a self-hosted arm64 runner or use QEMU (slower)
+        arch: [x64]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      
+      - name: Add uv to PATH
+        run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build backend
+        run: npm run build-backend
+      
+      - name: Build Electron app
+        run: npm run make:x64
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-x64
+          path: |
+            out/make/**/*.AppImage
+            out/make/**/*.deb
+          retention-days: 7
+          if-no-files-found: warn
+

@@ -7,12 +7,15 @@
   "scripts": {
     "start": "electron-forge start",
     "package": "electron-forge package",
-    "make": "npm run build-backend && electron-forge make",
+    "make": "npm run build-backend-all && electron-forge make --arch=x64,arm64",
+    "make:x64": "npm run build-backend && electron-forge make --arch=x64",
+    "make:arm64": "npm run build-backend && electron-forge make --arch=arm64",
     "publish": "electron-forge publish",
     "upload": "node scripts/upload-build.js",
     "lint": "echo \"No linting configured\"",
     "build-icons": "electron-icon-builder --input=./assets/icons/icon.png --output=./assets/icons --flatten",
-    "build-backend": "node -e \"process.platform === 'win32' ? require('child_process').execSync('build-backend.bat', {stdio: 'inherit'}) : require('child_process').execSync('./build-backend.sh', {stdio: 'inherit'})\""
+    "build-backend": "node -e \"process.platform === 'win32' ? require('child_process').execSync('build-backend.bat', {stdio: 'inherit'}) : require('child_process').execSync('./build-backend.sh', {stdio: 'inherit'})\"",
+    "build-backend-all": "node scripts/build-backend-all.js"
   },
   "keywords": [],
   "author": {
