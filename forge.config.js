@@ -11,14 +11,32 @@ const makers = [
   {
     name: '@felixrieseberg/electron-forge-maker-nsis',
     platforms: ['win32'],
-    config: {
-      name: 'ash',
-      oneClick: false,
-      perMachine: false,
-      allowToChangeInstallationDirectory: true,
-      createDesktopShortcut: true,
-      createStartMenuShortcut: true,
-      shortcutName: 'ash',
+    config: (forgeConfig, makerOptions) => {
+      // Map arch names for better readability (32-bit/ia32 not supported)
+      const archMap = {
+        x64: 'x64',
+        arm64: 'arm64',
+      };
+      
+      // Safely get arch from makerOptions
+      const makerArch = makerOptions?.arch || process.arch || 'x64';
+      
+      if (makerArch === 'ia32' || makerArch === 'x32') {
+        throw new Error('32-bit (ia32) architecture is not supported. Please build for x64 or arm64.');
+      }
+      
+      const arch = archMap[makerArch] || (makerArch === 'x64' ? 'x64' : 'x64');
+      
+      return {
+        name: 'ash',
+        oneClick: false,
+        perMachine: false,
+        allowToChangeInstallationDirectory: true,
+        createDesktopShortcut: true,
+        createStartMenuShortcut: true,
+        shortcutName: 'ash',
+        setupExe: `ash-${arch}-Setup-${packageJson.version}.exe`,
+      };
     },
   },
   {
@@ -63,33 +81,49 @@ module.exports = {
         path.resolve(__dirname, 'app-update.yml'), // Auto-updater configuration
       ];
 
-      // Platform-specific backend executable path
+      // Map process.arch to architecture name (32-bit/ia32 not supported)
+      const archMap = {
+        'x64': 'x64',
+        'arm64': 'arm64',
+      };
+      let arch = archMap[process.arch] || process.arch || 'x64';
+      if (process.arch === 'ia32' || process.arch === 'x32') {
+        console.warn('⚠️ Warning: 32-bit (ia32) architecture is not supported. Falling back to x64.');
+        arch = 'x64';
+      }
+
+      // Architecture-specific backend executable path
       const backendExe = process.platform === 'win32'
-        ? 'backend/dist/ash-backend.exe'
-        : 'backend/dist/ash-backend';
+        ? `backend/dist/${arch}/ash-backend.exe`
+        : `backend/dist/${arch}/ash-backend`;
       const backendPath = path.resolve(__dirname, backendExe);
 
-      // Check if file exists, if not try alternative paths
+      // Check if architecture-specific file exists
       if (fs.existsSync(backendPath)) {
         resources.push(backendPath);
         return resources;
       }
 
-      // Fallback: try without extension or with different extensions
-      const alternatives = [
+      // Fallback: try old path structure (for backward compatibility)
+      const fallbackPaths = [
+        process.platform === 'win32'
+          ? path.resolve(__dirname, 'backend/dist/ash-backend.exe')
+          : path.resolve(__dirname, 'backend/dist/ash-backend'),
         path.resolve(__dirname, 'backend/dist/ash-backend.exe'),
         path.resolve(__dirname, 'backend/dist/ash-backend'),
       ];
 
-      for (const altPath of alternatives) {
-        if (fs.existsSync(altPath)) {
-          resources.push(altPath);
+      for (const fallbackPath of fallbackPaths) {
+        if (fs.existsSync(fallbackPath)) {
+          console.warn(`⚠️ Warning: Using fallback backend path: ${fallbackPath}`);
+          console.warn(`⚠️ Consider rebuilding backend for architecture ${arch} to: backend/dist/${arch}/`);
+          resources.push(fallbackPath);
           return resources;
         }
       }
 
       console.warn(`⚠️ Warning: Backend executable not found at ${backendPath}`);
-      console.warn('⚠️ Backend will not be included in the package. Run "npm run build-backend" first.');
+      console.warn(`⚠️ Backend will not be included in the package. Run "npm run build-backend" first for architecture ${arch}.`);
       return resources;
     })(),
     // macOS entitlements for network permissions (SSH, TFTP)
