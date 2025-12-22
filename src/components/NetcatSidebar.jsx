@@ -156,6 +156,17 @@ export const NetcatSidebar = memo(function NetcatSidebar({
 
     if (!isVisible) return null;
 
+    const isRunning = status === 'connected' || status === 'listening';
+    const isConnecting = status === 'connecting';
+    const statusClass = isRunning ? 'running' : isConnecting ? 'loading' : 'stopped';
+    const statusLabel = isConnecting
+        ? 'Connecting'
+        : status === 'listening'
+            ? 'Listening'
+            : status === 'connected'
+                ? 'Connected'
+                : 'Stopped';
+
     return (
         <div
             className="netcat-sidebar"
@@ -203,54 +214,20 @@ export const NetcatSidebar = memo(function NetcatSidebar({
             <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
 
                 {/* Status Card */}
-                <div className={`netcat-status-card ${status} netcat-status-section`}>
+                <div className={`netcat-status-card ${statusClass} netcat-status-section`}>
                     <div className="netcat-status-item">
-                        <div className="netcat-status-icon">
-                            {status === 'connecting' ? (
-                                <div className="netcat-spinner" />
-                            ) : status === 'listening' ? (
-                                <span>((•))</span>
-                            ) : (
-                                <span>Status</span>
-                            )}
-                        </div>
-                        <div className="netcat-status-control">
-                            <span className={`netcat-status-badge ${status === 'stopped' ? 'stopped' : ''}`}>
-                                {status.toUpperCase()}
+                        <span className="netcat-status-label">Status</span>
+                        <div
+                            className="netcat-status-control"
+                            onClick={isConnecting ? undefined : (isRunning ? handleStop : handleStart)}
+                            style={{ cursor: isConnecting ? 'not-allowed' : 'pointer' }}
+                        >
+                            <span className={`netcat-status-badge ${isRunning ? 'running' : 'stopped'}`}>
+                                {statusLabel}
                             </span>
-                            {status === 'stopped' || status.includes('error') ? (
-                                <button
-                                    className="netcat-run-btn"
-                                    onClick={handleStart}
-                                    title="Start"
-                                    style={{
-                                        background: 'transparent',
-                                        border: '1px solid #00ff41',
-                                        borderRadius: '4px',
-                                        color: '#00ff41',
-                                        cursor: 'pointer',
-                                        padding: '4px 10px'
-                                    }}
-                                >
-                                    ▶
-                                </button>
-                            ) : (
-                                <button
-                                    className="netcat-stop-btn"
-                                    onClick={handleStop}
-                                    title="Stop"
-                                    style={{
-                                        background: 'transparent',
-                                        border: '1px solid #ff4444',
-                                        borderRadius: '4px',
-                                        color: '#ff4444',
-                                        cursor: 'pointer',
-                                        padding: '4px 10px'
-                                    }}
-                                >
-                                    ⏹
-                                </button>
-                            )}
+                            <span className="netcat-status-icon">
+                                {isConnecting ? <div className="netcat-spinner" /> : (isRunning ? '⏹' : '▶')}
+                            </span>
                         </div>
                     </div>
                 </div>
