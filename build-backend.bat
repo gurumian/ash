@@ -74,6 +74,10 @@ echo Installing PyInstaller...
 !UV_CMD! add pyinstaller
 
 REM Detect architecture (32-bit/ia32 not supported)
+if defined ARCH (
+    echo Using predefined ARCH: !ARCH!
+    goto :arch_done
+)
 set "ARCH=x64"
 if /i "%PROCESSOR_ARCHITECTURE%"=="AMD64" goto :set_x64
 if /i "%PROCESSOR_ARCHITECTURE%"=="ARM64" goto :set_arm64
