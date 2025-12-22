@@ -429,12 +429,13 @@ Summary:"""
                                 logger.info(f"Tool call request: {tool_name} with args: {repr(tool_args[:200])}, command: {repr(command) if command else 'None'}")
                                 
                                 # Tool call을 실시간으로 스트리밍 (사용자가 볼 수 있도록!)
-                                yield f"data: {json.dumps({
+                                tool_call_data = {
                                     'type': 'tool_call',
                                     'name': tool_name,
                                     'args': tool_args,
                                     'command': command
-                                }, ensure_ascii=False)}\n\n"
+                                }
+                                yield f"data: {json.dumps(tool_call_data, ensure_ascii=False)}\n\n"
                     
                     # Check for tool results (Qwen-Agent uses both 'tool' and 'function' roles)
                     # 새로운 메시지만 처리 (중복 방지)
