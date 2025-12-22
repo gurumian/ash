@@ -1147,6 +1147,7 @@ function App() {
               window.electronAPI.toggleDevTools();
             }
           }}
+          onAICommand={() => setShowAICommandInput(true)}
           onCheckForUpdates={async () => {
             try {
               const result = await window.electronAPI.checkForUpdates();

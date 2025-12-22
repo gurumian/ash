@@ -16,6 +16,7 @@ export function CustomTitleBar({
   onAbout,
   onCheckForUpdates,
   onToggleDevTools,
+  onAICommand,
   onTftpServer,
   onWebServer,
   onIperfServer,
@@ -97,6 +98,8 @@ export function CustomTitleBar({
     {
       name: t('menu:tools'),
       items: [
+        { label: t('menu:aiCommand'), shortcut: 'Ctrl+Shift+A', onClick: onAICommand },
+        { type: 'separator' },
         { label: t('menu:tftpServer'), shortcut: 'Ctrl+Shift+T', onClick: onTftpServer },
         { label: t('menu:webServer'), shortcut: 'Ctrl+Shift+W', onClick: onWebServer },
         { 
