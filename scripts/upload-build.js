@@ -103,7 +103,7 @@ function uploadFile(filePath, platform, arch) {
 }
 
 /**
- * Upload Windows builds (x64 and ia32)
+ * Upload Windows builds (x64 and arm64 - 32-bit/ia32 not supported)
  */
 async function uploadWindows() {
   console.log('📦 Processing Windows builds...\n');
@@ -120,10 +120,12 @@ async function uploadWindows() {
   
   const uploaded = [];
   
+  const uploaded = [];
+  
   // Upload x64 build - only current version
   const x64Dir = path.join(nsisDir, 'x64');
   if (fs.existsSync(x64Dir)) {
-    const expectedX64Name = `ash Setup ${VERSION}.exe`;
+    const expectedX64Name = `ash-x64-Setup-${VERSION}.exe`;
     const x64Files = fs.readdirSync(x64Dir).filter(f => f === expectedX64Name);
     for (const file of x64Files) {
       await uploadFile(path.join(x64Dir, file), 'win32', 'x64');
@@ -133,18 +135,18 @@ async function uploadWindows() {
       console.warn(`⚠️  Expected x64 installer not found: ${expectedX64Name}`);
     }
   }
-  
-  // Upload ia32 build - only current version
-  const ia32Dir = path.join(nsisDir, 'ia32');
-  if (fs.existsSync(ia32Dir)) {
-    const expectedIa32Name = `ash Setup ${VERSION}.exe`;
-    const ia32Files = fs.readdirSync(ia32Dir).filter(f => f === expectedIa32Name);
-    for (const file of ia32Files) {
-      await uploadFile(path.join(ia32Dir, file), 'win32', 'ia32');
-      uploaded.push({ file, arch: 'ia32' });
+
+  // Upload arm64 build - only current version
+  const arm64Dir = path.join(nsisDir, 'arm64');
+  if (fs.existsSync(arm64Dir)) {
+    const expectedArm64Name = `ash-arm64-Setup-${VERSION}.exe`;
+    const arm64Files = fs.readdirSync(arm64Dir).filter(f => f === expectedArm64Name);
+    for (const file of arm64Files) {
+      await uploadFile(path.join(arm64Dir, file), 'win32', 'arm64');
+      uploaded.push({ file, arch: 'arm64' });
     }
-    if (ia32Files.length === 0) {
-      console.warn(`⚠️  Expected ia32 installer not found: ${expectedIa32Name}`);
+    if (arm64Files.length === 0) {
+      console.warn(`⚠️  Expected arm64 installer not found: ${expectedArm64Name}`);
     }
   }
   

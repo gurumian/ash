@@ -184,11 +184,27 @@ export async function startBackend() {
       const exePath = app.getPath('exe');
       const exeDir = path.dirname(exePath);
       
+      // Map process.arch to architecture name (32-bit/ia32 not supported)
+      const archMap = {
+        'x64': 'x64',
+        'arm64': 'arm64',
+      };
+      // Fallback to x64 if unknown arch (but not ia32)
+      const arch = process.arch === 'ia32' || process.arch === 'x32' 
+        ? 'x64' // Fallback to x64 for unsupported 32-bit
+        : (archMap[process.arch] || 'x64');
+      
       const possiblePaths = [
-        // Most common: resources folder (extraResources)
+        // Most common: resources folder root (extraResources copies files to root)
         process.resourcesPath ? path.join(process.resourcesPath, `ash-backend${exeExtension}`) : null,
         // Unpacked asar resources (when asar is used)
         process.resourcesPath ? path.join(process.resourcesPath, 'app.asar.unpacked', `ash-backend${exeExtension}`) : null,
+        // Architecture-specific paths (for development or manual packaging)
+        process.resourcesPath ? path.join(process.resourcesPath, `${arch}`, `ash-backend${exeExtension}`) : null,
+        process.resourcesPath ? path.join(process.resourcesPath, 'app.asar.unpacked', `${arch}`, `ash-backend${exeExtension}`) : null,
+        path.join(exeDir, `${arch}`, `ash-backend${exeExtension}`),
+        path.join(exeDir, 'resources', `${arch}`, `ash-backend${exeExtension}`),
+        path.join(appPath, '..', 'resources', `${arch}`, `ash-backend${exeExtension}`),
         // Same directory as exe (Windows installer sometimes puts resources here)
         path.join(exeDir, `ash-backend${exeExtension}`),
         // Resources relative to exe
@@ -196,7 +212,9 @@ export async function startBackend() {
         // App path resources
         path.join(appPath, '..', 'resources', `ash-backend${exeExtension}`),
         path.join(appPath, '..', `ash-backend${exeExtension}`),
-        // Development fallback
+        // Development fallback - architecture-specific
+        path.join(process.cwd(), 'backend', 'dist', arch, `ash-backend${exeExtension}`),
+        // Development fallback - legacy path
         path.join(process.cwd(), 'backend', 'dist', `ash-backend${exeExtension}`),
         // Alternative resource path
         path.join(__dirname, '..', '..', `ash-backend${exeExtension}`),
@@ -204,10 +222,14 @@ export async function startBackend() {
         process.resourcesPath ? path.join(process.resourcesPath, '..', '..', `ash-backend${exeExtension}`) : null,
         // Windows-specific: try parent directories
         ...(process.platform === 'win32' ? [
+          path.join(exeDir, '..', 'resources', `${arch}`, `ash-backend${exeExtension}`),
+          path.join(exeDir, '..', `${arch}`, `ash-backend${exeExtension}`),
           path.join(exeDir, '..', 'resources', `ash-backend${exeExtension}`),
           path.join(exeDir, '..', `ash-backend${exeExtension}`),
           // Try without extension as fallback
+          process.resourcesPath ? path.join(process.resourcesPath, `${arch}`, 'ash-backend') : null,
           process.resourcesPath ? path.join(process.resourcesPath, 'ash-backend') : null,
+          process.resourcesPath ? path.join(process.resourcesPath, 'app.asar.unpacked', `${arch}`, 'ash-backend') : null,
           process.resourcesPath ? path.join(process.resourcesPath, 'app.asar.unpacked', 'ash-backend') : null,
         ] : [])
       ].filter(Boolean);
