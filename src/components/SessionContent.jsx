@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { SecondarySidebarContainer } from './SecondarySidebarContainer';
 import { AIChatSidebar } from './AIChatSidebar';
 import { IperfClientSidebar } from './IperfClientSidebar';
+import { NetcatSidebar } from './NetcatSidebar';
 import { useAICommand } from '../hooks/useAICommand';
 
 export const SessionContent = ({
@@ -25,8 +26,10 @@ export const SessionContent = ({
         id: sessionId,
         aiSidebarVisible,
         iperfSidebarVisible,
+        netcatSidebarVisible,
         aiChatSidebarWidth = 400,
         iperfClientSidebarWidth = 500,
+        netcatSidebarWidth = 500,
         activeSecondaryTab = 'ai-chat',
         aiMessages: initialMessages, // We don't use session.aiMessages for live state, useAICommand has its own, but we could sync if needed
         iperfClientOutput
@@ -90,6 +93,8 @@ export const SessionContent = ({
             onUpdateSession(sessionId, { aiSidebarVisible: true });
         } else if (tab === 'iperf-client' && !iperfSidebarVisible) {
             onUpdateSession(sessionId, { iperfSidebarVisible: true });
+        } else if (tab === 'netcat' && !netcatSidebarVisible) {
+            onUpdateSession(sessionId, { netcatSidebarVisible: true });
         }
     };
 
@@ -97,6 +102,8 @@ export const SessionContent = ({
         onUpdateSession(sessionId, { aiSidebarVisible: false });
         if (iperfSidebarVisible) {
             onUpdateSession(sessionId, { activeSecondaryTab: 'iperf-client' });
+        } else if (netcatSidebarVisible) {
+            onUpdateSession(sessionId, { activeSecondaryTab: 'netcat' });
         }
     };
 
@@ -104,11 +111,22 @@ export const SessionContent = ({
         onUpdateSession(sessionId, { iperfSidebarVisible: false });
         if (aiSidebarVisible) {
             onUpdateSession(sessionId, { activeSecondaryTab: 'ai-chat' });
+        } else if (netcatSidebarVisible) {
+            onUpdateSession(sessionId, { activeSecondaryTab: 'netcat' });
+        }
+    };
+
+    const handleCloseNetcat = () => {
+        onUpdateSession(sessionId, { netcatSidebarVisible: false });
+        if (aiSidebarVisible) {
+            onUpdateSession(sessionId, { activeSecondaryTab: 'ai-chat' });
+        } else if (iperfSidebarVisible) {
+            onUpdateSession(sessionId, { activeSecondaryTab: 'iperf-client' });
         }
     };
 
     const handleClose = () => {
-        onUpdateSession(sessionId, { aiSidebarVisible: false, iperfSidebarVisible: false });
+        onUpdateSession(sessionId, { aiSidebarVisible: false, iperfSidebarVisible: false, netcatSidebarVisible: false });
         // NOTE: we do NOT clear AI messages on close to preserve history
         // if (clearAIMessages) clearAIMessages(); 
     };
@@ -117,6 +135,7 @@ export const SessionContent = ({
     const handleResize = (newWidth) => {
         if (aiSidebarVisible) onUpdateSession(sessionId, { aiChatSidebarWidth: newWidth });
         if (iperfSidebarVisible) onUpdateSession(sessionId, { iperfClientSidebarWidth: newWidth });
+        if (netcatSidebarVisible) onUpdateSession(sessionId, { netcatSidebarWidth: newWidth });
         // Trigger terminal resize
         if (isActive) {
             requestAnimationFrame(() => resizeTerminal && resizeTerminal());
@@ -125,6 +144,12 @@ export const SessionContent = ({
 
     // Find the portal target for this session
     const portalTarget = document.getElementById(`sidebar-slot-${sessionId}`);
+    const anySidebarVisible = aiSidebarVisible || iperfSidebarVisible || netcatSidebarVisible;
+    const visibleSidebarWidths = [];
+    if (aiSidebarVisible) visibleSidebarWidths.push(aiChatSidebarWidth);
+    if (iperfSidebarVisible) visibleSidebarWidths.push(iperfClientSidebarWidth);
+    if (netcatSidebarVisible) visibleSidebarWidths.push(netcatSidebarWidth);
+    const sidebarWidth = visibleSidebarWidths.length ? Math.max(...visibleSidebarWidths) : 0;
 
     return (
         <div style={{ display: 'flex', width: '100%', height: '100%', position: 'relative' }}>
@@ -138,7 +163,7 @@ export const SessionContent = ({
             </div>
 
             {/* Sidebar - Rendered via Portal to App.jsx global container */}
-            {portalTarget && (aiSidebarVisible || iperfSidebarVisible) && createPortal(
+            {portalTarget && anySidebarVisible && createPortal(
                 <div style={{ height: '100%', width: '100%', display: 'flex' }}>
                     {/* Resize Handle - Now inside the portal to be next to sidebar */}
                     <div
@@ -157,10 +182,7 @@ export const SessionContent = ({
                         onMouseDown={(e) => {
                             e.preventDefault();
                             const startX = e.clientX;
-                            const currentWidth = aiSidebarVisible && iperfSidebarVisible
-                                ? Math.max(aiChatSidebarWidth, iperfClientSidebarWidth)
-                                : (aiSidebarVisible ? aiChatSidebarWidth : iperfClientSidebarWidth);
-                            const startWidth = currentWidth;
+                            const startWidth = sidebarWidth || 400;
 
                             const handleMouseMove = (e) => {
                                 const diff = startX - e.clientX; // Reverse because right sidebar
@@ -179,19 +201,19 @@ export const SessionContent = ({
                     />
 
                     <SecondarySidebarContainer
-                        width={aiSidebarVisible && iperfSidebarVisible
-                            ? Math.max(aiChatSidebarWidth, iperfClientSidebarWidth)
-                            : (aiSidebarVisible ? aiChatSidebarWidth : (iperfSidebarVisible ? iperfClientSidebarWidth : 0))}
+                        width={sidebarWidth}
                         showAIChat={aiSidebarVisible}
                         showIperfClient={iperfSidebarVisible}
+                        showNetcat={netcatSidebarVisible}
                         activeTab={activeSecondaryTab}
                         onTabChange={handleTabChange}
                         onClose={handleClose}
                         onCloseAIChat={handleCloseAIChat}
                         onCloseIperfClient={handleCloseIperfClient}
+                        onCloseNetcat={handleCloseNetcat}
                     >
                         <AIChatSidebar
-                            isVisible={aiSidebarVisible && (!iperfSidebarVisible || activeSecondaryTab === 'ai-chat')}
+                            isVisible={aiSidebarVisible && ((iperfSidebarVisible || netcatSidebarVisible) ? activeSecondaryTab === 'ai-chat' : true)}
                             width={aiChatSidebarWidth}
                             messages={aiMessages}
                             // Props from useAICommand
@@ -208,13 +230,14 @@ export const SessionContent = ({
                             onCreateNewConversation={createNewConversation}
                             onDeleteConversation={deleteConversation}
                             onUpdateConversationTitle={updateConversationTitle}
-                            onClose={aiSidebarVisible && iperfSidebarVisible ? () => {
-                                onUpdateSession(sessionId, { aiSidebarVisible: false, activeSecondaryTab: 'iperf-client' });
-                            } : () => {
-                                onUpdateSession(sessionId, { aiSidebarVisible: false });
+                            onClose={() => {
+                                const nextTab = iperfSidebarVisible ? 'iperf-client' : (netcatSidebarVisible ? 'netcat' : null);
+                                const updates = { aiSidebarVisible: false };
+                                if (nextTab) updates.activeSecondaryTab = nextTab;
+                                onUpdateSession(sessionId, updates);
                                 // We do not clear messages here anymore, handled by session persistence
                             }}
-                            showHeader={!iperfSidebarVisible}
+                            showHeader={!iperfSidebarVisible && !netcatSidebarVisible}
                             pendingUserRequest={pendingUserRequest}
                             onRespondToRequest={handleAskUserResponse}
                             // Input persistence props
@@ -223,16 +246,32 @@ export const SessionContent = ({
                         />
 
                         <IperfClientSidebar
-                            isVisible={iperfSidebarVisible && (!aiSidebarVisible || activeSecondaryTab === 'iperf-client')}
+                            isVisible={iperfSidebarVisible && ((aiSidebarVisible || netcatSidebarVisible) ? activeSecondaryTab === 'iperf-client' : true)}
                             width={iperfClientSidebarWidth}
                             activeSession={session}
                             output={iperfClientOutput || ''}
                             onClearOutput={() => onUpdateSession(sessionId, { iperfClientOutput: '' })}
                             onStartTest={() => onUpdateSession(sessionId, { iperfClientOutput: '' })}
-                            onClose={aiSidebarVisible && iperfSidebarVisible ? () => {
-                                onUpdateSession(sessionId, { iperfSidebarVisible: false, activeSecondaryTab: 'ai-chat' });
-                            } : () => onUpdateSession(sessionId, { iperfSidebarVisible: false })}
-                            showHeader={!aiSidebarVisible}
+                            onClose={() => {
+                                const nextTab = aiSidebarVisible ? 'ai-chat' : (netcatSidebarVisible ? 'netcat' : null);
+                                const updates = { iperfSidebarVisible: false };
+                                if (nextTab) updates.activeSecondaryTab = nextTab;
+                                onUpdateSession(sessionId, updates);
+                            }}
+                            showHeader={!aiSidebarVisible && !netcatSidebarVisible}
+                        />
+
+                        <NetcatSidebar
+                            isVisible={netcatSidebarVisible && ((aiSidebarVisible || iperfSidebarVisible) ? activeSecondaryTab === 'netcat' : true)}
+                            width={netcatSidebarWidth}
+                            activeSession={session}
+                            onClose={() => {
+                                const nextTab = aiSidebarVisible ? 'ai-chat' : (iperfSidebarVisible ? 'iperf-client' : null);
+                                const updates = { netcatSidebarVisible: false };
+                                if (nextTab) updates.activeSecondaryTab = nextTab;
+                                onUpdateSession(sessionId, updates);
+                            }}
+                            showHeader={!aiSidebarVisible && !iperfSidebarVisible}
                         />
                     </SecondarySidebarContainer>
                 </div>,

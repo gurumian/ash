@@ -10,20 +10,27 @@ export const SecondarySidebarContainer = memo(function SecondarySidebarContainer
   width,
   showAIChat,
   showIperfClient,
+  showNetcat,
   activeTab,
   onTabChange,
   onClose,
   onCloseAIChat,
   onCloseIperfClient,
+  onCloseNetcat,
   children
 }) {
   const { t } = useTranslation(['common']);
 
-  // Determine if we should show tabs (both sidebars visible)
-  const showTabs = showAIChat && showIperfClient;
+  const visibleTabs = [];
+  if (showAIChat) visibleTabs.push('ai-chat');
+  if (showIperfClient) visibleTabs.push('iperf-client');
+  if (showNetcat) visibleTabs.push('netcat');
+
+  // Determine if we should show tabs (more than one sidebar visible)
+  const showTabs = visibleTabs.length > 1;
   
-  // If only one sidebar is visible, don't show tabs
-  if (!showAIChat && !showIperfClient) {
+  // If no sidebar is visible, don't render
+  if (visibleTabs.length === 0) {
     return null;
   }
 
@@ -44,42 +51,39 @@ export const SecondarySidebarContainer = memo(function SecondarySidebarContainer
       {/* Tab Header - Only show when both sidebars are visible */}
       {showTabs && (
         <div className="secondary-sidebar-tabs">
-          <div
-            className={`secondary-sidebar-tab ${activeTab === 'ai-chat' ? 'active' : ''}`}
-            onClick={() => onTabChange('ai-chat')}
-          >
-            <span>{t('common:aiChat')}</span>
-            <button
-              className="secondary-sidebar-tab-close"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (onCloseAIChat) {
-                  onCloseAIChat();
-                }
-              }}
-              title={t('common:close')}
-            >
-              ×
-            </button>
-          </div>
-          <div
-            className={`secondary-sidebar-tab ${activeTab === 'iperf-client' ? 'active' : ''}`}
-            onClick={() => onTabChange('iperf-client')}
-          >
-            <span>{t('common:iperfClient')}</span>
-            <button
-              className="secondary-sidebar-tab-close"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (onCloseIperfClient) {
-                  onCloseIperfClient();
-                }
-              }}
-              title={t('common:close')}
-            >
-              ×
-            </button>
-          </div>
+          {visibleTabs.map((tabKey) => {
+            const isActive = activeTab === tabKey;
+            const label =
+              tabKey === 'ai-chat'
+                ? t('common:aiChat')
+                : tabKey === 'iperf-client'
+                  ? t('common:iperfClient')
+                  : t('common:netcat', 'Netcat');
+
+            const handleClose = (e) => {
+              e.stopPropagation();
+              if (tabKey === 'ai-chat' && onCloseAIChat) onCloseAIChat();
+              if (tabKey === 'iperf-client' && onCloseIperfClient) onCloseIperfClient();
+              if (tabKey === 'netcat' && onCloseNetcat) onCloseNetcat();
+            };
+
+            return (
+              <div
+                key={tabKey}
+                className={`secondary-sidebar-tab ${isActive ? 'active' : ''}`}
+                onClick={() => onTabChange(tabKey)}
+              >
+                <span>{label}</span>
+                <button
+                  className="secondary-sidebar-tab-close"
+                  onClick={handleClose}
+                  title={t('common:close')}
+                >
+                  ×
+                </button>
+              </div>
+            );
+          })}
           <button
             className="secondary-sidebar-close"
             onClick={onClose}

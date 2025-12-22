@@ -210,10 +210,12 @@ export function useConnectionManagement({
             // Session-scoped sidebar state
             aiSidebarVisible: false,
             iperfSidebarVisible: false,
+            netcatSidebarVisible: false,
             aiMessages: [],
             activeSecondaryTab: 'ai-chat',
             aiChatSidebarWidth: 400,
-            iperfClientSidebarWidth: 500
+            iperfClientSidebarWidth: 500,
+            netcatSidebarWidth: 500
           };
 
           // Create session first so terminal can be initialized
@@ -306,10 +308,12 @@ export function useConnectionManagement({
             // Session-scoped sidebar state
             aiSidebarVisible: false,
             iperfSidebarVisible: false,
+            netcatSidebarVisible: false,
             aiMessages: [],
             activeSecondaryTab: 'ai-chat',
             aiChatSidebarWidth: 400,
-            iperfClientSidebarWidth: 500
+            iperfClientSidebarWidth: 500,
+            netcatSidebarWidth: 500
           };
 
           // Save connection history
@@ -354,10 +358,12 @@ export function useConnectionManagement({
           // Session-scoped sidebar state
           aiSidebarVisible: false,
           iperfSidebarVisible: false,
+          netcatSidebarVisible: false,
           aiMessages: [],
           activeSecondaryTab: 'ai-chat',
           aiChatSidebarWidth: 400,
-          iperfClientSidebarWidth: 500
+          iperfClientSidebarWidth: 500,
+          netcatSidebarWidth: 500
         };
 
         // Save connection history for Serial connections too

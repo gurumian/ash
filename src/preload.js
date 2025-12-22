@@ -93,6 +93,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onMenuTftpServer: (callback) => ipcRenderer.on('menu-tftp-server', callback),
   onMenuWebServer: (callback) => ipcRenderer.on('menu-web-server', callback),
   onMenuAICommand: (callback) => ipcRenderer.on('menu-ai-command', callback),
+  onMenuNetcat: (callback) => ipcRenderer.on('menu-netcat', callback),
 
   // Change window title
   setWindowTitle: async (title) => {
@@ -224,6 +225,36 @@ contextBridge.exposeInMainWorld('electronAPI', {
   offIperfClientOutput: (callback) => ipcRenderer.off('iperf-client-output', callback),
   onIperfClientStopped: (callback) => ipcRenderer.on('iperf-client-stopped', (event, data) => callback(data)),
   offIperfClientStopped: (callback) => ipcRenderer.off('iperf-client-stopped', callback),
+
+  // Netcat APIs
+  netcatStart: (params) => ipcRenderer.invoke('netcat-start', params),
+  netcatSend: (data) => ipcRenderer.invoke('netcat-send', data),
+  netcatStop: () => ipcRenderer.invoke('netcat-stop'),
+  netcatStatus: () => ipcRenderer.invoke('netcat-status'),
+  onNetcatConnected: (callback) => {
+    const listener = (event, data) => callback?.(data);
+    ipcRenderer.on('netcat-connected', listener);
+    return () => ipcRenderer.off('netcat-connected', listener);
+  },
+  offNetcatConnected: (callback) => ipcRenderer.off('netcat-connected', callback),
+  onNetcatData: (callback) => {
+    const listener = (event, data) => callback?.(data);
+    ipcRenderer.on('netcat-data', listener);
+    return () => ipcRenderer.off('netcat-data', listener);
+  },
+  offNetcatData: (callback) => ipcRenderer.off('netcat-data', callback),
+  onNetcatError: (callback) => {
+    const listener = (event, data) => callback?.(data);
+    ipcRenderer.on('netcat-error', listener);
+    return () => ipcRenderer.off('netcat-error', listener);
+  },
+  offNetcatError: (callback) => ipcRenderer.off('netcat-error', callback),
+  onNetcatClosed: (callback) => {
+    const listener = () => callback?.();
+    ipcRenderer.on('netcat-closed', listener);
+    return () => ipcRenderer.off('netcat-closed', listener);
+  },
+  offNetcatClosed: (callback) => ipcRenderer.off('netcat-closed', callback),
 
   // TFTP Server error events
   onTftpServerError: (callback) => ipcRenderer.on('tftp-server-error', (event, data) => callback(data)),

@@ -16,6 +16,7 @@ export function useMenuHandlers({
   setShowWebServerDialog,
   setShowIperfServerDialog,
   setShowIperfClientSidebar,
+  setShowNetcatSidebar,
   setShowAICommandInput,
   setAppInfo,
   disconnectSession,
@@ -43,6 +44,11 @@ export function useMenuHandlers({
   useEffect(() => {
     setShowIperfClientSidebarRef.current = setShowIperfClientSidebar;
   }, [setShowIperfClientSidebar]);
+
+  const setShowNetcatSidebarRef = useRef(setShowNetcatSidebar);
+  useEffect(() => {
+    setShowNetcatSidebarRef.current = setShowNetcatSidebar;
+  }, [setShowNetcatSidebar]);
 
   const setShowAICommandInputRef = useRef(setShowAICommandInput);
   useEffect(() => {
@@ -191,6 +197,11 @@ export function useMenuHandlers({
       setShowIperfClientSidebarRef.current?.(true);
     });
 
+    // Netcat menu event
+    window.electronAPI.onMenuNetcat?.(() => {
+      setShowNetcatSidebarRef.current?.(true);
+    });
+
     // AI Command menu event
     window.electronAPI.onMenuAICommand(() => {
       if (activeSessionIdRef.current) {
@@ -210,6 +221,7 @@ export function useMenuHandlers({
       window.electronAPI.removeAllListeners('menu-tftp-server');
       window.electronAPI.removeAllListeners('menu-web-server');
       window.electronAPI.removeAllListeners('menu-iperf-server');
+      window.electronAPI.removeAllListeners('menu-netcat');
       window.electronAPI.removeAllListeners('menu-ai-command');
       window.electronAPI.removeAllListeners('update-status-log');
       window.electronAPI.removeAllListeners('update-available');
