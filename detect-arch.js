@@ -1,59 +1,27 @@
 // Detect native system architecture on Windows
-// This is needed because Node.js running as x64 emulated doesn't see ARM64 env vars
+// On Windows on ARM, Node.js may run as x64 emulated, so we prefer Node.js arch
+// unless explicitly overridden
 const { execSync } = require('child_process');
 
 function detectNativeArch() {
-  if (process.platform !== 'win32') {
-    // On non-Windows, use os.arch()
-    const os = require('os');
-    const arch = os.arch();
-    return arch === 'arm64' ? 'arm64' : (arch === 'x64' ? 'x64' : 'x64');
-  }
-
-  // Allow override
+  // Allow explicit override
   if (process.env.TARGET_ARCH) {
     return process.env.TARGET_ARCH;
   }
 
-  try {
-    // First try WMI - most reliable
-    const wmiResult = execSync('powershell -Command "(Get-WmiObject Win32_Processor).Architecture"', { encoding: 'utf8' }).trim();
-    // Architecture 12 = ARM64, 9 = x64
-    if (wmiResult === '12') {
-      return 'arm64';
-    }
-    if (wmiResult === '9') {
-      return 'x64';
-    }
-  } catch (e) {
-    // Fallback to PowerShell environment variable
-    try {
-      const result = execSync('powershell -Command "$env:PROCESSOR_ARCHITECTURE"', { encoding: 'utf8' }).trim();
-      if (result === 'ARM64') {
-        return 'arm64';
-      }
-      if (result === 'AMD64') {
-        return 'x64';
-      }
-    } catch (e2) {
-      // Last resort: check if PROCESSOR_ARCHITECTURE is available in cmd
-      try {
-        const cmdResult = execSync('cmd /c "echo %PROCESSOR_ARCHITECTURE%"', { encoding: 'utf8' }).trim();
-        if (cmdResult === 'ARM64') {
-          return 'arm64';
-        }
-        if (cmdResult === 'AMD64') {
-          return 'x64';
-        }
-      } catch (e3) {
-        // Final fallback
-        console.warn('Could not detect architecture, defaulting to x64');
-        return 'x64';
-      }
+  // On Windows, prefer Node.js architecture (which may be x64 emulated on ARM)
+  // This ensures the build matches the Node.js runtime architecture
+  if (process.platform === 'win32') {
+    const nodeArch = process.arch;
+    if (nodeArch === 'x64' || nodeArch === 'arm64') {
+      return nodeArch;
     }
   }
 
-  return 'x64';
+  // On non-Windows, use os.arch()
+  const os = require('os');
+  const arch = os.arch();
+  return arch === 'arm64' ? 'arm64' : (arch === 'x64' ? 'x64' : 'x64');
 }
 
 const arch = detectNativeArch();
