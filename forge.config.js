@@ -11,38 +11,22 @@ const makers = [
   {
     name: '@felixrieseberg/electron-forge-maker-nsis',
     platforms: ['win32'],
-    config: (forgeConfig, makerOptions) => {
-      // Map arch names for better readability (32-bit/ia32 not supported)
-      const archMap = {
-        x64: 'x64',
-        arm64: 'arm64',
-      };
-      
-      // Safely get arch from makerOptions
-      const makerArch = makerOptions?.arch || process.arch || 'x64';
-      
-      if (makerArch === 'ia32' || makerArch === 'x32') {
-        throw new Error('32-bit (ia32) architecture is not supported. Please build for x64 or arm64.');
-      }
-      
-      const arch = archMap[makerArch] || (makerArch === 'x64' ? 'x64' : 'x64');
-      
-      return {
-        name: 'ash',
-        oneClick: false,
-        perMachine: false,
-        allowToChangeInstallationDirectory: true,
-        createDesktopShortcut: true,
-        createStartMenuShortcut: true,
-        shortcutName: 'ash',
-        setupExe: `ash-${arch}-Setup-${packageJson.version}.exe`,
-      };
+    config: {
+      name: 'ash',
+      oneClick: false,
+      perMachine: false,
+      allowToChangeInstallationDirectory: true,
+      createDesktopShortcut: true,
+      createStartMenuShortcut: true,
+      shortcutName: 'ash',
+      // Use process.arch directly since we are building on the target machine
+      setupExe: `ash-${process.arch}-Setup-${packageJson.version}.exe`,
     },
   },
-  {
-    name: '@electron-forge/maker-squirrel',
-    config: {},
-  },
+  // {
+  //   name: '@electron-forge/maker-squirrel',
+  //   config: {},
+  // },
   {
     name: '@electron-forge/maker-zip',
     platforms: ['darwin'],
@@ -69,6 +53,38 @@ const makers = [
 ];
 
 module.exports = {
+
+  hooks: {
+    postMake: async (forgeConfig, makeResults) => {
+      for (const result of makeResults) {
+        // Only process Windows NSIS artifacts
+        if (result.platform === 'win32') {
+          for (let i = 0; i < result.artifacts.length; i++) {
+            const artifactPath = result.artifacts[i];
+            const ext = path.extname(artifactPath);
+            const basename = path.basename(artifactPath);
+
+            // Check if it's an exe (NSIS installer) and not a Squirrel nupkg/RELEASES
+            // And if it doesn't already have the arch in the name
+            if (ext === '.exe' && !basename.includes(process.arch) && !basename.includes('RELEASES')) {
+              const dir = path.dirname(artifactPath);
+              const newName = `ash-${process.arch}-Setup-${packageJson.version}.exe`;
+              const newPath = path.join(dir, newName);
+
+              console.log(`Renaming ${basename} to ${newName}`);
+
+              try {
+                fs.renameSync(artifactPath, newPath);
+                result.artifacts[i] = newPath; // Update the result object
+              } catch (e) {
+                console.error(`Failed to rename artifact: ${e.message}`);
+              }
+            }
+          }
+        }
+      }
+    },
+  },
   packagerConfig: {
     asar: {
       unpack: '**/{serialport,@serialport,ssh2,telnet-stream}/**' // Native modules and dynamically required modules that need to be unpacked from asar

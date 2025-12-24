@@ -24,9 +24,16 @@ const https = require('https');
 // Configuration
 const SERVER_URL = 'https://cdn.toktoktalk.com';
 const APP_NAME = 'ash';
-const UPLOAD_TOKEN = 'GQsFZFcP7TehIe4p63S6qipq4WVfqRdPv8SjopTYiGBpCHG1XHdzxm5DMOwWoTl';
+const UPLOAD_TOKEN = process.env.UPLOAD_TOKEN || process.env.ASH_UPLOAD_TOKEN;
 const packageJson = require('../package.json');
 const VERSION = packageJson.version;
+
+if (!UPLOAD_TOKEN) {
+  console.error('❌ Error: UPLOAD_TOKEN or ASH_UPLOAD_TOKEN environment variable is required');
+  console.error('   Please set it before running the upload script:');
+  console.error('   export UPLOAD_TOKEN="your-token-here"');
+  process.exit(1);
+}
 
 console.log('========================================');
 console.log(`Uploading ${APP_NAME} v${VERSION}`);
@@ -40,14 +47,14 @@ function uploadFile(filePath, platform, arch) {
   return new Promise((resolve, reject) => {
     const fileName = path.basename(filePath);
     const fileSize = fs.statSync(filePath).size;
-    
+
     console.log(`📤 Uploading: ${fileName}`);
     console.log(`   Size: ${(fileSize / 1024 / 1024).toFixed(2)} MB`);
     console.log(`   Target: ${platform}/${arch}`);
-    
+
     const form = new FormData();
     form.append('File', fs.createReadStream(filePath), fileName);
-    
+
     const url = new URL(SERVER_URL);
     const options = {
       method: 'POST',
@@ -59,20 +66,23 @@ function uploadFile(filePath, platform, arch) {
         'Authorization': UPLOAD_TOKEN
       }
     };
-    
+
     const req = https.request(options, (res) => {
       let data = '';
-      
+
       console.log(`   Response status: ${res.statusCode}`);
-      console.log(`   Response headers:`, res.headers);
-      
+      // Only log non-sensitive headers for debugging
+      if (process.env.DEBUG) {
+        console.log(`   Response headers:`, res.headers);
+      }
+
       res.on('data', (chunk) => {
         data += chunk;
       });
-      
+
       res.on('end', () => {
         console.log(`   Response body:`, data);
-        
+
         if (res.statusCode === 200 || res.statusCode === 201) {
           console.log(`✅ Successfully uploaded: ${fileName}\n`);
           try {
@@ -92,12 +102,12 @@ function uploadFile(filePath, platform, arch) {
         }
       });
     });
-    
+
     req.on('error', (err) => {
       console.error(`❌ Upload error: ${err.message}`);
       reject(err);
     });
-    
+
     form.pipe(req);
   });
 }
@@ -107,39 +117,49 @@ function uploadFile(filePath, platform, arch) {
  */
 async function uploadWindows() {
   console.log('📦 Processing Windows builds...\n');
-  
+
   const outDir = path.join(__dirname, '..', 'out', 'make');
-  const nsisDir = path.join(outDir, 'nsis');
-  
-  if (!fs.existsSync(nsisDir)) {
-    console.error('❌ NSIS output directory not found!');
-    console.error('   Expected: ' + nsisDir);
+
+  // Try to find the file recursively or in expected locations
+  // We expect: ash-${arch}-Setup-${VERSION}.exe
+  // It might be in out/make/squirrel.windows/x64 or out/make/nsis/x64 ??
+  // Actually, with @felixrieseberg/maker-nsis, it depends.
+
+  const arch = process.arch; // x64 or arm64
+  const expectedName = `ash-${arch}-Setup-${VERSION}.exe`;
+
+  console.log(`🔎 Looking for: ${expectedName}`);
+
+  // Helper to find file recursively
+  function findFile(dir, name) {
+    if (!fs.existsSync(dir)) return null;
+    const files = fs.readdirSync(dir);
+    for (const file of files) {
+      const fullPath = path.join(dir, file);
+      const stat = fs.statSync(fullPath);
+      if (stat.isDirectory()) {
+        const found = findFile(fullPath, name);
+        if (found) return found;
+      } else if (file === name) {
+        return fullPath;
+      }
+    }
+    return null;
+  }
+
+  const filePath = findFile(outDir, expectedName);
+
+  if (!filePath) {
+    console.error(`❌ Expected installer not found: ${expectedName}`);
+    console.error(`   Searched in: ${outDir}`);
     console.error('   Please run "npm run make" first');
     process.exit(1);
   }
-  
+
   const uploaded = [];
-  
-  // Upload x64 build - only current version
-  const x64Dir = path.join(nsisDir, 'x64');
-  if (fs.existsSync(x64Dir)) {
-    const expectedX64Name = `ash-x64-Setup-${VERSION}.exe`;
-    const x64Files = fs.readdirSync(x64Dir).filter(f => f === expectedX64Name);
-    for (const file of x64Files) {
-      await uploadFile(path.join(x64Dir, file), 'win32', 'x64');
-      uploaded.push({ file, arch: 'x64' });
-    }
-    if (x64Files.length === 0) {
-      console.warn(`⚠️  Expected x64 installer not found: ${expectedX64Name}`);
-    }
-  }
-  
-  if (uploaded.length === 0) {
-    console.error('❌ No .exe files found!');
-    console.error('   Please run "npm run make" first');
-    process.exit(1);
-  }
-  
+  await uploadFile(filePath, 'win32', arch);
+  uploaded.push({ file: expectedName, arch: arch });
+
   return uploaded;
 }
 
@@ -148,19 +168,19 @@ async function uploadWindows() {
  */
 async function uploadMacOS() {
   console.log('📦 Processing macOS builds...\n');
-  
+
   const outDir = path.join(__dirname, '..', 'out', 'make');
   const arch = process.arch; // arm64 or x64
-  
+
   if (!fs.existsSync(outDir)) {
     console.error('❌ Output directory not found!');
     console.error('   Expected: ' + outDir);
     console.error('   Please run "npm run make" first');
     process.exit(1);
   }
-  
+
   const uploaded = [];
-  
+
   // Upload ZIP files (for auto-updates) - check in zip subdirectory
   const zipDir = path.join(outDir, 'zip', 'darwin', arch);
   if (fs.existsSync(zipDir)) {
@@ -181,7 +201,7 @@ async function uploadMacOS() {
     console.warn('⚠️  ZIP directory not found - auto-updates will not work!');
     console.warn('   Expected: ' + zipDir);
   }
-  
+
   // Upload DMG files (for manual distribution)
   // DMG filename includes version for consistency with ZIP files
   const expectedDmgName = `ash-${VERSION}.dmg`;
@@ -195,13 +215,13 @@ async function uploadMacOS() {
   } else {
     console.warn(`⚠️  Expected DMG file not found: ${expectedDmgName}`);
   }
-  
+
   if (uploaded.length === 0) {
     console.error('❌ No .zip or .dmg files found!');
     console.error('   Please run "npm run make" first');
     process.exit(1);
   }
-  
+
   return uploaded;
 }
 
@@ -210,19 +230,19 @@ async function uploadMacOS() {
  */
 async function uploadLinux() {
   console.log('📦 Processing Linux builds...\n');
-  
+
   const outDir = path.join(__dirname, '..', 'out', 'make');
   const arch = process.arch; // x64, arm64
-  
+
   if (!fs.existsSync(outDir)) {
     console.error('❌ Output directory not found!');
     console.error('   Expected: ' + outDir);
     console.error('   Please run "npm run make" first');
     process.exit(1);
   }
-  
+
   const uploaded = [];
-  
+
   // Upload AppImage files (Universal Linux - for auto-updates)
   const appImageDir = path.join(outDir, 'AppImage', arch);
   if (fs.existsSync(appImageDir)) {
@@ -238,7 +258,7 @@ async function uploadLinux() {
     console.warn('⚠️  AppImage directory not found - auto-updates will not work!');
     console.warn('   Expected: ' + appImageDir);
   }
-  
+
   // Upload DEB files (Debian/Ubuntu)
   const debDir = path.join(outDir, 'deb', arch);
   if (fs.existsSync(debDir)) {
@@ -251,13 +271,13 @@ async function uploadLinux() {
       }
     }
   }
-  
+
   if (uploaded.length === 0) {
     console.error('❌ No .AppImage or .deb files found!');
     console.error('   Please run "npm run make" first');
     process.exit(1);
   }
-  
+
   return uploaded;
 }
 
@@ -267,7 +287,7 @@ async function uploadLinux() {
 async function main() {
   try {
     let uploaded = [];
-    
+
     if (process.platform === 'win32') {
       uploaded = await uploadWindows();
     } else if (process.platform === 'darwin') {
@@ -278,7 +298,7 @@ async function main() {
       console.error(`❌ Unsupported platform: ${process.platform}`);
       process.exit(1);
     }
-    
+
     console.log('\n========================================');
     console.log('✅ Upload completed successfully!');
     console.log('========================================');
@@ -288,12 +308,12 @@ async function main() {
       const typeLabel = type ? ` [${type}]` : '';
       console.log(`   - ${file} (${arch})${typeLabel}`);
     });
-    
+
     console.log(`\n🔗 Update server will automatically:`);
     console.log(`   1. Calculate SHA512 hashes`);
     console.log(`   2. Extract version from filename`);
     console.log(`   3. Generate latest.yml dynamically`);
-    
+
     console.log(`\n📍 Update endpoints:`);
     if (process.platform === 'win32') {
       console.log(`   - ${SERVER_URL}/update/${APP_NAME}/latest.yml`);
@@ -302,7 +322,7 @@ async function main() {
     } else if (process.platform === 'linux') {
       console.log(`   - ${SERVER_URL}/update/${APP_NAME}/latest-linux.yml`);
     }
-    
+
     console.log(`\n💡 Test update check:`);
     if (process.platform === 'win32') {
       console.log(`   curl ${SERVER_URL}/update/${APP_NAME}/latest.yml`);
@@ -311,9 +331,9 @@ async function main() {
     } else if (process.platform === 'linux') {
       console.log(`   curl ${SERVER_URL}/update/${APP_NAME}/latest-linux.yml`);
     }
-    
+
     console.log(`\n🎉 Ready for auto-updates!\n`);
-    
+
   } catch (error) {
     console.error('\n❌ Upload failed:', error.message);
     process.exit(1);

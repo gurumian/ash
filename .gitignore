@@ -107,6 +107,11 @@ backend/dist/
 *.toc
 *.pkg
 
+# Python package metadata (auto-generated)
+*.egg-info/
+dist/
+build/
+
 # Environment variables
 # Editor directories and files
 .idea
