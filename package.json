@@ -7,12 +7,12 @@
   "scripts": {
     "start": "electron-forge start",
     "package": "electron-forge package",
-    "make": "npm run build-backend && electron-forge make",
+    "make": "npm run build-backend && node -e \"const {arch} = require('./detect-arch.js'); require('child_process').execSync(`electron-forge make --arch=${arch}`, {stdio: 'inherit'})\"",
     "publish": "electron-forge publish",
     "upload": "node scripts/upload-build.js",
     "lint": "echo \"No linting configured\"",
     "build-icons": "electron-icon-builder --input=./assets/icons/icon.png --output=./assets/icons --flatten",
-    "build-backend": "node -e \"process.platform === 'win32' ? require('child_process').execSync('build-backend.bat', {stdio: 'inherit'}) : require('child_process').execSync('./build-backend.sh', {stdio: 'inherit'})\""
+    "build-backend": "node -e \"const {arch} = require('./detect-arch.js'); const cp = require('child_process'); const env = {...process.env, TARGET_ARCH: arch}; console.log('Building backend for architecture:', arch); process.platform === 'win32' ? cp.execSync('build-backend.bat', {stdio: 'inherit', env}) : cp.execSync('./build-backend.sh', {stdio: 'inherit', env})\""
   },
   "keywords": [],
   "author": {

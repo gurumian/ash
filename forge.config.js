@@ -4,6 +4,7 @@ const { FuseV1Options, FuseVersion } = require('@electron/fuses');
 const path = require('path');
 const fs = require('fs');
 const packageJson = require('./package.json');
+const { arch: nativeArch } = require('./detect-arch.js');
 
 // Platform-specific makers
 const makers = [
@@ -19,8 +20,8 @@ const makers = [
       createDesktopShortcut: true,
       createStartMenuShortcut: true,
       shortcutName: 'ash',
-      // Use process.arch directly since we are building on the target machine
-      setupExe: `ash-${process.arch}-Setup-${packageJson.version}.exe`,
+      // Use native system architecture, not Node.js architecture
+      setupExe: `ash-${nativeArch}-Setup-${packageJson.version}.exe`,
     },
   },
   // {
@@ -66,9 +67,9 @@ module.exports = {
 
             // Check if it's an exe (NSIS installer) and not a Squirrel nupkg/RELEASES
             // And if it doesn't already have the arch in the name
-            if (ext === '.exe' && !basename.includes(process.arch) && !basename.includes('RELEASES')) {
+            if (ext === '.exe' && !basename.includes(nativeArch) && !basename.includes('RELEASES')) {
               const dir = path.dirname(artifactPath);
-              const newName = `ash-${process.arch}-Setup-${packageJson.version}.exe`;
+              const newName = `ash-${nativeArch}-Setup-${packageJson.version}.exe`;
               const newPath = path.join(dir, newName);
 
               console.log(`Renaming ${basename} to ${newName}`);
@@ -86,6 +87,7 @@ module.exports = {
     },
   },
   packagerConfig: {
+    arch: nativeArch, // Build for native system architecture (ARM64), not Node.js architecture (x64)
     asar: {
       unpack: '**/{serialport,@serialport,ssh2,telnet-stream}/**' // Native modules and dynamically required modules that need to be unpacked from asar
     },
@@ -97,16 +99,13 @@ module.exports = {
         path.resolve(__dirname, 'app-update.yml'), // Auto-updater configuration
       ];
 
-      // Map process.arch to architecture name (32-bit/ia32 not supported)
-      const archMap = {
-        'x64': 'x64',
-        'arm64': 'arm64',
-      };
-      let arch = archMap[process.arch] || process.arch || 'x64';
-      if (process.arch === 'ia32' || process.arch === 'x32') {
+      // Use the detected native architecture
+      let arch = nativeArch;
+      if (arch === 'ia32' || arch === 'x32') {
         console.warn('⚠️ Warning: 32-bit (ia32) architecture is not supported. Falling back to x64.');
         arch = 'x64';
       }
+      console.log(`📦 Building for architecture: ${arch} (Node.js: ${process.arch}, System: ${process.env.PROCESSOR_ARCHITEW6432 || process.env.PROCESSOR_ARCHITECTURE || 'unknown'})`);
 
       // Architecture-specific backend executable path
       const backendExe = process.platform === 'win32'

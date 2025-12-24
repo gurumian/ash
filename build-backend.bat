@@ -25,7 +25,7 @@ if %errorlevel% neq 0 (
     if !UV_FOUND! equ 0 (
         echo uv is not installed. Attempting to install...
         python --version >nul 2>&1
-        if %errorlevel% equ 0 (
+        if !errorlevel! equ 0 (
             echo Installing uv via official installer...
             powershell -ExecutionPolicy Bypass -Command "irm https://astral.sh/uv/install.ps1 | iex" >nul 2>&1
             timeout /t 3 /nobreak >nul
@@ -74,9 +74,27 @@ echo Installing PyInstaller...
 !UV_CMD! add pyinstaller
 
 REM Detect architecture (32-bit/ia32 not supported)
+REM TARGET_ARCH can be set by the Node.js build script
+REM Otherwise, check Windows environment variables
 set "ARCH=x64"
-if /i "%PROCESSOR_ARCHITECTURE%"=="AMD64" goto :set_x64
+if defined TARGET_ARCH (
+    if /i "!TARGET_ARCH!"=="arm64" (
+        set "ARCH=arm64"
+        goto :arch_done
+    )
+    if /i "!TARGET_ARCH!"=="x64" (
+        set "ARCH=x64"
+        goto :arch_done
+    )
+)
+REM On Windows ARM64, PROCESSOR_ARCHITEW6432 contains the native architecture
+REM while PROCESSOR_ARCHITECTURE may be AMD64 for emulated processes
+if defined PROCESSOR_ARCHITEW6432 (
+    if /i "!PROCESSOR_ARCHITEW6432!"=="ARM64" goto :set_arm64
+    if /i "!PROCESSOR_ARCHITEW6432!"=="AMD64" goto :set_x64
+)
 if /i "%PROCESSOR_ARCHITECTURE%"=="ARM64" goto :set_arm64
+if /i "%PROCESSOR_ARCHITECTURE%"=="AMD64" goto :set_x64
 if /i "%PROCESSOR_ARCHITECTURE%"=="x86" goto :error_32bit
 goto :set_default
 
