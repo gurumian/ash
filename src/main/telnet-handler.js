@@ -14,8 +14,22 @@ let TelnetSocket;
 export function initializeTelnetHandlers() {
   // Telnet connection IPC handler
   ipcMain.handle('telnet-connect', async (event, connectionInfo) => {
-    const { host, port } = connectionInfo;
-    const connectionId = require('crypto').randomUUID();
+    const { host, port, sessionId } = connectionInfo;
+    const crypto = require('crypto');
+    
+    // Generate session-specific connection ID (unique per session)
+    // If sessionId is provided, use it to ensure uniqueness per session
+    // Otherwise, use UUID (backward compatibility)
+    const sessionConnectionId = sessionId 
+      ? crypto.createHash('sha256').update(`telnet:${sessionId}:${host}:${port}`).digest('hex')
+      : crypto.randomUUID();
+    
+    // Generate connection key for chat history persistence
+    // This allows chat history to be shared across sessions with the same connection info
+    // Format: telnet:sessionName:host:port
+    const sessionName = connectionInfo.sessionName || '';
+    const connectionKeyString = `telnet:${sessionName}:${host}:${port}`;
+    const connectionKey = crypto.createHash('sha256').update(connectionKeyString).digest('hex');
     
     try {
       // Dynamically import telnet-stream
@@ -39,8 +53,8 @@ export function initializeTelnetHandlers() {
         
         // IMPORTANT: Save to maps immediately so data handlers can work right away
         // This ensures we don't miss any data that arrives immediately after connection
-        telnetConnections.set(connectionId, { socket, tSocket });
-        telnetStreams.set(connectionId, { tSocket, webContents });
+        telnetConnections.set(sessionConnectionId, { socket, tSocket });
+        telnetStreams.set(sessionConnectionId, { tSocket, webContents });
         
         let isConnected = false;
         let isClosed = false;
@@ -49,12 +63,12 @@ export function initializeTelnetHandlers() {
           if (isClosed) return;
           isClosed = true;
           
-          telnetConnections.delete(connectionId);
-          telnetStreams.delete(connectionId);
+          telnetConnections.delete(sessionConnectionId);
+          telnetStreams.delete(sessionConnectionId);
           
           try {
             if (!webContents.isDestroyed()) {
-              webContents.send('telnet-closed', { connectionId: connectionId });
+              webContents.send('telnet-closed', { connectionId: sessionConnectionId }); // IPC interface uses connectionId name
             }
           } catch (error) {
             console.warn('Failed to send Telnet closed event:', error.message);
@@ -102,7 +116,7 @@ export function initializeTelnetHandlers() {
           try {
             if (!webContents.isDestroyed() && !isClosed) {
               const dataString = data.toString();
-              webContents.send('telnet-data', { connectionId: connectionId, data: dataString });
+              webContents.send('telnet-data', { connectionId: sessionConnectionId, data: dataString }); // IPC interface uses connectionId name
             }
           } catch (error) {
             console.error(`Error in Telnet data handler:`, error);
@@ -121,7 +135,7 @@ export function initializeTelnetHandlers() {
         
         // Handle telnet errors
         tSocket.on('error', (err) => {
-          console.error(`Telnet stream error: ${connectionId}`, err);
+          console.error(`Telnet stream error: ${sessionConnectionId}`, err);
           if (!isConnected && !isClosed) {
             reject(new Error(`Telnet connection failed: ${err.message}`));
           }
@@ -133,12 +147,12 @@ export function initializeTelnetHandlers() {
           
           isConnected = true;
           // Maps already set above - no need to set again
-          resolve({ success: true, connectionId });
+          resolve({ success: true, sessionConnectionId, connectionKey });
         });
         
         // Handle connection errors (only reject if not yet connected)
         socket.on('error', (err) => {
-          console.error(`Telnet socket error: ${connectionId}`, err);
+          console.error(`Telnet socket error: ${sessionConnectionId}`, err);
           if (!isConnected && !isClosed) {
             reject(new Error(`Telnet connection failed: ${err.message}`));
           }
@@ -157,8 +171,10 @@ export function initializeTelnetHandlers() {
   });
 
   // Send data to Telnet connection
+  // Note: IPC interface uses 'connectionId' property name, but it's actually sessionConnectionId
   ipcMain.handle('telnet-write', async (event, { connectionId, data }) => {
-    const connInfo = telnetConnections.get(connectionId);
+    const sessionConnectionId = connectionId; // IPC property name kept for compatibility
+    const connInfo = telnetConnections.get(sessionConnectionId);
     if (!connInfo || !connInfo.tSocket) {
       throw new Error('Telnet connection not found');
     }
@@ -173,8 +189,10 @@ export function initializeTelnetHandlers() {
   });
   
   // Disconnect Telnet connection
+  // Note: IPC interface uses 'connectionId' parameter name, but it's actually sessionConnectionId
   ipcMain.handle('telnet-disconnect', async (event, connectionId) => {
-    const connInfo = telnetConnections.get(connectionId);
+    const sessionConnectionId = connectionId; // IPC parameter name kept for compatibility
+    const connInfo = telnetConnections.get(sessionConnectionId);
     if (connInfo) {
       try {
         connInfo.tSocket.end();
@@ -182,16 +200,18 @@ export function initializeTelnetHandlers() {
       } catch (error) {
         console.warn('Error closing Telnet connection:', error);
       }
-      telnetConnections.delete(connectionId);
-      telnetStreams.delete(connectionId);
+      telnetConnections.delete(sessionConnectionId);
+      telnetStreams.delete(sessionConnectionId);
       return { success: true };
     }
     return { success: false };
   });
 
   // Telnet file upload using base64 encoding
+  // Note: IPC interface uses 'connectionId' property name, but it's actually sessionConnectionId
   ipcMain.handle('telnet-upload-file', async (event, { connectionId, localPath, remotePath }) => {
-    const connInfo = telnetConnections.get(connectionId);
+    const sessionConnectionId = connectionId; // IPC property name kept for compatibility
+    const connInfo = telnetConnections.get(sessionConnectionId);
     if (!connInfo || !connInfo.tSocket) {
       throw new Error('Telnet connection not found');
     }
@@ -223,7 +243,7 @@ export function initializeTelnetHandlers() {
       // Send progress update (encoding complete)
       if (!webContents.isDestroyed()) {
         webContents.send('telnet-upload-progress', {
-          connectionId,
+          connectionId: sessionConnectionId, // IPC interface uses connectionId name
           progress: 30,
           transferred: fileSize,
           total: fileSize
@@ -243,7 +263,7 @@ export function initializeTelnetHandlers() {
       // Send progress update (directory created)
       if (!webContents.isDestroyed()) {
         webContents.send('telnet-upload-progress', {
-          connectionId,
+          connectionId: sessionConnectionId, // IPC interface uses connectionId name
           progress: 50,
           transferred: fileSize,
           total: fileSize
@@ -275,7 +295,7 @@ export function initializeTelnetHandlers() {
         const progress = 50 + (i / totalChunks) * 40; // 50% to 90%
         if (!webContents.isDestroyed()) {
           webContents.send('telnet-upload-progress', {
-            connectionId,
+            connectionId: sessionConnectionId, // IPC interface uses connectionId name
             progress: Math.min(progress, 90),
             transferred: fileSize,
             total: fileSize
@@ -296,7 +316,7 @@ export function initializeTelnetHandlers() {
       // Send final progress update
       if (!webContents.isDestroyed()) {
         webContents.send('telnet-upload-progress', {
-          connectionId,
+          connectionId: sessionConnectionId, // IPC interface uses connectionId name
           progress: 100,
           transferred: fileSize,
           total: fileSize
@@ -332,11 +352,16 @@ export function getTelnetConnections() {
  * 2. Capture output until we see a prompt or timeout
  * 3. Return the result
  */
+/**
+ * Execute command on Telnet connection (for IPC bridge)
+ * @param {string} connectionId - Session-specific connection ID (IPC bridge uses 'connectionId' name)
+ */
 export async function executeTelnetCommand(connectionId, command) {
-  const connInfo = telnetConnections.get(connectionId);
+  const sessionConnectionId = connectionId; // IPC bridge parameter name kept for compatibility
+  const connInfo = telnetConnections.get(sessionConnectionId);
   if (!connInfo || !connInfo.tSocket) {
     const availableIds = Array.from(telnetConnections.keys());
-    throw new Error(`Telnet connection not found: ${connectionId}. Available: ${availableIds.join(', ')}`);
+    throw new Error(`Telnet connection not found: ${sessionConnectionId}. Available: ${availableIds.join(', ')}`);
   }
   
   return new Promise((resolve, reject) => {

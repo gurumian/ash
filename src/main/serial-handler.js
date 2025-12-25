@@ -83,24 +83,43 @@ export function initializeSerialHandlers() {
         });
       });
 
-      // Generate deterministic connection ID
-      // This allows chat history to be persisted across sessions
-      // We include sessionName if provided, similar to SSH
+      // Generate session-specific connection ID (unique per session)
+      const sessionConnectionString = `serial:${sessionId}:${portPath}`;
+      const sessionConnectionId = crypto.createHash('sha256').update(sessionConnectionString).digest('hex');
+
+      // Generate connection key for chat history persistence
+      // This allows chat history to be shared across sessions with the same connection info
+      // Format: serial:sessionName:portPath
       const sessionName = options.sessionName || '';
-      const connectionString = `serial:${sessionName}:${portPath}`;
-      const connectionId = crypto.createHash('sha256').update(connectionString).digest('hex');
+      const connectionKeyString = `serial:${sessionName}:${portPath}`;
+      const connectionKey = crypto.createHash('sha256').update(connectionKeyString).digest('hex');
 
       const webContents = event.sender;
 
-      // Cleanup existing connection/parser if exists
-      if (serialConnections.has(connectionId)) {
-        const oldConn = serialConnections.get(connectionId);
-        if (oldConn.parser) {
-          try { oldConn.parser.destroy(); } catch (e) { /* ignore */ }
+      // For serial ports, check if the port is already in use by another session
+      // Serial ports can only have one active connection at a time per port
+      // This is a physical limitation, so we throw an explicit error instead of silently closing
+      let existingSessionConnectionId = null;
+      for (const [connId, connInfo] of serialConnections.entries()) {
+        if (connInfo.portPath === portPath) {
+          existingSessionConnectionId = connId;
+          break;
         }
-        // Note: oldConn.port is likely already closed/invalid if we successfully opened a new one
       }
-      serialConnections.set(connectionId, { port, webContents });
+
+      // If port is already in use, throw explicit error
+      // User should explicitly disconnect the existing session first
+      if (existingSessionConnectionId) {
+        // Close the port we just opened since we can't use it
+        try {
+          port.close();
+        } catch (e) {
+          // ignore
+        }
+        throw new Error(`Serial port ${portPath} is already in use by another session. Please disconnect the existing session first.`);
+      }
+
+      serialConnections.set(sessionConnectionId, { port, webContents, portPath });
 
       // Use buffered transform stream to prevent IPC flooding
       // This is necessary for macOS 'cu' devices which may emit single-byte chunks
@@ -111,7 +130,7 @@ export function initializeSerialHandlers() {
 
       // Store parser reference for cleanup
       // We store it on the connection object so we can unpipe/destroy it later
-      const connInfo = serialConnections.get(connectionId);
+      const connInfo = serialConnections.get(sessionConnectionId);
       if (connInfo) {
         connInfo.parser = parser;
       }
@@ -119,7 +138,7 @@ export function initializeSerialHandlers() {
       parser.on('data', (data) => {
         try {
           if (!webContents.isDestroyed()) {
-            webContents.send('serial-data', connectionId, data.toString());
+            webContents.send('serial-data', sessionConnectionId, data.toString());
           }
         } catch (error) {
           console.warn('Failed to send serial data:', error.message);
@@ -129,26 +148,26 @@ export function initializeSerialHandlers() {
       port.on('close', () => {
         try {
           if (!webContents.isDestroyed()) {
-            webContents.send('serial-close', connectionId);
+            webContents.send('serial-close', sessionConnectionId);
           }
         } catch (error) {
           console.warn('Failed to send serial close event:', error.message);
         }
-        serialConnections.delete(connectionId);
+        serialConnections.delete(sessionConnectionId);
       });
 
       port.on('error', (error) => {
         console.error('Serial port error:', error);
         try {
           if (!webContents.isDestroyed()) {
-            webContents.send('serial-error', connectionId, error.message);
+            webContents.send('serial-error', sessionConnectionId, error.message);
           }
         } catch (sendError) {
           console.warn('Failed to send serial error event:', sendError.message);
         }
       });
 
-      return { success: true, connectionId };
+      return { success: true, sessionConnectionId, connectionKey };
     } catch (error) {
       console.error('Serial connection error:', error);
       return { success: false, error: error.message };
@@ -156,9 +175,11 @@ export function initializeSerialHandlers() {
   });
 
   // Write to serial port
+  // Note: IPC interface uses 'connectionId' parameter name, but it's actually sessionConnectionId
   ipcMain.handle('serial-write', async (event, connectionId, data) => {
+    const sessionConnectionId = connectionId; // IPC parameter name kept for compatibility
     try {
-      const connInfo = serialConnections.get(connectionId);
+      const connInfo = serialConnections.get(sessionConnectionId);
       if (!connInfo || !connInfo.port) {
         throw new Error('Serial port not connected');
       }
@@ -172,9 +193,11 @@ export function initializeSerialHandlers() {
   });
 
   // Disconnect serial port
+  // Note: IPC interface uses 'connectionId' parameter name, but it's actually sessionConnectionId
   ipcMain.handle('serial-disconnect', async (event, connectionId) => {
+    const sessionConnectionId = connectionId; // IPC parameter name kept for compatibility
     try {
-      const connInfo = serialConnections.get(connectionId);
+      const connInfo = serialConnections.get(sessionConnectionId);
       if (connInfo && connInfo.port) {
         if (connInfo.parser) {
           connInfo.parser.destroy();
@@ -189,10 +212,10 @@ export function initializeSerialHandlers() {
               });
             });
           } catch (e) {
-            console.warn(`Error closing port ${connectionId}:`, e.message);
+            console.warn(`Error closing port ${sessionConnectionId}:`, e.message);
           }
         }
-        serialConnections.delete(connectionId);
+        serialConnections.delete(sessionConnectionId);
       }
       return { success: true };
     } catch (error) {
@@ -209,13 +232,13 @@ export function initializeSerialHandlers() {
 export async function cleanupSerialConnections() {
   const closePromises = [];
 
-  serialConnections.forEach((connInfo, connectionId) => {
+  serialConnections.forEach((connInfo, sessionConnectionId) => {
     // Destroy parser first
     if (connInfo.parser) {
       try {
         connInfo.parser.destroy();
       } catch (e) {
-        console.warn(`Error destroying parser for ${connectionId}:`, e.message);
+            console.warn(`Error destroying parser for ${sessionConnectionId}:`, e.message);
       }
     }
 
@@ -224,12 +247,12 @@ export async function cleanupSerialConnections() {
         try {
           connInfo.port.close((err) => {
             if (err) {
-              console.warn(`Error closing port ${connectionId} during cleanup:`, err.message);
+              console.warn(`Error closing port ${sessionConnectionId} during cleanup:`, err.message);
             }
             resolve();
           });
         } catch (e) {
-          console.warn(`Exception closing port ${connectionId} during cleanup:`, e.message);
+          console.warn(`Exception closing port ${sessionConnectionId} during cleanup:`, e.message);
           resolve();
         }
       });
@@ -262,6 +285,7 @@ export function getSerialConnections() {
 
 /**
  * Execute command on Serial connection (for IPC bridge)
+ * @param {string} connectionId - Session-specific connection ID (IPC bridge uses 'connectionId' name)
  * 
  * Works similarly to Telnet:
  * 1. Send the command
@@ -269,14 +293,15 @@ export function getSerialConnections() {
  * 3. Return the result
  */
 export async function executeSerialCommand(connectionId, command) {
-  const connInfo = serialConnections.get(connectionId);
+  const sessionConnectionId = connectionId; // IPC bridge parameter name kept for compatibility
+  const connInfo = serialConnections.get(sessionConnectionId);
   if (!connInfo || !connInfo.port) {
     const availableIds = Array.from(serialConnections.keys());
-    throw new Error(`Serial connection not found: ${connectionId}. Available: ${availableIds.join(', ')}`);
+    throw new Error(`Serial connection not found: ${sessionConnectionId}. Available: ${availableIds.join(', ')}`);
   }
 
   if (!connInfo.port.isOpen) {
-    throw new Error(`Serial port is closed: ${connectionId}`);
+    throw new Error(`Serial port is closed: ${sessionConnectionId}`);
   }
 
   return new Promise((resolve, reject) => {

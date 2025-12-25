@@ -255,7 +255,9 @@ export function useConnectionManagement({
 
           await connection.connect(
             formData.host,
-            formData.port || '23'
+            formData.port || '23',
+            sessionId,
+            sessionName
           );
 
           // Update session as connected
@@ -274,8 +276,9 @@ export function useConnectionManagement({
             postProcessingEnabled: formData.postProcessingEnabled !== false
           });
 
-          // Update connectionId map immediately
-          if (updateConnectionIdMap && connection.connectionId) {
+          // Update sessionConnectionId map immediately
+          // Note: Uses deprecated 'connectionId' getter which actually returns sessionConnectionId
+          if (updateConnectionIdMap && (connection.sessionConnectionId || connection.connectionId)) {
             updateConnectionIdMap();
           }
 
@@ -290,7 +293,8 @@ export function useConnectionManagement({
             formData.port,
             formData.user,
             formData.password,
-            sessionName
+            sessionName,
+            sessionId
           );
 
           session = {
@@ -546,7 +550,7 @@ export function useConnectionManagement({
     if (!retryEnabled) {
       // No retry - single attempt
       connection = new SSHConnection();
-      await connection.connect(session.host, session.port, session.user, password, session.name);
+      await connection.connect(session.host, session.port, session.user, password, session.name, session.id);
       sshConnections.current[session.id] = connection;
     } else {
       // Retry logic
@@ -561,7 +565,7 @@ export function useConnectionManagement({
 
         try {
           connection = new SSHConnection();
-          await connection.connect(session.host, session.port, session.user, password, session.name);
+          await connection.connect(session.host, session.port, session.user, password, session.name, session.id);
           sshConnections.current[session.id] = connection;
 
           // Success - clear attempt message
@@ -618,7 +622,7 @@ export function useConnectionManagement({
     if (!retryEnabled) {
       // No retry - single attempt
       connection = new TelnetConnection();
-      await connection.connect(session.host, session.port || '23');
+      await connection.connect(session.host, session.port || '23', session.id, session.name);
       sshConnections.current[session.id] = connection;
     } else {
       // Retry logic
@@ -633,7 +637,7 @@ export function useConnectionManagement({
 
         try {
           connection = new TelnetConnection();
-          await connection.connect(session.host, session.port || '23');
+          await connection.connect(session.host, session.port || '23', session.id, session.name);
           sshConnections.current[session.id] = connection;
 
           // Success - clear attempt message
@@ -958,7 +962,7 @@ export function useConnectionManagement({
                 }
 
                 const connection = new SSHConnection();
-                await connection.connect(newSession.host, newSession.port, newSession.user, password);
+                await connection.connect(newSession.host, newSession.port, newSession.user, password, newSession.name, newSession.id);
                 sshConnections.current[newSession.id] = connection;
 
                 setSessions(prev => prev.map(s =>

@@ -92,7 +92,9 @@ export function useAICommand({
       return;
     }
 
-    const connectionId = connection.connectionId || activeSessionId;
+    // Use connectionKey for chat history (shared across sessions with same connection info)
+    // Fall back to deprecated properties for backward compatibility
+    const connectionId = connection.connectionKey || connection.logicalConnectionId || connection.connectionId || activeSessionId;
 
     // Only load if connection ID changed
     if (connectionId === lastConnectionIdRef.current) {
@@ -237,20 +239,29 @@ export function useAICommand({
           console.warn('Failed to extract terminal content:', err);
         }
 
-        // Retrieve connectionId safely
-        let connectionId = null;
+        // Retrieve connection IDs
+        let connectionKey = null; // For chat history (shared across sessions)
+        let sessionConnectionId = null; // For command execution (unique per session)
         if (activeSessionId && sshConnections.current[activeSessionId]) {
           const connection = sshConnections.current[activeSessionId];
           if (connection.isConnected) {
-            connectionId = connection.connectionId || activeSessionId;
+            // sessionConnectionId: for command execution (what backend needs)
+            sessionConnectionId = connection.sessionConnectionId || connection.connectionId || activeSessionId;
+            // connectionKey: for chat history (shared across sessions with same connection info)
+            connectionKey = connection.connectionKey || connection.logicalConnectionId || sessionConnectionId;
           }
         }
 
         // Prepend context to message for agent/ask modes to ensure AI sees what user sees
         // User Request FIRST, then Context.
+        // Note: Backend needs sessionConnectionId for command execution, not connectionKey
+        const connectionIdForAI = sessionConnectionId || 'unknown';
         const augmentedMessage = terminalContext
-          ? `User Request: ${naturalLanguage}\n(Active Connection ID: ${connectionId || 'unknown'})\n\nTerminal Context:\n${terminalContext}`
-          : `User Request: ${naturalLanguage}\n(Active Connection ID: ${connectionId || 'unknown'})`;
+          ? `User Request: ${naturalLanguage}\n(Active Connection ID: ${connectionIdForAI})\n\nTerminal Context:\n${terminalContext}`
+          : `User Request: ${naturalLanguage}\n(Active Connection ID: ${connectionIdForAI})`;
+        
+        // Use connectionKey for chat history, but sessionConnectionId for AI/backend
+        const connectionId = connectionKey || sessionConnectionId || activeSessionId;
 
         // Handle agent mode with Qwen-Agent
         if (mode === 'agent') {
@@ -262,7 +273,7 @@ export function useAICommand({
           }
 
           if (process.env.NODE_ENV === 'development') {
-            console.log('Agent mode - connectionId:', connectionId, 'activeSessionId:', activeSessionId);
+            console.log('Agent mode - connectionKey (chat history):', connectionId, 'sessionConnectionId (command execution):', sessionConnectionId, 'activeSessionId:', activeSessionId);
           }
 
           // Ensure conversation exists
@@ -705,7 +716,9 @@ export function useAICommand({
         if (!currentConversationId && activeSessionId) {
           const connection = sshConnections.current[activeSessionId];
           if (connection) {
-            const connectionId = connection.connectionId || activeSessionId;
+            // Use connectionKey for chat history (shared across sessions with same connection info)
+    // Fall back to deprecated properties for backward compatibility
+    const connectionId = connection.connectionKey || connection.logicalConnectionId || connection.connectionId || activeSessionId;
             const conversation = await chatHistoryService.getOrCreateConversation(connectionId);
             currentConversationId = conversation.id;
             setConversationId(conversation.id);
@@ -1026,7 +1039,9 @@ export function useAICommand({
       return null;
     }
 
-    const connectionId = connection.connectionId || activeSessionId;
+    // Use connectionKey for chat history (shared across sessions with same connection info)
+    // Fall back to deprecated properties for backward compatibility
+    const connectionId = connection.connectionKey || connection.logicalConnectionId || connection.connectionId || activeSessionId;
 
     try {
       const newConversation = await chatHistoryService.createConversation(
@@ -1109,7 +1124,9 @@ Title:`,
         // Refresh conversations list
         const connection = sshConnections.current[activeSessionId];
         if (connection) {
-          const connectionId = connection.connectionId || activeSessionId;
+          // Use connectionKey for chat history (shared across sessions with same connection info)
+    // Fall back to deprecated properties for backward compatibility
+    const connectionId = connection.connectionKey || connection.logicalConnectionId || connection.connectionId || activeSessionId;
           const updatedList = await chatHistoryService.listConversations(connectionId);
           setConversations(updatedList);
         }
@@ -1133,7 +1150,9 @@ Title:`,
       if (targetConversationId === conversationId) {
         const connection = sshConnections.current[activeSessionId];
         if (connection) {
-          const connectionId = connection.connectionId || activeSessionId;
+          // Use connectionKey for chat history (shared across sessions with same connection info)
+    // Fall back to deprecated properties for backward compatibility
+    const connectionId = connection.connectionKey || connection.logicalConnectionId || connection.connectionId || activeSessionId;
           const updatedList = await chatHistoryService.listConversations(connectionId);
           setConversations(updatedList);
 
@@ -1149,7 +1168,9 @@ Title:`,
         // Just refresh the list
         const connection = sshConnections.current[activeSessionId];
         if (connection) {
-          const connectionId = connection.connectionId || activeSessionId;
+          // Use connectionKey for chat history (shared across sessions with same connection info)
+    // Fall back to deprecated properties for backward compatibility
+    const connectionId = connection.connectionKey || connection.logicalConnectionId || connection.connectionId || activeSessionId;
           const updatedList = await chatHistoryService.listConversations(connectionId);
           setConversations(updatedList);
         }
@@ -1171,7 +1192,9 @@ Title:`,
       // Refresh conversations list
       const connection = sshConnections.current[activeSessionId];
       if (connection) {
-        const connectionId = connection.connectionId || activeSessionId;
+        // Use connectionKey for chat history (shared across sessions with same connection info)
+    // Fall back to deprecated properties for backward compatibility
+    const connectionId = connection.connectionKey || connection.logicalConnectionId || connection.connectionId || activeSessionId;
         const updatedList = await chatHistoryService.listConversations(connectionId);
         setConversations(updatedList);
       }

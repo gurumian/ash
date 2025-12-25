@@ -30,19 +30,23 @@ export function useTerminalManagement({
   const terminalInputHandlers = useRef({});
   const terminalContextMenuHandlers = useRef({});
   const pendingResizeRef = useRef(null);
-  // Cache connectionId -> sessionId mapping for O(1) lookup
+  // Cache sessionConnectionId -> sessionId mapping for O(1) lookup
+  // Note: Map key is sessionConnectionId (deprecated 'connectionId' getter is used for compatibility)
   const connectionIdMapRef = useRef(new Map());
-  // Buffer for data received before terminal is ready (connectionId -> data array)
+  // Buffer for data received before terminal is ready (sessionConnectionId -> data array)
   const dataBufferRef = useRef(new Map());
   // Ref for onSshClose callback to allow dynamic updates
   const onSshCloseRef = useRef(onSshClose);
 
-  // Update connectionId map when connections change
+  // Update sessionConnectionId -> sessionId mapping when connections change
   // This function rebuilds the entire map from current sshConnections
+  // Note: Uses deprecated 'connectionId' getter which actually returns sessionConnectionId
   const updateConnectionIdMap = useCallback(() => {
     const map = new Map();
     Object.entries(sshConnections.current).forEach(([sessionId, conn]) => {
-      if (conn && conn.connectionId) {
+      if (conn && conn.sessionConnectionId) {
+        map.set(conn.sessionConnectionId, sessionId);
+      } else if (conn && conn.connectionId) { // Fallback for backward compatibility
         map.set(conn.connectionId, sessionId);
       }
     });
@@ -109,19 +113,35 @@ export function useTerminalManagement({
 
         if (fitAddon && terminal && terminalRef) {
           try {
-            // Check if terminal is visible (not display: none)
-            const computedStyle = window.getComputedStyle(terminalRef.parentElement || terminalRef);
-            if (computedStyle.display !== 'none') {
-              // Force a layout recalculation before fitting
-              terminalRef.offsetHeight;
-              fitAddon.fit();
+            // Check if terminal is visible by checking all parent elements
+            let element = terminalRef;
+            let isVisible = true;
+            while (element && element !== document.body) {
+              const computedStyle = window.getComputedStyle(element);
+              if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
+                isVisible = false;
+                break;
+              }
+              element = element.parentElement;
+            }
 
-              // Notify SSH server of terminal size change
-              const session = sessions.find(s => s.id === activeSessionId);
-              if (session && session.connectionType === 'ssh' && sshConnections.current[activeSessionId]) {
-                const cols = terminal.cols;
-                const rows = terminal.rows;
-                sshConnections.current[activeSessionId].resize(cols, rows);
+            if (isVisible) {
+              // Force a layout recalculation before fitting
+              const offsetWidth = terminalRef.offsetWidth;
+              const offsetHeight = terminalRef.offsetHeight;
+              
+              // Only resize if terminal has valid dimensions
+              // This prevents resizing when layout hasn't been calculated yet
+              if (offsetWidth > 0 && offsetHeight > 0) {
+                fitAddon.fit();
+
+                // Notify SSH server of terminal size change
+                const session = sessions.find(s => s.id === activeSessionId);
+                if (session && session.connectionType === 'ssh' && sshConnections.current[activeSessionId]) {
+                  const cols = terminal.cols;
+                  const rows = terminal.rows;
+                  sshConnections.current[activeSessionId].resize(cols, rows);
+                }
               }
             }
           } catch (error) {
@@ -140,19 +160,35 @@ export function useTerminalManagement({
 
         if (fitAddon && terminal && terminalRef) {
           try {
-            // Check if terminal is visible (not display: none)
-            const computedStyle = window.getComputedStyle(terminalRef.parentElement || terminalRef);
-            if (computedStyle.display !== 'none') {
-              // Force a layout recalculation before fitting
-              terminalRef.offsetHeight;
-              fitAddon.fit();
+            // Check if terminal is visible by checking all parent elements
+            let element = terminalRef;
+            let isVisible = true;
+            while (element && element !== document.body) {
+              const computedStyle = window.getComputedStyle(element);
+              if (computedStyle.display === 'none' || computedStyle.visibility === 'hidden') {
+                isVisible = false;
+                break;
+              }
+              element = element.parentElement;
+            }
 
-              // Notify SSH server of terminal size change
-              const session = sessions.find(s => s.id === sessionId);
-              if (session && session.connectionType === 'ssh' && sshConnections.current[sessionId]) {
-                const cols = terminal.cols;
-                const rows = terminal.rows;
-                sshConnections.current[sessionId].resize(cols, rows);
+            if (isVisible) {
+              // Force a layout recalculation before fitting
+              const offsetWidth = terminalRef.offsetWidth;
+              const offsetHeight = terminalRef.offsetHeight;
+              
+              // Only resize if terminal has valid dimensions
+              // This prevents resizing when layout hasn't been calculated yet
+              if (offsetWidth > 0 && offsetHeight > 0) {
+                fitAddon.fit();
+
+                // Notify SSH server of terminal size change
+                const session = sessions.find(s => s.id === sessionId);
+                if (session && session.connectionType === 'ssh' && sshConnections.current[sessionId]) {
+                  const cols = terminal.cols;
+                  const rows = terminal.rows;
+                  sshConnections.current[sessionId].resize(cols, rows);
+                }
               }
             }
           } catch (error) {
@@ -497,10 +533,17 @@ export function useTerminalManagement({
   useEffect(() => {
     if (activeSessionId) {
       // Wait for DOM to update (display: none -> block transition)
-      // Use double requestAnimationFrame to ensure layout is complete
+      // Use triple requestAnimationFrame with a small timeout to ensure layout is complete
+      // This is necessary because the terminal container needs to be fully laid out
+      // before we can accurately calculate its dimensions
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          resizeTerminal();
+          requestAnimationFrame(() => {
+            // Additional small delay to ensure layout is fully settled
+            setTimeout(() => {
+              resizeTerminal();
+            }, 10);
+          });
         });
       });
     }

@@ -13,7 +13,7 @@ let Client;
 export function initializeSSHHandlers() {
   // SSH connection IPC handler
   ipcMain.handle('ssh-connect', async (event, connectionInfo) => {
-    const { host, port, username, password, keepaliveInterval, keepaliveCount, readyTimeout } = connectionInfo;
+    const { host, port, username, password, keepaliveInterval, keepaliveCount, readyTimeout, sessionId } = connectionInfo;
 
     try {
       // Dynamically import ssh2 and crypto
@@ -23,31 +23,27 @@ export function initializeSSHHandlers() {
       }
       const crypto = require('crypto');
 
-      // Generate deterministic connection ID
-      // This allows chat history to be persisted across sessions
+      // Generate session-specific connection ID (unique per session)
+      // This allows multiple sessions to the same host without disconnecting previous ones
+      const sessionConnectionString = `${sessionId || crypto.randomUUID()}:${username}@${host}:${port}`;
+      const sessionConnectionId = crypto.createHash('sha256').update(sessionConnectionString).digest('hex');
+
+      // Generate connection key for chat history persistence
+      // This allows chat history to be shared across sessions with the same connection info
+      // Format: sessionName:username@host:port
       const sessionName = connectionInfo.sessionName || '';
-      const connectionString = `${sessionName}:${username}@${host}:${port}`;
-      const connectionId = crypto.createHash('sha256').update(connectionString).digest('hex');
+      const connectionKeyString = `${sessionName}:${username}@${host}:${port}`;
+      const connectionKey = crypto.createHash('sha256').update(connectionKeyString).digest('hex');
 
       const conn = new Client();
 
       return new Promise((resolve, reject) => {
         conn.on('ready', () => {
-          // If a connection with this ID already exists, it might be stale or concurrent.
-          // Since we use deterministic IDs, we should update the map.
-          // The old connection object will be overwritten.
-          if (sshConnections.has(connectionId)) {
-            const oldConn = sshConnections.get(connectionId);
-            try {
-              oldConn.end();
-            } catch (e) {
-              // ignore
-            }
-          }
-
-          sshConnections.set(connectionId, conn);
-          console.log(`SSH connection established: ${connectionId} (Deterministic ID)`);
-          resolve({ success: true, connectionId });
+          // Store connection with session-specific ID
+          // No need to close existing connections - each session has its own sessionConnectionId
+          sshConnections.set(sessionConnectionId, conn);
+          console.log(`SSH connection established: sessionConnectionId=${sessionConnectionId}, connectionKey=${connectionKey}`);
+          resolve({ success: true, sessionConnectionId, connectionKey });
         });
 
         conn.on('error', (err) => {
@@ -71,8 +67,10 @@ export function initializeSSHHandlers() {
   });
 
   // Start SSH terminal session
+  // Note: IPC interface uses 'connectionId' parameter name, but it's actually sessionConnectionId
   ipcMain.handle('ssh-start-shell', async (event, connectionId, cols = 80, rows = 24) => {
-    const conn = sshConnections.get(connectionId);
+    const sessionConnectionId = connectionId; // IPC parameter name kept for compatibility
+    const conn = sshConnections.get(sessionConnectionId);
     if (!conn) {
       throw new Error('SSH connection not found');
     }
@@ -91,7 +89,7 @@ export function initializeSSHHandlers() {
 
         // Save stream with webContents reference
         const webContents = event.sender;
-        sshStreams.set(connectionId, { stream, webContents });
+        sshStreams.set(sessionConnectionId, { stream, webContents });
 
         resolve({ success: true, streamId: stream.id });
 
@@ -100,7 +98,7 @@ export function initializeSSHHandlers() {
           // Removed console.log for performance - logs on every data chunk cause significant overhead
           try {
             if (!webContents.isDestroyed()) {
-              webContents.send('ssh-data', { connectionId: connectionId, data: data.toString() });
+              webContents.send('ssh-data', { connectionId: sessionConnectionId, data: data.toString() });
             }
           } catch (error) {
             console.warn('Failed to send SSH data:', error.message);
@@ -108,26 +106,28 @@ export function initializeSSHHandlers() {
         });
 
         stream.on('close', () => {
-          console.log(`SSH connection closed: ${connectionId}`);
+          console.log(`SSH connection closed: ${sessionConnectionId}`);
           try {
             if (!webContents.isDestroyed()) {
-              webContents.send('ssh-closed', { connectionId: connectionId });
+              webContents.send('ssh-closed', { connectionId: sessionConnectionId });
             }
           } catch (error) {
             console.warn('Failed to send SSH closed event:', error.message);
           }
-          sshStreams.delete(connectionId);
+          sshStreams.delete(sessionConnectionId);
         });
       });
     });
   });
 
   // Send data to SSH terminal
+  // Note: IPC interface uses 'connectionId' property name, but it's actually sessionConnectionId
   ipcMain.on('ssh-write', (event, { connectionId, data }) => {
-    const streamInfo = sshStreams.get(connectionId);
+    const sessionConnectionId = connectionId; // IPC property name kept for compatibility
+    const streamInfo = sshStreams.get(sessionConnectionId);
     if (!streamInfo || !streamInfo.stream) {
       // For one-way IPC, we can't throw/return error to caller, so we log it
-      console.warn('SSH stream not found for write:', connectionId);
+      console.warn('SSH stream not found for write:', sessionConnectionId);
       return;
     }
 
@@ -140,8 +140,10 @@ export function initializeSSHHandlers() {
   });
 
   // Resize SSH terminal
+  // Note: IPC interface uses 'connectionId' parameter name, but it's actually sessionConnectionId
   ipcMain.handle('ssh-resize', async (event, connectionId, cols, rows) => {
-    const streamInfo = sshStreams.get(connectionId);
+    const sessionConnectionId = connectionId; // IPC parameter name kept for compatibility
+    const streamInfo = sshStreams.get(sessionConnectionId);
     if (!streamInfo || !streamInfo.stream) {
       return { success: false, error: 'SSH stream not found' };
     }
@@ -150,31 +152,35 @@ export function initializeSSHHandlers() {
       streamInfo.stream.setWindow(rows, cols, 0, 0);
       return { success: true };
     } catch (error) {
-      console.error(`Failed to resize SSH terminal for connectionId ${connectionId}:`, error);
+      console.error(`Failed to resize SSH terminal for sessionConnectionId ${sessionConnectionId}:`, error);
       return { success: false, error: error.message };
     }
   });
 
   // Disconnect SSH connection
+  // Note: IPC interface uses 'connectionId' parameter name, but it's actually sessionConnectionId
   ipcMain.handle('ssh-disconnect', async (event, connectionId) => {
-    const streamInfo = sshStreams.get(connectionId);
+    const sessionConnectionId = connectionId; // IPC parameter name kept for compatibility
+    const streamInfo = sshStreams.get(sessionConnectionId);
     if (streamInfo && streamInfo.stream) {
       streamInfo.stream.end();
-      sshStreams.delete(connectionId);
+      sshStreams.delete(sessionConnectionId);
     }
 
-    const conn = sshConnections.get(connectionId);
+    const conn = sshConnections.get(sessionConnectionId);
     if (conn) {
       conn.end();
-      sshConnections.delete(connectionId);
+      sshConnections.delete(sessionConnectionId);
       return { success: true };
     }
     return { success: false };
   });
 
   // SFTP file upload with fallback to cat method
+  // Note: IPC interface uses 'connectionId' property name, but it's actually sessionConnectionId
   ipcMain.handle('ssh-upload-file', async (event, { connectionId, localPath, remotePath }) => {
-    const conn = sshConnections.get(connectionId);
+    const sessionConnectionId = connectionId; // IPC property name kept for compatibility
+    const conn = sshConnections.get(sessionConnectionId);
     if (!conn) {
       throw new Error('SSH connection not found');
     }
@@ -215,7 +221,7 @@ export function initializeSSHHandlers() {
                 const webContents = event.sender;
                 if (!webContents.isDestroyed()) {
                   webContents.send('ssh-upload-progress', {
-                    connectionId,
+                    connectionId: sessionConnectionId, // IPC interface uses connectionId name
                     progress,
                     transferred: totalTransferred,
                     total: total
@@ -279,7 +285,7 @@ export function initializeSSHHandlers() {
               const webContents = event.sender;
               if (!webContents.isDestroyed()) {
                 webContents.send('ssh-upload-progress', {
-                  connectionId,
+                  connectionId: sessionConnectionId, // IPC interface uses connectionId name
                   progress,
                   transferred,
                   total: fileSize
@@ -377,12 +383,14 @@ export function getSSHConnections() {
 
 /**
  * Execute command on SSH connection (for IPC bridge)
+ * @param {string} sessionConnectionId - Session-specific connection ID (IPC bridge uses 'connectionId' name)
  */
 export async function executeSSHCommand(connectionId, command) {
-  const conn = sshConnections.get(connectionId);
+  const sessionConnectionId = connectionId; // IPC bridge parameter name kept for compatibility
+  const conn = sshConnections.get(sessionConnectionId);
   if (!conn) {
     const availableIds = Array.from(sshConnections.keys());
-    throw new Error(`SSH connection not found: ${connectionId}. Available: ${availableIds.join(', ')}`);
+    throw new Error(`SSH connection not found: ${sessionConnectionId}. Available: ${availableIds.join(', ')}`);
   }
 
   return new Promise((resolve, reject) => {
