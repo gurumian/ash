@@ -119,18 +119,29 @@ async function uploadWindows() {
   }
   
   const uploaded = [];
-  
+
   // Upload x64 build - only current version
   const x64Dir = path.join(nsisDir, 'x64');
   if (fs.existsSync(x64Dir)) {
-    const expectedX64Name = `ash-x64-Setup-${VERSION}.exe`;
-    const x64Files = fs.readdirSync(x64Dir).filter(f => f === expectedX64Name);
-    for (const file of x64Files) {
-      await uploadFile(path.join(x64Dir, file), 'win32', 'x64');
-      uploaded.push({ file, arch: 'x64' });
-    }
+    // Look for .exe files matching the version (supports both formats:
+    // "ash-x64-Setup-${VERSION}.exe" and "ash Setup ${VERSION}.exe")
+    const x64Files = fs.readdirSync(x64Dir).filter(f => 
+      f.endsWith('.exe') && 
+      !f.endsWith('.blockmap') &&
+      (f.includes(VERSION) || f.includes(`ash Setup ${VERSION}`) || f.includes(`ash-${VERSION}`))
+    );
+    
     if (x64Files.length === 0) {
-      console.warn(`⚠️  Expected x64 installer not found: ${expectedX64Name}`);
+      // Try the expected format first
+      const expectedX64Name = `ash-x64-Setup-${VERSION}.exe`;
+      const expectedAltName = `ash Setup ${VERSION}.exe`;
+      console.warn(`⚠️  Expected x64 installer not found: ${expectedX64Name} or ${expectedAltName}`);
+      console.warn(`   Available files: ${fs.readdirSync(x64Dir).join(', ')}`);
+    } else {
+      for (const file of x64Files) {
+        await uploadFile(path.join(x64Dir, file), 'win32', 'x64');
+        uploaded.push({ file, arch: 'x64' });
+      }
     }
   }
   
