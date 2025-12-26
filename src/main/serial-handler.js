@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron';
 import { SerialBufferedTransform } from './serial-buffer-transform.js';
 import crypto from 'crypto';
+import { generateConnectionKey } from '../utils/connectionKey.js';
 
 
 // Serial port support
@@ -89,10 +90,11 @@ export function initializeSerialHandlers() {
 
       // Generate connection key for chat history persistence
       // This allows chat history to be shared across sessions with the same connection info
-      // Format: serial:sessionName:portPath
       const sessionName = options.sessionName || '';
-      const connectionKeyString = `serial:${sessionName}:${portPath}`;
-      const connectionKey = crypto.createHash('sha256').update(connectionKeyString).digest('hex');
+      const connectionKey = generateConnectionKey('serial', {
+        sessionName,
+        portPath
+      });
 
       const webContents = event.sender;
 

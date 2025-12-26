@@ -1,4 +1,5 @@
 import { ipcMain } from 'electron';
+import { generateConnectionKey } from '../utils/connectionKey.js';
 
 // SSH connection management
 let sshConnections = new Map();
@@ -30,10 +31,13 @@ export function initializeSSHHandlers() {
 
       // Generate connection key for chat history persistence
       // This allows chat history to be shared across sessions with the same connection info
-      // Format: sessionName:username@host:port
       const sessionName = connectionInfo.sessionName || '';
-      const connectionKeyString = `${sessionName}:${username}@${host}:${port}`;
-      const connectionKey = crypto.createHash('sha256').update(connectionKeyString).digest('hex');
+      const connectionKey = generateConnectionKey('ssh', {
+        sessionName,
+        username,
+        host,
+        port
+      });
 
       const conn = new Client();
 

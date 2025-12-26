@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron';
 import net from 'net';
+import { generateConnectionKey } from '../utils/connectionKey.js';
 
 // Telnet connection management
 let telnetConnections = new Map();
@@ -26,10 +27,12 @@ export function initializeTelnetHandlers() {
     
     // Generate connection key for chat history persistence
     // This allows chat history to be shared across sessions with the same connection info
-    // Format: telnet:sessionName:host:port
     const sessionName = connectionInfo.sessionName || '';
-    const connectionKeyString = `telnet:${sessionName}:${host}:${port}`;
-    const connectionKey = crypto.createHash('sha256').update(connectionKeyString).digest('hex');
+    const connectionKey = generateConnectionKey('telnet', {
+      sessionName,
+      host,
+      port
+    });
     
     try {
       // Dynamically import telnet-stream
