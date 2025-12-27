@@ -246,6 +246,39 @@ export const themes = {
       brightCyan: '#66ffff',
       brightWhite: '#ffffff'
     }
+  },
+  tokyo_storm_night: {
+    name: 'Tokyo Storm Night',
+    // UI colors
+    background: '#24283b',
+    surface: '#1f2335',
+    text: '#c0caf5',
+    border: '#414868',
+    accent: '#7aa2f7',
+    // Terminal colors - Tokyo Night Storm
+    terminal: {
+      background: '#24283b',
+      foreground: '#c0caf5',
+      cursor: '#7aa2f7',
+      cursorAccent: '#24283b',
+      selection: '#364a82',
+      black: '#32344a',
+      red: '#f7768e',
+      green: '#9ece6a',
+      yellow: '#e0af68',
+      blue: '#7aa2f7',
+      magenta: '#ad8ee6',
+      cyan: '#449dab',
+      white: '#787c99',
+      brightBlack: '#444b6a',
+      brightRed: '#ff7a93',
+      brightGreen: '#b9f27c',
+      brightYellow: '#ff9e64',
+      brightBlue: '#7da6ff',
+      brightMagenta: '#bb9af7',
+      brightCyan: '#0db9d7',
+      brightWhite: '#acb0d0'
+    }
   }
 };
 
