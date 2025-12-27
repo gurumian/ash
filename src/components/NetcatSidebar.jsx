@@ -172,21 +172,21 @@ export const NetcatSidebar = memo(function NetcatSidebar({
             className="netcat-sidebar"
             style={{
                 width: `${width}px`,
-                background: '#000000',
-                borderLeft: '1px solid #1a1a1a'
+                background: 'var(--theme-bg)',
+                borderLeft: '1px solid var(--theme-border)'
             }}
         >
             {/* Header */}
             {showHeader && (
                 <div style={{
                     padding: '12px 16px',
-                    borderBottom: '1px solid #1a1a1a',
+                    borderBottom: '1px solid var(--theme-border)',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     flexShrink: 0
                 }}>
-                    <h3 style={{ margin: 0, fontSize: '13px', fontWeight: '600', color: '#00ff41' }}>
+                    <h3 style={{ margin: 0, fontSize: '13px', fontWeight: '600', color: 'var(--theme-text)' }}>
                         Netcat {mode === 'client' ? 'Client' : 'Listener'}
                     </h3>
                     {onClose && (
@@ -195,7 +195,7 @@ export const NetcatSidebar = memo(function NetcatSidebar({
                             style={{
                                 background: 'none',
                                 border: 'none',
-                                color: '#00ff41',
+                                color: 'var(--theme-text)',
                                 cursor: 'pointer',
                                 fontSize: '18px',
                                 lineHeight: '1',
@@ -237,12 +237,11 @@ export const NetcatSidebar = memo(function NetcatSidebar({
                     <div
                         className="netcat-config-header"
                         onClick={() => setIsConfigCollapsed(!isConfigCollapsed)}
-                        style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', marginBottom: '8px' }}
                     >
-                        <span style={{ color: '#888', marginRight: '8px', fontSize: '10px' }}>
+                        <span className="netcat-config-header-collapse-icon">
                             {isConfigCollapsed ? '▶' : '▼'}
                         </span>
-                        <span style={{ color: '#00ff41', fontWeight: '600', fontSize: '12px' }}>CONFIGURATION</span>
+                        <span className="netcat-config-header-title">CONFIGURATION</span>
                     </div>
 
                     {!isConfigCollapsed && (

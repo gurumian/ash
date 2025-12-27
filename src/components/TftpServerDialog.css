@@ -12,19 +12,19 @@
 }
 
 .tftp-dialog {
-  background: #000000;
+  background: var(--theme-bg);
   border-radius: 8px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.8);
-  border: 1px solid #1a1a1a;
+  border: 1px solid var(--theme-border);
   width: 90%;
   max-width: 500px;
   overflow: hidden;
 }
 
 .tftp-dialog-header {
-  background: #000000;
+  background: var(--theme-bg);
   padding: 16px 20px;
-  border-bottom: 1px solid #1a1a1a;
+  border-bottom: 1px solid var(--theme-border);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -35,7 +35,7 @@
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: #00ff41;
+  color: var(--theme-text);
 }
 
 .tftp-dialog-close {
@@ -43,7 +43,7 @@
   border: none;
   font-size: 20px;
   cursor: pointer;
-  color: #00ff41;
+  color: var(--theme-text);
   padding: 4px;
   border-radius: 4px;
   opacity: 0.7;
@@ -56,14 +56,14 @@
 }
 
 .tftp-dialog-close:hover {
-  background: rgba(0, 255, 65, 0.1);
-  color: #00ff41;
+  background: color-mix(in srgb, var(--theme-accent) 10%, transparent);
+  color: var(--theme-text);
   opacity: 1;
 }
 
 .tftp-dialog-content {
   padding: 20px;
-  background: #000000;
+  background: var(--theme-bg);
 }
 
 .tftp-status-section {
@@ -71,8 +71,8 @@
 }
 
 .tftp-status-card {
-  background: #1a1a1a;
-  border: 1px solid #1a1a1a;
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-border);
   border-radius: 4px;
   padding: 16px;
   margin-bottom: 16px;
@@ -80,8 +80,8 @@
 }
 
 .tftp-status-card:hover:not(.loading) {
-  border-color: #00ff41;
-  background: rgba(0, 255, 65, 0.05);
+  border-color: var(--theme-accent);
+  background: color-mix(in srgb, var(--theme-accent) 5%, transparent);
 }
 
 .tftp-status-card.loading {
@@ -102,20 +102,20 @@
 
 .tftp-status-label {
   font-weight: 600;
-  color: #00ff41;
+  color: var(--theme-text);
   min-width: 140px;
   font-size: 13px;
 }
 
 .tftp-status-value {
-  color: #00ff41;
+  color: var(--theme-text);
   flex: 1;
   font-size: 14px;
   font-weight: 500;
 }
 
 .tftp-status-value.running {
-  color: #00ff41;
+  color: var(--theme-accent);
 }
 
 .tftp-status-value.stopped {
@@ -138,9 +138,9 @@
   border-radius: 4px;
   font-size: 12px;
   font-weight: 600;
-  background: rgba(0, 255, 65, 0.1);
-  color: #00ff41;
-  border: 1px solid rgba(0, 255, 65, 0.3);
+  background: color-mix(in srgb, var(--theme-accent) 10%, transparent);
+  color: var(--theme-accent);
+  border: 1px solid color-mix(in srgb, var(--theme-accent) 30%, transparent);
 }
 
 .tftp-status-badge.stopped {
@@ -160,14 +160,14 @@
 
 .tftp-status-icon {
   font-size: 16px;
-  color: #00ff41;
+  color: var(--theme-accent);
   display: flex;
   align-items: center;
   justify-content: center;
   width: 36px;
   height: 24px;
-  background: rgba(0, 255, 65, 0.1);
-  border: 1px solid rgba(0, 255, 65, 0.3);
+  background: color-mix(in srgb, var(--theme-accent) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--theme-accent) 30%, transparent);
   border-radius: 6px;
   transition: all 0.2s;
   line-height: 1;
@@ -175,9 +175,9 @@
 }
 
 .tftp-status-card.stopped .tftp-status-icon {
-  color: #00ff41;
-  background: rgba(0, 255, 65, 0.1);
-  border-color: rgba(0, 255, 65, 0.3);
+  color: var(--theme-accent);
+  background: color-mix(in srgb, var(--theme-accent) 10%, transparent);
+  border-color: color-mix(in srgb, var(--theme-accent) 30%, transparent);
 }
 
 .tftp-status-card.running .tftp-status-icon {
@@ -188,8 +188,8 @@
 
 .tftp-status-card:hover:not(.loading) .tftp-status-icon {
   transform: scale(1.05);
-  border-color: #00ff41;
-  background: rgba(0, 255, 65, 0.15);
+  border-color: var(--theme-accent);
+  background: color-mix(in srgb, var(--theme-accent) 15%, transparent);
 }
 
 .tftp-output-dir {
@@ -202,12 +202,12 @@
 
 .tftp-output-dir-path {
   flex: 1;
-  color: #00ff41;
+  color: var(--theme-text);
   font-family: var(--ui-font-family, 'Verdana', sans-serif);
   font-size: 12px;
   padding: 8px 12px;
-  background: #1a1a1a;
-  border: 1px solid #1a1a1a;
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-border);
   border-radius: 4px;
   min-width: 0;
   user-select: text;
@@ -225,23 +225,23 @@
 }
 
 .tftp-output-dir-path::-webkit-scrollbar-track {
-  background: #0a0a0a;
+  background: var(--theme-bg);
   border-radius: 3px;
 }
 
 .tftp-output-dir-path::-webkit-scrollbar-thumb {
-  background: #2a2a2a;
+  background: var(--theme-surface);
   border-radius: 3px;
 }
 
 .tftp-output-dir-path::-webkit-scrollbar-thumb:hover {
-  background: #3a3a3a;
+  background: var(--theme-accent);
 }
 
 .tftp-copy-path-btn {
-  background: #1a1a1a;
-  border: 1px solid #1a1a1a;
-  color: #00ff41;
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-border);
+  color: var(--theme-text);
   cursor: pointer;
   padding: 8px 10px;
   border-radius: 4px;
@@ -256,12 +256,12 @@
 .tftp-copy-path-btn svg {
   width: 14px;
   height: 14px;
-  color: #00ff41;
+  color: var(--theme-text);
 }
 
 .tftp-copy-path-btn:hover {
-  border-color: #00ff41;
-  background: rgba(0, 255, 65, 0.1);
+  border-color: var(--theme-accent);
+  background: color-mix(in srgb, var(--theme-accent) 10%, transparent);
 }
 
 .tftp-copy-path-btn:disabled {
@@ -270,9 +270,9 @@
 }
 
 .tftp-open-dir-btn {
-  background: #1a1a1a;
-  border: 1px solid #1a1a1a;
-  color: #00ff41;
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-border);
+  color: var(--theme-text);
   cursor: pointer;
   padding: 8px 12px;
   border-radius: 4px;
@@ -287,12 +287,12 @@
 .tftp-open-dir-btn svg {
   width: 16px;
   height: 16px;
-  color: #00ff41;
+  color: var(--theme-text);
 }
 
 .tftp-open-dir-btn:hover {
-  border-color: #00ff41;
-  background: rgba(0, 255, 65, 0.1);
+  border-color: var(--theme-accent);
+  background: color-mix(in srgb, var(--theme-accent) 10%, transparent);
 }
 
 .tftp-endpoints-list {
@@ -313,12 +313,12 @@
 
 .tftp-endpoint-value {
   flex: 1;
-  color: #00ff41;
+  color: var(--theme-text);
   font-family: var(--ui-font-family, 'Verdana', sans-serif);
   font-size: 12px;
   padding: 8px 12px;
-  background: #1a1a1a;
-  border: 1px solid #1a1a1a;
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-border);
   border-radius: 4px;
   min-width: 0;
   user-select: text;
@@ -336,23 +336,23 @@
 }
 
 .tftp-endpoint-value::-webkit-scrollbar-track {
-  background: #0a0a0a;
+  background: var(--theme-bg);
   border-radius: 3px;
 }
 
 .tftp-endpoint-value::-webkit-scrollbar-thumb {
-  background: #2a2a2a;
+  background: var(--theme-surface);
   border-radius: 3px;
 }
 
 .tftp-endpoint-value::-webkit-scrollbar-thumb:hover {
-  background: #3a3a3a;
+  background: var(--theme-accent);
 }
 
 .tftp-copy-endpoint-btn {
-  background: #1a1a1a;
-  border: 1px solid #1a1a1a;
-  color: #00ff41;
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-border);
+  color: var(--theme-text);
   cursor: pointer;
   padding: 8px 10px;
   border-radius: 4px;
@@ -367,12 +367,12 @@
 .tftp-copy-endpoint-btn svg {
   width: 14px;
   height: 14px;
-  color: #00ff41;
+  color: var(--theme-text);
 }
 
 .tftp-copy-endpoint-btn:hover {
-  border-color: #00ff41;
-  background: rgba(0, 255, 65, 0.1);
+  border-color: var(--theme-accent);
+  background: color-mix(in srgb, var(--theme-accent) 10%, transparent);
 }
 
 .tftp-copy-endpoint-btn:disabled {
@@ -395,7 +395,7 @@
 .tftp-config-item label {
   display: block;
   font-weight: 600;
-  color: #00ff41;
+  color: var(--theme-text);
   margin-bottom: 6px;
   font-size: 13px;
 }
@@ -403,19 +403,19 @@
 .tftp-config-item input {
   width: 100%;
   padding: 10px 12px;
-  border: 1px solid #1a1a1a;
+  border: 1px solid var(--theme-border);
   border-radius: 4px;
   font-size: 14px;
   transition: border-color 0.2s;
   box-sizing: border-box;
-  background: #1a1a1a;
-  color: #00ff41;
+  background: var(--theme-surface);
+  color: var(--theme-text);
 }
 
 .tftp-config-item input:focus {
   outline: none;
-  border-color: #00ff41;
-  box-shadow: 0 0 0 2px rgba(0, 255, 65, 0.2);
+  border-color: var(--theme-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--theme-accent) 20%, transparent);
 }
 
 .tftp-config-item input:disabled {
@@ -424,7 +424,7 @@
 }
 
 .tftp-config-item input::placeholder {
-  color: #555;
+  color: color-mix(in srgb, var(--theme-text) 50%, transparent);
 }
 
 .tftp-dir-selector {
@@ -435,9 +435,9 @@
 
 .tftp-dir-input {
   flex: 1;
-  background: #1a1a1a;
-  border: 1px solid #1a1a1a;
-  color: #555;
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-border);
+  color: color-mix(in srgb, var(--theme-text) 50%, transparent);
   padding: 10px 12px;
   border-radius: 4px;
   font-size: 13px;
@@ -454,17 +454,17 @@
 }
 
 .tftp-dir-input::-webkit-scrollbar-track {
-  background: #0a0a0a;
+  background: var(--theme-bg);
   border-radius: 3px;
 }
 
 .tftp-dir-input::-webkit-scrollbar-thumb {
-  background: #2a2a2a;
+  background: var(--theme-surface);
   border-radius: 3px;
 }
 
 .tftp-dir-input::-webkit-scrollbar-thumb:hover {
-  background: #3a3a3a;
+  background: var(--theme-accent);
 }
 
 .tftp-dir-input:disabled {
@@ -473,9 +473,9 @@
 }
 
 .tftp-select-dir-btn {
-  background: #1a1a1a;
-  border: 1px solid #1a1a1a;
-  color: #00ff41;
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-border);
+  color: var(--theme-text);
   padding: 10px 12px;
   border-radius: 4px;
   cursor: pointer;
@@ -490,12 +490,12 @@
 .tftp-select-dir-btn svg {
   width: 16px;
   height: 16px;
-  color: #00ff41;
+  color: var(--theme-text);
 }
 
 .tftp-select-dir-btn:hover:not(:disabled) {
-  border-color: #00ff41;
-  background: rgba(0, 255, 65, 0.1);
+  border-color: var(--theme-accent);
+  background: color-mix(in srgb, var(--theme-accent) 10%, transparent);
 }
 
 .tftp-select-dir-btn:disabled {
@@ -504,9 +504,9 @@
 }
 
 .tftp-clear-dir-btn {
-  background: #1a1a1a;
-  border: 1px solid #1a1a1a;
-  color: #00ff41;
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-border);
+  color: var(--theme-text);
   padding: 10px;
   border-radius: 4px;
   font-size: 16px;
@@ -521,8 +521,8 @@
 }
 
 .tftp-clear-dir-btn:hover:not(:disabled) {
-  border-color: #00ff41;
-  background: rgba(0, 255, 65, 0.1);
+  border-color: var(--theme-accent);
+  background: color-mix(in srgb, var(--theme-accent) 10%, transparent);
 }
 
 .tftp-clear-dir-btn:disabled {
@@ -540,4 +540,3 @@
   font-size: 13px;
   line-height: 1.5;
 }
-
