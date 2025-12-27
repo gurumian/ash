@@ -271,11 +271,12 @@
 }
 
 .filter-resize-handle:hover {
-  background: #4a90e2;
+  background: var(--theme-accent, #4a90e2);
 }
 
 .filter-resize-handle:active {
-  background: #357abd;
+  background: var(--theme-accent, #357abd);
+  opacity: 0.8;
 }
 
 /* AI Filter Input Overlay */

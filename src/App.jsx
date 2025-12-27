@@ -1378,11 +1378,16 @@ function App() {
           style={{
             height: '100%',
             flexShrink: 0,
-            background: '#000000',
-            borderLeft: '1px solid #1a1a1a',
+            background: 'var(--theme-bg)',
+            borderLeft: '1px solid var(--theme-border)',
             // Display is controlled by content presence, but we need strict layout
             display: 'flex',
-            flexDirection: 'column'
+            flexDirection: 'column',
+            '--theme-accent': currentTheme.accent,
+            '--theme-bg': currentTheme.background,
+            '--theme-text': currentTheme.text,
+            '--theme-border': currentTheme.border,
+            '--theme-surface': currentTheme.surface
           }}
         >
           {sessions.map(session => {

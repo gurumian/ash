@@ -168,17 +168,6 @@ export const SessionContent = ({
                     {/* Resize Handle - Now inside the portal to be next to sidebar */}
                     <div
                         className="resize-handle"
-                        style={{
-                            width: '4px',
-                            background: 'transparent',
-                            cursor: 'col-resize',
-                            flexShrink: 0,
-                            zIndex: 10,
-                            transition: 'background 0.2s',
-                            position: 'relative'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = '#4a90e2'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                         onMouseDown={(e) => {
                             e.preventDefault();
                             const startX = e.clientX;

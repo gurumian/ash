@@ -636,6 +636,49 @@ export function useTerminalManagement({
     appendToLogRef.current = appendToLog;
   }, [appendToLog]);
 
+  // Update terminal themes when theme changes
+  useEffect(() => {
+    const themeData = themes[theme];
+    if (!themeData || !themeData.terminal) {
+      console.warn(`Theme ${theme} does not have terminal configuration`);
+      return;
+    }
+
+    // Update all existing terminals with new theme
+    Object.keys(terminalInstances.current || {}).forEach(sessionId => {
+      const terminal = terminalInstances.current[sessionId];
+      if (terminal && !terminal.isDisposed) {
+        try {
+          // Update theme options - this is the primary way to change theme in xterm.js
+          terminal.options.theme = themeData.terminal;
+          
+          // Force terminal to re-render with new theme
+          // xterm.js applies theme changes when options.theme is set, but we need to trigger a refresh
+          // Refresh the entire terminal viewport to apply the new theme
+          if (typeof terminal.refresh === 'function') {
+            terminal.refresh(0, terminal.rows - 1);
+          }
+          
+          // Also update the DOM element's background color to match theme
+          // This ensures the background is updated even if xterm.js hasn't fully rendered
+          const terminalElement = terminalRefs.current[sessionId];
+          if (terminalElement) {
+            const xtermElement = terminalElement.querySelector('.xterm');
+            const viewportElement = terminalElement.querySelector('.xterm-viewport');
+            if (xtermElement) {
+              xtermElement.style.backgroundColor = themeData.terminal.background;
+            }
+            if (viewportElement) {
+              viewportElement.style.backgroundColor = themeData.terminal.background;
+            }
+          }
+        } catch (error) {
+          console.warn(`Failed to update theme for terminal ${sessionId}:`, error);
+        }
+      }
+    });
+  }, [theme, themes, terminalInstances, terminalRefs]);
+
   // Handle SSH data events - register only once
   useEffect(() => {
     // Update map initially and when connections change

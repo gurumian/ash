@@ -21,9 +21,9 @@ export function FunctionResultsSection({ toolResults, messageId }) {
     <div
       style={{
         marginTop: '8px',
-        border: '1px solid rgba(0, 255, 65, 0.2)',
+        border: '1px solid color-mix(in srgb, var(--theme-accent) 20%, transparent)',
         borderRadius: '4px',
-        background: 'rgba(0, 255, 65, 0.02)',
+        background: 'color-mix(in srgb, var(--theme-accent) 2%, transparent)',
         overflow: 'hidden',
         transition: 'height 0.2s ease'
       }}
@@ -37,23 +37,23 @@ export function FunctionResultsSection({ toolResults, messageId }) {
           alignItems: 'center',
           justifyContent: 'space-between',
           cursor: 'pointer',
-          background: 'rgba(0, 255, 65, 0.05)',
-          borderBottom: isExpanded ? '1px solid rgba(0, 255, 65, 0.1)' : 'none'
+          background: 'color-mix(in srgb, var(--theme-accent) 5%, transparent)',
+          borderBottom: isExpanded ? '1px solid color-mix(in srgb, var(--theme-accent) 10%, transparent)' : 'none'
         }}
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '11px', fontWeight: '600', color: '#00ff41' }}>
+          <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--theme-text)' }}>
             ⚙️ Function Results
           </span>
-          <span style={{ fontSize: '9px', color: '#888' }}>
+          <span style={{ fontSize: '9px', color: 'color-mix(in srgb, var(--theme-text) 60%, transparent)' }}>
             {toolResults.length} {toolResults.length === 1 ? 'result' : 'results'}
           </span>
         </div>
         <span
           style={{
             fontSize: '12px',
-            color: '#00ff41',
+            color: 'var(--theme-text)',
             transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
             transition: 'transform 0.2s'
           }}
@@ -65,6 +65,7 @@ export function FunctionResultsSection({ toolResults, messageId }) {
       {/* Content - scrollable when expanded */}
       {isExpanded && (
         <div
+          className="function-results-scroll"
           style={{
             height: '160px', // 200px total - 40px header
             overflowY: 'auto',

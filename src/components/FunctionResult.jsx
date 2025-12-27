@@ -28,11 +28,11 @@ export function FunctionResult({
         marginTop: '8px',
         padding: '10px',
         background: success 
-          ? 'rgba(0, 255, 65, 0.05)' 
+          ? 'color-mix(in srgb, var(--theme-accent) 5%, transparent)' 
           : 'rgba(255, 65, 65, 0.05)',
         border: `1px solid ${
           success 
-            ? 'rgba(0, 255, 65, 0.3)' 
+            ? 'color-mix(in srgb, var(--theme-accent) 30%, transparent)' 
             : 'rgba(255, 65, 65, 0.3)'
         }`,
         borderRadius: '6px',
@@ -62,7 +62,7 @@ export function FunctionResult({
             style={{
               fontSize: '12px',
               fontWeight: '600',
-              color: success ? '#00ff41' : '#ff4141'
+              color: success ? 'var(--theme-text)' : '#ff4141'
             }}
           >
             {success ? '✓' : '✗'} {command || name || 'Command'}
@@ -74,9 +74,9 @@ export function FunctionResult({
               padding: '2px 6px',
               borderRadius: '3px',
               background: success 
-                ? 'rgba(0, 255, 65, 0.2)' 
+                ? 'color-mix(in srgb, var(--theme-accent) 20%, transparent)' 
                 : 'rgba(255, 65, 65, 0.2)',
-              color: success ? '#00ff41' : '#ff4141',
+              color: success ? 'var(--theme-text)' : '#ff4141',
               fontSize: '10px',
               fontWeight: '600'
             }}
@@ -90,8 +90,8 @@ export function FunctionResult({
       {displayContent && (
         <div
           style={{
-            background: 'rgba(0, 0, 0, 0.3)',
-            border: '1px solid rgba(0, 255, 65, 0.1)',
+            background: 'color-mix(in srgb, var(--theme-bg) 70%, transparent)',
+            border: '1px solid color-mix(in srgb, var(--theme-accent) 10%, transparent)',
             borderRadius: '4px',
             padding: '8px',
             marginTop: '6px'
@@ -115,7 +115,7 @@ export function FunctionResult({
                 style={{
                   margin: 0,
                   padding: 0,
-                  color: '#00ff41',
+                  color: 'var(--theme-text)',
                   fontSize: '11px',
                   lineHeight: '1.5',
                   whiteSpace: 'pre-wrap',
@@ -169,7 +169,7 @@ export function FunctionResult({
               style={{
                 margin: 0,
                 padding: 0,
-                color: '#00ff41',
+                color: 'var(--theme-text)',
                 fontSize: '11px',
                 lineHeight: '1.5',
                 whiteSpace: 'pre-wrap',

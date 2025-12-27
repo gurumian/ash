@@ -11,15 +11,15 @@
 }
 
 .iperf-client-status-card {
-  background: #1a1a1a;
-  border: 1px solid #1a1a1a;
+  background: var(--theme-surface, #1a1a1a);
+  border: 1px solid var(--theme-border, #1a1a1a);
   border-radius: 4px;
   padding: 16px;
   transition: all 0.2s;
 }
 
 .iperf-client-status-card:hover:not(.loading) {
-  border-color: #00ff41;
+  border-color: var(--theme-accent, #00ff41);
   background: rgba(0, 255, 65, 0.05);
 }
 
@@ -36,7 +36,7 @@
 
 .iperf-client-status-label {
   font-weight: 600;
-  color: #00ff41;
+  color: var(--theme-text, #00ff41);
   min-width: 80px;
   font-size: 13px;
   flex-shrink: 0;
@@ -59,7 +59,7 @@
   font-size: 12px;
   font-weight: 600;
   background: rgba(0, 255, 65, 0.1);
-  color: #00ff41;
+  color: var(--theme-text, #00ff41);
   border: 1px solid rgba(0, 255, 65, 0.3);
 }
 
@@ -80,7 +80,7 @@
 
 .iperf-client-status-icon {
   font-size: 16px;
-  color: #00ff41;
+  color: var(--theme-text, #00ff41);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -120,14 +120,14 @@
 }
 
 .iperf-client-status-card.running .iperf-client-status-icon {
-  color: #00ff41;
+  color: var(--theme-text, #00ff41);
   background: rgba(0, 255, 65, 0.1);
   border-color: rgba(0, 255, 65, 0.3);
 }
 
 .iperf-client-status-card:hover:not(.loading) .iperf-client-status-icon {
   transform: scale(1.05);
-  border-color: #00ff41;
+  border-color: var(--theme-accent, #00ff41);
   background: rgba(0, 255, 65, 0.15);
 }
 
@@ -170,7 +170,7 @@
 .iperf-client-config-item label {
   display: block;
   font-weight: 600;
-  color: #00ff41;
+  color: var(--theme-text, #00ff41);
   margin-bottom: 6px;
   font-size: 13px;
 }
@@ -178,18 +178,18 @@
 .iperf-client-config-item input {
   width: 100%;
   padding: 10px 12px;
-  border: 1px solid #1a1a1a;
+  border: 1px solid var(--theme-border, #1a1a1a);
   border-radius: 4px;
   font-size: 14px;
   transition: border-color 0.2s;
   box-sizing: border-box;
-  background: #1a1a1a;
-  color: #00ff41;
+  background: var(--theme-surface, #1a1a1a);
+  color: var(--theme-text, #00ff41);
 }
 
 .iperf-client-config-item input:focus {
   outline: none;
-  border-color: #00ff41;
+  border-color: var(--theme-accent, #00ff41);
   box-shadow: 0 0 0 2px rgba(0, 255, 65, 0.2);
 }
 
@@ -213,10 +213,10 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: #111;
+  background: var(--theme-bg, #111);
   border-radius: 999px;
   padding: 3px;
-  border: 1px solid #1a1a1a;
+  border: 1px solid var(--theme-border, #1a1a1a);
 }
 
 .iperf-client-protocol-btn {
@@ -232,13 +232,13 @@
 }
 
 .iperf-client-protocol-btn.active {
-  background: #00ff41;
-  color: #000;
+  background: var(--theme-accent, #00ff41);
+  color: var(--theme-bg, #000);
 }
 
 .iperf-client-protocol-btn:hover:not(:disabled):not(.active) {
   background: rgba(0, 255, 65, 0.08);
-  color: #00ff41;
+  color: var(--theme-text, #00ff41);
 }
 
 .iperf-client-protocol-btn:disabled {
@@ -263,14 +263,14 @@
 
 .iperf-client-output-title {
   font-weight: 600;
-  color: #00ff41;
+  color: var(--theme-text, #00ff41);
   font-size: 13px;
 }
 
 .iperf-client-clear-btn {
-  background: #1a1a1a;
-  border: 1px solid #1a1a1a;
-  color: #00ff41;
+  background: var(--theme-surface, #1a1a1a);
+  border: 1px solid var(--theme-border, #1a1a1a);
+  color: var(--theme-text, #00ff41);
   cursor: pointer;
   padding: 4px 10px;
   border-radius: 4px;
@@ -279,7 +279,7 @@
 }
 
 .iperf-client-clear-btn:hover:not(:disabled) {
-  border-color: #00ff41;
+  border-color: var(--theme-accent, #00ff41);
   background: rgba(0, 255, 65, 0.1);
 }
 
@@ -289,13 +289,13 @@
 }
 
 .iperf-client-output {
-  background: #0a0a0a;
-  border: 1px solid #1a1a1a;
+  background: var(--theme-bg, #0a0a0a);
+  border: 1px solid var(--theme-border, #1a1a1a);
   border-radius: 4px;
   padding: 12px;
   font-family: var(--terminal-font-family, 'Source Code Pro', 'Courier New', monospace);
   font-size: 12px;
-  color: #00ff41;
+  color: var(--theme-text, #00ff41);
   flex: 1;
   overflow-y: auto;
   white-space: pre-wrap;
@@ -309,17 +309,17 @@
 }
 
 .iperf-client-output::-webkit-scrollbar-track {
-  background: #0a0a0a;
+  background: var(--theme-bg, #0a0a0a);
   border-radius: 4px;
 }
 
 .iperf-client-output::-webkit-scrollbar-thumb {
-  background: #2a2a2a;
+  background: var(--theme-surface, #2a2a2a);
   border-radius: 4px;
 }
 
 .iperf-client-output::-webkit-scrollbar-thumb:hover {
-  background: #3a3a3a;
+  background: var(--theme-accent, #3a3a3a);
 }
 
 .iperf-client-output-empty {

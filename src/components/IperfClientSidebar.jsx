@@ -151,7 +151,7 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
       style={{
         width: '100%',
         height: '100%',
-        background: '#000000',
+        background: 'var(--theme-bg, #000000)',
         display: 'flex',
         flexDirection: 'column',
         flexShrink: 0,
@@ -163,15 +163,15 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
       <div
         style={{
           padding: '12px 16px',
-          borderBottom: '1px solid #1a1a1a',
+          borderBottom: '1px solid var(--theme-border, #1a1a1a)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          background: '#000000',
+          background: 'var(--theme-bg, #000000)',
           flexShrink: 0
         }}
       >
-        <h3 style={{ margin: 0, fontSize: '13px', fontWeight: '600', color: '#00ff41' }}>
+        <h3 style={{ margin: 0, fontSize: '13px', fontWeight: '600', color: 'var(--theme-text, #00ff41)' }}>
           {t('client:iperf.title')}
         </h3>
         {onClose && (
@@ -180,7 +180,7 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
           style={{
             background: 'none',
             border: 'none',
-            color: '#00ff41',
+            color: 'var(--theme-text, #00ff41)',
             cursor: 'pointer',
             padding: '4px 8px',
             borderRadius: '4px',
@@ -252,11 +252,11 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
               cursor: 'pointer',
               padding: '8px 0',
               marginBottom: configExpanded ? '12px' : '0',
-              borderBottom: configExpanded ? '1px solid #1a1a1a' : 'none'
+              borderBottom: configExpanded ? '1px solid var(--theme-border, #1a1a1a)' : 'none'
             }}
           >
             <span style={{ 
-              color: '#00ff41', 
+              color: 'var(--theme-text, #00ff41)', 
               fontSize: '10px',
               transform: configExpanded ? 'rotate(0deg)' : 'rotate(-90deg)',
               transition: 'transform 0.2s',
@@ -267,7 +267,7 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
             </span>
             <span style={{ 
               fontWeight: 600, 
-              color: '#00ff41', 
+              color: 'var(--theme-text, #00ff41)', 
               fontSize: '13px' 
             }}>
               {t('client:iperf.config')}
