@@ -707,7 +707,8 @@ export function useConnectionManagement({
       if (terminal) {
         terminal.write(`\x1b[31mConnection failed: ${error.message}\x1b[0m\r\n`);
         terminal.write('\r\n\x1b[90mSerial connection closed.\x1b[0m\r\n');
-        terminal.write('\x1b[90mPress \x1b[0m\x1b[92m┌─F5─┐\x1b[0m\x1b[90m to reconnect.\x1b[0m\r\n');
+        // Use foreground color (37m) which will match the theme's foreground color
+        terminal.write('\x1b[90mPress \x1b[0m\x1b[37m┌─F5─┐\x1b[0m\x1b[90m to reconnect.\x1b[0m\r\n');
       }
       throw error;
     }
