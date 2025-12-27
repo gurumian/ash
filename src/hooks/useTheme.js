@@ -21,23 +21,9 @@ export function useTheme(terminalInstances) {
     setTheme(themeKey);
     localStorage.setItem('ash-theme', themeKey);
     
-    // Update theme for all existing terminals
-    const themeData = themes[themeKey];
-    if (!themeData || !themeData.terminal) {
-      console.warn(`Theme ${themeKey} does not have terminal configuration`);
-      return;
-    }
-    
-    Object.keys(terminalInstances.current || {}).forEach(sessionId => {
-      const terminal = terminalInstances.current[sessionId];
-      if (terminal && terminal.options) {
-        terminal.options.theme = themeData.terminal;
-        // Force a refresh by writing a zero-width space and clearing it
-        if (typeof terminal.refresh === 'function') {
-          terminal.refresh(0, terminal.rows - 1);
-        }
-      }
-    });
+    // Note: Terminal theme updates are now handled by useTerminalManagement's useEffect
+    // This keeps the logic centralized and ensures proper reactivity
+    // The terminalInstances ref is updated by App.jsx, so changes will be picked up automatically
   };
 
   const currentTheme = themes[theme];

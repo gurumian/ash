@@ -10,31 +10,31 @@ html, body {
   overflow: hidden;
 }
 
-/* Global scrollbar styling - black theme */
+/* Global scrollbar styling - theme-aware */
 ::-webkit-scrollbar {
   width: 12px;
   height: 12px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #000000;
-  border-left: 1px solid #1a1a1a;
+  background: var(--theme-bg, #000000);
+  border-left: 1px solid var(--theme-border, #1a1a1a);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #2a2a2a;
-  border: 1px solid #3a3a3a;
+  background: var(--theme-surface, #2a2a2a);
+  border: 1px solid var(--theme-border, #3a3a3a);
   border-radius: 2px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #3a3a3a;
+  background: var(--theme-accent, #3a3a3a);
 }
 
 /* Firefox scrollbar */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #2a2a2a #000000;
+  scrollbar-color: var(--theme-surface, #2a2a2a) var(--theme-bg, #000000);
 }
 
 /* Thin scrollbar for AI Chat tabs */
@@ -115,7 +115,7 @@ html, body {
   left: 0;
   right: 0;
   height: 28px;
-  background: #000000 !important; /* Force black background for macOS title bar area */
+  background: var(--theme-bg, #000000) !important;
   -webkit-app-region: drag;
   z-index: 1000;
   pointer-events: auto;
@@ -144,8 +144,8 @@ button, a, input, select, textarea, [role="button"] {
 .session-manager {
   /* width is controlled by inline style from sessionManagerWidth state */
   height: 100%;
-  background: #000000 !important;
-  border-right: 1px solid #1a1a1a;
+  background: var(--theme-bg, #000000) !important;
+  border-right: 1px solid var(--theme-border, #1a1a1a);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -194,10 +194,10 @@ button, a, input, select, textarea, [role="button"] {
 }
 
 .session-manager-header {
-  background: #000000 !important;
+  background: var(--theme-bg, #000000) !important;
   padding: 8px 12px;
   padding-left: 90px; /* Space for macOS traffic lights */
-  border-bottom: 1px solid #1a1a1a;
+  border-bottom: 1px solid var(--theme-border, #1a1a1a);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -221,12 +221,12 @@ button, a, input, select, textarea, [role="button"] {
 .session-manager-header h3 {
   font-size: 13px;
   font-weight: 600;
-  color: #00ff41 !important;
+  color: var(--theme-text, #00ff41) !important;
 }
 
 .new-session-btn {
-  background: #00ff41 !important;
-  color: #000000 !important;
+  background: var(--theme-accent, #00ff41) !important;
+  color: var(--theme-bg, #000000) !important;
   border: none !important;
   border-radius: 3px;
   width: 20px;
@@ -244,7 +244,7 @@ button, a, input, select, textarea, [role="button"] {
 }
 
 .new-session-btn:hover {
-  background: #00ff41 !important;
+  background: var(--theme-accent, #00ff41) !important;
   opacity: 0.8;
   box-shadow: none !important;
 }
@@ -295,11 +295,11 @@ button, a, input, select, textarea, [role="button"] {
 }
 
 .section-header {
-  background: #000000 !important;
+  background: var(--theme-bg, #000000) !important;
   padding: 4px 12px;
   font-size: 11px;
   font-weight: 600;
-  color: #00ff41 !important;
+  color: var(--theme-text, #00ff41) !important;
   opacity: 0.7;
 }
 
@@ -312,7 +312,7 @@ button, a, input, select, textarea, [role="button"] {
 .section-toggle {
   background: none;
   border: none;
-  color: #00ff41;
+  color: var(--theme-text, #00ff41);
   cursor: pointer;
   font-size: 10px;
   padding: 0;
@@ -334,7 +334,7 @@ button, a, input, select, textarea, [role="button"] {
   justify-content: space-between;
   font-size: 12px;
   transition: background 0.2s;
-  color: #00ff41 !important;
+  color: var(--theme-text, #00ff41) !important;
 }
 
 /* Indent items under section headers (Session List, Active Sessions) - same as group-session-item */
@@ -354,9 +354,9 @@ button, a, input, select, textarea, [role="button"] {
 }
 
 .session-item.active {
-  background: #1a1a1a;
-  color: #00ff41;
-  border-left: 3px solid #00ff41;
+  background: var(--theme-surface, #1a1a1a);
+  color: var(--theme-text, #00ff41);
+  border-left: 3px solid var(--theme-accent, #00ff41);
 }
 
 /* Adjust active padding for indented items */
@@ -366,7 +366,7 @@ button, a, input, select, textarea, [role="button"] {
 }
 
 .session-item.active:hover {
-  background: #2a2a2a;
+  background: var(--theme-border, #2a2a2a);
 }
 
 .session-name {
@@ -374,7 +374,7 @@ button, a, input, select, textarea, [role="button"] {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: #00ff41 !important;
+  color: var(--theme-text, #00ff41) !important;
 }
 
 .connection-status {
@@ -391,7 +391,7 @@ button, a, input, select, textarea, [role="button"] {
 }
 
 .session-item.active .connection-status.connected {
-  color: #00ff41;
+  color: var(--theme-text, #00ff41);
 }
 
 .session-item.active .connection-status.disconnected {
@@ -407,7 +407,7 @@ button, a, input, select, textarea, [role="button"] {
   font-size: 12px;
   margin-left: 4px;
   opacity: 0.7;
-  color: #00ff41 !important;
+  color: var(--theme-text, #00ff41) !important;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -447,8 +447,8 @@ button, a, input, select, textarea, [role="button"] {
 }
 
 .terminal-header {
-  background: #000000 !important;
-  border-bottom: 1px solid #1a1a1a;
+  background: var(--theme-bg, #000000) !important;
+  border-bottom: 1px solid var(--theme-border, #1a1a1a);
   flex-shrink: 0;
   padding-left: 0; /* Tab bar doesn't need left padding as it's not on the left edge */
   -webkit-app-region: drag; /* Make tab bar area draggable */
@@ -456,16 +456,16 @@ button, a, input, select, textarea, [role="button"] {
 
 .tab-bar {
   display: flex;
-  background: #000000 !important;
+  background: var(--theme-bg, #000000) !important;
   -webkit-app-region: drag; /* Make tab bar draggable */
 }
 
 .tab {
-  background: #000000 !important;
-  color: #00ff41;
+  background: var(--theme-bg, #000000) !important;
+  color: var(--theme-text, #00ff41);
   padding: 8px 16px;
   cursor: pointer;
-  border-right: 1px solid #1a1a1a;
+  border-right: 1px solid var(--theme-border, #1a1a1a);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -477,14 +477,14 @@ button, a, input, select, textarea, [role="button"] {
 }
 
 .tab:hover {
-  background: #1a1a1a !important;
+  background: var(--theme-surface, #1a1a1a) !important;
   opacity: 1;
 }
 
 .tab.active {
-  background: #000000 !important;
-  color: #00ff41;
-  border-bottom: 2px solid #00ff41;
+  background: var(--theme-bg, #000000) !important;
+  color: var(--theme-text, #00ff41);
+  border-bottom: 2px solid var(--theme-accent, #00ff41);
   opacity: 1;
 }
 
@@ -524,7 +524,7 @@ button, a, input, select, textarea, [role="button"] {
   font-size: 12px;
   margin-left: 4px;
   opacity: 0.7;
-  color: #00ff41 !important;
+  color: var(--theme-text, #00ff41) !important;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -594,9 +594,9 @@ button, a, input, select, textarea, [role="button"] {
   flex-direction: column;
 }
 
-/* Ensure xterm.js terminal uses black background and fills container */
+/* Ensure xterm.js terminal uses theme background and fills container */
 .terminal-content .xterm {
-  background-color: #000000 !important;
+  background-color: var(--theme-bg, #000000) !important;
   height: 100% !important;
   width: 100% !important;
   /* Performance optimizations */
@@ -607,7 +607,7 @@ button, a, input, select, textarea, [role="button"] {
 }
 
 .terminal-content .xterm-viewport {
-  background-color: #000000 !important;
+  background-color: var(--theme-bg, #000000) !important;
   height: 100% !important;
   /* Performance optimizations */
   transform: translateZ(0); /* Force GPU acceleration */
@@ -615,44 +615,44 @@ button, a, input, select, textarea, [role="button"] {
   contain: layout style paint;
 }
 
-/* Custom scrollbar styling - black theme */
+/* Custom scrollbar styling - theme-aware */
 .terminal-content .xterm-viewport::-webkit-scrollbar {
   width: 12px;
   height: 12px;
 }
 
 .terminal-content .xterm-viewport::-webkit-scrollbar-track {
-  background: #000000;
-  border-left: 1px solid #1a1a1a;
+  background: var(--theme-bg, #000000);
+  border-left: 1px solid var(--theme-border, #1a1a1a);
 }
 
 .terminal-content .xterm-viewport::-webkit-scrollbar-thumb {
-  background: #2a2a2a;
-  border: 1px solid #3a3a3a;
+  background: var(--theme-surface, #2a2a2a);
+  border: 1px solid var(--theme-border, #3a3a3a);
   border-radius: 2px;
 }
 
 .terminal-content .xterm-viewport::-webkit-scrollbar-thumb:hover {
-  background: #3a3a3a;
+  background: var(--theme-accent, #3a3a3a);
 }
 
 /* Firefox scrollbar */
 .terminal-content .xterm-viewport {
   scrollbar-width: thin;
-  scrollbar-color: #2a2a2a #000000;
+  scrollbar-color: var(--theme-surface, #2a2a2a) var(--theme-bg, #000000);
 }
 
 .terminal-content .xterm-screen {
-  background-color: #000000 !important;
+  background-color: var(--theme-bg, #000000) !important;
   height: 100% !important;
   /* Performance optimizations */
   transform: translateZ(0); /* Force GPU acceleration */
   contain: layout style paint;
 }
 
-/* Ensure default text is green - let xterm theme handle other colors */
+/* Ensure default text color matches theme - let xterm theme handle other colors */
 .terminal-content .xterm .xterm-rows {
-  color: #00ff41;
+  color: var(--theme-text, #00ff41);
   line-height: 1.0;
 }
 
@@ -668,28 +668,28 @@ button, a, input, select, textarea, [role="button"] {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: #000000 !important; /* Force black background (fixes macOS green background issue) */
-  color: #00ff41 !important;
+  background: var(--theme-bg, #000000) !important;
+  color: var(--theme-text, #00ff41) !important;
   text-align: center;
 }
 
 .welcome-screen h2 {
   font-size: 24px;
   margin-bottom: 16px;
-  color: #00ff41 !important;
+  color: var(--theme-text, #00ff41) !important;
 }
 
 .welcome-screen p {
   font-size: 16px;
   margin-bottom: 24px;
   opacity: 0.8;
-  color: #00ff41 !important;
+  color: var(--theme-text, #00ff41) !important;
 }
 
 .welcome-connect-btn {
-  background: #00ff41 !important;
-  color: #000000 !important;
-  border: 2px solid #00ff41 !important;
+  background: var(--theme-accent, #00ff41) !important;
+  color: var(--theme-bg, #000000) !important;
+  border: 2px solid var(--theme-accent, #00ff41) !important;
   padding: 12px 24px;
   border-radius: 6px;
   font-size: 14px;
@@ -704,21 +704,21 @@ button, a, input, select, textarea, [role="button"] {
 }
 
 .welcome-connect-btn:hover {
-  background: rgba(0, 255, 65, 0.2) !important;
-  color: #00ff41 !important;
+  background: var(--theme-surface, rgba(0, 255, 65, 0.2)) !important;
+  color: var(--theme-text, #00ff41) !important;
   box-shadow: none !important;
 }
 
 /* Bottom status bar */
 .status-bar {
-  background: #000000 !important; /* Force black background */
+  background: var(--theme-bg, #000000) !important;
   border-top: 1px solid var(--theme-border, #1a1a1a);
   padding: 4px 12px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-size: 11px;
-  color: #00ff41 !important;
+  color: var(--theme-text, #00ff41) !important;
   height: 22px;
   flex-shrink: 0;
   opacity: 0.7;
@@ -752,25 +752,25 @@ button, a, input, select, textarea, [role="button"] {
 }
 
 .status-tftp-indicator {
-  color: #00ff41;
+  color: var(--theme-text, #00ff41);
   opacity: 0.8;
   font-size: 11px;
 }
 
 .status-web-indicator {
-  color: #00ff41;
+  color: var(--theme-text, #00ff41);
   opacity: 0.8;
   font-size: 11px;
 }
 
 .status-iperf-indicator {
-  color: #00ff41;
+  color: var(--theme-text, #00ff41);
   opacity: 0.8;
   font-size: 11px;
 }
 
 .status-iperf-client-indicator {
-  color: #00ff41;
+  color: var(--theme-text, #00ff41);
   opacity: 0.8;
   font-size: 11px;
 }
@@ -779,7 +779,7 @@ button, a, input, select, textarea, [role="button"] {
   display: flex;
   align-items: center;
   gap: 16px;
-  color: #00ff41 !important;
+  color: var(--theme-text, #00ff41) !important;
 }
 
 /* Modal */
@@ -797,10 +797,10 @@ button, a, input, select, textarea, [role="button"] {
 }
 
 .connection-modal {
-  background: #000000;
+  background: var(--theme-bg, #000000);
   border-radius: 8px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.8);
-  border: 1px solid #1a1a1a;
+  border: 1px solid var(--theme-border, #1a1a1a);
   width: 90%;
   max-width: 500px;
   max-height: 90vh;
@@ -808,9 +808,9 @@ button, a, input, select, textarea, [role="button"] {
 }
 
 .modal-header {
-  background: #000000;
+  background: var(--theme-bg, #000000);
   padding: 16px 20px;
-  border-bottom: 1px solid #1a1a1a;
+  border-bottom: 1px solid var(--theme-border, #1a1a1a);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -820,7 +820,7 @@ button, a, input, select, textarea, [role="button"] {
 .modal-header h3 {
   font-size: 16px;
   font-weight: 600;
-  color: #00ff41;
+  color: var(--theme-text, #00ff41);
 }
 
 .modal-close {
@@ -828,7 +828,7 @@ button, a, input, select, textarea, [role="button"] {
   border: none;
   font-size: 20px;
   cursor: pointer;
-  color: #00ff41;
+  color: var(--theme-text, #00ff41);
   padding: 4px;
   border-radius: 4px;
   opacity: 0.7;
@@ -836,13 +836,13 @@ button, a, input, select, textarea, [role="button"] {
 
 .modal-close:hover {
   background: rgba(0, 255, 65, 0.1);
-  color: #00ff41;
+  color: var(--theme-text, #00ff41);
   opacity: 1;
 }
 
 .connection-modal form {
   padding: 20px;
-  background: #000000;
+  background: var(--theme-bg, #000000);
 }
 
 .form-group {
@@ -853,25 +853,25 @@ button, a, input, select, textarea, [role="button"] {
   display: block;
   margin-bottom: 6px;
   font-weight: 600;
-  color: #00ff41;
+  color: var(--theme-text, #00ff41);
   font-size: 13px;
 }
 
 .form-group input {
   width: 100%;
   padding: 10px 12px;
-  border: 1px solid #1a1a1a;
+  border: 1px solid var(--theme-border, #1a1a1a);
   border-radius: 4px;
   font-size: 14px;
   transition: border-color 0.2s;
   box-sizing: border-box;
-  background: #1a1a1a;
-  color: #00ff41;
+  background: var(--theme-surface, #1a1a1a);
+  color: var(--theme-text, #00ff41);
 }
 
 .form-group input:focus {
   outline: none;
-  border-color: #00ff41;
+  border-color: var(--theme-accent, #00ff41);
   box-shadow: 0 0 0 2px rgba(0, 255, 65, 0.2);
 }
 
@@ -882,18 +882,18 @@ button, a, input, select, textarea, [role="button"] {
 .form-group select {
   width: 100%;
   padding: 10px 12px;
-  border: 1px solid #1a1a1a;
+  border: 1px solid var(--theme-border, #1a1a1a);
   border-radius: 4px;
   font-size: 14px;
   transition: border-color 0.2s;
   box-sizing: border-box;
-  background: #1a1a1a;
-  color: #00ff41;
+  background: var(--theme-surface, #1a1a1a);
+  color: var(--theme-text, #00ff41);
 }
 
 .form-group select:focus {
   outline: none;
-  border-color: #00ff41;
+  border-color: var(--theme-accent, #00ff41);
   box-shadow: 0 0 0 2px rgba(0, 255, 65, 0.2);
 }
 
@@ -924,8 +924,8 @@ button, a, input, select, textarea, [role="button"] {
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
-  background: #1a1a1a;
-  border: 1px solid #333;
+  background: var(--theme-surface, #1a1a1a);
+  border: 1px solid var(--theme-border, #333);
   border-radius: 12px;
   position: relative;
   transition: background-color 0.3s, border-color 0.3s;
@@ -948,17 +948,17 @@ button, a, input, select, textarea, [role="button"] {
 
 .checkbox-label input[type="checkbox"]:checked {
   background: rgba(0, 255, 65, 0.2);
-  border-color: #00ff41;
+  border-color: var(--theme-accent, #00ff41);
 }
 
 .checkbox-label input[type="checkbox"]:checked::before {
   transform: translateX(20px);
-  background: #00ff41;
+  background: var(--theme-accent, #00ff41);
   box-shadow: 0 2px 6px rgba(0, 255, 65, 0.4);
 }
 
 .checkbox-label input[type="checkbox"]:hover {
-  border-color: #00ff41;
+  border-color: var(--theme-accent, #00ff41);
 }
 
 .checkbox-label input[type="checkbox"]:hover::before {
@@ -971,7 +971,7 @@ button, a, input, select, textarea, [role="button"] {
 
 .checkbox-text {
   font-size: 13px;
-  color: #00ff41;
+  color: var(--theme-text, #00ff41);
   flex: 0 0 auto;
 }
 
@@ -1478,25 +1478,25 @@ button, a, input, select, textarea, [role="button"] {
 /* Group Styles */
 .group-container {
   margin-bottom: 4px;
-  border: 1px solid #1a1a1a;
+  border: 1px solid var(--theme-border, #1a1a1a);
   border-radius: 4px;
   overflow: hidden;
 }
 
 .group-header {
-  background: #1a1a1a;
+  background: var(--theme-surface, #1a1a1a);
   padding: 6px 12px;
   display: flex;
   align-items: center;
   gap: 6px;
   cursor: pointer;
   transition: background 0.2s;
-  border-bottom: 1px solid #0a0a0a;
+  border-bottom: 1px solid var(--theme-bg, #0a0a0a);
   -webkit-app-region: no-drag;
 }
 
 .group-header:hover:not(.all-connected) {
-  background: #2a2a2a;
+  background: var(--theme-border, #2a2a2a);
 }
 
 .group-header.all-connected {
@@ -1506,13 +1506,13 @@ button, a, input, select, textarea, [role="button"] {
 
 .group-header.drag-over {
   background: rgba(0, 255, 65, 0.2);
-  border: 1px dashed #00ff41;
+  border: 1px dashed var(--theme-accent, #00ff41);
 }
 
 .group-toggle {
   background: none;
   border: none;
-  color: #00ff41;
+  color: var(--theme-text, #00ff41);
   cursor: pointer;
   font-size: 10px;
   padding: 0;
@@ -1526,7 +1526,7 @@ button, a, input, select, textarea, [role="button"] {
 
 .group-name {
   flex: 1;
-  color: #00ff41;
+  color: var(--theme-text, #00ff41);
   font-size: 12px;
   font-weight: 600;
   cursor: text;
@@ -1534,9 +1534,9 @@ button, a, input, select, textarea, [role="button"] {
 
 .group-name-input {
   flex: 1;
-  background: #000000;
-  border: 1px solid #00ff41;
-  color: #00ff41;
+  background: var(--theme-bg, #000000);
+  border: 1px solid var(--theme-accent, #00ff41);
+  color: var(--theme-text, #00ff41);
   font-size: 12px;
   font-weight: 600;
   padding: 2px 4px;
@@ -1559,7 +1559,7 @@ button, a, input, select, textarea, [role="button"] {
 .group-delete-btn {
   background: none;
   border: none;
-  color: #00ff41;
+  color: var(--theme-text, #00ff41);
   cursor: pointer;
   font-size: 12px;
   padding: 2px 4px;
@@ -1592,7 +1592,7 @@ button, a, input, select, textarea, [role="button"] {
 }
 
 .group-sessions {
-  background: #000000;
+  background: var(--theme-bg, #000000);
 }
 
 .group-session-item {
@@ -1615,7 +1615,7 @@ button, a, input, select, textarea, [role="button"] {
 .remove-from-group-btn {
   background: none;
   border: none;
-  color: #00ff41;
+  color: var(--theme-text, #00ff41);
   cursor: pointer;
   font-size: 12px;
   padding: 2px 4px;
@@ -1730,9 +1730,9 @@ button, a, input, select, textarea, [role="button"] {
 .new-library-btn {
   width: 100%;
   padding: 10px 12px;
-  background: #1a1a1a;
-  border: 1px dashed #1a1a1a;
-  color: #00ff41;
+  background: var(--theme-surface, #1a1a1a);
+  border: 1px dashed var(--theme-border, #1a1a1a);
+  color: var(--theme-text, #00ff41);
   font-size: 12px;
   cursor: pointer;
   border-radius: 4px;
@@ -1742,16 +1742,16 @@ button, a, input, select, textarea, [role="button"] {
 }
 
 .new-library-btn:hover {
-  background: #2a2a2a;
-  border-color: #00ff41;
+  background: var(--theme-border, #2a2a2a);
+  border-color: var(--theme-accent, #00ff41);
 }
 
 .new-group-btn {
   width: 100%;
   padding: 10px 12px;
-  background: #1a1a1a;
-  border: 1px dashed #1a1a1a;
-  color: #00ff41;
+  background: var(--theme-surface, #1a1a1a);
+  border: 1px dashed var(--theme-border, #1a1a1a);
+  color: var(--theme-text, #00ff41);
   font-size: 12px;
   cursor: pointer;
   border-radius: 4px;
@@ -1761,8 +1761,8 @@ button, a, input, select, textarea, [role="button"] {
 }
 
 .new-group-btn:hover {
-  background: #2a2a2a;
-  border-color: #00ff41;
+  background: var(--theme-border, #2a2a2a);
+  border-color: var(--theme-accent, #00ff41);
 }
 
 .new-group-drop-zone {
@@ -1770,7 +1770,7 @@ button, a, input, select, textarea, [role="button"] {
   text-align: center;
   color: #555;
   font-size: 11px;
-  border: 2px dashed #1a1a1a;
+  border: 2px dashed var(--theme-border, #1a1a1a);
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.2s;
@@ -1778,8 +1778,8 @@ button, a, input, select, textarea, [role="button"] {
 }
 
 .new-group-drop-zone:hover {
-  border-color: #00ff41;
-  color: #00ff41;
+  border-color: var(--theme-accent, #00ff41);
+  color: var(--theme-text, #00ff41);
   background: rgba(0, 255, 65, 0.05);
 }
 
