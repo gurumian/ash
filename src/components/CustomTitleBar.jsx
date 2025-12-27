@@ -25,6 +25,9 @@ export function CustomTitleBar({
   showSessionManager,
   onToggleSessionManager,
   iperfAvailable = true,
+  themes = {},
+  currentTheme = 'terminus',
+  onChangeTheme,
 }) {
   const { t } = useTranslation(['menu', 'common']);
   const [activeMenu, setActiveMenu] = useState(null);
@@ -88,7 +91,18 @@ export function CustomTitleBar({
                   onToggleSessionManager(!showSessionManager);
                 }
               }
-            }
+            },
+            { type: 'separator' },
+            ...Object.entries(themes).map(([key, themeData]) => ({
+              label: themeData.name,
+              type: 'radio',
+              checked: currentTheme === key,
+              onClick: () => {
+                if (onChangeTheme) {
+                  onChangeTheme(key);
+                }
+              }
+            }))
           ]
         },
         { type: 'separator' },
@@ -173,7 +187,7 @@ export function CustomTitleBar({
                               ) : (
                                 <button
                                   key={subItem.label}
-                                  className={`menubar-item-button ${subItem.type === 'checkbox' && subItem.checked ? 'checked' : ''}`}
+                                  className={`menubar-item-button ${(subItem.type === 'checkbox' || subItem.type === 'radio') && subItem.checked ? 'checked' : ''}`}
                                   onMouseDown={(e) => e.stopPropagation()}
                                   onClick={(e) => {
                                     e.preventDefault();
@@ -186,7 +200,7 @@ export function CustomTitleBar({
                                   }}
                                 >
                                   <span className="menubar-item-label">
-                                    {subItem.type === 'checkbox' && (
+                                    {(subItem.type === 'checkbox' || subItem.type === 'radio') && (
                                       <span className="menubar-checkbox">
                                         {subItem.checked ? '✓' : ''}
                                       </span>

@@ -1196,6 +1196,9 @@ function App() {
               resizeTerminal();
             }, 350);
           }}
+          themes={themes}
+          currentTheme={theme}
+          onChangeTheme={changeTheme}
         />
       )}
       <div className="main-content">
