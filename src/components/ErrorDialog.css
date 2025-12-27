@@ -55,7 +55,7 @@
 }
 
 .error-dialog-close:hover {
-  background: rgba(0, 255, 65, 0.1);
+  background: color-mix(in srgb, var(--theme-accent, #00ff41) 10%, transparent);
   color: var(--theme-text, #00ff41);
 }
 
@@ -78,7 +78,7 @@
 .error-detail {
   margin-top: 8px !important;
   padding: 10px;
-  background: rgba(0, 255, 65, 0.05);
+  background: color-mix(in srgb, var(--theme-accent, #00ff41) 5%, transparent);
   border: 1px solid var(--theme-border, #2a2a2a);
   border-radius: 4px;
   font-size: 11px;
@@ -92,7 +92,7 @@
 .error-system-info {
   margin-top: 8px;
   padding: 8px;
-  background: rgba(0, 255, 65, 0.03);
+  background: color-mix(in srgb, var(--theme-accent, #00ff41) 3%, transparent);
   border: 1px solid var(--theme-border, #2a2a2a);
   border-radius: 4px;
   font-size: 11px;
@@ -104,7 +104,7 @@
 .error-original-message {
   margin-top: 8px;
   padding: 8px;
-  background: rgba(0, 255, 65, 0.03);
+  background: color-mix(in srgb, var(--theme-accent, #00ff41) 3%, transparent);
   border: 1px solid var(--theme-border, #2a2a2a);
   border-radius: 4px;
   font-size: 11px;
@@ -130,7 +130,7 @@
 }
 
 .error-details-toggle:hover {
-  background: rgba(0, 255, 65, 0.1);
+  background: color-mix(in srgb, var(--theme-accent, #00ff41) 10%, transparent);
 }
 
 .error-stack-trace {
@@ -172,13 +172,13 @@
 }
 
 .error-ok-button:hover {
-  background: rgba(0, 255, 65, 0.8);
-  border-color: rgba(0, 255, 65, 0.8);
+  background: color-mix(in srgb, var(--theme-accent, #00ff41) 80%, black);
+  border-color: color-mix(in srgb, var(--theme-accent, #00ff41) 80%, black);
   opacity: 0.9;
 }
 
 .error-ok-button:active {
-  background: rgba(0, 255, 65, 0.7);
+  background: color-mix(in srgb, var(--theme-accent, #00ff41) 70%, black);
   opacity: 0.8;
 }
 
