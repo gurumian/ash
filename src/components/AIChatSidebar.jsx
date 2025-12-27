@@ -576,7 +576,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
         }}
       >
         {messages.length === 0 ? (
-          <div style={{ color: '#888', fontSize: '12px', textAlign: 'center', marginTop: '40px' }}>
+          <div style={{ color: 'color-mix(in srgb, var(--theme-text) 60%, transparent)', fontSize: '12px', textAlign: 'center', marginTop: '40px' }}>
             No messages yet. Start a conversation with AI.
           </div>
         ) : (
@@ -651,7 +651,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                 <div
                   style={{
                     fontSize: '11px',
-                    color: '#888',
+                    color: 'color-mix(in srgb, var(--theme-text) 60%, transparent)',
                     marginBottom: '6px',
                     fontWeight: '600',
                     textTransform: 'uppercase'
@@ -1050,7 +1050,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#888', fontSize: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'color-mix(in srgb, var(--theme-text) 70%, transparent)', fontSize: '12px' }}>
                 <span
                   style={{
                     display: 'inline-block',
@@ -1152,7 +1152,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                   <div
                     style={{
                       fontSize: '10px',
-                      color: '#888',
+                      color: 'color-mix(in srgb, var(--theme-text) 60%, transparent)',
                       marginBottom: '4px',
                       fontWeight: '600'
                     }}
@@ -1282,9 +1282,9 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                   onClick={() => onRespondToRequest && onRespondToRequest({ rejected: true })}
                   style={{
                     background: 'transparent',
-                    border: '1px solid #666',
+                    border: '1px solid color-mix(in srgb, var(--theme-border) 50%, transparent)',
                     borderRadius: '4px',
-                    color: '#888',
+                    color: 'color-mix(in srgb, var(--theme-text) 60%, transparent)',
                     padding: '6px 12px',
                     fontSize: '12px',
                     cursor: 'pointer',
@@ -1295,8 +1295,8 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                     e.currentTarget.style.color = '#ff4141';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = '#666';
-                    e.currentTarget.style.color = '#888';
+                    e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--theme-border) 50%, transparent)';
+                    e.currentTarget.style.color = 'color-mix(in srgb, var(--theme-text) 60%, transparent)';
                   }}
                 >
                   Reject

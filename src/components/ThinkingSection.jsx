@@ -41,9 +41,9 @@ export function ThinkingSection({ thinking, plan, todos, messageId, isStreaming 
     <div
       style={{
         marginTop: '8px',
-        border: '1px solid rgba(0, 255, 65, 0.2)',
+        border: '1px solid color-mix(in srgb, var(--theme-accent) 20%, transparent)',
         borderRadius: '4px',
-        background: 'rgba(0, 255, 65, 0.02)',
+        background: 'color-mix(in srgb, var(--theme-accent) 2%, transparent)',
         overflow: 'hidden',
         transition: 'height 0.2s ease',
         display: 'flex',
@@ -59,18 +59,18 @@ export function ThinkingSection({ thinking, plan, todos, messageId, isStreaming 
           alignItems: 'center',
           justifyContent: 'space-between',
           cursor: 'pointer',
-          background: 'rgba(0, 255, 65, 0.05)',
-          borderBottom: isExpanded ? '1px solid rgba(0, 255, 65, 0.1)' : 'none',
+          background: 'color-mix(in srgb, var(--theme-accent) 5%, transparent)',
+          borderBottom: isExpanded ? '1px solid color-mix(in srgb, var(--theme-accent) 10%, transparent)' : 'none',
           flexShrink: 0
         }}
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '11px', fontWeight: '600', color: '#00ff41' }}>
+          <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--theme-accent)' }}>
             {isStreaming ? '🧠 AI Thinking...' : '💭 AI Thinking'}
           </span>
           {(thinking || plan || (todos && todos.length > 0)) && (
-            <span style={{ fontSize: '9px', color: '#888' }}>
+            <span style={{ fontSize: '9px', color: 'color-mix(in srgb, var(--theme-text) 60%, transparent)' }}>
               {[
                 thinking ? 'thinking' : '',
                 plan ? 'plan' : '',
@@ -82,7 +82,7 @@ export function ThinkingSection({ thinking, plan, todos, messageId, isStreaming 
         <span
           style={{
             fontSize: '12px',
-            color: '#00ff41',
+            color: 'var(--theme-accent)',
             transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
             transition: 'transform 0.2s'
           }}
@@ -101,22 +101,22 @@ export function ThinkingSection({ thinking, plan, todos, messageId, isStreaming 
             padding: '12px',
             fontSize: '11px',
             lineHeight: '1.5',
-            color: '#888'
+            color: 'color-mix(in srgb, var(--theme-text) 70%, transparent)'
           }}
         >
           {/* Thinking */}
           {thinking && (
             <div style={{ marginBottom: '12px' }}>
-              <div style={{ fontSize: '10px', fontWeight: '600', color: '#00ff41', marginBottom: '4px' }}>
+              <div style={{ fontSize: '10px', fontWeight: '600', color: 'var(--theme-accent)', marginBottom: '4px' }}>
                 Thinking:
               </div>
-              <div style={{ color: '#888', fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
+              <div style={{ color: 'color-mix(in srgb, var(--theme-text) 70%, transparent)', fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
                 <ReactMarkdown
                   components={{
                     p: ({ children }) => <p style={{ margin: '0 0 4px 0' }}>{children}</p>,
                     code: ({ inline, children }) => (
                       <code style={{
-                        background: 'rgba(0, 255, 65, 0.1)',
+                        background: 'color-mix(in srgb, var(--theme-accent) 10%, transparent)',
                         padding: '1px 3px',
                         borderRadius: '2px',
                         fontSize: '10px'
@@ -135,10 +135,10 @@ export function ThinkingSection({ thinking, plan, todos, messageId, isStreaming 
           {/* Plan */}
           {plan && (
             <div style={{ marginBottom: '12px' }}>
-              <div style={{ fontSize: '10px', fontWeight: '600', color: '#00ff41', marginBottom: '4px' }}>
+              <div style={{ fontSize: '10px', fontWeight: '600', color: 'var(--theme-accent)', marginBottom: '4px' }}>
                 Plan:
               </div>
-              <div style={{ color: '#888', fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
+              <div style={{ color: 'color-mix(in srgb, var(--theme-text) 70%, transparent)', fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
                 <ReactMarkdown
                   components={{
                     p: ({ children }) => <p style={{ margin: '0 0 4px 0' }}>{children}</p>,
@@ -155,10 +155,10 @@ export function ThinkingSection({ thinking, plan, todos, messageId, isStreaming 
           {/* Todos */}
           {todos && todos.length > 0 && (
             <div>
-              <div style={{ fontSize: '10px', fontWeight: '600', color: '#00ff41', marginBottom: '4px' }}>
+              <div style={{ fontSize: '10px', fontWeight: '600', color: 'var(--theme-accent)', marginBottom: '4px' }}>
                 TODOs:
               </div>
-              <ul style={{ margin: '4px 0', paddingLeft: '16px', color: '#888' }}>
+              <ul style={{ margin: '4px 0', paddingLeft: '16px', color: 'color-mix(in srgb, var(--theme-text) 70%, transparent)' }}>
                 {todos.map((todo, idx) => (
                   <li key={`todo-${messageId}-${idx}`} style={{ margin: '2px 0', fontSize: '10px' }}>
                     {todo}
