@@ -126,6 +126,11 @@ export async function createWindow() {
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
     
+    // Hide native menu bar on Windows/Linux (using custom title bar)
+    if (process.platform !== 'darwin') {
+      mainWindow.setMenuBarVisibility(false);
+    }
+    
     // Send backend status to renderer (not-ready initially, will be started on-demand)
     if (mainWindow.webContents && !mainWindow.webContents.isDestroyed()) {
       mainWindow.webContents.send('backend-status', {

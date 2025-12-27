@@ -1185,6 +1185,7 @@ function App() {
           onIperfServer={() => setShowIperfServerDialog(true)}
           onIperfClient={() => setShowIperfClientSidebar(true)}
           onNetcat={() => setShowNetcatSidebar(true)}
+          onThirdPartyLicenses={() => setShowLicensesDialog(true)}
           iperfAvailable={iperfAvailable}
           showSessionManager={showSessionManager}
           onToggleSessionManager={(checked) => {
@@ -1573,6 +1574,8 @@ function App() {
         onClose={() => setShowAboutDialog(false)}
         appVersion={appInfo.version}
         author={appInfo.author}
+        themes={themes}
+        currentTheme={theme}
         onShowLicenses={() => {
           setShowAboutDialog(false);
           setShowLicensesDialog(true);
@@ -1583,6 +1586,8 @@ function App() {
       <LicensesDialog
         isOpen={showLicensesDialog}
         onClose={() => setShowLicensesDialog(false)}
+        themes={themes}
+        currentTheme={theme}
       />
 
       {/* Session Dialog */}

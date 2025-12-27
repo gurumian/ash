@@ -2,13 +2,25 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import './AboutDialog.css';
 
-export const AboutDialog = ({ isOpen, onClose, appVersion, author, onShowLicenses }) => {
+export const AboutDialog = ({ isOpen, onClose, appVersion, author, onShowLicenses, themes = {}, currentTheme = 'terminus' }) => {
   const { t } = useTranslation(['dialog', 'common']);
   if (!isOpen) return null;
 
+  // Get current theme data to apply CSS variables
+  const themeData = themes[currentTheme] || themes['terminus'] || {};
+  
+  // Apply theme CSS variables
+  const dialogStyle = {
+    '--theme-bg': themeData.background || '#000000',
+    '--theme-surface': themeData.surface || '#1a1a1a',
+    '--theme-text': themeData.text || '#fff',
+    '--theme-border': themeData.border || '#333',
+    '--theme-accent': themeData.accent || '#00ff41',
+  };
+
   return (
-    <div className="about-dialog-overlay">
-      <div className="about-dialog" onClick={(e) => e.stopPropagation()}>
+    <div className="about-dialog-overlay" style={dialogStyle}>
+      <div className="about-dialog" onClick={(e) => e.stopPropagation()} style={dialogStyle}>
         <div className="about-dialog-header">
           <h2>{t('common:appName')}</h2>
           <button className="about-dialog-close" onClick={onClose}>×</button>

@@ -22,6 +22,7 @@ export function CustomTitleBar({
   onIperfServer,
   onIperfClient,
   onNetcat,
+  onThirdPartyLicenses,
   showSessionManager,
   onToggleSessionManager,
   iperfAvailable = true,
@@ -29,6 +30,8 @@ export function CustomTitleBar({
   currentTheme = 'terminus',
   onChangeTheme,
 }) {
+  // Get current theme data to apply CSS variables
+  const themeData = themes[currentTheme] || themes['terminus'] || {};
   const { t } = useTranslation(['menu', 'common']);
   const [activeMenu, setActiveMenu] = useState(null);
   const [activeSubmenu, setActiveSubmenu] = useState(null);
@@ -130,7 +133,7 @@ export function CustomTitleBar({
           disabled: !iperfAvailable,
           sublabel: iperfAvailable ? '' : t('menu:iperf3NotAvailable')
         },
-        { label: 'Netcat', shortcut: 'Ctrl+Shift+N', onClick: onNetcat },
+        { label: t('menu:netcat'), shortcut: 'Ctrl+Shift+N', onClick: onNetcat },
       ],
     },
     {
@@ -139,12 +142,22 @@ export function CustomTitleBar({
         { label: t('menu:checkForUpdates'), onClick: onCheckForUpdates },
         { type: 'separator' },
         { label: t('menu:aboutAsh'), onClick: onAbout },
+        ...(onThirdPartyLicenses ? [{ label: t('menu:thirdPartyLicenses'), onClick: onThirdPartyLicenses }] : []),
       ],
     },
   ];
 
+  // Apply theme CSS variables
+  const titleBarStyle = {
+    '--theme-bg': themeData.background || '#000000',
+    '--theme-surface': themeData.surface || '#1a1a1a',
+    '--theme-text': themeData.text || '#00ff41',
+    '--theme-border': themeData.border || '#1a1a1a',
+    '--theme-accent': themeData.accent || '#00ff41',
+  };
+
   return (
-    <div className="custom-titlebar" ref={menuRef}>
+    <div className="custom-titlebar" ref={menuRef} style={titleBarStyle}>
       <div className="titlebar-left">
         <div className="titlebar-title">ash</div>
         <div className="titlebar-menus">

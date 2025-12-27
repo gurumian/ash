@@ -2,11 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import './LicensesDialog.css';
 
-export const LicensesDialog = ({ isOpen, onClose }) => {
+export const LicensesDialog = ({ isOpen, onClose, themes = {}, currentTheme = 'terminus' }) => {
   const { t } = useTranslation(['dialog', 'common']);
   const [licensesContent, setLicensesContent] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // Get current theme data to apply CSS variables
+  const themeData = themes[currentTheme] || themes['terminus'] || {};
 
   useEffect(() => {
     if (isOpen) {
@@ -36,9 +39,18 @@ export const LicensesDialog = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
+  // Apply theme CSS variables
+  const dialogStyle = {
+    '--theme-bg': themeData.background || '#000000',
+    '--theme-surface': themeData.surface || '#1a1a1a',
+    '--theme-text': themeData.text || '#fff',
+    '--theme-border': themeData.border || '#333',
+    '--theme-accent': themeData.accent || '#00ff41',
+  };
+
   return (
-    <div className="licenses-dialog-overlay">
-      <div className="licenses-dialog" onClick={(e) => e.stopPropagation()}>
+    <div className="licenses-dialog-overlay" style={dialogStyle}>
+      <div className="licenses-dialog" onClick={(e) => e.stopPropagation()} style={dialogStyle}>
         <div className="licenses-dialog-header">
           <h2>{t('dialog:about.licenses')}</h2>
           <button className="licenses-dialog-close" onClick={onClose}>×</button>
