@@ -320,7 +320,8 @@ export const Settings = memo(function Settings({
                 onChange={(e) => {
                   changeLanguage(e.target.value);
                 }}
-                style={{ width: '200px', padding: '8px 12px', background: '#1a1a1a', border: '1px solid #1a1a1a', borderRadius: '4px', color: '#00ff41', fontSize: '13px' }}
+                className="settings-select"
+                style={{ width: '200px' }}
               >
                 <option value="en">English</option>
                 <option value="ko">한국어</option>
@@ -346,7 +347,8 @@ export const Settings = memo(function Settings({
                 step="100"
                 value={scrollbackLines}
                 onChange={onChangeScrollbackLines}
-                style={{ width: '150px', padding: '8px 12px', background: '#1a1a1a', border: '1px solid #1a1a1a', borderRadius: '4px', color: '#00ff41', fontSize: '13px' }}
+                className="settings-input"
+                style={{ width: '150px' }}
               />
               <p className="setting-description">
                 {t('settings:scrollbackLinesDesc')}
@@ -363,7 +365,8 @@ export const Settings = memo(function Settings({
                 step="1"
                 value={terminalFontSize}
                 onChange={onChangeTerminalFontSize}
-                style={{ width: '100px', padding: '8px 12px', background: '#1a1a1a', border: '1px solid #1a1a1a', borderRadius: '4px', color: '#00ff41', fontSize: '13px' }}
+                className="settings-input"
+                style={{ width: '100px' }}
               />
               <p className="setting-description">
                 {t('settings:fontSizeDesc')}
@@ -375,7 +378,8 @@ export const Settings = memo(function Settings({
               <select
                 value={terminalFontFamily}
                 onChange={onChangeTerminalFontFamily}
-                style={{ width: '300px', padding: '8px 12px', background: '#1a1a1a', border: '1px solid #1a1a1a', borderRadius: '4px', color: '#00ff41', fontSize: '13px' }}
+                className="settings-select"
+                style={{ width: '300px' }}
               >
                 <option value="'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace">Monaco / Menlo (Default)</option>
                 <option value="'Courier New', monospace">Courier New</option>
@@ -397,7 +401,8 @@ export const Settings = memo(function Settings({
               <select
                 value={uiFontFamily}
                 onChange={onChangeUiFontFamily}
-                style={{ width: '300px', padding: '8px 12px', background: '#1a1a1a', border: '1px solid #1a1a1a', borderRadius: '4px', color: '#00ff41', fontSize: '13px' }}
+                className="settings-select"
+                style={{ width: '300px' }}
               >
                 <option value="'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace">Monaco / Menlo (Default)</option>
                 <option value="'Courier New', monospace">Courier New</option>
@@ -458,40 +463,12 @@ export const Settings = memo(function Settings({
                   {t('settings:reconnectEnabled')}
                 </label>
                 <div 
-                  className="toggle-switch"
-                  style={{
-                    position: 'relative',
-                    width: '48px',
-                    height: '24px',
-                    backgroundColor: reconnectRetry?.enabled !== false ? '#00ff41' : '#2a2a2a',
-                    borderRadius: '12px',
-                    cursor: 'pointer',
-                    transition: 'background-color 0.2s',
-                    border: '1px solid',
-                    borderColor: reconnectRetry?.enabled !== false ? '#00ff41' : '#1a1a1a'
-                  }}
+                  className={`settings-toggle-switch ${reconnectRetry?.enabled !== false ? 'active' : ''}`}
                   onClick={() => onChangeReconnectRetry?.({ enabled: !reconnectRetry?.enabled })}
                 >
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: '2px',
-                      left: reconnectRetry?.enabled !== false ? '26px' : '2px',
-                      width: '18px',
-                      height: '18px',
-                      backgroundColor: '#000000',
-                      borderRadius: '50%',
-                      transition: 'left 0.2s',
-                      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
-                    }}
-                  />
+                  <div className="settings-toggle-knob" />
                 </div>
-                <span style={{ 
-                  fontSize: '12px', 
-                  color: reconnectRetry?.enabled !== false ? '#00ff41' : '#555',
-                  fontWeight: '600',
-                  minWidth: '40px'
-                }}>
+                <span className={`settings-toggle-label ${reconnectRetry?.enabled !== false ? 'active' : ''}`}>
                   {reconnectRetry?.enabled !== false ? 'ON' : 'OFF'}
                 </span>
               </div>
@@ -516,7 +493,8 @@ export const Settings = memo(function Settings({
                         onChangeReconnectRetry?.({ interval: value });
                       }
                     }}
-                    style={{ width: '150px', padding: '8px 12px', background: '#1a1a1a', border: '1px solid #1a1a1a', borderRadius: '4px', color: '#00ff41', fontSize: '13px' }}
+                    className="settings-input"
+                    style={{ width: '150px' }}
                   />
                   <p className="setting-description">
                     {t('settings:reconnectIntervalDesc')}
@@ -537,7 +515,8 @@ export const Settings = memo(function Settings({
                         onChangeReconnectRetry?.({ maxAttempts: value });
                       }
                     }}
-                    style={{ width: '150px', padding: '8px 12px', background: '#1a1a1a', border: '1px solid #1a1a1a', borderRadius: '4px', color: '#00ff41', fontSize: '13px' }}
+                    className="settings-input"
+                    style={{ width: '150px' }}
                   />
                   <p className="setting-description">
                     {t('settings:reconnectMaxAttemptsDesc')}
@@ -556,40 +535,12 @@ export const Settings = memo(function Settings({
                   {t('settings:enableAI')}
                 </label>
                 <div 
-                  className="toggle-switch"
-                  style={{
-                    position: 'relative',
-                    width: '48px',
-                    height: '24px',
-                    backgroundColor: llmSettings?.enabled ? '#00ff41' : '#2a2a2a',
-                    borderRadius: '12px',
-                    cursor: 'pointer',
-                    transition: 'background-color 0.2s',
-                    border: '1px solid',
-                    borderColor: llmSettings?.enabled ? '#00ff41' : '#1a1a1a'
-                  }}
+                  className={`settings-toggle-switch ${llmSettings?.enabled ? 'active' : ''}`}
                   onClick={() => onChangeLlmSettings?.({ enabled: !llmSettings?.enabled })}
                 >
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: '2px',
-                      left: llmSettings?.enabled ? '26px' : '2px',
-                      width: '18px',
-                      height: '18px',
-                      backgroundColor: '#000000',
-                      borderRadius: '50%',
-                      transition: 'left 0.2s',
-                      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
-                    }}
-                  />
+                  <div className="settings-toggle-knob" />
                 </div>
-                <span style={{ 
-                  fontSize: '12px', 
-                  color: llmSettings?.enabled ? '#00ff41' : '#555',
-                  fontWeight: '600',
-                  minWidth: '40px'
-                }}>
+                <span className={`settings-toggle-label ${llmSettings?.enabled ? 'active' : ''}`}>
                   {llmSettings?.enabled ? 'ON' : 'OFF'}
                 </span>
               </div>
@@ -606,61 +557,21 @@ export const Settings = memo(function Settings({
                     <button
                       type="button"
                       onClick={() => setShowProviderDropdown(!showProviderDropdown)}
-                      style={{
-                        padding: '8px 32px 8px 12px',
-                        background: '#1a1a1a',
-                        border: '1px solid #1a1a1a',
-                        borderRadius: '4px',
-                        color: '#00ff41',
-                        fontSize: '13px',
-                        cursor: 'pointer',
-                        fontFamily: 'var(--ui-font-family)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        minWidth: '200px',
-                        textAlign: 'left',
-                        position: 'relative',
-                        transition: 'border-color 0.2s'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = 'rgba(0, 255, 65, 0.5)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = '#1a1a1a';
-                      }}
+                      className="settings-dropdown"
                     >
                       <span>
                         {llmSettings?.provider === 'ollama'
                           ? 'Ollama (Local)'
                           : 'Ash'}
                       </span>
-                      <span style={{
-                        fontSize: '8px',
-                        position: 'absolute',
-                        right: '8px',
-                        top: '50%',
-                        transform: `translateY(-50%) ${showProviderDropdown ? 'rotate(180deg)' : ''}`,
-                        transition: 'transform 0.2s'
-                      }}>
+                      <span className={`settings-dropdown-arrow ${showProviderDropdown ? 'open' : ''}`}>
                         ▼
                       </span>
                     </button>
                     {showProviderDropdown && (
                       <div
                         ref={providerDropdownRef}
-                        style={{
-                          position: 'absolute',
-                          top: '100%',
-                          left: 0,
-                          marginTop: '4px',
-                          background: '#1a1a1a',
-                          border: '1px solid #2a2a2a',
-                          borderRadius: '4px',
-                          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)',
-                          zIndex: 1000,
-                          minWidth: '200px'
-                        }}
+                        className="settings-dropdown-menu"
                       >
                         <button
                           type="button"
@@ -682,27 +593,7 @@ export const Settings = memo(function Settings({
                             onChangeLlmSettings?.(updates);
                             setShowProviderDropdown(false);
                           }}
-                          style={{
-                            width: '100%',
-                            padding: '8px 12px',
-                            background: llmSettings?.provider === 'ollama' ? 'rgba(0, 255, 65, 0.15)' : 'transparent',
-                            border: 'none',
-                            color: '#00ff41',
-                            fontSize: '13px',
-                            textAlign: 'left',
-                            cursor: 'pointer',
-                            transition: 'background 0.15s'
-                          }}
-                          onMouseEnter={(e) => {
-                            if (llmSettings?.provider !== 'ollama') {
-                              e.currentTarget.style.backgroundColor = 'rgba(0, 255, 65, 0.1)';
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            if (llmSettings?.provider !== 'ollama') {
-                              e.currentTarget.style.backgroundColor = 'transparent';
-                            }
-                          }}
+                          className={`settings-dropdown-item ${llmSettings?.provider === 'ollama' ? 'active' : ''}`}
                         >
                           Ollama (Local)
                         </button>
@@ -725,27 +616,7 @@ export const Settings = memo(function Settings({
                             onChangeLlmSettings?.(updates);
                             setShowProviderDropdown(false);
                           }}
-                          style={{
-                            width: '100%',
-                            padding: '8px 12px',
-                            background: llmSettings?.provider === 'ash' ? 'rgba(0, 255, 65, 0.15)' : 'transparent',
-                            border: 'none',
-                            color: '#00ff41',
-                            fontSize: '13px',
-                            textAlign: 'left',
-                            cursor: 'pointer',
-                            transition: 'background 0.15s'
-                          }}
-                          onMouseEnter={(e) => {
-                            if (llmSettings?.provider !== 'ash') {
-                              e.currentTarget.style.backgroundColor = 'rgba(0, 255, 65, 0.1)';
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            if (llmSettings?.provider !== 'ash') {
-                              e.currentTarget.style.backgroundColor = 'transparent';
-                            }
-                          }}
+                          className={`settings-dropdown-item ${llmSettings?.provider === 'ash' ? 'active' : ''}`}
                         >
                           Ash
                         </button>
@@ -765,7 +636,8 @@ export const Settings = memo(function Settings({
                       value={llmSettings?.apiKey || ''}
                       onChange={(e) => onChangeLlmSettings?.({ apiKey: e.target.value })}
                       placeholder="Optional API key"
-                      style={{ width: '400px', padding: '8px 12px', background: '#1a1a1a', border: '1px solid #1a1a1a', borderRadius: '4px', color: '#00ff41', fontSize: '13px' }}
+                      className="settings-input"
+                      style={{ width: '400px' }}
                     />
                     <p className="setting-description">
                       Optional API key for Ash provider
@@ -784,7 +656,8 @@ export const Settings = memo(function Settings({
                         ? 'http://localhost:11434'
                         : 'https://ash.toktoktalk.com/v1'
                     }
-                    style={{ width: '400px', padding: '8px 12px', background: '#1a1a1a', border: '1px solid #1a1a1a', borderRadius: '4px', color: '#00ff41', fontSize: '13px' }}
+                    className="settings-input"
+                    style={{ width: '400px' }}
                   />
                   <p className="setting-description">
                     {t('settings:baseURLDesc')}
@@ -795,12 +668,12 @@ export const Settings = memo(function Settings({
                   <label>
                     {t('settings:model')}
                     {(llmSettings?.provider === 'ollama' || llmSettings?.provider === 'ash') && ollamaModels.length > 0 && (
-                      <span style={{ marginLeft: '8px', fontSize: '11px', color: '#888', fontWeight: 'normal' }}>
+                      <span className="setting-description" style={{ marginLeft: '8px', fontSize: '11px', display: 'inline', fontWeight: 'normal' }}>
                         ({ollamaModels.length} {t('settings:available')})
                       </span>
                     )}
                     {(llmSettings?.provider === 'ollama' || llmSettings?.provider === 'ash') && isLoadingModels && (
-                      <span style={{ marginLeft: '8px', fontSize: '11px', color: '#888', fontWeight: 'normal' }}>
+                      <span className="setting-description" style={{ marginLeft: '8px', fontSize: '11px', display: 'inline', fontWeight: 'normal' }}>
                         ({t('settings:loading')})
                       </span>
                     )}
@@ -846,14 +719,10 @@ export const Settings = memo(function Settings({
                           }
                         }}
                         placeholder={llmSettings?.provider === 'ollama' ? 'llama3.2' : 'qwen3:14b'}
+                        className="settings-input"
                         style={{ 
-                          width: '100%', 
-                          padding: '8px 32px 8px 12px', 
-                          background: '#1a1a1a', 
-                          border: '1px solid #1a1a1a', 
-                          borderRadius: '4px', 
-                          color: '#00ff41', 
-                          fontSize: '13px',
+                          width: '100%',
+                          paddingRight: '32px',
                           boxSizing: 'border-box'
                         }}
                       />
@@ -861,12 +730,12 @@ export const Settings = memo(function Settings({
                         <button
                           type="button"
                           onClick={() => setShowModelDropdown(!showModelDropdown)}
+                          className={`settings-dropdown-arrow ${showModelDropdown ? 'open' : ''}`}
                           style={{
                             position: 'absolute',
                             right: '4px',
                             background: 'transparent',
                             border: 'none',
-                            color: '#00ff41',
                             cursor: 'pointer',
                             padding: '4px',
                             display: 'flex',
@@ -882,19 +751,11 @@ export const Settings = memo(function Settings({
                     {(llmSettings?.provider === 'ollama' || llmSettings?.provider === 'ash') && showModelDropdown && filteredModels.length > 0 && (
                       <div
                         ref={modelDropdownRef}
+                        className="settings-dropdown-menu"
                         style={{
-                          position: 'absolute',
-                          top: '100%',
-                          left: 0,
                           right: 0,
-                          marginTop: '4px',
-                          background: '#1a1a1a',
-                          border: '1px solid #2a2a2a',
-                          borderRadius: '4px',
-                          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)',
                           maxHeight: '200px',
-                          overflowY: 'auto',
-                          zIndex: 1000
+                          overflowY: 'auto'
                         }}
                       >
                         {filteredModels.map((model, index) => (
@@ -908,17 +769,7 @@ export const Settings = memo(function Settings({
                               modelInputRef.current?.focus();
                             }}
                             onMouseEnter={() => setHighlightedIndex(index)}
-                            style={{
-                              width: '100%',
-                              padding: '8px 12px',
-                              background: highlightedIndex === index ? 'rgba(0, 255, 65, 0.15)' : 'transparent',
-                              border: 'none',
-                              color: '#00ff41',
-                              fontSize: '13px',
-                              textAlign: 'left',
-                              cursor: 'pointer',
-                              transition: 'background 0.15s'
-                            }}
+                            className={`settings-dropdown-item ${highlightedIndex === index ? 'active' : ''}`}
                           >
                             {model}
                           </button>
@@ -945,7 +796,8 @@ export const Settings = memo(function Settings({
                     step="0.1"
                     value={llmSettings?.temperature || 0.7}
                     onChange={(e) => onChangeLlmSettings?.({ temperature: parseFloat(e.target.value) })}
-                    style={{ width: '100px', padding: '8px 12px', background: '#1a1a1a', border: '1px solid #1a1a1a', borderRadius: '4px', color: '#00ff41', fontSize: '13px' }}
+                    className="settings-input"
+                    style={{ width: '100px' }}
                   />
                   <p className="setting-description">
                     {t('settings:temperatureDesc')}
@@ -961,7 +813,8 @@ export const Settings = memo(function Settings({
                     step="100"
                     value={llmSettings?.maxTokens || 1000}
                     onChange={(e) => onChangeLlmSettings?.({ maxTokens: parseInt(e.target.value) })}
-                    style={{ width: '100px', padding: '8px 12px', background: '#1a1a1a', border: '1px solid #1a1a1a', borderRadius: '4px', color: '#00ff41', fontSize: '13px' }}
+                    className="settings-input"
+                    style={{ width: '100px' }}
                   />
                   <p className="setting-description">
                     {t('settings:maxTokensDesc')}
@@ -983,20 +836,6 @@ export const Settings = memo(function Settings({
                     onClose();
                     setTimeout(() => onShowAbout(), 100);
                   }}
-                  style={{
-                    marginTop: '12px',
-                    padding: '8px 16px',
-                    backgroundColor: '#00ff41',
-                    color: '#000',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    transition: 'background-color 0.2s'
-                  }}
-                  onMouseEnter={(e) => e.target.style.backgroundColor = '#00cc35'}
-                  onMouseLeave={(e) => e.target.style.backgroundColor = '#00ff41'}
                 >
                   {t('settings:showAbout')}
                 </button>
