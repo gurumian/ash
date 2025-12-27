@@ -6,7 +6,7 @@ import { FunctionResultsSection } from './FunctionResultsSection';
 import { parseAndCleanContent } from '../utils/parseFunctionResult';
 
 // Copy icon SVG component - Modern clipboard style (two overlapping rectangles)
-const CopyIcon = ({ size = 14, color = '#00ff41' }) => (
+const CopyIcon = ({ size = 14, color = 'var(--theme-text, #00ff41)' }) => (
   <svg
     width={size}
     height={size}
@@ -225,7 +225,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
       style={{
         width: '100%',
         height: '100%',
-        background: '#000000',
+        background: 'var(--theme-bg, #000000)',
         display: 'flex',
         flexDirection: 'column',
         flexShrink: 0,
@@ -237,16 +237,16 @@ export const AIChatSidebar = memo(function AIChatSidebar({
         <div
           style={{
             padding: '12px 16px',
-            borderBottom: '1px solid #1a1a1a',
+            borderBottom: '1px solid var(--theme-border, #1a1a1a)',
             display: 'flex',
             flexDirection: 'column',
             gap: '8px',
-            background: '#000000'
+            background: 'var(--theme-bg, #000000)'
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <h3 style={{ margin: 0, fontSize: '13px', fontWeight: '600', color: '#00ff41' }}>
+              <h3 style={{ margin: 0, fontSize: '13px', fontWeight: '600', color: 'var(--theme-text, #00ff41)' }}>
                 AI Chat
               </h3>
               {/* Backend Status Indicator - Circular Lamp */}
@@ -256,7 +256,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                   height: '8px',
                   borderRadius: '50%',
                   backgroundColor:
-                    backendStatus === 'ready' ? '#00ff41' :
+                    backendStatus === 'ready' ? 'var(--theme-accent, #00ff41)' :
                       backendStatus === 'starting' ? '#ffaa00' : '#666',
                   boxShadow:
                     backendStatus === 'ready' ? '0 0 4px rgba(0, 255, 65, 0.5)' :
@@ -273,17 +273,17 @@ export const AIChatSidebar = memo(function AIChatSidebar({
             {onClose && (
               <button
                 onClick={onClose}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#00ff41',
-                  cursor: 'pointer',
-                  fontSize: '18px',
-                  lineHeight: '1',
-                  padding: '4px 8px',
-                  opacity: 0.7,
-                  transition: 'opacity 0.2s'
-                }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--theme-text, #00ff41)',
+                    cursor: 'pointer',
+                    fontSize: '18px',
+                    lineHeight: '1',
+                    padding: '4px 8px',
+                    opacity: 0.7,
+                    transition: 'opacity 0.2s'
+                  }}
                 onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
                 onMouseLeave={(e) => e.currentTarget.style.opacity = '0.7'}
                 title="Close"
@@ -300,7 +300,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
               alignItems: 'center',
               gap: '8px',
               padding: '8px 12px',
-              borderTop: '1px solid #1a1a1a'
+              borderTop: '1px solid var(--theme-border, #1a1a1a)'
             }}
           >
             {/* Scrollable tabs container */}
@@ -398,7 +398,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                           background: 'rgba(0, 0, 0, 0.5)',
                           border: '1px solid rgba(0, 255, 65, 0.5)',
                           borderRadius: '3px',
-                          color: '#00ff41',
+                          color: 'var(--theme-text, #00ff41)',
                           fontSize: '11px',
                           padding: '4px 6px',
                           flex: 1,
@@ -416,7 +416,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                           style={{
                             background: 'transparent',
                             border: 'none',
-                            color: '#00ff41',
+                            color: 'var(--theme-text, #00ff41)',
                             cursor: 'pointer',
                             fontSize: '11px',
                             padding: '6px 0',
@@ -452,7 +452,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                           style={{
                             background: 'transparent',
                             border: 'none',
-                            color: '#00ff41',
+                            color: 'var(--theme-text, #00ff41)',
                             cursor: 'pointer',
                             fontSize: '12px',
                             lineHeight: '1',
@@ -489,7 +489,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                         style={{
                           background: 'transparent',
                           border: 'none',
-                          color: '#00ff41',
+                          color: 'var(--theme-text, #00ff41)',
                           cursor: 'pointer',
                           fontSize: '16px',
                           lineHeight: '1',
@@ -529,7 +529,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                   background: 'transparent',
                   border: '1px solid rgba(0, 255, 65, 0.3)',
                   borderRadius: '4px',
-                  color: '#00ff41',
+                  color: 'var(--theme-text, #00ff41)',
                   cursor: 'pointer',
                   fontSize: '18px',
                   lineHeight: '1',
@@ -673,7 +673,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
 
                 <div
                   style={{
-                    color: '#00ff41',
+                    color: 'var(--theme-text, #00ff41)',
                     fontSize: '13px',
                     lineHeight: '1.6',
                     fontFamily: 'var(--ui-font-family)'
@@ -883,7 +883,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                               style={{
                                 fontFamily: 'monospace',
                                 fontSize: '12px',
-                                color: '#00ff41'
+                                color: 'var(--theme-text, #00ff41)'
                               }}
                             >
                               {children}
@@ -910,7 +910,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                           target="_blank"
                           rel="noopener noreferrer"
                           style={{
-                            color: '#00ff41',
+                            color: 'var(--theme-text, #00ff41)',
                             textDecoration: 'underline',
                             textDecorationColor: 'rgba(0, 255, 65, 0.5)'
                           }}
@@ -1006,7 +1006,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                         border: '1px solid rgba(0, 255, 65, 0.3)',
                         borderRadius: '4px',
                         padding: '6px',
-                        color: '#00ff41',
+                        color: 'var(--theme-text, #00ff41)',
                         cursor: 'pointer',
                         opacity: 0.8,
                         transition: 'all 0.2s',
@@ -1028,7 +1028,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                       }}
                       title="Copy message"
                     >
-                      <CopyIcon size={18} color="#00ff41" />
+                      <CopyIcon size={18} color="var(--theme-text, #00ff41)" />
                     </button>
                   </div>
                 )}
@@ -1096,7 +1096,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                     background: 'rgba(26, 26, 26, 0.8)',
                     border: '1px solid rgba(0, 255, 65, 0.3)',
                     borderRadius: '3px',
-                    color: '#00ff41',
+                    color: 'var(--theme-text, #00ff41)',
                     cursor: 'pointer',
                     transition: 'all 0.2s',
                     display: 'flex',
@@ -1165,7 +1165,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                     style={{
                       margin: 0,
                       padding: 0,
-                      color: '#00ff41',
+                      color: 'var(--theme-text, #00ff41)',
                       fontSize: '11px',
                       lineHeight: '1.5',
                       whiteSpace: 'pre-wrap',
@@ -1217,7 +1217,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
             <div
               style={{
                 fontSize: '11px',
-                color: '#00ff41',
+                color: 'var(--theme-text, #00ff41)',
                 marginBottom: '8px',
                 fontWeight: '600',
                 textTransform: 'uppercase',
@@ -1228,12 +1228,12 @@ export const AIChatSidebar = memo(function AIChatSidebar({
               }}
             >
               <span>AGENT REQUEST</span>
-              <span className="typing-indicator" style={{ color: '#00ff41', opacity: 0.7 }}>waiting for input...</span>
+              <span className="typing-indicator" style={{ color: 'var(--theme-text, #00ff41)', opacity: 0.7 }}>waiting for input...</span>
             </div>
 
             <div
               style={{
-                color: '#00ff41',
+                color: 'var(--theme-text, #00ff41)',
                 fontSize: '13px',
                 marginBottom: '12px',
                 lineHeight: '1.5',
@@ -1260,10 +1260,10 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                 placeholder={pendingUserRequest.isPassword ? "Enter sensitive data..." : "Enter your response..."}
                 autoFocus
                 style={{
-                  background: '#000000',
-                  border: '1px solid #333',
+                  background: 'var(--theme-bg, #000000)',
+                  border: '1px solid var(--theme-border, #333)',
                   borderRadius: '4px',
-                  color: '#00ff41',
+                  color: 'var(--theme-text, #00ff41)',
                   padding: '8px 12px',
                   fontSize: '13px',
                   outline: 'none',
@@ -1307,7 +1307,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                     background: 'rgba(0, 255, 65, 0.1)',
                     border: '1px solid #00ff41',
                     borderRadius: '4px',
-                    color: '#00ff41',
+                    color: 'var(--theme-text, #00ff41)',
                     padding: '6px 12px',
                     fontSize: '12px',
                     cursor: 'pointer',
@@ -1330,9 +1330,9 @@ export const AIChatSidebar = memo(function AIChatSidebar({
       {/* AI Input at bottom */}
       <div
         style={{
-          borderTop: '1px solid #1a1a1a',
+          borderTop: '1px solid var(--theme-border, #1a1a1a)',
           padding: '12px',
-          background: '#000000',
+          background: 'var(--theme-bg, #000000)',
           flexShrink: 0
         }}
       >
@@ -1357,7 +1357,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                 width: '100%',
                 background: 'transparent',
                 border: 'none',
-                color: '#00ff41',
+                color: 'var(--theme-text, #00ff41)',
                 fontSize: '13px',
                 lineHeight: '1.4',
                 resize: 'none',
@@ -1399,7 +1399,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                     background: 'rgba(26, 26, 26, 0.8)',
                     border: '1px solid rgba(0, 255, 65, 0.3)',
                     borderRadius: '3px',
-                    color: '#00ff41',
+                    color: 'var(--theme-text, #00ff41)',
                     fontSize: '11px',
                     fontWeight: '600',
                     cursor: isActiveProcessing || backendStatus !== 'ready' ? 'not-allowed' : 'pointer',
@@ -1451,7 +1451,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                         padding: '6px 10px',
                         background: mode === 'ask' ? 'rgba(0, 255, 65, 0.15)' : 'transparent',
                         border: 'none',
-                        color: '#00ff41',
+                        color: 'var(--theme-text, #00ff41)',
                         fontSize: '11px',
                         textAlign: 'left',
                         cursor: 'pointer',
@@ -1473,7 +1473,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                         padding: '6px 10px',
                         background: mode === 'agent' ? 'rgba(0, 255, 65, 0.15)' : 'transparent',
                         border: 'none',
-                        color: '#00ff41',
+                        color: 'var(--theme-text, #00ff41)',
                         fontSize: '11px',
                         textAlign: 'left',
                         cursor: 'pointer',
@@ -1497,7 +1497,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                   background: inputValue.trim() && !isActiveProcessing && backendStatus === 'ready' ? 'rgba(0, 255, 65, 0.2)' : 'rgba(26, 26, 26, 0.3)',
                   border: `1px solid ${inputValue.trim() && !isActiveProcessing && backendStatus === 'ready' ? '#00ff41' : 'rgba(0, 255, 65, 0.3)'}`,
                   borderRadius: '3px',
-                  color: '#00ff41',
+                  color: 'var(--theme-text, #00ff41)',
                   cursor: inputValue.trim() && !isActiveProcessing && backendStatus === 'ready' ? 'pointer' : 'not-allowed',
                   fontSize: '14px',
                   lineHeight: '1',

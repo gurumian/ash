@@ -7,8 +7,8 @@
 
 .secondary-sidebar-tabs {
   display: flex;
-  background: #000000;
-  border-bottom: 1px solid #1a1a1a;
+  background: var(--theme-bg);
+  border-bottom: 1px solid var(--theme-border);
   flex-shrink: 0;
   align-items: center;
 }
@@ -16,7 +16,7 @@
 .secondary-sidebar-tab {
   background: transparent;
   border: none;
-  color: #00ff41;
+  color: var(--theme-text);
   padding: 6px 12px;
   cursor: pointer;
   font-size: 12px;
@@ -34,20 +34,20 @@
 }
 
 .secondary-sidebar-tab:hover {
-  background: rgba(0, 255, 65, 0.05);
+  background: color-mix(in srgb, var(--theme-accent) 5%, transparent);
   opacity: 1;
 }
 
 .secondary-sidebar-tab.active {
   opacity: 1;
-  border-bottom-color: #00ff41;
-  background: rgba(0, 255, 65, 0.1);
+  border-bottom-color: var(--theme-accent);
+  background: color-mix(in srgb, var(--theme-accent) 10%, transparent);
 }
 
 .secondary-sidebar-close {
   background: transparent;
   border: none;
-  color: #00ff41;
+  color: var(--theme-text);
   cursor: pointer;
   padding: 10px 16px;
   font-size: 18px;
@@ -59,13 +59,13 @@
 
 .secondary-sidebar-close:hover {
   opacity: 1;
-  background: rgba(0, 255, 65, 0.1);
+  background: color-mix(in srgb, var(--theme-accent) 10%, transparent);
 }
 
 .secondary-sidebar-tab-close {
   background: transparent;
   border: none;
-  color: #00ff41;
+  color: var(--theme-text);
   cursor: pointer;
   padding: 2px 4px;
   font-size: 14px;
@@ -92,10 +92,10 @@
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  background: #000000;
-  border-bottom: 1px solid #1a1a1a;
+  background: var(--theme-bg);
+  border-bottom: 1px solid var(--theme-border);
   flex-shrink: 0;
-  color: #00ff41;
+  color: var(--theme-text);
   font-size: 13px;
   font-weight: 600;
 }

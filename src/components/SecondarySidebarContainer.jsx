@@ -40,8 +40,8 @@ export const SecondarySidebarContainer = memo(function SecondarySidebarContainer
       style={{
         width: `${width}px`,
         height: '100%',
-        background: '#000000',
-        borderLeft: '1px solid #1a1a1a',
+        background: 'var(--theme-bg)',
+        borderLeft: '1px solid var(--theme-border)',
         display: 'flex',
         flexDirection: 'column',
         flexShrink: 0,
