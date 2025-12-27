@@ -1093,7 +1093,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                   }}
                   style={{
                     padding: '4px',
-                    background: 'rgba(26, 26, 26, 0.8)',
+                    background: 'color-mix(in srgb, var(--theme-surface) 60%, transparent)',
                     border: '1px solid color-mix(in srgb, var(--theme-accent) 30%, transparent)',
                     borderRadius: '3px',
                     color: 'var(--theme-text)',
@@ -1396,7 +1396,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                   disabled={isActiveProcessing || backendStatus !== 'ready'}
                   style={{
                     padding: '4px 20px 4px 8px',
-                    background: 'rgba(26, 26, 26, 0.8)',
+                    background: 'color-mix(in srgb, var(--theme-surface) 60%, transparent)',
                     border: '1px solid color-mix(in srgb, var(--theme-accent) 30%, transparent)',
                     borderRadius: '3px',
                     color: 'var(--theme-text)',
@@ -1432,10 +1432,10 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                       right: 0, // Align to right edge of button
                       left: 'auto',
                       marginBottom: '4px',
-                      background: '#1a1a1a',
-                      border: '1px solid #2a2a2a',
+                      background: 'var(--theme-surface)',
+                      border: '1px solid var(--theme-border)',
                       borderRadius: '4px',
-                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)',
+                      boxShadow: '0 4px 12px color-mix(in srgb, var(--theme-bg) 50%, black)',
                       zIndex: 1000,
                       minWidth: '100px'
                     }}
@@ -1449,7 +1449,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                       style={{
                         width: '100%',
                         padding: '6px 10px',
-                        background: mode === 'ask' ? 'color-mix(in srgb, var(--theme-accent) 15%, transparent)' : 'transparent',
+                        background: mode === 'ask' ? 'color-mix(in srgb, var(--theme-accent) 20%, transparent)' : 'transparent',
                         border: 'none',
                         color: 'var(--theme-text)',
                         fontSize: '11px',
@@ -1457,8 +1457,8 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                         cursor: 'pointer',
                         transition: 'background 0.15s'
                       }}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--theme-accent) 10%, transparent)'}
-                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = mode === 'ask' ? 'color-mix(in srgb, var(--theme-accent) 15%, transparent)' : 'transparent'}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--theme-accent) 15%, transparent)'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = mode === 'ask' ? 'color-mix(in srgb, var(--theme-accent) 20%, transparent)' : 'transparent'}
                     >
                       ask
                     </button>
@@ -1471,7 +1471,7 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                       style={{
                         width: '100%',
                         padding: '6px 10px',
-                        background: mode === 'agent' ? 'color-mix(in srgb, var(--theme-accent) 15%, transparent)' : 'transparent',
+                        background: mode === 'agent' ? 'color-mix(in srgb, var(--theme-accent) 20%, transparent)' : 'transparent',
                         border: 'none',
                         color: 'var(--theme-text)',
                         fontSize: '11px',
@@ -1479,8 +1479,8 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                         cursor: 'pointer',
                         transition: 'background 0.15s'
                       }}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--theme-accent) 10%, transparent)'}
-                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = mode === 'agent' ? 'color-mix(in srgb, var(--theme-accent) 15%, transparent)' : 'transparent'}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--theme-accent) 15%, transparent)'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = mode === 'agent' ? 'color-mix(in srgb, var(--theme-accent) 20%, transparent)' : 'transparent'}
                     >
                       agent
                     </button>

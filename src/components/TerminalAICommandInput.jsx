@@ -56,7 +56,7 @@ export const TerminalAICommandInput = memo(function TerminalAICommandInput({
     <div className="terminal-ai-command-input">
       <div className="ai-input-group">
         <div className="ai-input-label">
-          <span style={{ color: '#00ff41', fontSize: '12px', fontWeight: '600' }}>AI:</span>
+          <span style={{ color: 'var(--theme-text)', fontSize: '12px', fontWeight: '600' }}>AI:</span>
         </div>
         <input
           ref={inputRef}
@@ -71,9 +71,9 @@ export const TerminalAICommandInput = memo(function TerminalAICommandInput({
             flex: 1,
             padding: '8px 12px',
             background: 'transparent',
-            border: '1px solid rgba(0, 255, 65, 0.3)',
+            border: '1px solid color-mix(in srgb, var(--theme-accent) 30%, transparent)',
             borderRadius: '4px',
-            color: '#00ff41',
+            color: 'var(--theme-text)',
             fontSize: '13px',
             fontFamily: 'var(--ui-font-family)',
             opacity: isProcessing ? 0.6 : 1
@@ -82,7 +82,7 @@ export const TerminalAICommandInput = memo(function TerminalAICommandInput({
         {isProcessing && (
           <div className="ai-processing-indicator" style={{ 
             marginLeft: '8px', 
-            color: '#00ff41', 
+            color: 'var(--theme-text)', 
             fontSize: '12px',
             display: 'flex',
             alignItems: 'center',
@@ -92,7 +92,7 @@ export const TerminalAICommandInput = memo(function TerminalAICommandInput({
               display: 'inline-block',
               width: '12px',
               height: '12px',
-              border: '2px solid #00ff41',
+              border: '2px solid var(--theme-accent)',
               borderTopColor: 'transparent',
               borderRadius: '50%',
               animation: 'spin 1s linear infinite'
@@ -107,10 +107,10 @@ export const TerminalAICommandInput = memo(function TerminalAICommandInput({
           style={{
             marginLeft: '8px',
             padding: '8px 16px',
-            background: input.trim() && !isProcessing ? 'rgba(0, 255, 65, 0.8)' : 'rgba(26, 26, 26, 0.3)',
-            border: `1px solid ${input.trim() && !isProcessing ? '#00ff41' : 'rgba(0, 255, 65, 0.3)'}`,
+            background: input.trim() && !isProcessing ? 'var(--theme-accent)' : 'color-mix(in srgb, var(--theme-surface) 40%, transparent)',
+            border: `1px solid ${input.trim() && !isProcessing ? 'var(--theme-accent)' : 'color-mix(in srgb, var(--theme-accent) 30%, transparent)'}`,
             borderRadius: '4px',
-            color: input.trim() && !isProcessing ? '#000' : '#00ff41',
+            color: input.trim() && !isProcessing ? 'var(--theme-bg)' : 'var(--theme-text)',
             cursor: input.trim() && !isProcessing ? 'pointer' : 'not-allowed',
             fontSize: '12px',
             fontWeight: '600',
@@ -128,10 +128,10 @@ export const TerminalAICommandInput = memo(function TerminalAICommandInput({
           style={{
             marginLeft: '8px',
             padding: '8px 12px',
-            background: 'rgba(26, 26, 26, 0.3)',
-            border: '1px solid rgba(0, 255, 65, 0.3)',
+            background: 'color-mix(in srgb, var(--theme-surface) 40%, transparent)',
+            border: '1px solid color-mix(in srgb, var(--theme-accent) 30%, transparent)',
             borderRadius: '4px',
-            color: '#00ff41',
+            color: 'var(--theme-text)',
             cursor: 'pointer',
             fontSize: '16px',
             lineHeight: '1',
