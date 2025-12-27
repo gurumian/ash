@@ -1507,7 +1507,7 @@ button, a, input, select, textarea, [role="button"] {
   align-items: center;
   gap: 8px;
   padding: 4px 12px;
-  background: rgba(0, 255, 65, 0.05);
+  background: color-mix(in srgb, var(--theme-accent) 5%, transparent);
   border-radius: 4px;
   margin-left: auto;
   -webkit-app-region: no-drag; /* Log controls should be clickable */
@@ -1515,8 +1515,8 @@ button, a, input, select, textarea, [role="button"] {
 
 .log-btn {
   background: none;
-  border: 1px solid var(--theme-border, #2a2a2a);
-  color: var(--theme-text, #00ff41);
+  border: 1px solid var(--theme-border);
+  color: var(--theme-text);
   cursor: pointer;
   font-size: 16px;
   padding: 4px 8px;
@@ -1534,12 +1534,12 @@ button, a, input, select, textarea, [role="button"] {
 .log-btn svg {
   width: 16px;
   height: 16px;
-  stroke: var(--theme-text, #00ff41);
+  stroke: var(--theme-text);
 }
 
 .log-btn:hover:not(:disabled) {
-  background: rgba(0, 255, 65, 0.1);
-  border-color: var(--theme-accent, #00ff41);
+  background: color-mix(in srgb, var(--theme-accent) 10%, transparent);
+  border-color: var(--theme-accent);
   opacity: 1;
 }
 
@@ -1559,7 +1559,7 @@ button, a, input, select, textarea, [role="button"] {
 
 .log-btn.logging {
   background: none;
-  border-color: var(--theme-border, #2a2a2a);
+  border-color: var(--theme-border);
   color: #ff4444;
   opacity: 1;
   box-shadow: 0 0 10px rgba(255, 68, 68, 0.6),
@@ -1590,13 +1590,13 @@ button, a, input, select, textarea, [role="button"] {
 }
 
 .log-btn.save-log:hover:not(:disabled) {
-  background: #00ff41;
-  border-color: #00ff41;
-  color: #0a0a0a;
+  background: var(--theme-accent);
+  border-color: var(--theme-accent);
+  color: var(--theme-bg);
 }
 
 .log-btn.save-log:hover:not(:disabled) svg {
-  stroke: #0a0a0a;
+  stroke: var(--theme-bg);
 }
 
 .log-btn.clear-log:hover:not(:disabled) {
@@ -1611,7 +1611,7 @@ button, a, input, select, textarea, [role="button"] {
 
 .log-status {
   font-size: 12px;
-  color: var(--theme-text, #00ff41);
+  color: var(--theme-text);
   margin-left: 8px;
   min-width: 100px;
   opacity: 0.7;
