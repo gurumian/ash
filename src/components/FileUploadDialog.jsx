@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import './FileUploadDialog.css';
 
 export function FileUploadDialog({ 
   isOpen, 
@@ -203,22 +204,11 @@ export function FileUploadDialog({
 
   return (
     <div 
-      className="modal-overlay" 
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 10000
-      }}
+      className="file-upload-dialog-overlay" 
+      onClick={onClose}
     >
       <div 
-        className="connection-modal" 
+        className="file-upload-dialog" 
         onClick={(e) => {
           e.stopPropagation();
           // Close library dropdown when clicking outside
@@ -226,78 +216,35 @@ export function FileUploadDialog({
             setShowLibraryDropdown(false);
           }
         }}
-        style={{
-          backgroundColor: '#000000',
-          border: '1px solid #1a1a1a',
-          borderRadius: '8px',
-          minWidth: '500px',
-          maxWidth: '600px',
-          maxHeight: '90vh',
-          overflowY: 'auto',
-          boxShadow: '0 4px 20px rgba(0, 255, 65, 0.2)'
-        }}
       >
-        <div className="modal-header" style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '16px 20px',
-          borderBottom: '1px solid #1a1a1a'
-        }}>
-          <h3 style={{ margin: 0, color: '#00ff41', fontSize: '16px' }}>{t('upload:title')}</h3>
+        <div className="file-upload-dialog-header">
+          <h3>{t('upload:title')}</h3>
           <button 
-            className="modal-close"
+            className="file-upload-dialog-close"
             onClick={onClose}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#00ff41',
-              fontSize: '24px',
-              cursor: 'pointer',
-              padding: 0,
-              width: '24px',
-              height: '24px',
-              lineHeight: '24px'
-            }}
           >
             ×
           </button>
         </div>
         
-        <div style={{ padding: '20px' }}>
+        <div className="file-upload-dialog-content">
           {/* File Selection */}
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', color: '#00ff41', fontSize: '13px' }}>
+          <div className="file-upload-field">
+            <label className="file-upload-label">
               {t('upload:localFile')}
             </label>
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div className="file-upload-input-group">
               <input
                 type="text"
                 value={fileName || t('upload:noFileSelected')}
                 readOnly
-                style={{
-                  flex: 1,
-                  padding: '8px 12px',
-                  backgroundColor: '#000000',
-                  border: '1px solid #1a1a1a',
-                  borderRadius: '4px',
-                  color: '#00ff41',
-                  fontSize: '13px'
-                }}
+                className="file-upload-file-input"
               />
               <button
                 type="button"
                 onClick={handleSelectFile}
                 disabled={uploading}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#1a1a1a',
-                  border: '1px solid #1a1a1a',
-                  borderRadius: '4px',
-                  color: '#00ff41',
-                  cursor: uploading ? 'not-allowed' : 'pointer',
-                  opacity: uploading ? 0.5 : 1
-                }}
+                className="file-upload-browse-btn"
               >
                 {t('upload:browse')}
               </button>
@@ -305,8 +252,8 @@ export function FileUploadDialog({
           </div>
 
           {/* Remote Path */}
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', color: '#00ff41', fontSize: '13px' }}>
+          <div className="file-upload-field">
+            <label className="file-upload-label">
               {t('upload:remotePath')}
             </label>
             <input
@@ -317,21 +264,13 @@ export function FileUploadDialog({
                 localStorage.setItem('ash-last-upload-remote-path', e.target.value);
               }}
               disabled={uploading}
-              style={{
-                width: '100%',
-                padding: '8px 12px',
-                backgroundColor: '#000000',
-                border: '1px solid #1a1a1a',
-                borderRadius: '4px',
-                color: '#00ff41',
-                fontSize: '13px'
-              }}
+              className="file-upload-path-input"
             />
           </div>
 
           {/* Auto Execute Option */}
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+          <div className="file-upload-field">
+            <label className="file-upload-checkbox-group">
               <input
                 type="checkbox"
                 checked={autoExecute}
@@ -344,37 +283,19 @@ export function FileUploadDialog({
                   }
                 }}
                 disabled={uploading || libraries.length === 0}
-                style={{
-                  width: '16px',
-                  height: '16px',
-                  cursor: uploading || libraries.length === 0 ? 'not-allowed' : 'pointer'
-                }}
+                className="file-upload-checkbox"
               />
-              <span style={{ color: '#00ff41', fontSize: '13px' }}>
+              <span className="file-upload-checkbox-label">
                 {t('upload:executeAfterUpload')}
               </span>
             </label>
             {autoExecute && libraries.length > 0 && (
-              <div style={{ marginTop: '8px' }}>
+              <div className="file-upload-library-dropdown">
                 <button
                   type="button"
                   onClick={() => setShowLibraryDropdown(!showLibraryDropdown)}
                   disabled={uploading}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    backgroundColor: '#000000',
-                    border: '1px solid #1a1a1a',
-                    borderRadius: '4px',
-                    color: '#00ff41',
-                    fontSize: '13px',
-                    textAlign: 'left',
-                    cursor: uploading ? 'not-allowed' : 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    opacity: uploading ? 0.5 : 1
-                  }}
+                  className="file-upload-library-select-btn"
                 >
                   <span>
                     {selectedLibraryId ? (() => {
@@ -382,24 +303,13 @@ export function FileUploadDialog({
                       return selectedLib ? selectedLib.name : t('upload:selectLibrary');
                     })() : t('upload:selectLibrary')}
                   </span>
-                  <span style={{ fontSize: '10px', opacity: 0.7 }}>
+                  <span className="file-upload-library-dropdown-arrow">
                     {showLibraryDropdown ? '▲' : '▼'}
                   </span>
                 </button>
                 
                 {showLibraryDropdown && (
-                  <div
-                    style={{
-                      marginTop: '4px',
-                      backgroundColor: '#000000',
-                      border: '1px solid #1a1a1a',
-                      borderRadius: '4px',
-                      maxHeight: '300px',
-                      overflowY: 'auto',
-                      overflowX: 'hidden',
-                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)'
-                    }}
-                  >
+                  <div className="file-upload-library-menu">
                       <button
                         type="button"
                         onClick={() => {
@@ -407,30 +317,7 @@ export function FileUploadDialog({
                           localStorage.removeItem('ash-last-upload-library-id');
                           setShowLibraryDropdown(false);
                         }}
-                        style={{
-                          width: '100%',
-                          padding: '8px 12px',
-                          backgroundColor: selectedLibraryId === null ? '#1a2a1a' : '#000000',
-                          border: 'none',
-                          borderBottom: '1px solid #1a1a1a',
-                          color: '#00ff41',
-                          fontSize: '13px',
-                          textAlign: 'left',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px'
-                        }}
-                        onMouseEnter={(e) => {
-                          if (selectedLibraryId !== null) {
-                            e.currentTarget.style.backgroundColor = '#1a1a1a';
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          if (selectedLibraryId !== null) {
-                            e.currentTarget.style.backgroundColor = '#000000';
-                          }
-                        }}
+                        className={`file-upload-library-menu-item-none ${selectedLibraryId === null ? 'selected' : ''}`}
                       >
                         <span style={{ opacity: 0.5 }}>—</span>
                         <span>{t('upload:none')}</span>
@@ -447,65 +334,23 @@ export function FileUploadDialog({
                               localStorage.setItem('ash-last-upload-library-id', lib.id);
                               setShowLibraryDropdown(false);
                             }}
-                            style={{
-                              width: '100%',
-                              padding: '10px 12px',
-                              backgroundColor: isSelected ? '#1a2a1a' : '#000000',
-                              border: 'none',
-                              borderBottom: '1px solid #1a1a1a',
-                              color: '#00ff41',
-                              fontSize: '13px',
-                              textAlign: 'left',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              gap: '4px'
-                            }}
-                            onMouseEnter={(e) => {
-                              if (!isSelected) {
-                                e.currentTarget.style.backgroundColor = '#1a1a1a';
-                              }
-                            }}
-                            onMouseLeave={(e) => {
-                              if (!isSelected) {
-                                e.currentTarget.style.backgroundColor = '#000000';
-                              }
-                            }}
+                            className={`file-upload-library-menu-item ${isSelected ? 'selected' : ''}`}
                           >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <span style={{ 
-                                fontWeight: isSelected ? 'bold' : 'normal',
-                                color: isSelected ? '#00ff41' : '#00ff41'
-                              }}>
+                            <div className="file-upload-library-name">
+                              <span className={`file-upload-library-name-text ${isSelected ? 'selected' : ''}`}>
                                 {lib.name}
                               </span>
-                              <span style={{ 
-                                fontSize: '11px', 
-                                opacity: 0.5,
-                                marginLeft: 'auto'
-                              }}>
+                              <span className="file-upload-library-command-count">
                                 ({commandCount})
                               </span>
                             </div>
                             {lib.description && (
-                              <div style={{ 
-                                fontSize: '11px', 
-                                opacity: 0.6,
-                                fontStyle: 'italic',
-                                color: '#00ff41'
-                              }}>
+                              <div className="file-upload-library-description">
                                 {lib.description}
                               </div>
                             )}
                             {lib.commands && lib.commands.length > 0 && (
-                              <div style={{
-                                fontSize: '11px',
-                                opacity: 0.7,
-                                fontFamily: "'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace",
-                                color: '#00ff41',
-                                marginTop: '2px',
-                                wordBreak: 'break-all'
-                              }}>
+                              <div className="file-upload-library-command-preview">
                                 {lib.commands[0].command}
                               </div>
                             )}
@@ -517,12 +362,7 @@ export function FileUploadDialog({
               </div>
             )}
             {libraries.length === 0 && (
-              <div style={{ 
-                marginTop: '8px', 
-                fontSize: '12px', 
-                color: '#ffaa00', 
-                opacity: 0.7 
-              }}>
+              <div className="file-upload-no-libraries">
                 {t('upload:noLibrariesAvailable')}
               </div>
             )}
@@ -530,71 +370,34 @@ export function FileUploadDialog({
 
           {/* Progress Bar */}
           {uploading && (
-            <div style={{ marginBottom: '16px' }}>
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                marginBottom: '4px',
-                fontSize: '12px',
-                color: '#00ff41',
-                opacity: 0.7
-              }}>
+            <div className="file-upload-progress">
+              <div className="file-upload-progress-header">
                 <span>{t('upload:uploading')}</span>
                 <span>{Math.round(progress)}%</span>
               </div>
-              <div style={{
-                width: '100%',
-                height: '8px',
-                backgroundColor: '#1a1a1a',
-                borderRadius: '4px',
-                overflow: 'hidden'
-              }}>
-                <div style={{
-                  width: `${progress}%`,
-                  height: '100%',
-                  backgroundColor: '#00ff41',
-                  transition: 'width 0.3s ease'
-                }} />
+              <div className="file-upload-progress-bar-container">
+                <div 
+                  className="file-upload-progress-bar"
+                  style={{ width: `${progress}%` }}
+                />
               </div>
             </div>
           )}
 
           {/* Error Message */}
           {error && (
-            <div style={{
-              marginBottom: '16px',
-              padding: '8px 12px',
-              backgroundColor: 'rgba(255, 68, 68, 0.1)',
-              border: '1px solid rgba(255, 68, 68, 0.3)',
-              borderRadius: '4px',
-              color: '#ff4444',
-              fontSize: '12px'
-            }}>
+            <div className="file-upload-error">
               {error}
             </div>
           )}
         </div>
 
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'flex-end', 
-          gap: '8px', 
-          padding: '16px 20px',
-          borderTop: '1px solid #1a1a1a'
-        }}>
+        <div className="file-upload-dialog-footer">
           <button
             type="button"
             onClick={onClose}
             disabled={uploading}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: '#1a1a1a',
-              border: '1px solid #1a1a1a',
-              borderRadius: '4px',
-              color: '#00ff41',
-              cursor: uploading ? 'not-allowed' : 'pointer',
-              opacity: uploading ? 0.5 : 1
-            }}
+            className="file-upload-cancel-btn"
           >
             {t('common:cancel')}
           </button>
@@ -602,16 +405,7 @@ export function FileUploadDialog({
             type="button"
             onClick={handleUpload}
             disabled={!selectedFile || uploading}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: uploading ? '#1a1a1a' : '#00ff41',
-              border: '1px solid #00ff41',
-              borderRadius: '4px',
-              color: uploading ? '#666' : '#000000',
-              cursor: (!selectedFile || uploading) ? 'not-allowed' : 'pointer',
-              fontWeight: 'bold',
-              opacity: (!selectedFile || uploading) ? 0.5 : 1
-            }}
+            className="file-upload-submit-btn"
           >
             {uploading ? t('upload:uploading') : t('upload:upload')}
           </button>
