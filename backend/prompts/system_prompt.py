@@ -46,11 +46,12 @@ def build_system_prompt(connection_id: str = None, current_directory: str = None
         if current_directory:
             connection_info += f"- Current working directory: {current_directory}\n"
         connection_info += (
-            "- Step 1: Call `ash_list_connections` to confirm the connection is alive.\n"
-            "- Step 2: IMMEDIATELY execute commands using `ash_execute_command(connection_id='{connection_id}', command='...')`.\n"
+            "- You MUST use this connection ID for ALL commands. DO NOT call `ash_list_connections` unless absolutely necessary.\n"
+            "- IMMEDIATELY execute commands using `ash_execute_command(connection_id='{connection_id}', command='...')`.\n"
+            "- DO NOT ask the user which connection to use. The connection ID is already provided above.\n"
             "- DO NOT ask confirmation. DO NOT guess tools. USE `ash_execute_command` ONLY.\n"
         )
-        base_prompt += f"ACTIVE CONNECTION (BINDING):\n{connection_info}"
+        base_prompt += f"ACTIVE CONNECTION (BINDING - USE THIS ID):\n{connection_info}"
     else:
         base_prompt += (
             "CONNECTION DISCOVERY:\n"

@@ -262,6 +262,9 @@ export function useAICommand({
         
         // Use connectionKey for chat history, but sessionConnectionId for AI/backend
         const connectionId = connectionKey || sessionConnectionId || activeSessionId;
+        // CRITICAL: For backend command execution, we MUST use sessionConnectionId, not connectionKey
+        // connectionKey is shared across sessions and won't work for command execution
+        const connectionIdForBackend = sessionConnectionId || activeSessionId;
 
         // Handle agent mode with Qwen-Agent
         if (mode === 'agent') {
@@ -411,7 +414,7 @@ export function useAICommand({
           try {
             await qwenAgent.executeTask(
               augmentedMessage,
-              connectionId,
+              connectionIdForBackend, // Use sessionConnectionId for backend, not connectionKey
               (fullContent) => {
                 // Check if aborted before processing
                 if (abortSignal?.aborted) {
