@@ -31,6 +31,8 @@ import { StatusBar } from './components/StatusBar';
 import { AboutDialog } from './components/AboutDialog';
 import { LicensesDialog } from './components/LicensesDialog';
 import { ErrorDialog } from './components/ErrorDialog';
+import { MessageDialog } from './components/MessageDialog';
+import { ConfirmDialog } from './components/ConfirmDialog';
 import { TerminalContextMenu } from './components/TerminalContextMenu';
 import { TerminalSearchBar } from './components/TerminalSearchBar';
 // TerminalAICommandInput is now replaced by AIChatSidebar
@@ -173,6 +175,8 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showAboutDialog, setShowAboutDialog] = useState(false);
   const [showLicensesDialog, setShowLicensesDialog] = useState(false);
+  const [messageDialog, setMessageDialog] = useState({ isOpen: false, type: 'info', title: '', message: '', detail: '' });
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
   const [showTftpServerDialog, setShowTftpServerDialog] = useState(false);
   const [tftpStatus, setTftpStatus] = useState({ running: false, port: null });
 
@@ -1121,59 +1125,96 @@ function App() {
       // Export to file
       const result = await window.electronAPI.exportSettings(allSettings);
       if (result.success) {
-        alert('Settings exported successfully!');
+        setMessageDialog({
+          isOpen: true,
+          type: 'success',
+          title: '',
+          message: 'Settings exported successfully!',
+          detail: result.path ? `Saved to: ${result.path}` : ''
+        });
       } else if (!result.canceled) {
-        alert('Failed to export settings: ' + (result.error || 'Unknown error'));
+        setMessageDialog({
+          isOpen: true,
+          type: 'error',
+          title: '',
+          message: 'Failed to export settings',
+          detail: result.error || 'Unknown error'
+        });
       }
     } catch (error) {
       console.error('Export settings error:', error);
-      alert('Failed to export settings: ' + error.message);
+      setMessageDialog({
+        isOpen: true,
+        type: 'error',
+        title: '',
+        message: 'Failed to export settings',
+        detail: error.message
+      });
     }
   }, []);
 
   const handleImportSettings = useCallback(async () => {
-    try {
-      // Confirm with user
-      if (!confirm('Importing settings will overwrite your current settings. Continue?')) {
-        return;
-      }
-
-      // Import from file
-      const result = await window.electronAPI.importSettings();
-      if (!result.success) {
-        if (result.canceled) return;
-        alert('Failed to import settings: ' + (result.error || 'Unknown error'));
-        return;
-      }
-
-      const importedSettings = result.settings;
-
-      // Restore localStorage settings
-      if (importedSettings.localStorage) {
-        Object.entries(importedSettings.localStorage).forEach(([key, value]) => {
-          if (key && (key.startsWith('ash-') || key.startsWith('ssh-'))) {
-            if (typeof value === 'string') {
-              localStorage.setItem(key, value);
-            } else {
-              localStorage.setItem(key, JSON.stringify(value));
-            }
+    // Confirm with user
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Import Settings',
+      message: 'Importing settings will overwrite your current settings. Continue?',
+      onConfirm: async () => {
+        try {
+          // Import from file
+          const result = await window.electronAPI.importSettings();
+          if (!result.success) {
+            if (result.canceled) return;
+            setMessageDialog({
+              isOpen: true,
+              type: 'error',
+              title: '',
+              message: 'Failed to import settings',
+              detail: result.error || 'Unknown error'
+            });
+            return;
           }
-        });
-      }
 
-      // Restore settings.json
-      if (importedSettings.settingsFile) {
-        await window.electronAPI.saveSettings(importedSettings.settingsFile);
-      }
+          const importedSettings = result.settings;
 
-      // Reload page to apply all settings
-      if (confirm('Settings imported successfully! Reload the page to apply all settings?')) {
-        window.location.reload();
+          // Restore localStorage settings
+          if (importedSettings.localStorage) {
+            Object.entries(importedSettings.localStorage).forEach(([key, value]) => {
+              if (key && (key.startsWith('ash-') || key.startsWith('ssh-'))) {
+                if (typeof value === 'string') {
+                  localStorage.setItem(key, value);
+                } else {
+                  localStorage.setItem(key, JSON.stringify(value));
+                }
+              }
+            });
+          }
+
+          // Restore settings.json
+          if (importedSettings.settingsFile) {
+            await window.electronAPI.saveSettings(importedSettings.settingsFile);
+          }
+
+          // Show success message
+          setMessageDialog({
+            isOpen: true,
+            type: 'success',
+            title: '',
+            message: 'Settings imported successfully!',
+            detail: 'Reload the page to apply all settings.'
+          });
+        } catch (error) {
+          console.error('Import settings error:', error);
+          setMessageDialog({
+            isOpen: true,
+            type: 'error',
+            title: '',
+            message: 'Failed to import settings',
+            detail: error.message
+          });
+        }
       }
-    } catch (error) {
-      console.error('Import settings error:', error);
-      alert('Failed to import settings: ' + error.message);
-    }
+    });
   }, []);
 
   useEffect(() => {
@@ -1817,6 +1858,38 @@ function App() {
         message={errorDialog.message}
         detail={errorDialog.detail}
         error={errorDialog.error}
+      />
+
+      {/* Message Dialog for Settings Import/Export */}
+      <MessageDialog
+        isOpen={messageDialog.isOpen}
+        onClose={() => {
+          setMessageDialog({ isOpen: false, type: 'info', title: '', message: '', detail: '' });
+          // If it's a success message after import, ask to reload
+          if (messageDialog.type === 'success' && messageDialog.detail?.includes('Reload')) {
+            setConfirmDialog({
+              isOpen: true,
+              title: 'Reload Page',
+              message: 'Do you want to reload the page now to apply all settings?',
+              onConfirm: () => {
+                window.location.reload();
+              }
+            });
+          }
+        }}
+        type={messageDialog.type}
+        title={messageDialog.title}
+        message={messageDialog.message}
+        detail={messageDialog.detail}
+      />
+
+      {/* Confirm Dialog for Settings Import/Export */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog({ isOpen: false, title: '', message: '', onConfirm: null })}
+        onConfirm={confirmDialog.onConfirm || (() => {})}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
       />
     </div>
   );

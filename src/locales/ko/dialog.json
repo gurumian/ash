@@ -14,6 +14,12 @@
     "defaultMessage": "정말로 하시겠습니까?",
     "yes": "예",
     "no": "아니오"
+  },
+  "message": {
+    "successTitle": "성공",
+    "errorTitle": "오류",
+    "warningTitle": "경고",
+    "infoTitle": "정보"
   }
 }
 

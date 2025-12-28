@@ -93,20 +93,20 @@
 }
 
 .confirm-dialog-cancel:hover {
-  background: rgba(0, 255, 65, 0.1);
-  border-color: rgba(0, 255, 65, 0.3);
+  background: color-mix(in srgb, var(--theme-accent, #00ff41) 10%, transparent);
+  border-color: color-mix(in srgb, var(--theme-accent, #00ff41) 30%, transparent);
 }
 
 .confirm-dialog-confirm {
   background: var(--theme-accent, #00ff41);
-  color: #000;
+  color: var(--theme-bg, #000000);
   border-color: var(--theme-accent, #00ff41);
   font-weight: 600;
 }
 
 .confirm-dialog-confirm:hover {
-  background: rgba(0, 255, 65, 0.9);
-  border-color: rgba(0, 255, 65, 0.9);
+  background: color-mix(in srgb, var(--theme-accent, #00ff41) 90%, transparent);
+  border-color: color-mix(in srgb, var(--theme-accent, #00ff41) 90%, transparent);
 }
 
 .confirm-dialog-confirm:active {

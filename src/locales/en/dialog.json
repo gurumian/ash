@@ -14,6 +14,12 @@
     "defaultMessage": "Are you sure?",
     "yes": "Yes",
     "no": "No"
+  },
+  "message": {
+    "successTitle": "Success",
+    "errorTitle": "Error",
+    "warningTitle": "Warning",
+    "infoTitle": "Information"
   }
 }
 

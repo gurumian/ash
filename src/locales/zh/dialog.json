@@ -14,6 +14,12 @@
     "defaultMessage": "您确定吗？",
     "yes": "是",
     "no": "否"
+  },
+  "message": {
+    "successTitle": "成功",
+    "errorTitle": "错误",
+    "warningTitle": "警告",
+    "infoTitle": "信息"
   }
 }
 

@@ -14,5 +14,11 @@
     "defaultMessage": "Bạn có chắc chắn?",
     "yes": "Có",
     "no": "Không"
+  },
+  "message": {
+    "successTitle": "Thành công",
+    "errorTitle": "Lỗi",
+    "warningTitle": "Cảnh báo",
+    "infoTitle": "Thông tin"
   }
 }
