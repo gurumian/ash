@@ -1,5 +1,6 @@
 import React, { memo, useCallback, useState } from 'react';
 import { ConfirmDialog } from './ConfirmDialog';
+import './LibraryItem.css';
 
 /**
  * Library Item component - Displays a library with commands that can be executed one by one
@@ -134,16 +135,11 @@ export const LibraryItem = memo(function LibraryItem({
           {library.name}
         </span>
         {library.description && (
-          <span className="library-description" style={{ 
-            fontSize: '11px', 
-            opacity: 0.6, 
-            marginLeft: '8px',
-            fontStyle: 'italic'
-          }}>
+          <span className="library-description">
             {library.description}
           </span>
         )}
-        <span className="library-count" style={{ marginLeft: 'auto', marginRight: '8px' }}>
+        <span className="library-count">
           ({library.commands?.length || 0})
         </span>
         <button
@@ -154,31 +150,16 @@ export const LibraryItem = memo(function LibraryItem({
           ⚙
         </button>
         <button
-          className="library-copy-btn"
+          className={`library-copy-btn ${copied ? 'copied' : ''}`}
           onClick={handleCopyToClipboard}
           title={copied ? 'Copied!' : 'Copy Library to Clipboard'}
-          style={{
-            padding: '4px',
-            width: '24px',
-            height: '24px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: copied ? 'rgba(0, 255, 65, 0.2)' : 'rgba(0, 255, 65, 0.1)',
-            border: copied ? '1px solid #00ff41' : '1px solid rgba(0, 255, 65, 0.3)',
-            color: '#00ff41',
-            cursor: 'pointer',
-            borderRadius: '4px',
-            marginRight: '4px',
-            transition: 'all 0.2s ease'
-          }}
         >
           {copied ? (
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00ff41" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="20 6 9 17 4 12"></polyline>
             </svg>
           ) : (
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00ff41" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
               <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
             </svg>
@@ -189,22 +170,8 @@ export const LibraryItem = memo(function LibraryItem({
             className="library-export-btn"
             onClick={handleExportToFile}
             title="Export Library to File"
-            style={{
-              padding: '4px',
-              width: '24px',
-              height: '24px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: 'rgba(0, 255, 65, 0.1)',
-              border: '1px solid rgba(0, 255, 65, 0.3)',
-              color: '#00ff41',
-              cursor: 'pointer',
-              borderRadius: '4px',
-              marginRight: '4px'
-            }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00ff41" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="18" cy="5" r="3"></circle>
               <circle cx="6" cy="12" r="3"></circle>
               <circle cx="18" cy="19" r="3"></circle>
@@ -225,14 +192,7 @@ export const LibraryItem = memo(function LibraryItem({
       {library.isExpanded && (
         <div className="library-commands">
           {!hasActiveSession && (
-            <div style={{
-              padding: '8px',
-              fontSize: '12px',
-              color: '#ffaa00',
-              backgroundColor: 'rgba(255, 170, 0, 0.1)',
-              borderRadius: '4px',
-              marginBottom: '8px'
-            }}>
+            <div className="library-commands-warning">
               ⚠ Select and connect to a session to execute commands
             </div>
           )}
@@ -243,66 +203,32 @@ export const LibraryItem = memo(function LibraryItem({
               return (
                 <div
                   key={cmd.id || index}
-                  className="library-command-item"
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '4px',
-                    padding: '8px',
-                    marginBottom: '4px',
-                    backgroundColor: '#1a1a1a',
-                    borderRadius: '4px',
-                    border: '1px solid #1a1a1a',
-                    opacity: hasActiveSession ? 1 : 0.6
-                  }}
+                  className={`library-command-item ${!hasActiveSession ? 'disabled' : ''}`}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ 
-                      color: '#00ff41', 
-                      fontSize: '12px',
-                      opacity: 0.5,
-                      userSelect: 'none',
-                      minWidth: '20px'
-                    }}>
+                  <div className="library-command-item-view">
+                    <span className="library-command-number">
                       {index + 1}.
                     </span>
-                    <span style={{ 
-                      flex: 1, 
-                      fontFamily: terminalFontFamily || "'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace", 
-                      fontSize: '13px',
-                      color: '#00ff41',
-                      wordBreak: 'break-all'
-                    }}>
+                    <span 
+                      className="library-command-text"
+                      style={{
+                        fontFamily: terminalFontFamily || "'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace"
+                      }}
+                    >
                       {cmd.command}
                     </span>
                     <button
                       type="button"
                       onClick={() => executeCommand(cmd.command, index)}
                       disabled={!hasActiveSession || isExecuting}
-                      style={{
-                        padding: '4px 12px',
-                        fontSize: '12px',
-                        backgroundColor: hasActiveSession && !isExecuting ? '#00ff41' : '#1a1a1a',
-                        border: hasActiveSession && !isExecuting ? '1px solid #00ff41' : '1px solid #1a1a1a',
-                        color: hasActiveSession && !isExecuting ? '#000000' : '#666',
-                        cursor: hasActiveSession && !isExecuting ? 'pointer' : 'not-allowed',
-                        borderRadius: '4px',
-                        fontWeight: 'bold',
-                        opacity: hasActiveSession && !isExecuting ? 1 : 0.5
-                      }}
+                      className={`library-command-execute-btn ${hasActiveSession && !isExecuting ? 'enabled' : 'disabled'}`}
                       title={hasActiveSession ? 'Execute command' : 'Connect to a session first'}
                     >
                       {isExecuting ? '...' : '▶'}
                     </button>
                   </div>
                   {cmd.description && (
-                    <div style={{
-                      fontSize: '11px',
-                      color: '#00ff41',
-                      opacity: 0.6,
-                      paddingLeft: '28px',
-                      fontStyle: 'italic'
-                    }}>
+                    <div className="library-command-description">
                       {cmd.description}
                     </div>
                   )}
@@ -310,13 +236,7 @@ export const LibraryItem = memo(function LibraryItem({
               );
             })
           ) : (
-            <div style={{
-              padding: '12px',
-              textAlign: 'center',
-              color: '#00ff41',
-              opacity: 0.5,
-              fontSize: '12px'
-            }}>
+            <div className="library-commands-empty">
               No commands in this library
             </div>
           )}

@@ -1,0 +1,322 @@
+.library-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: color-mix(in srgb, var(--theme-bg) 50%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+.library-dialog {
+  background: var(--theme-bg);
+  border: 1px solid var(--theme-border);
+  border-radius: 8px;
+  min-width: 500px;
+  max-width: 700px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 20px color-mix(in srgb, var(--theme-accent) 20%, transparent);
+}
+
+.library-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--theme-border);
+}
+
+.library-dialog-header h3 {
+  margin: 0;
+  color: var(--theme-text);
+  font-size: 16px;
+}
+
+.library-dialog-close {
+  background: none;
+  border: none;
+  color: var(--theme-text);
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  line-height: 24px;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.library-dialog-close:hover {
+  opacity: 1;
+}
+
+.library-dialog-content {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.library-form-group {
+  margin-bottom: 16px;
+}
+
+.library-label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--theme-text);
+  font-size: 13px;
+}
+
+.library-input {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-border);
+  border-radius: 4px;
+  color: var(--theme-text);
+  font-size: 13px;
+  box-sizing: border-box;
+}
+
+.library-input:focus {
+  outline: none;
+  border-color: var(--theme-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--theme-accent) 20%, transparent);
+}
+
+.library-textarea {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-border);
+  border-radius: 4px;
+  color: var(--theme-text);
+  font-size: 13px;
+  font-family: inherit;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.library-textarea:focus {
+  outline: none;
+  border-color: var(--theme-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--theme-accent) 20%, transparent);
+}
+
+.library-commands-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.library-commands-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.library-commands-toggle-icon {
+  font-size: 12px;
+  color: var(--theme-text);
+  user-select: none;
+}
+
+.library-commands-description {
+  font-size: 12px;
+  color: var(--theme-text);
+  opacity: 0.7;
+  margin-bottom: 12px;
+  margin-top: 4px;
+}
+
+.library-commands-list {
+  margin-bottom: 12px;
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid var(--theme-border);
+  border-radius: 4px;
+  padding: 8px;
+  background: var(--theme-surface);
+}
+
+.library-commands-empty {
+  text-align: center;
+  padding: 20px;
+  color: var(--theme-text);
+  opacity: 0.5;
+}
+
+.library-command-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  margin-bottom: 4px;
+  background: var(--theme-surface);
+  border-radius: 4px;
+  border: 1px solid var(--theme-border);
+  cursor: move;
+}
+
+.library-command-item.editing {
+  background: color-mix(in srgb, var(--theme-accent) 10%, transparent);
+  border-color: var(--theme-accent);
+  cursor: default;
+}
+
+.library-command-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.library-command-edit-input {
+  width: 100%;
+  padding: 6px 8px;
+  background: var(--theme-bg);
+  border: 1px solid var(--theme-border);
+  border-radius: 4px;
+  color: var(--theme-text);
+  font-size: 13px;
+  box-sizing: border-box;
+}
+
+.library-command-edit-input:focus {
+  outline: none;
+  border-color: var(--theme-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--theme-accent) 20%, transparent);
+}
+
+.library-command-edit-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.library-command-edit-btn {
+  padding: 4px 12px;
+  font-size: 12px;
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-border);
+  color: var(--theme-text);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.library-command-edit-btn:hover:not(:disabled) {
+  border-color: var(--theme-accent);
+  background: color-mix(in srgb, var(--theme-accent) 10%, transparent);
+}
+
+.library-command-edit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  color: color-mix(in srgb, var(--theme-text) 50%, transparent);
+}
+
+.library-command-view {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.library-command-drag-handle {
+  color: var(--theme-text);
+  font-size: 12px;
+  opacity: 0.5;
+  user-select: none;
+  cursor: grab;
+}
+
+.library-command-text {
+  flex: 1;
+  font-size: 13px;
+  color: var(--theme-text);
+  word-break: break-all;
+  cursor: pointer;
+}
+
+.library-command-remove-btn {
+  padding: 4px 8px;
+  font-size: 12px;
+  background: color-mix(in srgb, red 10%, transparent);
+  border: 1px solid color-mix(in srgb, red 30%, transparent);
+  color: color-mix(in srgb, red 100%, transparent);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.library-command-remove-btn:hover {
+  background: color-mix(in srgb, red 15%, transparent);
+  border-color: color-mix(in srgb, red 40%, transparent);
+}
+
+.library-command-description {
+  font-size: 11px;
+  color: var(--theme-text);
+  opacity: 0.6;
+  padding-left: 24px;
+  font-style: italic;
+  cursor: pointer;
+}
+
+.library-command-add-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.library-command-add-btn {
+  padding: 8px 16px;
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-border);
+  border-radius: 4px;
+  color: var(--theme-text);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.library-command-add-btn:hover:not(:disabled) {
+  border-color: var(--theme-accent);
+  background: color-mix(in srgb, var(--theme-accent) 10%, transparent);
+}
+
+.library-command-add-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  color: color-mix(in srgb, var(--theme-text) 50%, transparent);
+}
+
+.library-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--theme-border);
+}
+
+.library-dialog-btn {
+  padding: 8px 16px;
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-border);
+  border-radius: 4px;
+  color: var(--theme-text);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.library-dialog-btn:hover {
+  border-color: var(--theme-accent);
+  background: color-mix(in srgb, var(--theme-accent) 10%, transparent);
+}
+

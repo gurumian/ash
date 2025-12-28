@@ -479,13 +479,7 @@ export const SessionManager = memo(function SessionManager({
                 />
               ))
             ) : (
-              <div style={{
-                padding: '12px',
-                textAlign: 'center',
-                color: '#00ff41',
-                opacity: 0.5,
-                fontSize: '12px'
-              }}>
+              <div className="library-empty-message">
                 {t('common:noLibrariesYet')}
               </div>
             )}
@@ -498,19 +492,11 @@ export const SessionManager = memo(function SessionManager({
                 + Create New Library
               </button>
               <button
-                className="new-library-btn"
+                className="new-library-btn import-library-btn"
                 onClick={onImportLibrary}
                 title="Import library from clipboard, file, or manual input"
-                style={{
-                  backgroundColor: 'rgba(0, 255, 65, 0.1)',
-                  border: '1px solid rgba(0, 255, 65, 0.3)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px'
-                }}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00ff41" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                   <polyline points="7 10 12 15 17 10"></polyline>
                   <line x1="12" y1="15" x2="12" y2="3"></line>

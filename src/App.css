@@ -1832,119 +1832,55 @@ button, a, input, select, textarea, [role="button"] {
   color: #ff4444;
 }
 
-/* Library styles */
-.library-item {
-  margin-bottom: 4px;
-  border: 1px solid #1a1a1a;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
+/* Library styles - moved to LibraryItem.css */
 .section > .library-item {
   margin-left: 24px;
   margin-right: 0;
 }
 
-.library-header {
-  background: #1a1a1a;
-  padding: 6px 12px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  transition: background 0.2s;
-  border-bottom: 1px solid #0a0a0a;
-  -webkit-app-region: no-drag;
-}
-
-.library-header:hover {
-  background: #2a2a2a;
-}
-
-.library-toggle {
-  background: none;
-  border: none;
-  color: #00ff41;
-  cursor: pointer;
-  font-size: 10px;
-  padding: 0;
-  width: 12px;
-  height: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.library-name {
-  flex: 1;
-  color: #00ff41;
-  font-size: 12px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.library-count {
-  color: #555;
-  font-size: 11px;
-  margin-left: auto;
-  margin-right: 8px;
-}
-
-.library-edit-btn,
-.library-delete-btn {
-  background: none;
-  border: none;
-  color: #00ff41;
-  cursor: pointer;
-  font-size: 12px;
-  padding: 2px 4px;
-  border-radius: 2px;
-  opacity: 0.7;
-  -webkit-app-region: no-drag;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 20px;
-  height: 20px;
-}
-
-.library-edit-btn:hover,
-.library-delete-btn:hover {
-  opacity: 1;
-  background: rgba(0, 255, 65, 0.1);
-}
-
-.library-delete-btn:hover {
-  background: rgba(255, 68, 68, 0.1);
-  color: #ff4444;
-}
-
-.library-commands {
-  background: #000000;
-  padding: 4px;
-}
-
-.library-command-item {
-  margin-bottom: 4px;
-}
-
 .new-library-btn {
   width: 100%;
   padding: 10px 12px;
-  background: var(--theme-surface, #1a1a1a);
-  border: 1px dashed var(--theme-border, #1a1a1a);
-  color: var(--theme-text, #00ff41);
+  background: var(--theme-surface);
+  border: 1px dashed var(--theme-border);
+  color: var(--theme-text);
   font-size: 12px;
   cursor: pointer;
   border-radius: 4px;
   transition: all 0.2s;
   -webkit-app-region: no-drag;
   font-family: var(--ui-font-family, 'Verdana', sans-serif);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
 .new-library-btn:hover {
-  background: var(--theme-border, #2a2a2a);
-  border-color: var(--theme-accent, #00ff41);
+  background: color-mix(in srgb, var(--theme-accent) 5%, transparent);
+  border-color: var(--theme-accent);
+}
+
+.new-library-btn.import-library-btn {
+  background: color-mix(in srgb, var(--theme-accent) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--theme-accent) 30%, transparent);
+}
+
+.new-library-btn.import-library-btn:hover {
+  background: color-mix(in srgb, var(--theme-accent) 15%, transparent);
+  border-color: color-mix(in srgb, var(--theme-accent) 40%, transparent);
+}
+
+.new-library-btn svg {
+  stroke: var(--theme-accent);
+}
+
+.library-empty-message {
+  padding: 12px;
+  text-align: center;
+  color: var(--theme-text);
+  opacity: 0.5;
+  font-size: 12px;
 }
 
 .new-group-btn {

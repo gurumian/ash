@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import './LibraryDialog.css';
 
 /**
  * Library Dialog component - Modal for managing library/cheat-sheet commands
@@ -138,22 +139,22 @@ export function LibraryDialog({
   };
 
   return (
-    <div className="modal-overlay">
-      <div className="connection-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
+    <div className="library-dialog-overlay" onClick={onClose}>
+      <div className="library-dialog" onClick={(e) => e.stopPropagation()}>
+        <div className="library-dialog-header">
           <h3>{t('library:title', { name: library.name })}</h3>
           <button 
-            className="modal-close"
+            className="library-dialog-close"
             onClick={onClose}
           >
             ×
           </button>
         </div>
         
-        <div style={{ padding: '20px' }}>
+        <div className="library-dialog-content">
           {/* Library Name */}
-          <div className="form-group" style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', color: '#00ff41' }}>
+          <div className="library-form-group">
+            <label className="library-label">
               {t('library:libraryName')}
             </label>
             <input
@@ -161,21 +162,13 @@ export function LibraryDialog({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder={t('library:libraryNamePlaceholder')}
-              style={{
-                width: '100%',
-                padding: '8px 12px',
-                backgroundColor: '#000000',
-                border: '1px solid #1a1a1a',
-                borderRadius: '4px',
-                color: '#00ff41',
-                fontSize: '13px'
-              }}
+              className="library-input"
             />
           </div>
 
           {/* Library Description */}
-          <div className="form-group" style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', color: '#00ff41' }}>
+          <div className="library-form-group">
+            <label className="library-label">
               {t('library:description')}
             </label>
             <textarea
@@ -183,25 +176,15 @@ export function LibraryDialog({
               onChange={(e) => setDescription(e.target.value)}
               placeholder={t('library:descriptionPlaceholder')}
               rows={3}
-              style={{
-                width: '100%',
-                padding: '8px 12px',
-                backgroundColor: '#000000',
-                border: '1px solid #1a1a1a',
-                borderRadius: '4px',
-                color: '#00ff41',
-                fontSize: '13px',
-                fontFamily: 'inherit',
-                resize: 'vertical'
-              }}
+              className="library-textarea"
             />
           </div>
 
           {/* Commands Section */}
-          <div className="form-group">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }} onClick={() => setIsExpanded(!isExpanded)}>
-                <span style={{ fontSize: '12px', color: '#00ff41', userSelect: 'none' }}>
+          <div className="library-form-group">
+            <div className="library-commands-header">
+              <div className="library-commands-toggle" onClick={() => setIsExpanded(!isExpanded)}>
+                <span className="library-commands-toggle-icon">
                   {isExpanded ? '▼' : '▶'}
                 </span>
                 <label style={{ margin: 0, cursor: 'pointer' }}>{t('library:commands')}</label>
@@ -209,33 +192,14 @@ export function LibraryDialog({
             </div>
             {isExpanded && (
               <>
-                <p style={{ 
-                  fontSize: '12px', 
-                  color: '#00ff41', 
-                  opacity: 0.7, 
-                  marginBottom: '12px',
-                  marginTop: '4px'
-                }}>
+                <p className="library-commands-description">
                   {t('library:commandsDescription')}
                 </p>
                 
                 {/* Command list */}
-                <div style={{ 
-                  marginBottom: '12px',
-                  maxHeight: '300px',
-                  overflowY: 'auto',
-                  border: '1px solid #1a1a1a',
-                  borderRadius: '4px',
-                  padding: '8px',
-                  backgroundColor: '#000000'
-                }}>
+                <div className="library-commands-list">
                   {commands.length === 0 ? (
-                    <div style={{ 
-                      textAlign: 'center', 
-                      padding: '20px', 
-                      color: '#00ff41', 
-                      opacity: 0.5 
-                    }}>
+                    <div className="library-commands-empty">
                       {t('library:noCommandsAdded')}
                     </div>
                   ) : (
@@ -249,34 +213,18 @@ export function LibraryDialog({
                           onDragEnd={handleDragEnd}
                           onDragOver={handleDragOver}
                           onDrop={(e) => handleDrop(e, index)}
-                          style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '4px',
-                            padding: '8px',
-                            marginBottom: '4px',
-                            backgroundColor: isEditing ? '#2a2a2a' : '#1a1a1a',
-                            borderRadius: '4px',
-                            border: isEditing ? '1px solid #00ff41' : '1px solid #1a1a1a',
-                            cursor: isEditing ? 'default' : 'move'
-                          }}
+                          className={`library-command-item ${isEditing ? 'editing' : ''}`}
                         >
                           {isEditing ? (
                             <>
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                              <div className="library-command-edit-form">
                                 <input
                                   type="text"
                                   value={editingCommand}
                                   onChange={(e) => setEditingCommand(e.target.value)}
                                   placeholder={t('library:commandPlaceholder')}
+                                  className="library-command-edit-input"
                                   style={{
-                                    width: '100%',
-                                    padding: '6px 8px',
-                                    backgroundColor: '#000000',
-                                    border: '1px solid #1a1a1a',
-                                    borderRadius: '4px',
-                                    color: '#00ff41',
-                                    fontSize: '13px',
                                     fontFamily: terminalFontFamily || "'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace"
                                   }}
                                   autoFocus
@@ -295,15 +243,7 @@ export function LibraryDialog({
                                   value={editingCommandDesc}
                                   onChange={(e) => setEditingCommandDesc(e.target.value)}
                                   placeholder={t('library:descriptionPlaceholderOptional')}
-                                  style={{
-                                    width: '100%',
-                                    padding: '6px 8px',
-                                    backgroundColor: '#000000',
-                                    border: '1px solid #1a1a1a',
-                                    borderRadius: '4px',
-                                    color: '#00ff41',
-                                    fontSize: '12px'
-                                  }}
+                                  className="library-command-edit-input"
                                   onKeyDown={(e) => {
                                     if (e.key === 'Enter' && !e.shiftKey) {
                                       e.preventDefault();
@@ -315,19 +255,11 @@ export function LibraryDialog({
                                   }}
                                 />
                               </div>
-                              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                              <div className="library-command-edit-actions">
                                 <button
                                   type="button"
                                   onClick={handleCancelEditCommand}
-                                  style={{
-                                    padding: '4px 12px',
-                                    fontSize: '12px',
-                                    backgroundColor: '#1a1a1a',
-                                    border: '1px solid #1a1a1a',
-                                    color: '#00ff41',
-                                    cursor: 'pointer',
-                                    borderRadius: '4px'
-                                  }}
+                                  className="library-command-edit-btn"
                                 >
                                   {t('common:cancel')}
                                 </button>
@@ -335,16 +267,7 @@ export function LibraryDialog({
                                   type="button"
                                   onClick={handleSaveEditCommand}
                                   disabled={!editingCommand.trim()}
-                                  style={{
-                                    padding: '4px 12px',
-                                    fontSize: '12px',
-                                    backgroundColor: '#1a1a1a',
-                                    border: '1px solid #1a1a1a',
-                                    color: editingCommand.trim() ? '#00ff41' : '#666',
-                                    cursor: editingCommand.trim() ? 'pointer' : 'not-allowed',
-                                    borderRadius: '4px',
-                                    opacity: editingCommand.trim() ? 1 : 0.5
-                                  }}
+                                  className="library-command-edit-btn"
                                 >
                                   {t('common:save')}
                                 </button>
@@ -352,27 +275,17 @@ export function LibraryDialog({
                             </>
                           ) : (
                             <>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <div className="library-command-view">
                                 <span 
-                                  style={{ 
-                                    color: '#00ff41', 
-                                    fontSize: '12px',
-                                    opacity: 0.5,
-                                    userSelect: 'none',
-                                    cursor: 'grab'
-                                  }}
+                                  className="library-command-drag-handle"
                                   onMouseDown={(e) => e.stopPropagation()}
                                 >
                                   ⋮⋮
                                 </span>
                                 <span 
-                                  style={{ 
-                                    flex: 1, 
-                                    fontFamily: terminalFontFamily || "'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace", 
-                                    fontSize: '13px',
-                                    color: '#00ff41',
-                                    wordBreak: 'break-all',
-                                    cursor: 'pointer'
+                                  className="library-command-text"
+                                  style={{
+                                    fontFamily: terminalFontFamily || "'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace"
                                   }}
                                   onClick={() => handleEditCommand(index)}
                                   title="Click to edit"
@@ -385,14 +298,7 @@ export function LibraryDialog({
                                     e.stopPropagation();
                                     handleRemoveCommand(index);
                                   }}
-                                  style={{
-                                    padding: '4px 8px',
-                                    fontSize: '12px',
-                                    backgroundColor: 'rgba(255, 68, 68, 0.1)',
-                                    border: '1px solid rgba(255, 68, 68, 0.3)',
-                                    color: '#ff4444',
-                                    cursor: 'pointer'
-                                  }}
+                                  className="library-command-remove-btn"
                                   title="Remove"
                                 >
                                   ×
@@ -400,14 +306,7 @@ export function LibraryDialog({
                               </div>
                               {cmd.description && (
                                 <div 
-                                  style={{
-                                    fontSize: '11px',
-                                    color: '#00ff41',
-                                    opacity: 0.6,
-                                    paddingLeft: '24px',
-                                    fontStyle: 'italic',
-                                    cursor: 'pointer'
-                                  }}
+                                  className="library-command-description"
                                   onClick={() => handleEditCommand(index)}
                                   title="Click to edit"
                                 >
@@ -423,21 +322,15 @@ export function LibraryDialog({
                 </div>
 
                 {/* Add new command */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div className="library-command-add-form">
                   <input
                     type="text"
                     value={newCommand}
                     onChange={(e) => setNewCommand(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder={t('library:commandPlaceholder')}
+                    className="library-input"
                     style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      backgroundColor: '#000000',
-                      border: '1px solid #1a1a1a',
-                      borderRadius: '4px',
-                      color: '#00ff41',
-                      fontSize: '13px',
                       fontFamily: terminalFontFamily || "'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', 'Consolas', 'Liberation Mono', monospace"
                     }}
                   />
@@ -447,29 +340,14 @@ export function LibraryDialog({
                     onChange={(e) => setNewCommandDescription(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder={t('library:descriptionPlaceholderOptional')}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      backgroundColor: '#000000',
-                      border: '1px solid #1a1a1a',
-                      borderRadius: '4px',
-                      color: '#00ff41',
-                      fontSize: '12px'
-                    }}
+                    className="library-input"
+                    style={{ fontSize: '12px' }}
                   />
                   <button
                     type="button"
                     onClick={handleAddCommand}
                     disabled={!newCommand.trim()}
-                    style={{
-                      padding: '8px 16px',
-                      backgroundColor: '#1a1a1a',
-                      border: '1px solid #1a1a1a',
-                      borderRadius: '4px',
-                      color: newCommand.trim() ? '#00ff41' : '#666',
-                      cursor: newCommand.trim() ? 'pointer' : 'not-allowed',
-                      opacity: newCommand.trim() ? 1 : 0.5
-                    }}
+                    className="library-command-add-btn"
                   >
                     {t('library:addCommand')}
                   </button>
@@ -479,38 +357,18 @@ export function LibraryDialog({
           </div>
         </div>
 
-        <div className="modal-footer" style={{ 
-          display: 'flex', 
-          justifyContent: 'flex-end', 
-          gap: '8px', 
-          padding: '16px 20px',
-          borderTop: '1px solid var(--theme-border)'
-        }}>
+        <div className="library-dialog-footer">
           <button
             type="button"
             onClick={onClose}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: 'var(--theme-surface)',
-              border: '1px solid var(--theme-border)',
-              borderRadius: '4px',
-              color: 'var(--theme-text)',
-              cursor: 'pointer'
-            }}
+            className="library-dialog-btn"
           >
             {t('common:cancel')}
           </button>
           <button
             type="button"
             onClick={handleSave}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: 'var(--theme-surface)',
-              border: '1px solid var(--theme-border)',
-              borderRadius: '4px',
-              color: 'var(--theme-text)',
-              cursor: 'pointer'
-            }}
+            className="library-dialog-btn"
           >
             {t('common:save')}
           </button>
