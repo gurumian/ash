@@ -1,5 +1,6 @@
 import { autoUpdater } from 'electron-updater';
 import { ipcMain, app, dialog, BrowserWindow } from 'electron';
+import { themes } from '../themes/themes.js';
 
 // Update server configuration
 const UPDATE_SERVER = 'https://cdn.toktoktalk.com';
@@ -147,7 +148,6 @@ function setupUpdateEventHandlers() {
         // Get theme info from main window's localStorage
         const getThemeInfo = async () => {
           try {
-            const { themes } = require('../themes/themes');
             let savedTheme = 'terminus'; // Default
             
             // Try to get theme from main window's localStorage
@@ -168,22 +168,24 @@ function setupUpdateEventHandlers() {
               }
             }
             
-            const theme = themes[savedTheme] || themes['terminus'];
+            const themeData = themes[savedTheme] || themes['terminus'];
+            // Always use theme data, no hardcoded fallbacks
             return {
-              background: theme.background || '#000000',
-              surface: theme.surface || '#000000',
-              text: theme.text || '#00ff41',
-              border: theme.border || '#1a1a1a',
-              accent: theme.accent || '#00ff41'
+              background: themeData.background,
+              surface: themeData.surface,
+              text: themeData.text,
+              border: themeData.border,
+              accent: themeData.accent
             };
           } catch (e) {
-            // Fallback to default theme
+            // Fallback to terminus theme on error
+            const defaultTheme = themes['terminus'];
             return {
-              background: '#000000',
-              surface: '#000000',
-              text: '#00ff41',
-              border: '#1a1a1a',
-              accent: '#00ff41'
+              background: defaultTheme.background,
+              surface: defaultTheme.surface,
+              text: defaultTheme.text,
+              border: defaultTheme.border,
+              accent: defaultTheme.accent
             };
           }
         };
