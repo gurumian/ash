@@ -173,7 +173,7 @@ class UnifiedExecuteTool(BaseTool):
 @register_tool('ash_list_connections')
 class ListConnectionsTool(BaseTool):
     """List all active SSH, Telnet, and Serial connections."""
-    description = 'List all active connections in ash (SSH, Telnet, and Serial). Returns connection IDs, types, and their details. MUST be called first to get connection_id for other operations. Each connection has a "type" field indicating "ssh", "telnet", or "serial".'
+    description = 'List all active connections in ash (SSH, Telnet, and Serial). Returns connection IDs, types, and their details. ONLY use this if no connection_id was provided in the system prompt. If a connection_id is already provided, use it directly without calling this tool. Each connection has a "type" field indicating "ssh", "telnet", or "serial".'
     parameters = []
     
     def call(self, params: str, **kwargs) -> str:
