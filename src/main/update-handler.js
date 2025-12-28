@@ -140,10 +140,56 @@ function setupUpdateEventHandlers() {
       buttons: ['Download', 'Later'],
       defaultId: 0,
       cancelId: 1
-    }).then((result) => {
+    }).then(async (result) => {
       if (result.response === 0) {
         console.log('User chose to download update');
         
+        // Get theme info from main window's localStorage
+        const getThemeInfo = async () => {
+          try {
+            const { themes } = require('../themes/themes');
+            let savedTheme = 'terminus'; // Default
+            
+            // Try to get theme from main window's localStorage
+            if (mainWindowRef && !mainWindowRef.isDestroyed() && !mainWindowRef.webContents.isDestroyed()) {
+              try {
+                const themeResult = await mainWindowRef.webContents.executeJavaScript(`
+                  (() => {
+                    try {
+                      return localStorage.getItem('ash-theme') || 'terminus';
+                    } catch (e) {
+                      return 'terminus';
+                    }
+                  })()
+                `);
+                savedTheme = themeResult || 'terminus';
+              } catch (e) {
+                console.warn('Failed to get theme from main window:', e);
+              }
+            }
+            
+            const theme = themes[savedTheme] || themes['terminus'];
+            return {
+              background: theme.background || '#000000',
+              surface: theme.surface || '#000000',
+              text: theme.text || '#00ff41',
+              border: theme.border || '#1a1a1a',
+              accent: theme.accent || '#00ff41'
+            };
+          } catch (e) {
+            // Fallback to default theme
+            return {
+              background: '#000000',
+              surface: '#000000',
+              text: '#00ff41',
+              border: '#1a1a1a',
+              accent: '#00ff41'
+            };
+          }
+        };
+
+        const theme = await getThemeInfo();
+
         // Create progress window (like FAC1)
         progressWindow = new BrowserWindow({
           width: 450,
@@ -167,6 +213,13 @@ function setupUpdateEventHandlers() {
           <html>
           <head>
             <style>
+              :root {
+                --theme-bg: ${theme.background};
+                --theme-surface: ${theme.surface};
+                --theme-text: ${theme.text};
+                --theme-border: ${theme.border};
+                --theme-accent: ${theme.accent};
+              }
               * {
                 box-sizing: border-box;
                 margin: 0;
@@ -176,7 +229,7 @@ function setupUpdateEventHandlers() {
                 font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
                 padding: 0;
                 margin: 0;
-                background: #000000;
+                background: var(--theme-bg);
                 display: flex;
                 align-items: center;
                 justify-content: center;
@@ -188,14 +241,14 @@ function setupUpdateEventHandlers() {
                 overflow: hidden;
               }
               .container {
-                background: #1a1a1a;
+                background: var(--theme-surface);
                 padding: 30px 35px;
                 width: 100%;
                 height: 100%;
                 display: flex;
                 flex-direction: column;
                 justify-content: center;
-                border: 1px solid rgba(0, 255, 65, 0.2);
+                border: 1px solid color-mix(in srgb, var(--theme-accent) 20%, transparent);
               }
               .header {
                 display: flex;
@@ -205,7 +258,7 @@ function setupUpdateEventHandlers() {
               .icon {
                 width: 40px;
                 height: 40px;
-                background: #00ff41;
+                background: var(--theme-accent);
                 border-radius: 10px;
                 display: flex;
                 align-items: center;
@@ -215,11 +268,11 @@ function setupUpdateEventHandlers() {
               }
               .icon::after {
                 content: '⬇';
-                color: #000000;
+                color: var(--theme-bg);
                 font-size: 24px;
               }
               h2 {
-                color: #00ff41;
+                color: var(--theme-text);
                 font-size: 18px;
                 font-weight: 600;
                 margin: 0;
@@ -230,14 +283,14 @@ function setupUpdateEventHandlers() {
               .progress-bar {
                 width: 100%;
                 height: 8px;
-                background: rgba(255, 255, 255, 0.1);
+                background: color-mix(in srgb, var(--theme-text) 10%, transparent);
                 border-radius: 20px;
                 overflow: hidden;
                 position: relative;
               }
               .progress-fill {
                 height: 100%;
-                background: #00ff41;
+                background: var(--theme-accent);
                 border-radius: 20px;
                 transition: width 0.4s;
               }
@@ -250,12 +303,12 @@ function setupUpdateEventHandlers() {
               .percent {
                 font-size: 24px;
                 font-weight: 700;
-                color: #00ff41;
+                color: var(--theme-accent);
               }
               .info {
                 display: flex;
                 gap: 20px;
-                color: #888;
+                color: color-mix(in srgb, var(--theme-text) 50%, transparent);
                 font-size: 13px;
               }
               .info-item {
@@ -264,7 +317,7 @@ function setupUpdateEventHandlers() {
                 gap: 6px;
               }
               .speed {
-                color: #00ff41;
+                color: var(--theme-accent);
                 font-weight: 600;
               }
             </style>
