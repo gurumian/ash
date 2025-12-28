@@ -18,6 +18,8 @@
   "aboutAsh": "About ash",
   "minimize": "Minimize",
   "maximize": "Maximize",
-  "restore": "Restore"
+  "restore": "Restore",
+  "importSettings": "Import Settings...",
+  "exportSettings": "Export Settings..."
 }
 

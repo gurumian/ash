@@ -18,5 +18,7 @@
   "aboutAsh": "Giới thiệu ash",
   "minimize": "Thu nhỏ",
   "maximize": "Phóng to",
-  "restore": "Khôi phục"
+  "restore": "Khôi phục",
+  "importSettings": "Nhập cài đặt...",
+  "exportSettings": "Xuất cài đặt..."
 }

@@ -94,6 +94,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onMenuWebServer: (callback) => ipcRenderer.on('menu-web-server', callback),
   onMenuAICommand: (callback) => ipcRenderer.on('menu-ai-command', callback),
   onMenuNetcat: (callback) => ipcRenderer.on('menu-netcat', callback),
+  onMenuImportSettings: (callback) => ipcRenderer.on('menu-import-settings', callback),
+  onMenuExportSettings: (callback) => ipcRenderer.on('menu-export-settings', callback),
 
   // Change window title
   setWindowTitle: async (title) => {
@@ -179,6 +181,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Library export/import
   exportLibrary: (libraryData, defaultFileName) => ipcRenderer.invoke('export-library', libraryData, defaultFileName),
   importLibrary: () => ipcRenderer.invoke('import-library'),
+
+  // Settings export/import
+  exportSettings: (settingsData) => ipcRenderer.invoke('export-settings', settingsData),
+  importSettings: () => ipcRenderer.invoke('import-settings'),
 
   // TFTP Server APIs
   tftpStatus: () => ipcRenderer.invoke('tftp-status'),

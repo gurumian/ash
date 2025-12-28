@@ -572,6 +572,65 @@ export function initializeWindowHandlers() {
     }
   });
 
+  // Export settings to JSON file
+  ipcMain.handle('export-settings', async (event, settingsData) => {
+    try {
+      const { writeFile } = require('fs').promises;
+      const focusedWindow = BrowserWindow.getFocusedWindow();
+      
+      const defaultFileName = `ash-settings-${new Date().toISOString().split('T')[0]}.json`;
+      
+      const result = await dialog.showSaveDialog(focusedWindow || null, {
+        title: 'Export Settings',
+        defaultPath: defaultFileName,
+        filters: [
+          { name: 'JSON Files', extensions: ['json'] },
+          { name: 'All Files', extensions: ['*'] }
+        ]
+      });
+      
+      if (result.canceled || !result.filePath) {
+        return { success: false, canceled: true };
+      }
+      
+      await writeFile(result.filePath, JSON.stringify(settingsData, null, 2), 'utf8');
+      return { success: true, path: result.filePath };
+    } catch (error) {
+      console.error('Failed to export settings:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Import settings from JSON file
+  ipcMain.handle('import-settings', async (event) => {
+    try {
+      const { readFile } = require('fs').promises;
+      const focusedWindow = BrowserWindow.getFocusedWindow();
+      
+      const result = await dialog.showOpenDialog(focusedWindow || null, {
+        title: 'Import Settings',
+        properties: ['openFile'],
+        filters: [
+          { name: 'JSON Files', extensions: ['json'] },
+          { name: 'All Files', extensions: ['*'] }
+        ]
+      });
+      
+      if (result.canceled || result.filePaths.length === 0) {
+        return { success: false, canceled: true };
+      }
+      
+      const filePath = result.filePaths[0];
+      const fileContent = await readFile(filePath, 'utf8');
+      const settingsData = JSON.parse(fileContent);
+      
+      return { success: true, settings: settingsData, path: filePath };
+    } catch (error) {
+      console.error('Failed to import settings:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
   // Show file picker dialog for upload
   ipcMain.handle('show-file-picker', async (event, defaultPath) => {
     try {

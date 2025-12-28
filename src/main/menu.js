@@ -57,6 +57,33 @@ export function createMenu() {
         },
         { type: 'separator' },
         {
+          label: 'Import Settings...',
+          click: () => {
+            const focusedWindow = BrowserWindow.getFocusedWindow();
+            try {
+              if (focusedWindow && !focusedWindow.isDestroyed() && !focusedWindow.webContents.isDestroyed()) {
+                focusedWindow.webContents.send('menu-import-settings');
+              }
+            } catch (error) {
+              console.error('Failed to send menu-import-settings:', error);
+            }
+          }
+        },
+        {
+          label: 'Export Settings...',
+          click: () => {
+            const focusedWindow = BrowserWindow.getFocusedWindow();
+            try {
+              if (focusedWindow && !focusedWindow.isDestroyed() && !focusedWindow.webContents.isDestroyed()) {
+                focusedWindow.webContents.send('menu-export-settings');
+              }
+            } catch (error) {
+              console.error('Failed to send menu-export-settings:', error);
+            }
+          }
+        },
+        { type: 'separator' },
+        {
           label: 'Quit',
           accelerator: process.platform === 'darwin' ? 'Cmd+Q' : 'Ctrl+Q',
           click: () => {

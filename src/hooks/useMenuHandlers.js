@@ -209,6 +209,18 @@ export function useMenuHandlers({
       }
     });
 
+    // Import Settings menu event
+    window.electronAPI.onMenuImportSettings?.(() => {
+      // Trigger custom event that App.jsx can listen to
+      window.dispatchEvent(new CustomEvent('import-settings'));
+    });
+
+    // Export Settings menu event
+    window.electronAPI.onMenuExportSettings?.(() => {
+      // Trigger custom event that App.jsx can listen to
+      window.dispatchEvent(new CustomEvent('export-settings'));
+    });
+
     return () => {
       // Clean up event listeners
       window.electronAPI.removeAllListeners('menu-new-session');
@@ -223,6 +235,8 @@ export function useMenuHandlers({
       window.electronAPI.removeAllListeners('menu-iperf-server');
       window.electronAPI.removeAllListeners('menu-netcat');
       window.electronAPI.removeAllListeners('menu-ai-command');
+      window.electronAPI.removeAllListeners('menu-import-settings');
+      window.electronAPI.removeAllListeners('menu-export-settings');
       window.electronAPI.removeAllListeners('update-status-log');
       window.electronAPI.removeAllListeners('update-available');
       window.electronAPI.removeAllListeners('update-download-progress');

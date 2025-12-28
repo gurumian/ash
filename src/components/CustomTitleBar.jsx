@@ -23,6 +23,8 @@ export function CustomTitleBar({
   onIperfClient,
   onNetcat,
   onThirdPartyLicenses,
+  onImportSettings,
+  onExportSettings,
   showSessionManager,
   onToggleSessionManager,
   iperfAvailable = true,
@@ -73,6 +75,9 @@ export function CustomTitleBar({
       items: [
         { label: t('menu:newSession'), shortcut: 'Ctrl+N', onClick: onNewSession },
         { label: t('menu:closeSession'), shortcut: 'Ctrl+W', onClick: onCloseSession },
+        { type: 'separator' },
+        { label: t('menu:importSettings'), onClick: onImportSettings },
+        { label: t('menu:exportSettings'), onClick: onExportSettings },
         { type: 'separator' },
         { label: t('menu:quit'), shortcut: 'Ctrl+Q', onClick: onClose },
       ],

@@ -1089,6 +1089,103 @@ function App() {
     resizeTerminal
   });
 
+  // Settings import/export handlers
+  const handleExportSettings = useCallback(async () => {
+    try {
+      // Collect all settings from localStorage
+      const localStorageSettings = {};
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith('ash-') || key.startsWith('ssh-'))) {
+          try {
+            localStorageSettings[key] = JSON.parse(localStorage.getItem(key));
+          } catch (e) {
+            // If not JSON, store as string
+            localStorageSettings[key] = localStorage.getItem(key);
+          }
+        }
+      }
+
+      // Get settings.json from main process
+      const settingsFileResult = await window.electronAPI.getSettings();
+      const settingsFileData = settingsFileResult.success ? settingsFileResult.settings : {};
+
+      // Combine all settings
+      const allSettings = {
+        version: '1.0',
+        exportDate: new Date().toISOString(),
+        localStorage: localStorageSettings,
+        settingsFile: settingsFileData
+      };
+
+      // Export to file
+      const result = await window.electronAPI.exportSettings(allSettings);
+      if (result.success) {
+        alert('Settings exported successfully!');
+      } else if (!result.canceled) {
+        alert('Failed to export settings: ' + (result.error || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Export settings error:', error);
+      alert('Failed to export settings: ' + error.message);
+    }
+  }, []);
+
+  const handleImportSettings = useCallback(async () => {
+    try {
+      // Confirm with user
+      if (!confirm('Importing settings will overwrite your current settings. Continue?')) {
+        return;
+      }
+
+      // Import from file
+      const result = await window.electronAPI.importSettings();
+      if (!result.success) {
+        if (result.canceled) return;
+        alert('Failed to import settings: ' + (result.error || 'Unknown error'));
+        return;
+      }
+
+      const importedSettings = result.settings;
+
+      // Restore localStorage settings
+      if (importedSettings.localStorage) {
+        Object.entries(importedSettings.localStorage).forEach(([key, value]) => {
+          if (key && (key.startsWith('ash-') || key.startsWith('ssh-'))) {
+            if (typeof value === 'string') {
+              localStorage.setItem(key, value);
+            } else {
+              localStorage.setItem(key, JSON.stringify(value));
+            }
+          }
+        });
+      }
+
+      // Restore settings.json
+      if (importedSettings.settingsFile) {
+        await window.electronAPI.saveSettings(importedSettings.settingsFile);
+      }
+
+      // Reload page to apply all settings
+      if (confirm('Settings imported successfully! Reload the page to apply all settings?')) {
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error('Import settings error:', error);
+      alert('Failed to import settings: ' + error.message);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('export-settings', handleExportSettings);
+    window.addEventListener('import-settings', handleImportSettings);
+
+    return () => {
+      window.removeEventListener('export-settings', handleExportSettings);
+      window.removeEventListener('import-settings', handleImportSettings);
+    };
+  }, [handleExportSettings, handleImportSettings]);
+
 
 
   // Apply UI font family CSS variable on mount (useEffect handles state changes)
@@ -1186,6 +1283,8 @@ function App() {
           onIperfClient={() => setShowIperfClientSidebar(true)}
           onNetcat={() => setShowNetcatSidebar(true)}
           onThirdPartyLicenses={() => setShowLicensesDialog(true)}
+          onImportSettings={handleImportSettings}
+          onExportSettings={handleExportSettings}
           iperfAvailable={iperfAvailable}
           showSessionManager={showSessionManager}
           onToggleSessionManager={(checked) => {
