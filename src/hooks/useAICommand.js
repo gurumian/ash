@@ -265,6 +265,17 @@ export function useAICommand({
         // CRITICAL: For backend command execution, we MUST use sessionConnectionId, not connectionKey
         // connectionKey is shared across sessions and won't work for command execution
         const connectionIdForBackend = sessionConnectionId || activeSessionId;
+        
+        // Debug logging
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[useAICommand] Connection IDs:', {
+            activeSessionId,
+            sessionConnectionId,
+            connectionKey,
+            connectionIdForBackend,
+            isConnected: activeSessionId && sshConnections.current[activeSessionId]?.isConnected
+          });
+        }
 
         // Handle agent mode with Qwen-Agent
         if (mode === 'agent') {

@@ -136,6 +136,7 @@ async def execute_task_stream(request: TaskRequest):
     Returns Server-Sent Events (SSE) stream for real-time updates.
     """
     logger.info(f"Streaming task request: {request.message[:100]}...")
+    logger.info(f"Connection ID provided: {request.connection_id}")
     
     # Get current working directory if connection_id is provided
     current_directory = None
@@ -172,6 +173,14 @@ async def execute_task_stream(request: TaskRequest):
     # (Qwen-Agent Assistant might maintain internal state/history if reused)
     logger.info(f"Creating new assistant for task")
     system_prompt = build_system_prompt(request.connection_id, current_directory)
+    
+    # If connection_id is provided, remove ash_list_connections from available tools
+    # because the connection is already bound and listing is unnecessary
+    available_tools = ash_tool_names.copy()
+    if request.connection_id:
+        if 'ash_list_connections' in available_tools:
+            available_tools.remove('ash_list_connections')
+            logger.info(f"Removed ash_list_connections from available tools (connection_id provided: {request.connection_id})")
     
     if request.llm_config:
         # Build model config from request
@@ -227,14 +236,14 @@ async def execute_task_stream(request: TaskRequest):
         assistant = Assistant(
             llm=llm_config_data,
             system_message=system_prompt,
-            function_list=ash_tool_names,
+            function_list=available_tools,
         )
     else:
         # This branch is for the default assistant with a connection_id
         assistant = Assistant(
             llm=model_config,
             system_message=system_prompt,
-            function_list=ash_tool_names,
+            function_list=available_tools,
         )
 
     messages = []

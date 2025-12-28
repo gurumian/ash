@@ -38,21 +38,30 @@ def build_system_prompt(connection_id: str = None, current_directory: str = None
         "- You have ONE universal execution tool: `ash_execute_command(connection_id, command)`.\n"
         "- DO NOT call a tool named 'ash'. It does not exist. The tool is `ash_execute_command`.\n"
         "- This tool AUTOMATICALLY handles SSH, Telnet, and Serial connections.\n"
-        "- NEVER worry about connection types. Just pass the `connection_id` and the `command`.\n\n"
+        "- NEVER worry about connection types. Just pass the `connection_id` and the `command`.\n"
+        "- If a connection_id is provided in the ACTIVE CONNECTION section below, you MUST use it. DO NOT call ash_list_connections. DO NOT ask the user.\n\n"
     )
 
     if connection_id:
-        connection_info = f"- Active connection ID: {connection_id}\n"
-        if current_directory:
-            connection_info += f"- Current working directory: {current_directory}\n"
-        connection_info += (
-            f"- You MUST use connection ID '{connection_id}' for ALL commands. DO NOT call `ash_list_connections`.\n"
-            f"- IMMEDIATELY execute commands using `ash_execute_command(connection_id='{connection_id}', command='...')`.\n"
-            "- DO NOT ask the user which connection to use. The connection ID is already provided above.\n"
-            "- DO NOT ask confirmation. DO NOT guess tools. USE `ash_execute_command` ONLY.\n"
-            "- The connection ID above is the ONLY valid connection ID for this session.\n"
+        connection_info = (
+            f"═══════════════════════════════════════════════════════════════\n"
+            f"ACTIVE CONNECTION (MANDATORY - USE THIS ID FOR ALL COMMANDS):\n"
+            f"═══════════════════════════════════════════════════════════════\n"
+            f"Connection ID: {connection_id}\n"
         )
-        base_prompt += f"ACTIVE CONNECTION (BINDING - USE THIS ID):\n{connection_info}"
+        if current_directory:
+            connection_info += f"Current working directory: {current_directory}\n"
+        connection_info += (
+            f"\nCRITICAL RULES (NON-NEGOTIABLE):\n"
+            f"1. You MUST use connection_id='{connection_id}' for EVERY command.\n"
+            f"2. DO NOT call `ash_list_connections` - it is FORBIDDEN when connection_id is provided.\n"
+            f"3. DO NOT ask the user which connection to use - the connection_id is already provided.\n"
+            f"4. DO NOT ask for confirmation - just execute commands immediately.\n"
+            f"5. Example: `ash_execute_command(connection_id='{connection_id}', command='ls -la')`\n"
+            f"\nThe connection_id '{connection_id}' is the ONLY valid connection for this entire conversation.\n"
+            f"═══════════════════════════════════════════════════════════════\n"
+        )
+        base_prompt += connection_info
     else:
         base_prompt += (
             "CONNECTION DISCOVERY:\n"
@@ -232,12 +241,29 @@ def build_system_prompt(connection_id: str = None, current_directory: str = None
         "- Each failure requires:\n"
         "  1) A root-cause hypothesis\n"
         "  2) An alternative plan\n"
-        "  1) A root-cause hypothesis\n"
-        "  2) An alternative plan\n"
         "  3) Immediate retry with a different approach (2-3 alternatives)\n\n"
         
+        "COMMAND FAILURE AUTO-RECOVERY RULE (MANDATORY, NON-NEGOTIABLE):\n"
+        "- When a command fails (exit code != 0, 'invalid', 'not found', 'usage error', 'unknown option', etc.):\n"
+        "  Step 1: IMMEDIATELY run `command -h` or `command --help` to learn the correct syntax.\n"
+        "  Step 2: Read the help output carefully to understand:\n"
+        "    • Correct command syntax and required arguments\n"
+        "    • Available flags and options\n"
+        "    • Proper subcommands or modes\n"
+        "    • Required vs optional parameters\n"
+        "  Step 3: Execute the corrected command based on the help output.\n"
+        "- DO NOT just suggest alternatives (e.g., 'Use ifconfig instead').\n"
+        "- DO NOT give up after one failure. LEARN from help and RETRY with the corrected command.\n"
+        "- DO NOT skip the help step. It is MANDATORY after any command failure.\n"
+        "- Example workflow:\n"
+        "  1. Execute: 'wlanconfig list'\n"
+        "  2. Result: Error 'list is not a valid command'\n"
+        "  3. IMMEDIATELY execute: 'wlanconfig -h' or 'wlanconfig --help'\n"
+        "  4. Read help output to find correct syntax (e.g., 'wlanconfig ath0 list sta')\n"
+        "  5. Execute the corrected command: 'wlanconfig ath0 list sta'\n\n"
+        
         "COMMAND DISCOVERY RULE (-h/--help) (MANDATORY):\n"
-        "- If you are unsure about a command's flags or syntax:\n"
+        "- If you are unsure about a command's flags or syntax BEFORE execution:\n"
         "  → RUN `command -h` OR `command --help` FIRST to see the manual.\n"
         "- If a command fails with 'invalid argument' or 'usage error':\n"
         "  → DO NOT GUESS AGAIN. Run `command -h` immediately to check supported flags.\n"
