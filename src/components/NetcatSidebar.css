@@ -66,9 +66,9 @@
 }
 
 .netcat-status-badge.stopped {
-    background: rgba(128, 128, 128, 0.1);
-    color: #888888;
-    border-color: rgba(128, 128, 128, 0.3);
+    background: color-mix(in srgb, var(--theme-text) 10%, transparent);
+    color: color-mix(in srgb, var(--theme-text) 50%, transparent);
+    border-color: color-mix(in srgb, var(--theme-text) 30%, transparent);
 }
 
 .netcat-status-badge::before {
@@ -117,9 +117,9 @@
 }
 
 .netcat-status-card.stopped .netcat-status-icon {
-    color: #888888;
-    background: rgba(128, 128, 128, 0.1);
-    border-color: rgba(128, 128, 128, 0.3);
+    color: color-mix(in srgb, var(--theme-text) 50%, transparent);
+    background: color-mix(in srgb, var(--theme-text) 10%, transparent);
+    border-color: color-mix(in srgb, var(--theme-text) 30%, transparent);
 }
 
 .netcat-status-card.running .netcat-status-icon {
@@ -295,9 +295,9 @@
 .netcat-send-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-    background: rgba(128, 128, 128, 0.1);
-    color: #888;
-    border-color: rgba(128, 128, 128, 0.3);
+    background: color-mix(in srgb, var(--theme-text) 10%, transparent);
+    color: color-mix(in srgb, var(--theme-text) 50%, transparent);
+    border-color: color-mix(in srgb, var(--theme-text) 30%, transparent);
 }
 
 /* Output Section */
@@ -380,9 +380,9 @@
 
 /* Error */
 .netcat-error {
-    background: rgba(255, 68, 68, 0.1);
-    border: 1px solid rgba(255, 68, 68, 0.3);
-    color: #ff4444;
+    background: color-mix(in srgb, red 10%, transparent);
+    border: 1px solid color-mix(in srgb, red 30%, transparent);
+    color: color-mix(in srgb, red 100%, transparent);
     padding: 12px;
     border-radius: 4px;
     font-size: 13px;

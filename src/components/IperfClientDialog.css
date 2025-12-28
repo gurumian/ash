@@ -4,7 +4,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: color-mix(in srgb, var(--theme-bg) 50%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -14,7 +14,7 @@
 .iperf-client-dialog {
   background: var(--theme-bg);
   border-radius: 8px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.8);
+  box-shadow: 0 10px 25px color-mix(in srgb, var(--theme-bg) 80%, black);
   border: 1px solid var(--theme-border);
   width: 90%;
   max-width: 600px;
@@ -143,9 +143,9 @@
 }
 
 .iperf-client-status-badge.stopped {
-  background: rgba(128, 128, 128, 0.1);
-  color: #888888;
-  border-color: rgba(128, 128, 128, 0.3);
+  background: color-mix(in srgb, var(--theme-text) 10%, transparent);
+  color: color-mix(in srgb, var(--theme-text) 50%, transparent);
+  border-color: color-mix(in srgb, var(--theme-text) 30%, transparent);
 }
 
 .iperf-client-status-badge::before {
@@ -193,15 +193,15 @@
 }
 
 .iperf-client-status-card.stopped .iperf-client-status-icon {
-  color: #888888;
-  background: rgba(128, 128, 128, 0.1);
-  border-color: rgba(128, 128, 128, 0.3);
+  color: color-mix(in srgb, var(--theme-text) 50%, transparent);
+  background: color-mix(in srgb, var(--theme-text) 10%, transparent);
+  border-color: color-mix(in srgb, var(--theme-text) 30%, transparent);
 }
 
 .iperf-client-status-card.running .iperf-client-status-icon {
   color: var(--theme-text);
   background: color-mix(in srgb, var(--theme-accent) 10%, transparent);
-  border-color: rgba(0, 255, 65, 0.3);
+  border-color: color-mix(in srgb, var(--theme-accent) 30%, transparent);
 }
 
 .iperf-client-status-card:hover:not(.loading) .iperf-client-status-icon {
@@ -379,9 +379,9 @@
 }
 
 .iperf-client-error {
-  background: rgba(255, 68, 68, 0.1);
-  border: 1px solid rgba(255, 68, 68, 0.3);
-  color: #ff4444;
+  background: color-mix(in srgb, red 10%, transparent);
+  border: 1px solid color-mix(in srgb, red 30%, transparent);
+  color: color-mix(in srgb, red 100%, transparent);
   padding: 12px;
   border-radius: 4px;
   margin-bottom: 20px;
