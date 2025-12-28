@@ -137,10 +137,41 @@ async def execute_task_stream(request: TaskRequest):
     """
     logger.info(f"Streaming task request: {request.message[:100]}...")
     
+    # Get current working directory if connection_id is provided
+    current_directory = None
+    if request.connection_id:
+        try:
+            # Use agent_tools.call_ash_ipc to execute pwd command
+            from agent_tools import call_ash_ipc
+            
+            # First, determine connection type to route to correct channel
+            list_result = call_ash_ipc('ssh-list-connections')
+            connections = list_result.get('connections', [])
+            target = next((c for c in connections if c.get('connectionId') == request.connection_id), None)
+            
+            if target:
+                conn_type = target.get('type', 'ssh')
+                channel_map = {
+                    'ssh': 'ssh-exec-command',
+                    'telnet': 'telnet-exec-command',
+                    'serial': 'serial-exec-command'
+                }
+                ipc_channel = channel_map.get(conn_type, 'ssh-exec-command')
+                
+                # Execute pwd command
+                pwd_result = call_ash_ipc(ipc_channel, request.connection_id, 'pwd')
+                if pwd_result.get('success') and pwd_result.get('output'):
+                    current_directory = pwd_result.get('output', '').strip()
+                    logger.info(f"Current directory for {request.connection_id}: {current_directory}")
+        except Exception as e:
+            # If pwd fails, continue without current directory info
+            logger.warning(f"Failed to get current directory: {str(e)}")
+            current_directory = None
+    
     # Create new assistant for each request to ensure statelessness
     # (Qwen-Agent Assistant might maintain internal state/history if reused)
     logger.info(f"Creating new assistant for task")
-    system_prompt = build_system_prompt(request.connection_id)
+    system_prompt = build_system_prompt(request.connection_id, current_directory)
     
     if request.llm_config:
         # Build model config from request

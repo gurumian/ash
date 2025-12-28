@@ -9,13 +9,14 @@ Enhancements over v2.1:
 """
 
 
-def build_system_prompt(connection_id: str = None) -> str:
+def build_system_prompt(connection_id: str = None, current_directory: str = None) -> str:
     """
     Build system prompt for the agent.
     If connection_id is provided, include it in the prompt to avoid unnecessary ash_list_connections calls.
 
     Args:
         connection_id: Optional SSH/Telnet/Serial connection ID to include in the prompt
+        current_directory: Optional current working directory path to include in the prompt
 
     Returns:
         Complete system prompt string
@@ -41,13 +42,15 @@ def build_system_prompt(connection_id: str = None) -> str:
     )
 
     if connection_id:
-        base_prompt += (
-            "ACTIVE CONNECTION (BINDING):\n"
-            f"- Active connection ID: {connection_id}\n"
+        connection_info = f"- Active connection ID: {connection_id}\n"
+        if current_directory:
+            connection_info += f"- Current working directory: {current_directory}\n"
+        connection_info += (
             "- Step 1: Call `ash_list_connections` to confirm the connection is alive.\n"
             "- Step 2: IMMEDIATELY execute commands using `ash_execute_command(connection_id='{connection_id}', command='...')`.\n"
             "- DO NOT ask confirmation. DO NOT guess tools. USE `ash_execute_command` ONLY.\n"
         )
+        base_prompt += f"ACTIVE CONNECTION (BINDING):\n{connection_info}"
     else:
         base_prompt += (
             "CONNECTION DISCOVERY:\n"
