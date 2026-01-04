@@ -33,11 +33,40 @@ async function main() {
 
     // Special handling for Windows
     if (process.platform === 'win32') {
-        // Check for WOW64 (x64 Node on ARM64 Windows)
-        // PROCESSOR_ARCHITEW6432 is set when running 32-bit or x64 emulator on ARM64
-        if (process.env.PROCESSOR_ARCHITEW6432 === 'ARM64') {
-            console.log('Detected Windows ARM64 (running via emulation). Forcing ARM64 build.');
+        const envArch = process.env.PROCESSOR_ARCHITEW6432;
+        const mainArch = process.env.PROCESSOR_ARCHITECTURE;
+
+        console.log(`Windows Arch Check: PROCESSOR_ARCHITEW6432=${envArch}, PROCESSOR_ARCHITECTURE=${mainArch}`);
+
+        // 1. Check strong hint from environment (case-insensitive)
+        if (envArch && envArch.toLowerCase() === 'arm64') {
+            console.log('Detected Windows ARM64 (via PROCESSOR_ARCHITEW6432). Forcing ARM64 build.');
             targetArch = 'arm64';
+        }
+        // 2. Check main architecture if native (unlikely if we are here in x64 node, but possible)
+        else if (mainArch && mainArch.toLowerCase() === 'arm64') {
+            console.log('Detected Windows ARM64 (via PROCESSOR_ARCHITECTURE). Forcing ARM64 build.');
+            targetArch = 'arm64';
+        }
+        // 3. Fallback: Query system information via wmic (most reliable if env vars are masked)
+        else {
+            try {
+                console.log('Querying system information via wmic...');
+                const wmicOutput = await new Promise((resolve) => {
+                    const child = spawn('wmic', ['computersystem', 'get', 'systemtype'], { shell: true });
+                    let data = '';
+                    child.stdout.on('data', d => data += d.toString());
+                    child.on('close', () => resolve(data));
+                    child.on('error', () => resolve(''));
+                });
+
+                if (wmicOutput.includes('ARM64')) {
+                    console.log('Detected Windows ARM64 (via wmic). Forcing ARM64 build.');
+                    targetArch = 'arm64';
+                }
+            } catch (e) {
+                console.log('Failed to query wmic:', e);
+            }
         }
     }
 
