@@ -60,9 +60,32 @@ async function main() {
                     child.on('error', () => resolve(''));
                 });
 
+                console.log(`wmic output: "${wmicOutput.trim()}"`);
+
                 if (wmicOutput.includes('ARM64')) {
                     console.log('Detected Windows ARM64 (via wmic). Forcing ARM64 build.');
                     targetArch = 'arm64';
+                } else {
+                    // 4. Fallback: PowerShell (Modern Windows alternative to wmic)
+                    try {
+                        console.log('Querying system information via PowerShell...');
+                        const psOutput = await new Promise((resolve) => {
+                            const child = spawn('powershell', ['-NoProfile', '-Command', '"(Get-CimInstance Win32_ComputerSystem).SystemType"'], { shell: true });
+                            let data = '';
+                            child.stdout.on('data', d => data += d.toString());
+                            child.on('close', () => resolve(data));
+                            child.on('error', () => resolve(''));
+                        });
+
+                        console.log(`PowerShell output: "${psOutput.trim()}"`);
+
+                        if (psOutput.includes('ARM64')) {
+                            console.log('Detected Windows ARM64 (via PowerShell). Forcing ARM64 build.');
+                            targetArch = 'arm64';
+                        }
+                    } catch (e) {
+                        console.log('Failed to query PowerShell:', e);
+                    }
                 }
             } catch (e) {
                 console.log('Failed to query wmic:', e);
