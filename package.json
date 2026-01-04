@@ -8,6 +8,7 @@
     "start": "electron-forge start",
     "package": "electron-forge package",
     "make": "node scripts/build-and-make.js",
+    "make:arm64": "node scripts/build-and-make.js --arch=arm64",
     "publish": "electron-forge publish",
     "upload": "node scripts/upload-build.js",
     "lint": "echo \"No linting configured\"",

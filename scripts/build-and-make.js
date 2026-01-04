@@ -41,11 +41,21 @@ async function main() {
         }
     }
 
+    // Allow manual override via command line args
+    const args = process.argv.slice(2);
+    const archArg = args.find(arg => arg.startsWith('--arch='));
+    if (archArg) {
+        targetArch = archArg.split('=')[1];
+        console.log(`Using explicit target architecture from arguments: ${targetArch}`);
+    }
+
     // Allow manual override via env var
     if (process.env.ASH_TARGET_ARCH) {
         targetArch = process.env.ASH_TARGET_ARCH;
         console.log(`Using explicit target architecture from environment: ${targetArch}`);
     }
+
+    console.log(`Debug Info: Platform=${process.platform}, NodeArch=${process.arch}, WOW64=${process.env.PROCESSOR_ARCHITEW6432}`);
 
     console.log(`\n=== Building Ash for ${process.platform} / ${targetArch} ===\n`);
 
