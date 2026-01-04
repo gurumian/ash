@@ -73,6 +73,13 @@ REM Install PyInstaller if not already installed
 echo Installing PyInstaller...
 !UV_CMD! add pyinstaller
 
+REM Check for explicit target architecture from build script
+if defined ASH_TARGET_ARCH (
+    echo External target arch set to: %ASH_TARGET_ARCH%
+    if /i "%ASH_TARGET_ARCH%"=="arm64" goto :set_arm64
+    if /i "%ASH_TARGET_ARCH%"=="x64" goto :set_x64
+)
+
 REM Detect architecture (32-bit/ia32 not supported)
 set "ARCH=x64"
 if /i "%PROCESSOR_ARCHITEW6432%"=="ARM64" goto :set_arm64
