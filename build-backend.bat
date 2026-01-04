@@ -116,9 +116,17 @@ echo Building backend executable...
 if exist "backend.spec" (
     echo Using existing spec file...
     !UV_CMD! run pyinstaller backend.spec --distpath "dist\!ARCH!"
+    if !errorlevel! neq 0 ( 
+        echo ❌ PyInstaller failed!
+        exit /b !errorlevel! 
+    )
 ) else (
     echo Creating new spec file...
     !UV_CMD! run pyinstaller --onefile --name ash-backend --distpath "dist\!ARCH!" app.py
+    if !errorlevel! neq 0 ( 
+        echo ❌ PyInstaller failed!
+        exit /b !errorlevel! 
+    )
 )
 
 REM Check if build was successful
