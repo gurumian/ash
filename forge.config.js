@@ -17,16 +17,16 @@ const makers = [
         x64: 'x64',
         arm64: 'arm64',
       };
-      
+
       // Safely get arch from makerOptions
       const makerArch = makerOptions?.arch || process.arch || 'x64';
-      
+
       if (makerArch === 'ia32' || makerArch === 'x32') {
         throw new Error('32-bit (ia32) architecture is not supported. Please build for x64 or arm64.');
       }
-      
+
       const arch = archMap[makerArch] || (makerArch === 'x64' ? 'x64' : 'x64');
-      
+
       return {
         name: 'ash',
         oneClick: false,
@@ -35,7 +35,7 @@ const makers = [
         createDesktopShortcut: true,
         createStartMenuShortcut: true,
         shortcutName: 'ash',
-        setupExe: `ash-${arch}-Setup-${packageJson.version}.exe`,
+        setupExe: `ash-Setup-${packageJson.version}-${arch}.exe`,
       };
     },
   },
