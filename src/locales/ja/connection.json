@@ -45,6 +45,8 @@
   "enablePostProcessing": "すべての後処理を有効にする",
   "noCommandsAdded": "コマンドがまだ追加されていません",
   "enterCommandPlaceholder": "コマンドを入力（例：logread -f）",
-  "postProcessingDescription": "接続が確立された後、下にリストされた順序で自動的に実行されるコマンドです。"
+  "postProcessingDescription": "接続が確立された後、下にリストされた順序で自動的に実行されるコマンドです。",
+  "autoReconnect": "自動再接続",
+  "autoReconnectDesc": "接続が切断された場合、自動的に再接続します（F5キーと同じ）"
 }
 

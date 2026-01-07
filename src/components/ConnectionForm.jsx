@@ -368,6 +368,22 @@ export const ConnectionForm = memo(function ConnectionForm({
             </div>
           )}
 
+          {/* Auto Reconnect */}
+          <div className="form-group checkbox-group">
+            <label className="checkbox-label">
+              <span className="checkbox-text">{t('connection:autoReconnect')}</span>
+              <input
+                type="checkbox"
+                name="autoReconnect"
+                checked={connectionForm.autoReconnect || false}
+                onChange={onInputChange}
+              />
+            </label>
+            <div className="checkbox-help">
+              {t('connection:autoReconnectDesc')}
+            </div>
+          </div>
+
           {/* Post-Processing Commands */}
           <div className="form-group">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>

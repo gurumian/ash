@@ -140,7 +140,9 @@ function App() {
     flowControl: 'none',
     // Post-processing
     postProcessing: [],
-    postProcessingEnabled: true
+    postProcessingEnabled: true,
+    // Auto-reconnect
+    autoReconnect: false
   });
   const [isConnecting, setIsConnecting] = useState(false);
   const [showConnectionForm, setShowConnectionForm] = useState(false);
@@ -643,6 +645,41 @@ function App() {
     [sessions, activeSessionId]
   );
 
+  // Reconnect handler - used by both F5 key press and auto-reconnect
+  // This ensures that auto-reconnect behaves exactly like pressing F5
+  const onReconnectSession = useCallback(async (sessionId) => {
+    const session = sessions.find(s => s.id === sessionId);
+    if (!session) return;
+
+    // Mark as reconnecting
+    setReconnectingSessions(prev => {
+      const next = new Map(prev);
+      next.set(sessionId, true);
+      return next;
+    });
+
+    try {
+      await reconnectSession(session);
+
+      // Update connectionId map after reconnection
+      if (updateConnectionIdMap) {
+        updateConnectionIdMap();
+      }
+
+      // Success message is already shown in reconnectSSHSession
+    } catch (error) {
+      // Error is already handled by reconnectSession (shows error dialog)
+      console.error('Reconnection failed:', error);
+    } finally {
+      // Remove from reconnecting map
+      setReconnectingSessions(prev => {
+        const next = new Map(prev);
+        next.delete(sessionId);
+        return next;
+      });
+    }
+  }, [sessions, reconnectSession, setReconnectingSessions, updateConnectionIdMap]);
+
   // Keyboard shortcuts hook (must be after useConnectionManagement to access reconnectSession)
   useKeyboardShortcuts({
     activeSessionId,
@@ -678,45 +715,16 @@ function App() {
     terminalFontSize,
     setTerminalFontSize,
     resizeTerminal,
-    onReconnectSession: async (sessionId) => {
-      const session = sessions.find(s => s.id === sessionId);
-      if (!session) return;
-
-      // Mark as reconnecting
-      setReconnectingSessions(prev => {
-        const next = new Map(prev);
-        next.set(sessionId, true);
-        return next;
-      });
-
-      try {
-        await reconnectSession(session);
-
-        // Update connectionId map after reconnection
-        if (updateConnectionIdMap) {
-          updateConnectionIdMap();
-        }
-
-        // Success message is already shown in reconnectSSHSession
-      } catch (error) {
-        // Error is already handled by reconnectSession (shows error dialog)
-        console.error('Reconnection failed:', error);
-      } finally {
-        // Remove from reconnecting map
-        setReconnectingSessions(prev => {
-          const next = new Map(prev);
-          next.delete(sessionId);
-          return next;
-        });
-      }
-    },
+    onReconnectSession,
     sessions,
     reconnectingSessions
   });
 
   // Handle SSH close for auto-reconnect (must be after useConnectionManagement to access reconnectSession)
+  // This function is called when "SSH connection closed." message appears
+  // It should trigger the same behavior as pressing F5 if autoReconnect is enabled
   const handleSshCloseForReconnect = useCallback((sessionId, connectionId) => {
-    console.log('[Auto-reconnect] handleSshCloseForReconnect called, sessionId:', sessionId, 'connectionId:', connectionId, 'autoReconnect:', autoReconnect);
+    console.log('[Auto-reconnect] handleSshCloseForReconnect called, sessionId:', sessionId, 'connectionId:', connectionId);
 
     // Find session by sessionId
     const foundSession = sessions.find(s => s.id === sessionId);
@@ -726,81 +734,42 @@ function App() {
       return;
     }
 
-    console.log('[Auto-reconnect] Found session:', foundSession.id, foundSession.name);
+    console.log('[Auto-reconnect] Found session:', foundSession.id, foundSession.name, 'session autoReconnect:', foundSession.autoReconnect);
 
     // Update session state to disconnected
     setSessions(prev => prev.map(s =>
       s.id === foundSession.id ? { ...s, isConnected: false } : s
     ));
 
-    // Auto-reconnect only if enabled in Settings
-    if (!autoReconnect) {
-      console.log('[Auto-reconnect] Auto-reconnect is disabled in Settings, skipping');
+    // Auto-reconnect: Check session-specific setting first, fallback to global setting for backward compatibility
+    const shouldAutoReconnect = foundSession.autoReconnect !== undefined 
+      ? foundSession.autoReconnect 
+      : autoReconnect;
+
+    if (!shouldAutoReconnect) {
+      console.log('[Auto-reconnect] Auto-reconnect is disabled for this session, skipping');
       return;
     }
 
-    if (reconnectSession) {
-      console.log('[Auto-reconnect] SSH connection closed, will attempt reconnect for session:', foundSession.id);
+    // Use the same path as F5 key press - call onReconnectSession which is the same handler
+    // This ensures consistency: auto-reconnect behaves exactly like pressing F5
+    console.log('[Auto-reconnect] SSH connection closed, will attempt reconnect (same as F5) for session:', foundSession.id);
 
-      // Small delay before attempting reconnect
-      setTimeout(async () => {
-        // Check if already reconnecting
-        setReconnectingSessions(prev => {
-          if (prev.has(foundSession.id)) {
-            console.log('[Auto-reconnect] Already reconnecting, skipping');
-            return prev; // Already reconnecting
-          }
+    // Small delay before attempting reconnect (same as manual F5 behavior)
+    setTimeout(() => {
+      // Check if already reconnecting
+      if (reconnectingSessions?.has(foundSession.id)) {
+        console.log('[Auto-reconnect] Already reconnecting, skipping');
+        return;
+      }
 
-          // Mark as reconnecting (this will make the refresh button spin)
-          const next = new Map(prev);
-          next.set(foundSession.id, true);
-
-          console.log('[Auto-reconnect] Starting reconnection for session:', foundSession.id);
-
-          // Get current session state
-          let sessionToReconnect = null;
-          setSessions(currentSessions => {
-            const currentSession = currentSessions.find(s => s.id === foundSession.id);
-            if (currentSession && !currentSession.isConnected) {
-              sessionToReconnect = currentSession;
-            }
-            return currentSessions;
-          });
-
-          if (!sessionToReconnect) {
-            console.log('[Auto-reconnect] Session already connected or not found');
-            setReconnectingSessions(prev => {
-              const next = new Map(prev);
-              next.delete(foundSession.id);
-              return next;
-            });
-            return next;
-          }
-
-          // Start reconnection (this will show "Attempting 1/60..." in terminal)
-          reconnectSession(sessionToReconnect).then(() => {
-            console.log('[Auto-reconnect] Reconnection successful');
-            // Update connectionId map after reconnection
-            if (updateConnectionIdMap) {
-              updateConnectionIdMap();
-            }
-          }).catch((error) => {
-            // Error is already handled by reconnectSession (shows error dialog)
-            console.error('[Auto-reconnect] Reconnection failed:', error);
-          }).finally(() => {
-            // Remove from reconnecting map
-            setReconnectingSessions(prev => {
-              const next = new Map(prev);
-              next.delete(foundSession.id);
-              return next;
-            });
-          });
-
-          return next;
-        });
-      }, 500); // 500ms delay before auto-reconnect
-    }
-  }, [autoReconnect, reconnectSession, sessions, setSessions, setReconnectingSessions, updateConnectionIdMap]);
+      // Call the same handler that F5 uses - this ensures identical behavior
+      // onReconnectSession is the exact same function called when F5 is pressed
+      if (onReconnectSession) {
+        onReconnectSession(foundSession.id);
+      }
+    }, 500); // 500ms delay before auto-reconnect
+  }, [autoReconnect, sessions, setSessions, reconnectingSessions, onReconnectSession]);
 
   // Update onSshClose ref when handleSshCloseForReconnect changes
   useEffect(() => {
@@ -966,17 +935,53 @@ function App() {
 
   // Serial data handling is now in useTerminalManagement hook
   // Handle serial close to update session state and auto-reconnect
+  // This function is called when Serial connection closes
+  // It should trigger the same behavior as pressing F5 if autoReconnect is enabled
   useEffect(() => {
-    // Use stable ref for reconnectSession to avoid effect re-running
     const handleSerialClose = (event, receivedSessionId) => {
-      // Update session state
+      // Find session by sessionId
+      const foundSession = sessions.find(s => s.id === receivedSessionId);
+
+      if (!foundSession) {
+        console.log('[Auto-reconnect] Serial session not found for sessionId:', receivedSessionId);
+        return;
+      }
+
+      console.log('[Auto-reconnect] Serial connection closed for session:', foundSession.id, foundSession.name, 'session autoReconnect:', foundSession.autoReconnect);
+
+      // Update session state to disconnected
       setSessions(prev => prev.map(s =>
         s.id === receivedSessionId ? { ...s, isConnected: false } : s
       ));
 
-      console.log('[Auto-reconnect] Serial connection closed. Use F5 to reconnect.');
+      // Auto-reconnect: Check session-specific setting first, fallback to global setting for backward compatibility
+      const shouldAutoReconnect = foundSession.autoReconnect !== undefined 
+        ? foundSession.autoReconnect 
+        : autoReconnect;
 
-      // We don't need complex reconnect logic here as it's handled by manual F5 in useTerminalManagement
+      if (!shouldAutoReconnect) {
+        console.log('[Auto-reconnect] Auto-reconnect is disabled for this session, skipping');
+        return;
+      }
+
+      // Use the same path as F5 key press - call onReconnectSession which is the same handler
+      // This ensures consistency: auto-reconnect behaves exactly like pressing F5
+      console.log('[Auto-reconnect] Serial connection closed, will attempt reconnect (same as F5) for session:', foundSession.id);
+
+      // Small delay before attempting reconnect (same as manual F5 behavior)
+      setTimeout(() => {
+        // Check if already reconnecting
+        if (reconnectingSessions?.has(foundSession.id)) {
+          console.log('[Auto-reconnect] Already reconnecting, skipping');
+          return;
+        }
+
+        // Call the same handler that F5 uses - this ensures identical behavior
+        // onReconnectSession is the exact same function called when F5 is pressed
+        if (onReconnectSession) {
+          onReconnectSession(foundSession.id);
+        }
+      }, 500); // 500ms delay before auto-reconnect
     };
 
     window.electronAPI.onSerialClose(handleSerialClose);
@@ -984,7 +989,7 @@ function App() {
     return () => {
       window.electronAPI.offSerialClose(handleSerialClose);
     };
-  }, []); // Stable listener, no dependencies needed as we don't use reconnectSession inside anymore
+  }, [sessions, autoReconnect, setSessions, reconnectingSessions, onReconnectSession]);
 
 
 

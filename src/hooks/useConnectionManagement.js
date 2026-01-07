@@ -207,6 +207,7 @@ export function useConnectionManagement({
             createdAt: new Date().toISOString(),
             postProcessing: formData.postProcessing || [],
             postProcessingEnabled: formData.postProcessingEnabled !== false,
+            autoReconnect: formData.autoReconnect || false,
             // Session-scoped sidebar state
             aiSidebarVisible: false,
             iperfSidebarVisible: false,
@@ -309,6 +310,7 @@ export function useConnectionManagement({
             createdAt: new Date().toISOString(),
             postProcessing: formData.postProcessing || [],
             postProcessingEnabled: formData.postProcessingEnabled !== false,
+            autoReconnect: formData.autoReconnect || false,
             // Session-scoped sidebar state
             aiSidebarVisible: false,
             iperfSidebarVisible: false,
@@ -359,6 +361,7 @@ export function useConnectionManagement({
           createdAt: new Date().toISOString(),
           postProcessing: formData.postProcessing || [],
           postProcessingEnabled: formData.postProcessingEnabled !== false,
+          autoReconnect: formData.autoReconnect || false,
           // Session-scoped sidebar state
           aiSidebarVisible: false,
           iperfSidebarVisible: false,
