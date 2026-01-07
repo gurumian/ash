@@ -1940,10 +1940,10 @@ button, a, input, select, textarea, [role="button"] {
   left: 0;
   right: 0;
   z-index: 1000;
-  background: rgba(26, 26, 26, 0.85);
+  background: color-mix(in srgb, var(--theme-bg, #000000) 85%, transparent);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(0, 255, 65, 0.3);
+  border-bottom: 1px solid color-mix(in srgb, var(--theme-accent, #00ff41) 30%, transparent);
   padding: 8px 12px;
   display: flex;
   align-items: center;
@@ -2043,11 +2043,11 @@ button, a, input, select, textarea, [role="button"] {
 
 .search-input {
   flex: 1;
-  background: rgba(42, 42, 42, 0.6);
+  background: color-mix(in srgb, var(--theme-input-bg, #2a2a2a) 60%, transparent);
   backdrop-filter: blur(5px);
   -webkit-backdrop-filter: blur(5px);
-  border: 1px solid rgba(68, 68, 68, 0.5);
-  color: #00ff41;
+  border: 1px solid color-mix(in srgb, var(--theme-border, #444444) 50%, transparent);
+  color: var(--theme-text, #00ff41);
   padding: 6px 12px;
   font-family: var(--ui-font-family, 'Verdana', sans-serif);
   font-size: 13px;
@@ -2056,8 +2056,8 @@ button, a, input, select, textarea, [role="button"] {
 }
 
 .search-input:focus {
-  border-color: #00ff41;
-  box-shadow: 0 0 0 2px rgba(0, 255, 65, 0.2);
+  border-color: var(--theme-accent, #00ff41);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--theme-accent, #00ff41) 20%, transparent);
 }
 
 .search-options {
@@ -2068,7 +2068,7 @@ button, a, input, select, textarea, [role="button"] {
 .search-option-btn {
   background: var(--theme-input-bg, #2a2a2a);
   border: 1px solid var(--theme-border, #444444);
-  color: #00ff41;
+  color: var(--theme-text, #00ff41);
   padding: 4px 8px;
   font-size: 11px;
   border-radius: 3px;
@@ -2080,14 +2080,14 @@ button, a, input, select, textarea, [role="button"] {
 
 .search-option-btn:hover {
   background: var(--theme-hover, #333333);
-  border-color: #00ff41;
-  color: #00ff41;
+  border-color: var(--theme-accent, #00ff41);
+  color: var(--theme-text, #00ff41);
 }
 
 .search-option-btn.active {
   background: var(--theme-accent, #00ff41);
   border-color: var(--theme-accent, #00ff41);
-  color: #000000;
+  color: var(--theme-bg, #000000);
   font-weight: bold;
 }
 
@@ -2099,7 +2099,7 @@ button, a, input, select, textarea, [role="button"] {
 .search-nav-btn {
   background: var(--theme-input-bg, #2a2a2a);
   border: 1px solid var(--theme-border, #444444);
-  color: #00ff41;
+  color: var(--theme-text, #00ff41);
   padding: 4px 10px;
   font-size: 14px;
   border-radius: 3px;
@@ -2111,8 +2111,8 @@ button, a, input, select, textarea, [role="button"] {
 
 .search-nav-btn:hover:not(:disabled) {
   background: var(--theme-hover, #333333);
-  border-color: #00ff41;
-  color: #00ff41;
+  border-color: var(--theme-accent, #00ff41);
+  color: var(--theme-text, #00ff41);
 }
 
 .search-nav-btn:disabled {
@@ -2121,7 +2121,7 @@ button, a, input, select, textarea, [role="button"] {
 }
 
 .search-match-info {
-  color: #00ff41;
+  color: var(--theme-text, #00ff41);
   font-size: 12px;
   padding: 0 8px;
   white-space: nowrap;
@@ -2130,7 +2130,7 @@ button, a, input, select, textarea, [role="button"] {
 .search-close-btn {
   background: transparent;
   border: none;
-  color: #00ff41;
+  color: var(--theme-text, #00ff41);
   font-size: 20px;
   cursor: pointer;
   padding: 0 4px;
@@ -2146,5 +2146,5 @@ button, a, input, select, textarea, [role="button"] {
 
 .search-close-btn:hover {
   background: var(--theme-hover, #333333);
-  color: #00ff41;
+  color: var(--theme-text, #00ff41);
 }
