@@ -274,7 +274,8 @@ export function useConnectionManagement({
             sessionName: sessionName,
             savePassword: false, // Telnet doesn't use passwords
             postProcessing: formData.postProcessing || [],
-            postProcessingEnabled: formData.postProcessingEnabled !== false
+            postProcessingEnabled: formData.postProcessingEnabled !== false,
+            autoReconnect: formData.autoReconnect || false
           });
 
           // Update sessionConnectionId map immediately
@@ -332,7 +333,8 @@ export function useConnectionManagement({
             sessionName: sessionName,
             savePassword: formData.savePassword,
             postProcessing: formData.postProcessing || [],
-            postProcessingEnabled: formData.postProcessingEnabled !== false
+            postProcessingEnabled: formData.postProcessingEnabled !== false,
+            autoReconnect: formData.autoReconnect || false
           });
         }
       } else if (formData.connectionType === 'serial') {
@@ -385,7 +387,8 @@ export function useConnectionManagement({
           sessionName: sessionName,
           savePassword: false, // Serial connections don't have passwords
           postProcessing: formData.postProcessing || [],
-          postProcessingEnabled: formData.postProcessingEnabled !== false
+          postProcessingEnabled: formData.postProcessingEnabled !== false,
+          autoReconnect: formData.autoReconnect || false
         });
       }
 
@@ -795,7 +798,8 @@ export function useConnectionManagement({
       parity: savedSession.parity || 'none',
       flowControl: savedSession.flowControl || 'none',
       postProcessing: savedSession.postProcessing || [],
-      postProcessingEnabled: savedSession.postProcessingEnabled !== false
+      postProcessingEnabled: savedSession.postProcessingEnabled !== false,
+      autoReconnect: savedSession.autoReconnect || false
     };
   }, []);
 

@@ -121,7 +121,8 @@ export function useAppHandlers({
       parity: connection.parity || 'none',
       flowControl: connection.flowControl || 'none',
       postProcessing: connection.postProcessing || [],
-      postProcessingEnabled: connection.postProcessingEnabled !== false
+      postProcessingEnabled: connection.postProcessingEnabled !== false,
+      autoReconnect: connection.autoReconnect || false
     });
     setShowConnectionForm(true);
   }, [setConnectionForm, setShowConnectionForm]);

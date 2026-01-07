@@ -162,6 +162,9 @@ export function useGroups() {
               id: crypto.randomUUID(),
               label: label,
               connectionType: session.connectionType,
+              autoReconnect: session.autoReconnect || false,
+              postProcessing: session.postProcessing || [],
+              postProcessingEnabled: session.postProcessingEnabled !== false,
               ...(session.connectionType === 'serial' ? {
                 serialPort: session.serialPort,
                 baudRate: session.baudRate,
