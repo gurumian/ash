@@ -61,8 +61,14 @@ export function useConnectionHistory() {
       ...connection,
       password: connection.savePassword ? connection.password : '',
       // Add UUID if not present (for individual management)
-      id: connection.id || crypto.randomUUID()
+      id: connection.id || crypto.randomUUID(),
+      // Ensure autoReconnect is explicitly included
+      autoReconnect: connection.autoReconnect !== undefined ? connection.autoReconnect : false
     };
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[ConnectionHistory] Saving connection with autoReconnect:', connectionToSave.autoReconnect, connectionToSave);
+    }
     
     // For SSH connections, check by host/user/port/sessionName
     // For Serial connections, check by serialPort/sessionName
@@ -84,6 +90,10 @@ export function useConnectionHistory() {
     
     setConnectionHistory(newHistory);
     localStorage.setItem('ssh-connections', JSON.stringify(newHistory));
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[ConnectionHistory] Saved to localStorage. autoReconnect in first item:', newHistory[0]?.autoReconnect);
+    }
   };
 
   // Helper function to match connection for favorites (by UUID, or by connection info + sessionName)
