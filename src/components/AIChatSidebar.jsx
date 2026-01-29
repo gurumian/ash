@@ -273,17 +273,17 @@ export const AIChatSidebar = memo(function AIChatSidebar({
             {onClose && (
               <button
                 onClick={onClose}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--theme-text)',
-                    cursor: 'pointer',
-                    fontSize: '18px',
-                    lineHeight: '1',
-                    padding: '4px 8px',
-                    opacity: 0.7,
-                    transition: 'opacity 0.2s'
-                  }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--theme-text)',
+                  cursor: 'pointer',
+                  fontSize: '18px',
+                  lineHeight: '1',
+                  padding: '4px 8px',
+                  opacity: 0.7,
+                  transition: 'opacity 0.2s'
+                }}
                 onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
                 onMouseLeave={(e) => e.currentTarget.style.opacity = '0.7'}
                 title="Close"
@@ -1201,131 +1201,132 @@ export const AIChatSidebar = memo(function AIChatSidebar({
           </div>
         )}
 
-        {/* Pending User Request Bubble */}
-        {pendingUserRequest && (
-          <div
-            style={{
-              padding: '12px',
-              background: 'color-mix(in srgb, var(--theme-accent) 5%, transparent)',
-              border: '1px solid var(--theme-accent)',
-              borderRadius: '6px',
-              wordBreak: 'break-word',
-              animation: 'fadeIn 0.3s ease-in-out',
-              boxShadow: '0 0 10px color-mix(in srgb, var(--theme-accent) 10%, transparent)'
-            }}
-          >
-            <div
-              style={{
-                fontSize: '11px',
-                color: 'var(--theme-text)',
-                marginBottom: '8px',
-                fontWeight: '600',
-                textTransform: 'uppercase',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                letterSpacing: '0.5px'
-              }}
-            >
-              <span>AGENT REQUEST</span>
-              <span className="typing-indicator" style={{ color: 'var(--theme-text)', opacity: 0.7 }}>waiting for input...</span>
-            </div>
-
-            <div
-              style={{
-                color: 'var(--theme-text)',
-                fontSize: '13px',
-                marginBottom: '12px',
-                lineHeight: '1.5',
-                fontFamily: 'var(--ui-font-family)'
-              }}
-            >
-              {pendingUserRequest.question}
-            </div>
-
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const form = e.target;
-                const value = form.elements.response.value;
-                if (onRespondToRequest) {
-                  onRespondToRequest({ rejected: false, value });
-                }
-              }}
-              style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}
-            >
-              <input
-                name="response"
-                type={pendingUserRequest.isPassword ? "password" : "text"}
-                placeholder={pendingUserRequest.isPassword ? "Enter sensitive data..." : "Enter your response..."}
-                autoFocus
-                style={{
-                  background: 'var(--theme-bg)',
-                  border: '1px solid var(--theme-border, #333)',
-                  borderRadius: '4px',
-                  color: 'var(--theme-text)',
-                  padding: '8px 12px',
-                  fontSize: '13px',
-                  outline: 'none',
-                  fontFamily: 'monospace',
-                  width: '100%',
-                  boxSizing: 'border-box'
-                }}
-                onKeyDown={(e) => {
-                  e.stopPropagation(); // Prevent sidebar keyboard shortcuts
-                }}
-              />
-
-              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                <button
-                  type="button"
-                  onClick={() => onRespondToRequest && onRespondToRequest({ rejected: true })}
-                  style={{
-                    background: 'transparent',
-                    border: '1px solid color-mix(in srgb, var(--theme-border) 50%, transparent)',
-                    borderRadius: '4px',
-                    color: 'color-mix(in srgb, var(--theme-text) 60%, transparent)',
-                    padding: '6px 12px',
-                    fontSize: '12px',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = '#ff4141';
-                    e.currentTarget.style.color = '#ff4141';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--theme-border) 50%, transparent)';
-                    e.currentTarget.style.color = 'color-mix(in srgb, var(--theme-text) 60%, transparent)';
-                  }}
-                >
-                  Reject
-                </button>
-                <button
-                  type="submit"
-                  style={{
-                    background: 'color-mix(in srgb, var(--theme-accent) 10%, transparent)',
-                    border: '1px solid var(--theme-accent)',
-                    borderRadius: '4px',
-                    color: 'var(--theme-text)',
-                    padding: '6px 12px',
-                    fontSize: '12px',
-                    cursor: 'pointer',
-                    fontWeight: '600',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = 'color-mix(in srgb, var(--theme-accent) 20%, transparent)'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'color-mix(in srgb, var(--theme-accent) 10%, transparent)'}
-                >
-                  Submit
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
-
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Pending User Request Bubble - Fixed at bottom above input */}
+      {pendingUserRequest && (
+        <div
+          style={{
+            padding: '12px',
+            background: 'color-mix(in srgb, var(--theme-accent) 5%, transparent)',
+            borderTop: '1px solid var(--theme-accent)',
+            borderBottom: '1px solid var(--theme-border)',
+            wordBreak: 'break-word',
+            animation: 'fadeIn 0.3s ease-in-out',
+            boxShadow: '0 -4px 12px color-mix(in srgb, var(--theme-bg) 50%, black)',
+            flexShrink: 0
+          }}
+        >
+          <div
+            style={{
+              fontSize: '11px',
+              color: 'var(--theme-text)',
+              marginBottom: '8px',
+              fontWeight: '600',
+              textTransform: 'uppercase',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              letterSpacing: '0.5px'
+            }}
+          >
+            <span>AGENT REQUEST</span>
+            <span className="typing-indicator" style={{ color: 'var(--theme-text)', opacity: 0.7 }}>waiting for input...</span>
+          </div>
+
+          <div
+            style={{
+              color: 'var(--theme-text)',
+              fontSize: '13px',
+              marginBottom: '12px',
+              lineHeight: '1.5',
+              fontFamily: 'var(--ui-font-family)'
+            }}
+          >
+            {pendingUserRequest.question}
+          </div>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const form = e.target;
+              const value = form.elements.response.value;
+              if (onRespondToRequest) {
+                onRespondToRequest({ rejected: false, value });
+              }
+            }}
+            style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}
+          >
+            <input
+              name="response"
+              type={pendingUserRequest.isPassword ? "password" : "text"}
+              placeholder={pendingUserRequest.isPassword ? "Enter sensitive data..." : "Enter your response..."}
+              autoFocus
+              style={{
+                background: 'var(--theme-bg)',
+                border: '1px solid var(--theme-border, #333)',
+                borderRadius: '4px',
+                color: 'var(--theme-text)',
+                padding: '8px 12px',
+                fontSize: '13px',
+                outline: 'none',
+                fontFamily: 'monospace',
+                width: '100%',
+                boxSizing: 'border-box'
+              }}
+              onKeyDown={(e) => {
+                e.stopPropagation(); // Prevent sidebar keyboard shortcuts
+              }}
+            />
+
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => onRespondToRequest && onRespondToRequest({ rejected: true })}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid color-mix(in srgb, var(--theme-border) 50%, transparent)',
+                  borderRadius: '4px',
+                  color: 'color-mix(in srgb, var(--theme-text) 60%, transparent)',
+                  padding: '6px 12px',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = '#ff4141';
+                  e.currentTarget.style.color = '#ff4141';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--theme-border) 50%, transparent)';
+                  e.currentTarget.style.color = 'color-mix(in srgb, var(--theme-text) 60%, transparent)';
+                }}
+              >
+                Reject
+              </button>
+              <button
+                type="submit"
+                style={{
+                  background: 'color-mix(in srgb, var(--theme-accent) 10%, transparent)',
+                  border: '1px solid var(--theme-accent)',
+                  borderRadius: '4px',
+                  color: 'var(--theme-text)',
+                  padding: '6px 12px',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'color-mix(in srgb, var(--theme-accent) 20%, transparent)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'color-mix(in srgb, var(--theme-accent) 10%, transparent)'}
+              >
+                Submit
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* AI Input at bottom */}
       <div

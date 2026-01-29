@@ -89,7 +89,13 @@ def call_ash_ipc(channel: str, *args) -> Dict[str, Any]:
                 return result.get("result", {})
             else:
                 error_msg = result.get("error", "Unknown IPC bridge error")
-                _logger.error(f"[IPC] Error: {error_msg}")
+                
+                # If user denied, log as info not error
+                if "denied by user" in error_msg or "denied permission" in error_msg:
+                    _logger.info(f"[IPC] Request denied: {error_msg}")
+                else:
+                    _logger.error(f"[IPC] Error: {error_msg}")
+                    
                 raise Exception(error_msg)
         else:
             error_text = response.text
@@ -163,8 +169,14 @@ class UnifiedExecuteTool(BaseTool):
             return json.dumps(result, ensure_ascii=False)
 
         except Exception as e:
-            _logger.error(f"[ash_execute_command] Error: {str(e)}", exc_info=True)
-            return json.dumps({"success": False, "error": str(e)}, ensure_ascii=False)
+            error_msg = str(e)
+            # If user simply denied the request, it's not a system error - log as info without stack trace
+            if "denied by user" in error_msg or "denied permission" in error_msg:
+                _logger.info(f"[ash_execute_command] Action denied by user: {error_msg}")
+            else:
+                _logger.error(f"[ash_execute_command] Error: {error_msg}", exc_info=True)
+                
+            return json.dumps({"success": False, "error": error_msg}, ensure_ascii=False)
 
 
 # Legacy Tools (Kept for compatibility but marked deprecated in prompts/docs if needed)
