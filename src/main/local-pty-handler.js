@@ -3,6 +3,7 @@ import os from 'os';
 import pty from 'node-pty';
 import { exec } from 'child_process';
 import fs from 'node:fs';
+import path from 'node:path';
 
 const localPtySessions = new Map(); // connectionId -> ptyProcess
 
@@ -98,9 +99,25 @@ export function initializeLocalHandlers() {
 
             // Ensure HOME is correct
             ptyEnv.HOME = cwd;
-            // Set a custom TERM_PROGRAM so we can identify our shell if needed, 
-            // but keeps it distinct from 'Apple_Terminal' or 'vscode'
+            // Set a custom TERM_PROGRAM so we can identify our shell if needed
             ptyEnv.TERM_PROGRAM = 'ash';
+
+            // Fix PATH on macOS when launched from GUI (Finder/Dock)
+            // GUI apps don't inherit the shell configuration (PATH), so standard tools like brew/npm might be missing.
+            if (process.platform === 'darwin') {
+                const commonPaths = [
+                    '/usr/local/bin',
+                    '/usr/bin',
+                    '/bin',
+                    '/usr/sbin',
+                    '/sbin',
+                    '/opt/homebrew/bin', // Apple Silicon Homebrew
+                    path.join(process.env.HOME, '.nvm/versions/node'), // Try to catch NVM (partial)
+                ];
+                const currentPath = ptyEnv.PATH || '';
+                const newPath = commonPaths.filter(p => !currentPath.includes(p)).join(':') + ':' + currentPath;
+                ptyEnv.PATH = newPath;
+            }
 
             // Sanitize dimensions
             // Force a meaningful minimum size (80x24) for the initial spawn.
