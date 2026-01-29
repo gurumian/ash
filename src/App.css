@@ -5,7 +5,8 @@
   box-sizing: border-box;
 }
 
-html, body {
+html,
+body {
   height: 100%;
   overflow: hidden;
 }
@@ -146,7 +147,12 @@ html, body {
 
 
 /* Buttons and interactive elements should not be draggable */
-button, a, input, select, textarea, [role="button"] {
+button,
+a,
+input,
+select,
+textarea,
+[role="button"] {
   -webkit-app-region: no-drag;
   appearance: none;
   -webkit-appearance: none;
@@ -242,12 +248,14 @@ button, a, input, select, textarea, [role="button"] {
 .session-manager-header {
   background: var(--theme-bg, #000000) !important;
   padding: 8px 12px;
-  padding-left: 90px; /* Space for macOS traffic lights */
+  padding-left: 90px;
+  /* Space for macOS traffic lights */
   border-bottom: 1px solid var(--theme-border, #1a1a1a);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  -webkit-app-region: drag; /* Make header draggable */
+  -webkit-app-region: drag;
+  /* Make header draggable */
 }
 
 /* On non-macOS, use normal padding */
@@ -261,7 +269,8 @@ button, a, input, select, textarea, [role="button"] {
 .header-buttons {
   display: flex;
   gap: 4px;
-  -webkit-app-region: no-drag; /* Buttons should not be draggable */
+  -webkit-app-region: no-drag;
+  /* Buttons should not be draggable */
 }
 
 .session-manager-header h3 {
@@ -384,14 +393,14 @@ button, a, input, select, textarea, [role="button"] {
 }
 
 /* Indent items under section headers (Session List, Active Sessions) - same as group-session-item */
-.section > .session-item:not(.group-session-item),
-.section > .session-list-item {
+.section>.session-item:not(.group-session-item),
+.section>.session-list-item {
   padding-left: 24px;
   font-size: 11px;
 }
 
-.section > .session-item:not(.group-session-item) .session-name,
-.section > .session-list-item .session-name {
+.section>.session-item:not(.group-session-item) .session-name,
+.section>.session-list-item .session-name {
   font-size: 11px;
 }
 
@@ -406,9 +415,10 @@ button, a, input, select, textarea, [role="button"] {
 }
 
 /* Adjust active padding for indented items */
-.section > .session-item.active:not(.group-session-item),
-.section > .session-list-item.active {
-  padding-left: 21px; /* 24px - 3px border */
+.section>.session-item.active:not(.group-session-item),
+.section>.session-list-item.active {
+  padding-left: 21px;
+  /* 24px - 3px border */
 }
 
 .session-item.active:hover {
@@ -444,7 +454,10 @@ button, a, input, select, textarea, [role="button"] {
   color: #888888;
 }
 
-.close-session-btn, .stop-session-btn, .favorite-btn, .session-settings-btn {
+.close-session-btn,
+.stop-session-btn,
+.favorite-btn,
+.session-settings-btn {
   background: none;
   border: none;
   cursor: pointer;
@@ -459,7 +472,10 @@ button, a, input, select, textarea, [role="button"] {
   justify-content: center;
 }
 
-.close-session-btn:hover, .stop-session-btn:hover, .favorite-btn:hover, .session-settings-btn:hover {
+.close-session-btn:hover,
+.stop-session-btn:hover,
+.favorite-btn:hover,
+.session-settings-btn:hover {
   opacity: 1;
   background: rgba(0, 255, 65, 0.1);
 }
@@ -496,14 +512,17 @@ button, a, input, select, textarea, [role="button"] {
   background: var(--theme-bg, #000000) !important;
   border-bottom: 1px solid var(--theme-border, #1a1a1a);
   flex-shrink: 0;
-  padding-left: 0; /* Tab bar doesn't need left padding as it's not on the left edge */
-  -webkit-app-region: drag; /* Make tab bar area draggable */
+  padding-left: 0;
+  /* Tab bar doesn't need left padding as it's not on the left edge */
+  -webkit-app-region: drag;
+  /* Make tab bar area draggable */
 }
 
 .tab-bar {
   display: flex;
   background: var(--theme-bg, #000000) !important;
-  -webkit-app-region: drag; /* Make tab bar draggable */
+  -webkit-app-region: drag;
+  /* Make tab bar draggable */
 }
 
 .tab {
@@ -519,7 +538,8 @@ button, a, input, select, textarea, [role="button"] {
   transition: background 0.2s;
   min-width: 120px;
   opacity: 0.7;
-  -webkit-app-region: no-drag; /* Tabs should be clickable, not draggable */
+  -webkit-app-region: no-drag;
+  /* Tabs should be clickable, not draggable */
 }
 
 .tab:hover {
@@ -579,7 +599,7 @@ button, a, input, select, textarea, [role="button"] {
 
 .tab-reconnect:hover:not(:disabled) {
   opacity: 1;
-  background: rgba(0, 255, 65, 0.1);
+  background: color-mix(in srgb, var(--theme-accent) 20%, transparent);
 }
 
 .tab-reconnect:disabled {
@@ -589,8 +609,13 @@ button, a, input, select, textarea, [role="button"] {
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .tab-close {
@@ -606,7 +631,7 @@ button, a, input, select, textarea, [role="button"] {
 }
 
 .tab-close:hover {
-  background: rgba(0, 255, 65, 0.1);
+  background: color-mix(in srgb, var(--theme-accent) 20%, transparent);
   color: var(--theme-text, #00ff41);
   opacity: 1;
 }
@@ -616,7 +641,8 @@ button, a, input, select, textarea, [role="button"] {
   position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 0; /* Important for flex children to shrink */
+  min-height: 0;
+  /* Important for flex children to shrink */
   overflow: hidden;
 }
 
@@ -633,9 +659,11 @@ button, a, input, select, textarea, [role="button"] {
   width: 100%;
   /* Performance optimizations */
   will-change: contents;
-  transform: translateZ(0); /* Force GPU acceleration */
+  transform: translateZ(0);
+  /* Force GPU acceleration */
   backface-visibility: hidden;
-  min-height: 0; /* Important for flex children */
+  min-height: 0;
+  /* Important for flex children */
   display: flex;
   flex-direction: column;
 }
@@ -647,16 +675,20 @@ button, a, input, select, textarea, [role="button"] {
   width: 100% !important;
   /* Performance optimizations */
   will-change: contents;
-  transform: translateZ(0); /* Force GPU acceleration */
-  contain: layout style paint; /* CSS containment for better performance */
-  isolation: isolate; /* Create new stacking context */
+  transform: translateZ(0);
+  /* Force GPU acceleration */
+  contain: layout style paint;
+  /* CSS containment for better performance */
+  isolation: isolate;
+  /* Create new stacking context */
 }
 
 .terminal-content .xterm-viewport {
   background-color: var(--theme-bg, #000000) !important;
   height: 100% !important;
   /* Performance optimizations */
-  transform: translateZ(0); /* Force GPU acceleration */
+  transform: translateZ(0);
+  /* Force GPU acceleration */
   will-change: scroll-position;
   contain: layout style paint;
 }
@@ -692,7 +724,8 @@ button, a, input, select, textarea, [role="button"] {
   background-color: var(--theme-bg, #000000) !important;
   height: 100% !important;
   /* Performance optimizations */
-  transform: translateZ(0); /* Force GPU acceleration */
+  transform: translateZ(0);
+  /* Force GPU acceleration */
   contain: layout style paint;
 }
 
@@ -703,7 +736,7 @@ button, a, input, select, textarea, [role="button"] {
 }
 
 /* Reduce line spacing in xterm */
-.terminal-content .xterm .xterm-rows > div {
+.terminal-content .xterm .xterm-rows>div {
   line-height: 1.0;
 }
 
@@ -1323,7 +1356,8 @@ button, a, input, select, textarea, [role="button"] {
   background-color: color-mix(in srgb, var(--theme-accent) 85%, black);
 }
 
-.cancel-btn, .connect-btn {
+.cancel-btn,
+.connect-btn {
   padding: 10px 20px;
   border-radius: 4px;
   font-size: 14px;
@@ -1360,9 +1394,17 @@ button, a, input, select, textarea, [role="button"] {
 
 /* Animation */
 @keyframes pulse {
-  0% { opacity: 1; }
-  50% { opacity: 0.5; }
-  100% { opacity: 1; }
+  0% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+
+  100% {
+    opacity: 1;
+  }
 }
 
 .connect-btn:disabled {
@@ -1374,22 +1416,22 @@ button, a, input, select, textarea, [role="button"] {
   .session-manager {
     width: 200px;
   }
-  
+
   .session-manager-header h3 {
     font-size: 12px;
   }
-  
+
   .session-item {
     padding: 4px 8px;
     font-size: 11px;
   }
-  
+
   .tab {
     padding: 6px 12px;
     font-size: 11px;
     min-width: 100px;
   }
-  
+
   .connection-modal {
     width: 95%;
     margin: 20px;
@@ -1400,14 +1442,14 @@ button, a, input, select, textarea, [role="button"] {
   .main-content {
     flex-direction: column;
   }
-  
+
   .session-manager {
     width: 100%;
     height: 200px;
     border-right: none;
     border-bottom: 1px solid #d0d0d0;
   }
-  
+
   .terminal-area {
     flex: 1;
   }
@@ -1510,7 +1552,8 @@ button, a, input, select, textarea, [role="button"] {
   background: color-mix(in srgb, var(--theme-accent) 5%, transparent);
   border-radius: 4px;
   margin-left: auto;
-  -webkit-app-region: no-drag; /* Log controls should be clickable */
+  -webkit-app-region: no-drag;
+  /* Log controls should be clickable */
 }
 
 .log-btn {
@@ -1553,8 +1596,13 @@ button, a, input, select, textarea, [role="button"] {
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .log-btn.logging {
@@ -1563,8 +1611,8 @@ button, a, input, select, textarea, [role="button"] {
   color: #ff4444;
   opacity: 1;
   box-shadow: 0 0 10px rgba(255, 68, 68, 0.6),
-              0 0 20px rgba(255, 68, 68, 0.4),
-              0 0 30px rgba(255, 68, 68, 0.2);
+    0 0 20px rgba(255, 68, 68, 0.4),
+    0 0 30px rgba(255, 68, 68, 0.2);
   animation: recording-glow 2s ease-in-out infinite;
 }
 
@@ -1572,20 +1620,23 @@ button, a, input, select, textarea, [role="button"] {
   background: rgba(255, 68, 68, 0.1);
   border-color: #ff4444;
   box-shadow: 0 0 15px rgba(255, 68, 68, 0.8),
-              0 0 30px rgba(255, 68, 68, 0.5),
-              0 0 45px rgba(255, 68, 68, 0.3);
+    0 0 30px rgba(255, 68, 68, 0.5),
+    0 0 45px rgba(255, 68, 68, 0.3);
 }
 
 @keyframes recording-glow {
-  0%, 100% {
+
+  0%,
+  100% {
     box-shadow: 0 0 10px rgba(255, 68, 68, 0.6),
-                0 0 20px rgba(255, 68, 68, 0.4),
-                0 0 30px rgba(255, 68, 68, 0.2);
+      0 0 20px rgba(255, 68, 68, 0.4),
+      0 0 30px rgba(255, 68, 68, 0.2);
   }
+
   50% {
     box-shadow: 0 0 15px rgba(255, 68, 68, 0.9),
-                0 0 30px rgba(255, 68, 68, 0.6),
-                0 0 45px rgba(255, 68, 68, 0.3);
+      0 0 30px rgba(255, 68, 68, 0.6),
+      0 0 45px rgba(255, 68, 68, 0.3);
   }
 }
 
@@ -1833,7 +1884,7 @@ button, a, input, select, textarea, [role="button"] {
 }
 
 /* Library styles - moved to LibraryItem.css */
-.section > .library-item {
+.section>.library-item {
   margin-left: 24px;
   margin-right: 0;
 }
@@ -2018,16 +2069,20 @@ button, a, input, select, textarea, [role="button"] {
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
 }
 
 @keyframes blur-pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     filter: blur(3px);
     opacity: 0.7;
   }
+
   50% {
     filter: blur(5px);
     opacity: 0.5;
