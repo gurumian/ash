@@ -28,7 +28,7 @@ export function useConnectionHistory() {
       return [];
     }
   });
-  
+
   // Load and migrate favorites (add UUID if missing)
   const [favorites, setFavorites] = useState(() => {
     const saved = localStorage.getItem('ssh-favorites');
@@ -65,11 +65,11 @@ export function useConnectionHistory() {
       // Ensure autoReconnect is explicitly included
       autoReconnect: connection.autoReconnect !== undefined ? connection.autoReconnect : false
     };
-    
+
     if (process.env.NODE_ENV === 'development') {
       console.log('[ConnectionHistory] Saving connection with autoReconnect:', connectionToSave.autoReconnect, connectionToSave);
     }
-    
+
     // For SSH connections, check by host/user/port/sessionName
     // For Serial connections, check by serialPort/sessionName
     // Same connection info but different sessionName should be kept as separate entries
@@ -79,18 +79,24 @@ export function useConnectionHistory() {
         const connectionMatch = c.connectionType === 'serial' && c.serialPort === connection.serialPort;
         // Only remove if both connection info and sessionName match
         return !(connectionMatch && sessionNameMatch);
+        // Only remove if both connection info and sessionName match
+        return !(connectionMatch && sessionNameMatch);
+      } else if (connection.connectionType === 'local') {
+        const connectionMatch = c.connectionType === 'local';
+        // Only remove if both connection info (type) and sessionName match
+        return !(connectionMatch && sessionNameMatch);
       } else {
-        const connectionMatch = c.host === connection.host && 
-                               c.user === connection.user && 
-                               (c.port || '22') === (connection.port || '22');
+        const connectionMatch = c.host === connection.host &&
+          c.user === connection.user &&
+          (c.port || '22') === (connection.port || '22');
         // Only remove if both connection info and sessionName match
         return !(connectionMatch && sessionNameMatch);
       }
     })].slice(0, 20); // Store maximum 20 items
-    
+
     setConnectionHistory(newHistory);
     localStorage.setItem('ssh-connections', JSON.stringify(newHistory));
-    
+
     if (process.env.NODE_ENV === 'development') {
       console.log('[ConnectionHistory] Saved to localStorage. autoReconnect in first item:', newHistory[0]?.autoReconnect);
     }
@@ -102,16 +108,20 @@ export function useConnectionHistory() {
     if (f.id && connection.id && f.id === connection.id) {
       return true;
     }
-    
+
     // Fallback to connection info + sessionName matching
     const sessionNameMatch = (f.sessionName || f.name || '') === (connection.sessionName || connection.name || '');
     if (connection.connectionType === 'serial') {
       const connectionMatch = f.connectionType === 'serial' && f.serialPort === connection.serialPort;
       return connectionMatch && sessionNameMatch;
+      return connectionMatch && sessionNameMatch;
+    } else if (connection.connectionType === 'local') {
+      const connectionMatch = f.connectionType === 'local';
+      return connectionMatch && sessionNameMatch;
     } else {
-      const connectionMatch = f.host === connection.host && 
-                             f.user === connection.user && 
-                             (f.port || '22') === (connection.port || '22');
+      const connectionMatch = f.host === connection.host &&
+        f.user === connection.user &&
+        (f.port || '22') === (connection.port || '22');
       return connectionMatch && sessionNameMatch;
     }
   };
@@ -120,7 +130,7 @@ export function useConnectionHistory() {
   const toggleFavorite = (connection) => {
     // Check if already favorited (by UUID or connection info + sessionName)
     const isFavorite = favorites.some(f => matchesFavorite(f, connection));
-    
+
     if (isFavorite) {
       // Remove from favorites (match by UUID or connection info + sessionName)
       const newFavorites = favorites.filter(f => !matchesFavorite(f, connection));
@@ -149,16 +159,20 @@ export function useConnectionHistory() {
     if (c.id && connection.id && c.id === connection.id) {
       return true;
     }
-    
+
     // Fallback to connection info + sessionName matching
     const sessionNameMatch = (c.sessionName || c.name || '') === (connection.sessionName || connection.name || '');
     if (connection.connectionType === 'serial') {
       const connectionMatch = c.connectionType === 'serial' && c.serialPort === connection.serialPort;
       return connectionMatch && sessionNameMatch;
+      return connectionMatch && sessionNameMatch;
+    } else if (connection.connectionType === 'local') {
+      const connectionMatch = c.connectionType === 'local';
+      return connectionMatch && sessionNameMatch;
     } else {
-      const connectionMatch = c.host === connection.host && 
-                             c.user === connection.user && 
-                             (c.port || '22') === (connection.port || '22');
+      const connectionMatch = c.host === connection.host &&
+        c.user === connection.user &&
+        (c.port || '22') === (connection.port || '22');
       return connectionMatch && sessionNameMatch;
     }
   };
@@ -167,13 +181,13 @@ export function useConnectionHistory() {
   const removeConnection = (connection) => {
     // Remove from history (match by UUID or connection info + sessionName)
     const newHistory = connectionHistory.filter(c => !matchesConnection(c, connection));
-    
+
     setConnectionHistory(newHistory);
     localStorage.setItem('ssh-connections', JSON.stringify(newHistory));
-    
+
     // Also remove from favorites if it's favorited (use same matching logic)
     const isFavorite = favorites.some(f => matchesFavorite(f, connection));
-    
+
     if (isFavorite) {
       const newFavorites = favorites.filter(f => !matchesFavorite(f, connection));
       setFavorites(newFavorites);

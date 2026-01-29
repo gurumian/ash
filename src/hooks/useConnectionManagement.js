@@ -399,10 +399,20 @@ export function useConnectionManagement({
           netcatSidebarVisible: false,
           aiMessages: [],
           activeSecondaryTab: 'ai-chat',
-          aiChatSidebarWidth: 400,
-          iperfClientSidebarWidth: 500,
           netcatSidebarWidth: 500
         };
+
+        saveConnectionHistory({
+          connectionType: 'local',
+          sessionName: sessionName,
+          savePassword: false,
+          postProcessing: formData.postProcessing || [],
+          postProcessingEnabled: formData.postProcessingEnabled !== false,
+          autoReconnect: true // Local terminals always auto-reconnect by default
+        });
+
+        // Also add to sshConnections map immediately
+        sshConnections.current[sessionId] = connection;
       }
 
       // Add session to list (Telnet already added earlier)
