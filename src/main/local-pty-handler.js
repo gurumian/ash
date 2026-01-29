@@ -88,8 +88,11 @@ export function initializeLocalHandlers() {
             // Set standard terminal variables
             ptyEnv.TERM = 'xterm-256color';
             ptyEnv.COLORTERM = 'truecolor';
-            ptyEnv.LANG = process.env.LANG || 'en_US.UTF-8';
-            ptyEnv.LC_CTYPE = process.env.LC_CTYPE || 'UTF-8';
+            ptyEnv.LANG = process.env.LANG || 'C.UTF-8';
+            ptyEnv.LC_ALL = process.env.LC_ALL || ptyEnv.LANG;
+            ptyEnv.LC_CTYPE = process.env.LC_CTYPE || ptyEnv.LANG;
+
+            console.log(`[LocalPTY] Locale setup: LANG='${ptyEnv.LANG}', LC_ALL='${ptyEnv.LC_ALL}', LC_CTYPE='${ptyEnv.LC_CTYPE}'`);
 
             // Ensure HOME is correct
             ptyEnv.HOME = cwd;
