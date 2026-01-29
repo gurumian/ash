@@ -2,6 +2,7 @@ import { ipcMain } from 'electron';
 import os from 'os';
 import pty from 'node-pty';
 import { exec } from 'child_process';
+import fs from 'node:fs';
 
 const localPtySessions = new Map(); // connectionId -> ptyProcess
 
@@ -33,15 +34,41 @@ export function initializeLocalHandlers() {
         try {
             // Determine shell
             let shell = process.env.SHELL;
-            if (!shell) {
-                shell = os.platform() === 'win32' ? 'powershell.exe' : '/bin/bash';
+
+            // Validate or determine shell
+            if (os.platform() === 'win32') {
+                shell = process.env.COMSPEC || 'powershell.exe';
+            } else {
+                // If SHELL is missing or doesn't exist, calculate default
+                if (!shell || !fs.existsSync(shell)) {
+                    shell = os.platform() === 'darwin' ? '/bin/zsh' : '/bin/bash';
+                    // Verify the fallback exists, else try /bin/sh
+                    if (!fs.existsSync(shell)) {
+                        shell = '/bin/sh';
+                    }
+                }
             }
 
-            // Determine CWD
-            const cwd = process.env.HOME || os.homedir() || '/';
+            // Sanitize input: remove potentially surrounding quotes which can break spawn
+            if (shell && (shell.startsWith("'") || shell.startsWith('"'))) {
+                shell = shell.replace(/['"]/g, '');
+            }
 
+            console.log(`[LocalPTY] Architecture: ${process.arch}, Platform: ${process.platform}`);
             console.log(`[LocalPTY] Spawning shell: '${shell}'`);
-            console.log(`[LocalPTY] CWD: '${cwd}'`);
+
+            // Validate CWD
+            let cwd = process.env.HOME;
+            if (cwd && (cwd.startsWith("'") || cwd.startsWith('"'))) {
+                cwd = cwd.replace(/['"]/g, '');
+            }
+
+            if (!cwd || !fs.existsSync(cwd)) {
+                console.warn(`[LocalPTY] HOME (${cwd}) invalid, using process.cwd()`);
+                cwd = process.cwd();
+            }
+
+            console.log(`[LocalPTY] Final CWD: '${cwd}'`);
 
             // Validate shell (simple check for POSIX)
             if (os.platform() !== 'win32' && !shell.startsWith('/') && shell !== 'bash') {
