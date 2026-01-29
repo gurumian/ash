@@ -17,16 +17,16 @@ const makers = [
         x64: 'x64',
         arm64: 'arm64',
       };
-      
+
       // Safely get arch from makerOptions
       const makerArch = makerOptions?.arch || process.arch || 'x64';
-      
+
       if (makerArch === 'ia32' || makerArch === 'x32') {
         throw new Error('32-bit (ia32) architecture is not supported. Please build for x64 or arm64.');
       }
-      
+
       const arch = archMap[makerArch] || (makerArch === 'x64' ? 'x64' : 'x64');
-      
+
       return {
         name: 'ash',
         oneClick: false,
@@ -71,7 +71,7 @@ const makers = [
 module.exports = {
   packagerConfig: {
     asar: {
-      unpack: '**/{serialport,@serialport,ssh2,telnet-stream}/**' // Native modules and dynamically required modules that need to be unpacked from asar
+      unpack: '**/{serialport,@serialport,ssh2,telnet-stream,node-pty}/**' // Native modules and dynamically required modules that need to be unpacked from asar
     },
     appBundleId: 'com.gurumlab.ash',
     executableName: 'ash',
@@ -174,7 +174,7 @@ module.exports = {
     ],
   },
   rebuildConfig: {
-    onlyModules: ['serialport', 'ssh2'] // Native modules that need rebuilding for Electron
+    onlyModules: ['serialport', 'ssh2', 'node-pty'] // Native modules that need rebuilding for Electron
   },
   makers,
   plugins: [
