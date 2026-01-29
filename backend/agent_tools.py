@@ -109,8 +109,8 @@ def call_ash_ipc(channel: str, *args) -> Dict[str, Any]:
 
 @register_tool('ash_execute_command')
 class UnifiedExecuteTool(BaseTool):
-    """Execute a command on ANY connection (SSH, Telnet, Serial)."""
-    description = 'Universal command execution tool. Automatically detects the connection type (SSH/Telnet/Serial) and routes the command. ALWAYS use this instead of specific ssh/telnet/serial tools. Returns stdout, stderr, and exit code.'
+    """Execute a command on ANY connection (SSH, Telnet, Serial, Local)."""
+    description = 'Universal command execution tool. Automatically detects the connection type (SSH/Telnet/Serial/Local) and routes the command. ALWAYS use this instead of specific ssh/telnet/serial tools. Returns stdout, stderr, and exit code.'
     parameters = [{
         'name': 'connection_id',
         'type': 'string',
@@ -150,7 +150,8 @@ class UnifiedExecuteTool(BaseTool):
             channel_map = {
                 'ssh': 'ssh-exec-command',
                 'telnet': 'telnet-exec-command',
-                'serial': 'serial-exec-command'
+                'serial': 'serial-exec-command',
+                'local': 'local-exec-command'
             }
             
             ipc_channel = channel_map.get(conn_type, 'ssh-exec-command')
@@ -172,8 +173,8 @@ class UnifiedExecuteTool(BaseTool):
 
 @register_tool('ash_list_connections')
 class ListConnectionsTool(BaseTool):
-    """List all active SSH, Telnet, and Serial connections."""
-    description = 'List all active connections in ash (SSH, Telnet, and Serial). Returns connection IDs, types, and their details. ONLY use this if no connection_id was provided in the system prompt. If a connection_id is already provided, use it directly without calling this tool. Each connection has a "type" field indicating "ssh", "telnet", or "serial".'
+    """List all active SSH, Telnet, Serial, and Local connections."""
+    description = 'List all active connections in ash (SSH, Telnet, Serial, and Local). Returns connection IDs, types, and their details. ONLY use this if no connection_id was provided in the system prompt. If a connection_id is already provided, use it directly without calling this tool. Each connection has a "type" field indicating "ssh", "telnet", "serial", or "local".'
     parameters = []
     
     def call(self, params: str, **kwargs) -> str:

@@ -15,7 +15,7 @@ def build_system_prompt(connection_id: str = None, current_directory: str = None
     If connection_id is provided, include it in the prompt to avoid unnecessary ash_list_connections calls.
 
     Args:
-        connection_id: Optional SSH/Telnet/Serial connection ID to include in the prompt
+        connection_id: Optional SSH/Telnet/Serial/Local connection ID to include in the prompt
         current_directory: Optional current working directory path to include in the prompt
 
     Returns:
@@ -37,7 +37,7 @@ def build_system_prompt(connection_id: str = None, current_directory: str = None
         "UNIFIED EXECUTION MODEL (CRITICAL):\n"
         "- You have ONE universal execution tool: `ash_execute_command(connection_id, command)`.\n"
         "- DO NOT call a tool named 'ash'. It does not exist. The tool is `ash_execute_command`.\n"
-        "- This tool AUTOMATICALLY handles SSH, Telnet, and Serial connections.\n"
+        "- This tool AUTOMATICALLY handles SSH, Telnet, Serial, and Local connections.\n"
         "- NEVER worry about connection types. Just pass the `connection_id` and the `command`.\n"
         "- If a connection_id is provided in the ACTIVE CONNECTION section below, you MUST use it. DO NOT call ash_list_connections. DO NOT ask the user.\n\n"
     )
