@@ -86,13 +86,15 @@ export function initializeLocalHandlers() {
             });
 
             // Set standard terminal variables
+            // Set standard terminal variables
             ptyEnv.TERM = 'xterm-256color';
             ptyEnv.COLORTERM = 'truecolor';
-            ptyEnv.LANG = process.env.LANG || 'C.UTF-8';
-            ptyEnv.LC_ALL = process.env.LC_ALL || ptyEnv.LANG;
-            ptyEnv.LC_CTYPE = process.env.LC_CTYPE || ptyEnv.LANG;
+            // Use en_US.UTF-8 for macOS best compatibility
+            ptyEnv.LANG = 'en_US.UTF-8';
+            ptyEnv.LC_ALL = 'en_US.UTF-8';
+            ptyEnv.LC_CTYPE = 'en_US.UTF-8';
 
-            console.log(`[LocalPTY] Locale setup: LANG='${ptyEnv.LANG}', LC_ALL='${ptyEnv.LC_ALL}', LC_CTYPE='${ptyEnv.LC_CTYPE}'`);
+            console.log(`[LocalPTY] Locale setup: LANG='${ptyEnv.LANG}'`);
 
             // Ensure HOME is correct
             ptyEnv.HOME = cwd;
