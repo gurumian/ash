@@ -5,10 +5,10 @@ import './CustomTitleBar.css';
 /**
  * Custom title bar for Windows/Linux with integrated menu bar
  */
-export function CustomTitleBar({ 
-  isMaximized, 
-  onMinimize, 
-  onMaximize, 
+export function CustomTitleBar({
+  isMaximized,
+  onMinimize,
+  onMaximize,
   onClose,
   onNewSession,
   onCloseSession,
@@ -124,16 +124,16 @@ export function CustomTitleBar({
         { type: 'separator' },
         { label: t('menu:tftpServer'), shortcut: 'Ctrl+Shift+T', onClick: onTftpServer },
         { label: t('menu:webServer'), shortcut: 'Ctrl+Shift+W', onClick: onWebServer },
-        { 
-          label: t('menu:iperf3Server'), 
-          shortcut: 'Ctrl+Shift+I', 
+        {
+          label: t('menu:iperf3Server'),
+          shortcut: 'Ctrl+Shift+I',
           onClick: iperfAvailable ? onIperfServer : null,
           disabled: !iperfAvailable,
           sublabel: iperfAvailable ? '' : t('menu:iperf3NotAvailable')
         },
-        { 
-          label: t('menu:iperf3Client'), 
-          shortcut: 'Ctrl+Shift+K', 
+        {
+          label: t('menu:iperf3Client'),
+          shortcut: 'Ctrl+Shift+K',
           onClick: iperfAvailable ? onIperfClient : null,
           disabled: !iperfAvailable,
           sublabel: iperfAvailable ? '' : t('menu:iperf3NotAvailable')
@@ -154,11 +154,11 @@ export function CustomTitleBar({
 
   // Apply theme CSS variables
   const titleBarStyle = {
-    '--theme-bg': themeData.background || '#000000',
-    '--theme-surface': themeData.surface || '#1a1a1a',
-    '--theme-text': themeData.text || '#00ff41',
-    '--theme-border': themeData.border || '#1a1a1a',
-    '--theme-accent': themeData.accent || '#00ff41',
+    '--theme-bg': themeData.background,
+    '--theme-surface': themeData.surface,
+    '--theme-text': themeData.text,
+    '--theme-border': themeData.border,
+    '--theme-accent': themeData.accent,
   };
 
   return (
@@ -175,7 +175,7 @@ export function CustomTitleBar({
                 {menu.name}
               </button>
               {activeMenu === menu.name && (
-                <div 
+                <div
                   className="menubar-dropdown"
                   onClick={(e) => e.stopPropagation()}
                   onMouseDown={(e) => e.stopPropagation()}
@@ -266,21 +266,21 @@ export function CustomTitleBar({
         </div>
       </div>
       <div className="titlebar-controls">
-        <button 
+        <button
           className="titlebar-button minimize-button"
           onClick={onMinimize}
           title={t('menu:minimize')}
         >
           <span>−</span>
         </button>
-        <button 
+        <button
           className="titlebar-button maximize-button"
           onClick={onMaximize}
           title={isMaximized ? t('menu:restore') : t('menu:maximize')}
         >
           <span>{isMaximized ? '❐' : '□'}</span>
         </button>
-        <button 
+        <button
           className="titlebar-button close-button"
           onClick={onClose}
           title={t('common:close')}

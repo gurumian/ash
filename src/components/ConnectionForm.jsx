@@ -395,7 +395,7 @@ export const ConnectionForm = memo(function ConnectionForm({
           <div className="form-group">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }} onClick={() => setIsPostProcessingExpanded(!isPostProcessingExpanded)}>
-                <span style={{ fontSize: '12px', color: 'var(--theme-text, #00ff41)', userSelect: 'none' }}>
+                <span style={{ fontSize: '12px', color: 'var(--theme-text)', userSelect: 'none' }}>
                   {isPostProcessingExpanded ? '▼' : '▶'}
                 </span>
                 <label style={{ margin: 0, cursor: 'pointer' }}>{t('connection:postProcessing')}</label>
@@ -409,9 +409,9 @@ export const ConnectionForm = memo(function ConnectionForm({
                 style={{
                   padding: '4px 8px',
                   fontSize: '11px',
-                  backgroundColor: postProcessingEnabled ? 'var(--theme-accent, #00ff41)' : 'var(--theme-surface, #1a1a1a)',
-                  border: `1px solid ${postProcessingEnabled ? 'var(--theme-accent, #00ff41)' : 'var(--theme-surface, #1a1a1a)'}`,
-                  color: postProcessingEnabled ? '#000000' : 'var(--theme-text, #00ff41)',
+                  backgroundColor: postProcessingEnabled ? 'var(--theme-accent)' : 'var(--theme-surface)',
+                  border: `1px solid ${postProcessingEnabled ? 'var(--theme-accent)' : 'var(--theme-surface)'}`,
+                  color: postProcessingEnabled ? 'var(--theme-bg)' : 'var(--theme-text)',
                   cursor: 'pointer',
                   borderRadius: '3px',
                   fontWeight: 'bold'
@@ -425,7 +425,7 @@ export const ConnectionForm = memo(function ConnectionForm({
               <>
                 <p style={{
                   fontSize: '11px',
-                  color: 'var(--theme-text, #00ff41)',
+                  color: 'var(--theme-text)',
                   opacity: 0.7,
                   marginBottom: '8px',
                   marginTop: '4px'
@@ -438,16 +438,16 @@ export const ConnectionForm = memo(function ConnectionForm({
                   marginBottom: '8px',
                   maxHeight: '150px',
                   overflowY: 'auto',
-                  border: '1px solid var(--theme-border, #1a1a1a)',
+                  border: '1px solid var(--theme-border)',
                   borderRadius: '4px',
                   padding: '6px',
-                  backgroundColor: 'var(--theme-background, #000000)'
+                  backgroundColor: 'var(--theme-background)'
                 }}>
                   {postProcessing.length === 0 ? (
                     <div style={{
                       textAlign: 'center',
                       padding: '12px',
-                      color: 'var(--theme-text, #00ff41)',
+                      color: 'var(--theme-text)',
                       opacity: 0.5,
                       fontSize: '11px'
                     }}>
@@ -468,15 +468,15 @@ export const ConnectionForm = memo(function ConnectionForm({
                           gap: '6px',
                           padding: '6px',
                           marginBottom: '4px',
-                          backgroundColor: 'var(--theme-surface, #1a1a1a)',
+                          backgroundColor: 'var(--theme-surface)',
                           borderRadius: '3px',
-                          border: '1px solid var(--theme-border, #1a1a1a)',
+                          border: '1px solid var(--theme-border)',
                           opacity: postProcessingEnabled ? 1 : 0.5,
                           cursor: 'move'
                         }}
                       >
                         <span style={{
-                          color: 'var(--theme-text, #00ff41)',
+                          color: 'var(--theme-text)',
                           fontSize: '11px',
                           opacity: 0.5,
                           userSelect: 'none'
@@ -487,7 +487,7 @@ export const ConnectionForm = memo(function ConnectionForm({
                           flex: 1,
                           fontFamily: 'monospace',
                           fontSize: '11px',
-                          color: 'var(--theme-text, #00ff41)',
+                          color: 'var(--theme-text)',
                           wordBreak: 'break-all',
                           textDecoration: postProcessingEnabled ? 'none' : 'line-through'
                         }}>
@@ -525,10 +525,10 @@ export const ConnectionForm = memo(function ConnectionForm({
                     style={{
                       flex: 1,
                       padding: '6px 10px',
-                      backgroundColor: 'var(--theme-background, #000000)',
-                      border: '1px solid var(--theme-border, #1a1a1a)',
+                      backgroundColor: 'var(--theme-background)',
+                      border: '1px solid var(--theme-border)',
                       borderRadius: '4px',
-                      color: 'var(--theme-text, #00ff41)',
+                      color: 'var(--theme-text)',
                       fontSize: '12px',
                       fontFamily: 'monospace'
                     }}
@@ -539,10 +539,10 @@ export const ConnectionForm = memo(function ConnectionForm({
                     disabled={!newCommand.trim()}
                     style={{
                       padding: '6px 12px',
-                      backgroundColor: 'var(--theme-accent, #00ff41)',
+                      backgroundColor: 'var(--theme-accent)',
                       border: 'none',
                       borderRadius: '4px',
-                      color: '#000000',
+                      color: 'var(--theme-bg)',
                       cursor: newCommand.trim() ? 'pointer' : 'not-allowed',
                       opacity: newCommand.trim() ? 1 : 0.5,
                       fontWeight: 'bold',
