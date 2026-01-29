@@ -11,11 +11,17 @@ import { initializeTftpHandlers, cleanupTftpServer, setMainWindow as setTftpMain
 import { initializeWebHandlers, cleanupWebServer, setMainWindow as setWebMainWindow } from './main/web-handler.js';
 import { initializeIperfHandlers, cleanupIperfServer, setMainWindow as setIperfMainWindow, initializeIperfClientHandlers, cleanupIperfClient } from './main/iperf-handler.js';
 import { initializeNetcatHandlers, cleanupNetcat, setMainWindow as setNetcatMainWindow } from './main/netcat-handler.js';
+import { initializeLocalHandlers, cleanupLocalConnections } from './main/local-pty-handler.js';
 import { startBackend, stopBackend, initializeBackendHandlers } from './main/backend-handler.js';
 import { startIPCBridge, stopIPCBridge, setMainWindow as setIpcMainWindow } from './main/ipc-bridge-handler.js';
 
 // Set app name
 app.setName('ash');
+
+// Disable sandbox on Linux to avoid SUID sandbox helper issues in some environments
+if (process.platform === 'linux') {
+  app.commandLine.appendSwitch('no-sandbox');
+}
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -32,6 +38,7 @@ initializeWebHandlers();
 initializeIperfHandlers();
 initializeIperfClientHandlers();
 initializeNetcatHandlers();
+initializeLocalHandlers();
 initializeBackendHandlers(); // Initialize backend handlers for on-demand startup
 
 // This method will be called when Electron has finished
@@ -87,4 +94,5 @@ app.on('before-quit', async () => {
   cleanupIperfServer();
   cleanupIperfClient();
   cleanupNetcat();
+  cleanupLocalConnections();
 });

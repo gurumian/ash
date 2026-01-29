@@ -36,6 +36,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
   offSSHData: (callback) => ipcRenderer.off('ssh-data', callback),
   offSSHClose: (callback) => ipcRenderer.off('ssh-closed', callback),
 
+  // Local Terminal API
+  localConnect: (connectionInfo) => ipcRenderer.invoke('local-connect', connectionInfo),
+  localStartShell: (connectionId, cols, rows) => ipcRenderer.invoke('local-start-shell', connectionId, cols, rows),
+  localResize: (connectionId, cols, rows) => ipcRenderer.invoke('local-resize', connectionId, cols, rows),
+  localWrite: (connectionId, data) => ipcRenderer.send('local-write', { connectionId, data }),
+  localDisconnect: (connectionId) => ipcRenderer.invoke('local-disconnect', connectionId),
+
+  // Local Terminal Events
+  onLocalData: (callback) => ipcRenderer.on('local-data', callback),
+  onLocalClose: (callback) => ipcRenderer.on('local-closed', callback),
+  offLocalData: (callback) => ipcRenderer.off('local-data', callback),
+  offLocalClose: (callback) => ipcRenderer.off('local-closed', callback),
+
   // Telnet connection
   telnetConnect: (connectionInfo) => ipcRenderer.invoke('telnet-connect', connectionInfo),
 

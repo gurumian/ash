@@ -742,8 +742,8 @@ function App() {
     ));
 
     // Auto-reconnect: Check session-specific setting first, fallback to global setting for backward compatibility
-    const shouldAutoReconnect = foundSession.autoReconnect !== undefined 
-      ? foundSession.autoReconnect 
+    const shouldAutoReconnect = foundSession.autoReconnect !== undefined
+      ? foundSession.autoReconnect
       : autoReconnect;
 
     if (!shouldAutoReconnect) {
@@ -937,59 +937,86 @@ function App() {
   // Handle serial close to update session state and auto-reconnect
   // This function is called when Serial connection closes
   // It should trigger the same behavior as pressing F5 if autoReconnect is enabled
+  // Refs for event handlers to prevent memory leaks/excessive re-subscriptions
+  const sessionsRef = useRef(sessions);
+  const autoReconnectRef = useRef(autoReconnect);
+  const reconnectingSessionsRef = useRef(reconnectingSessions);
+  const onReconnectSessionRef = useRef(onReconnectSession);
+
   useEffect(() => {
+    sessionsRef.current = sessions;
+    autoReconnectRef.current = autoReconnect;
+    reconnectingSessionsRef.current = reconnectingSessions;
+    onReconnectSessionRef.current = onReconnectSession;
+  }, [sessions, autoReconnect, reconnectingSessions, onReconnectSession]);
+
+  // Handle Serial and Local connection close events
+  useEffect(() => {
+    // Serial Close Handler
     const handleSerialClose = (event, receivedSessionId) => {
-      // Find session by sessionId
-      const foundSession = sessions.find(s => s.id === receivedSessionId);
+      const currentSessions = sessionsRef.current;
+      const foundSession = currentSessions.find(s => s.id === receivedSessionId);
 
       if (!foundSession) {
         console.log('[Auto-reconnect] Serial session not found for sessionId:', receivedSessionId);
         return;
       }
 
-      console.log('[Auto-reconnect] Serial connection closed for session:', foundSession.id, foundSession.name, 'session autoReconnect:', foundSession.autoReconnect);
+      console.log('[Auto-reconnect] Serial connection closed:', foundSession.id);
 
-      // Update session state to disconnected
       setSessions(prev => prev.map(s =>
         s.id === receivedSessionId ? { ...s, isConnected: false } : s
       ));
 
-      // Auto-reconnect: Check session-specific setting first, fallback to global setting for backward compatibility
-      const shouldAutoReconnect = foundSession.autoReconnect !== undefined 
-        ? foundSession.autoReconnect 
-        : autoReconnect;
+      const shouldAutoReconnect = foundSession.autoReconnect !== undefined
+        ? foundSession.autoReconnect
+        : autoReconnectRef.current;
 
-      if (!shouldAutoReconnect) {
-        console.log('[Auto-reconnect] Auto-reconnect is disabled for this session, skipping');
-        return;
-      }
+      if (!shouldAutoReconnect) return;
 
-      // Use the same path as F5 key press - call onReconnectSession which is the same handler
-      // This ensures consistency: auto-reconnect behaves exactly like pressing F5
-      console.log('[Auto-reconnect] Serial connection closed, will attempt reconnect (same as F5) for session:', foundSession.id);
-
-      // Small delay before attempting reconnect (same as manual F5 behavior)
       setTimeout(() => {
-        // Check if already reconnecting
-        if (reconnectingSessions?.has(foundSession.id)) {
-          console.log('[Auto-reconnect] Already reconnecting, skipping');
-          return;
-        }
+        if (reconnectingSessionsRef.current?.has(foundSession.id)) return;
+        if (onReconnectSessionRef.current) onReconnectSessionRef.current(foundSession.id);
+      }, 500);
+    };
 
-        // Call the same handler that F5 uses - this ensures identical behavior
-        // onReconnectSession is the exact same function called when F5 is pressed
-        if (onReconnectSession) {
-          onReconnectSession(foundSession.id);
-        }
-      }, 500); // 500ms delay before auto-reconnect
+    // Local Close Handler
+    const handleLocalClose = (event, { connectionId, exitCode }) => {
+      const currentSessions = sessionsRef.current;
+      // Local connectionId IS the sessionId
+      const foundSession = currentSessions.find(s => s.id === connectionId);
+
+      if (!foundSession) return;
+
+      console.log('[Auto-reconnect] Local connection closed:', connectionId, 'code:', exitCode);
+
+      setSessions(prev => prev.map(s =>
+        s.id === connectionId ? { ...s, isConnected: false } : s
+      ));
+
+      // Always auto-reconnect local terminal unless explicitly disabled (it shouldn't really exit unless typed 'exit')
+      // If user typed 'exit', maybe we shouldn't reconnect? 
+      // Current behavior: if autoReconnect is true (default for local), it will restart shell.
+      const shouldAutoReconnect = foundSession.autoReconnect !== undefined
+        ? foundSession.autoReconnect
+        : true; // Default true for local
+
+      if (!shouldAutoReconnect) return;
+
+      setTimeout(() => {
+        if (reconnectingSessionsRef.current?.has(foundSession.id)) return;
+        if (onReconnectSessionRef.current) onReconnectSessionRef.current(foundSession.id);
+      }, 500);
     };
 
     window.electronAPI.onSerialClose(handleSerialClose);
+    window.electronAPI.onLocalClose(handleLocalClose);
 
     return () => {
       window.electronAPI.offSerialClose(handleSerialClose);
+      window.electronAPI.offLocalClose(handleLocalClose);
     };
-  }, [sessions, autoReconnect, setSessions, reconnectingSessions, onReconnectSession]);
+  }, [setSessions]); // Only setSessions dependency (stable), ensuring this runs ONCE only
 
 
 
@@ -1892,7 +1919,7 @@ function App() {
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}
         onClose={() => setConfirmDialog({ isOpen: false, title: '', message: '', onConfirm: null })}
-        onConfirm={confirmDialog.onConfirm || (() => {})}
+        onConfirm={confirmDialog.onConfirm || (() => { })}
         title={confirmDialog.title}
         message={confirmDialog.message}
       />

@@ -4,6 +4,7 @@ import { URL } from 'node:url';
 import { getSSHConnections, executeSSHCommand } from './ssh-handler.js';
 import { getTelnetConnections, executeTelnetCommand } from './telnet-handler.js';
 import { getSerialConnections, executeSerialCommand } from './serial-handler.js';
+import { getLocalSessions, executeLocalCommand } from './local-pty-handler.js';
 
 /**
  * IPC Bridge Handler
@@ -19,6 +20,42 @@ let mainWindow = null;
 export function setMainWindow(window) {
   mainWindow = window;
 }
+
+/**
+ * Helper: Request user approval
+ */
+const requestUserApproval = async (question, isPassword = false) => {
+  if (!mainWindow) {
+    throw new Error('Main window not available');
+  }
+
+  return new Promise((resolve, reject) => {
+    const requestId = Date.now().toString();
+    const responseChannel = `ipc-ask-user-response-${requestId}`;
+
+    // Timeout after 5 minutes
+    const timeout = setTimeout(() => {
+      ipcMain.removeHandler(responseChannel);
+      reject(new Error('User response timed out'));
+    }, 290000);
+
+    ipcMain.handleOnce(responseChannel, (event, response) => {
+      clearTimeout(timeout);
+      console.log(`[IPC Bridge] Received user response for ${requestId}`);
+      if (response.rejected) {
+        reject(new Error('User rejected the request'));
+      } else {
+        resolve(response.value);
+      }
+    });
+
+    mainWindow.webContents.send('ipc-ask-user', {
+      requestId,
+      question,
+      isPassword
+    });
+  });
+};
 
 /**
  * Start IPC bridge HTTP server
@@ -105,17 +142,49 @@ export function startIPCBridge() {
                 break;
               }
 
+              case 'local-exec-command':
+              case 'local-execute': {
+                console.log(`[IPC Bridge] Request to execute Local command on connection ${args[0]}: ${args[1]}`);
+                const command = args[1];
+
+                // SYSTEM SECURITY: Always ask for user approval for local commands
+                try {
+                  const decision = await requestUserApproval(
+                    `⚠️ AI Agent requests to execute LOCAL command:\n\n${command}\n\nDo you allow this?`,
+                    false
+                  );
+
+                  if (decision !== true && decision !== 'yes') {
+                    throw new Error('User denied permission');
+                  }
+                } catch (err) {
+                  console.log('[IPC Bridge] Local command execution denied or timed out');
+                  throw new Error('Local command execution denied by user');
+                }
+
+                console.log(`[IPC Bridge] Executing Local command: ${command}`);
+                try {
+                  result = await executeLocalCommand(args[0], command);
+                  console.log(`[IPC Bridge] Local command completed`);
+                } catch (error) {
+                  console.error(`[IPC Bridge] Local command execution failed:`, error);
+                  throw error;
+                }
+                break;
+              }
+
               case 'ssh-list-connections':
               case 'list-connections': {
-                // Get all active connections (SSH, Telnet, Serial)
+                // Get all active connections (SSH, Telnet, Serial, Local)
                 const sshConnections = getSSHConnections();
                 const telnetConnections = getTelnetConnections();
                 const serialConnections = getSerialConnections();
-                console.log(`[IPC Bridge] Listing connections. SSH: ${sshConnections.size}, Telnet: ${telnetConnections.size}, Serial: ${serialConnections.size}`);
+                const localConnections = getLocalSessions();
+
+                console.log(`[IPC Bridge] Listing connections. SSH: ${sshConnections.size}, Telnet: ${telnetConnections.size}, Serial: ${serialConnections.size}, Local: ${localConnections.size}`);
 
                 const sshList = Array.from(sshConnections.entries()).map(([id, conn]) => {
                   const isConnected = conn !== null && conn !== undefined;
-                  console.log(`[IPC Bridge] SSH Connection ${id}: exists=${isConnected}`);
                   return {
                     connectionId: id,
                     type: 'ssh',
@@ -125,7 +194,6 @@ export function startIPCBridge() {
 
                 const telnetList = Array.from(telnetConnections.entries()).map(([id, connInfo]) => {
                   const isConnected = connInfo !== null && connInfo !== undefined && connInfo.tSocket !== null;
-                  console.log(`[IPC Bridge] Telnet Connection ${id}: exists=${isConnected}`);
                   return {
                     connectionId: id,
                     type: 'telnet',
@@ -135,7 +203,6 @@ export function startIPCBridge() {
 
                 const serialList = Array.from(serialConnections.entries()).map(([id, connInfo]) => {
                   const isConnected = connInfo && connInfo.port && connInfo.port.isOpen;
-                  console.log(`[IPC Bridge] Serial Connection ${id}: exists=${isConnected}`);
                   return {
                     connectionId: id,
                     type: 'serial',
@@ -143,7 +210,15 @@ export function startIPCBridge() {
                   };
                 });
 
-                const connections = [...sshList, ...telnetList, ...serialList];
+                const localList = Array.from(localConnections.entries()).map(([id, session]) => {
+                  return {
+                    connectionId: id,
+                    type: 'local',
+                    connected: true
+                  };
+                });
+
+                const connections = [...sshList, ...telnetList, ...serialList, ...localList];
                 result = { success: true, connections };
                 console.log(`[IPC Bridge] Returning ${connections.length} total connections`);
                 break;
@@ -153,42 +228,7 @@ export function startIPCBridge() {
                 const question = args[0];
                 const isPassword = args[1];
                 console.log(`[IPC Bridge] Asking user: ${question} (isPassword=${isPassword})`);
-
-                if (!mainWindow) {
-                  throw new Error('Main window not available');
-                }
-
-                // Send request to renderer and wait for response
-                result = await new Promise((resolve, reject) => {
-                  // Generate a unique ID for this request
-                  const requestId = Date.now().toString();
-
-                  // Setup one-time listener for response
-                  const responseChannel = `ipc-ask-user-response-${requestId}`;
-
-                  // Timeout after 5 minutes (same as overall timeout)
-                  const timeout = setTimeout(() => {
-                    ipcMain.removeHandler(responseChannel);
-                    reject(new Error('User response timed out'));
-                  }, 290000);
-
-                  ipcMain.handleOnce(responseChannel, (event, response) => {
-                    clearTimeout(timeout);
-                    console.log(`[IPC Bridge] Received user response for ${requestId}`);
-                    if (response.rejected) {
-                      reject(new Error('User rejected the request'));
-                    } else {
-                      resolve(response.value);
-                    }
-                  });
-
-                  // Send event to renderer
-                  mainWindow.webContents.send('ipc-ask-user', {
-                    requestId,
-                    question,
-                    isPassword
-                  });
-                });
+                result = await requestUserApproval(question, isPassword);
                 break;
               }
 

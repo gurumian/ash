@@ -129,7 +129,7 @@ export function useTerminalManagement({
               // Force a layout recalculation before fitting
               const offsetWidth = terminalRef.offsetWidth;
               const offsetHeight = terminalRef.offsetHeight;
-              
+
               // Only resize if terminal has valid dimensions
               // This prevents resizing when layout hasn't been calculated yet
               if (offsetWidth > 0 && offsetHeight > 0) {
@@ -176,7 +176,7 @@ export function useTerminalManagement({
               // Force a layout recalculation before fitting
               const offsetWidth = terminalRef.offsetWidth;
               const offsetHeight = terminalRef.offsetHeight;
-              
+
               // Only resize if terminal has valid dimensions
               // This prevents resizing when layout hasn't been calculated yet
               if (offsetWidth > 0 && offsetHeight > 0) {
@@ -492,6 +492,27 @@ export function useTerminalManagement({
             setTimeout(() => {
               executePostProcessing(sessionId, session, sshConnections.current[sessionId]);
             }, 200);
+          } else if (session.connectionType === 'local') {
+            // Local Terminal - start shell
+            // Use a small delay to ensure fit() has taken effect
+            setTimeout(async () => {
+              try {
+                const cols = terminal.cols;
+                const rows = terminal.rows;
+                if (sshConnections.current[sessionId]) {
+                  const result = await sshConnections.current[sessionId].startShell(cols, rows);
+                  if (!result.success) {
+                    throw new Error(result.error || 'Unknown error starting shell');
+                  }
+
+                  // Execute post-processing commands after shell is ready
+                  executePostProcessing(sessionId, session, sshConnections.current[sessionId]);
+                }
+              } catch (error) {
+                console.error(`Failed to start local shell for session ${sessionId}:`, error);
+                terminal.write(`\x1b[91mFailed to start local shell: ${error.message}\x1b[0m\r\n`);
+              }
+            }, 50);
           }
         } catch (error) {
           console.error(`Error fitting terminal during initialization:`, error);
@@ -651,14 +672,14 @@ export function useTerminalManagement({
         try {
           // Update theme options - this is the primary way to change theme in xterm.js
           terminal.options.theme = themeData.terminal;
-          
+
           // Force terminal to re-render with new theme
           // xterm.js applies theme changes when options.theme is set, but we need to trigger a refresh
           // Refresh the entire terminal viewport to apply the new theme
           if (typeof terminal.refresh === 'function') {
             terminal.refresh(0, terminal.rows - 1);
           }
-          
+
           // Also update the DOM element's background color to match theme
           // This ensures the background is updated even if xterm.js hasn't fully rendered
           const terminalElement = terminalRefs.current[sessionId];
@@ -838,6 +859,65 @@ export function useTerminalManagement({
       window.electronAPI.offTelnetClose(handleTelnetClose);
     };
   }, [updateConnectionIdMap]); // Update map when connections change - onSshClose is handled via ref
+
+  // Handle Local data events - register only once
+  useEffect(() => {
+    // Update map initially and when connections change
+    updateConnectionIdMap();
+
+    const handleLocalData = (event, { connectionId, data }) => {
+      // For local, connectionId is typically the sessionId, but use map for consistency
+      const sessionId = connectionIdMapRef.current.get(connectionId) || connectionId;
+
+      if (sessionId && terminalInstances.current[sessionId]) {
+        const terminal = terminalInstances.current[sessionId];
+
+        // Optimized write (same as SSH)
+        if (data.length > 8192) {
+          const chunkSize = 4096;
+          let offset = 0;
+          const writeChunk = () => {
+            if (offset < data.length) {
+              terminal.write(data.slice(offset, offset + chunkSize));
+              offset += chunkSize;
+              requestAnimationFrame(writeChunk);
+            }
+          };
+          writeChunk();
+        } else {
+          terminal.write(data);
+        }
+
+        // Log asynchronously
+        if (sessionLogs.current[sessionId]?.isLogging) {
+          startTransition(() => {
+            appendToLogRef.current(sessionId, data);
+          });
+        }
+      }
+    };
+
+    const handleLocalClose = (event, { connectionId, exitCode }) => {
+      const sessionId = connectionIdMapRef.current.get(connectionId) || connectionId;
+
+      if (sessionId && terminalInstances.current[sessionId]) {
+        terminalInstances.current[sessionId].write(`\r\n\x1b[90mLocal terminal closed (code ${exitCode}).\x1b[0m\r\n`);
+        terminalInstances.current[sessionId].write('\x1b[90mPress \x1b[0m\x1b[37m┌─F5─┐\x1b[0m\x1b[90m to restart.\x1b[0m\r\n');
+      }
+
+      // Cleanup map
+      connectionIdMapRef.current.delete(connectionId);
+      updateConnectionIdMap();
+    };
+
+    window.electronAPI.onLocalData(handleLocalData);
+    window.electronAPI.onLocalClose(handleLocalClose);
+
+    return () => {
+      window.electronAPI.offLocalData(handleLocalData);
+      window.electronAPI.offLocalClose(handleLocalClose);
+    };
+  }, [updateConnectionIdMap]); // Dependencies must be stable to prevent leaks
 
   // Handle Serial data events - register only once
   useEffect(() => {

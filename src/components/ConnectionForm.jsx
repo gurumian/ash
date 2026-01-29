@@ -108,7 +108,7 @@ export const ConnectionForm = memo(function ConnectionForm({
     <div className="modal-overlay">
       <div className="connection-modal">
         <div className="modal-header">
-          <h3>{connectionForm.sessionName || connectionForm.host || connectionForm.serialPort ? t('connection:editSession') : t('connection:newSession')}</h3>
+          <h3>{connectionForm.sessionName || connectionForm.host || connectionForm.serialPort || (connectionForm.connectionType === 'local' && 'Local Terminal') ? t('connection:editSession') : t('connection:newSession')}</h3>
           <button
             className="modal-close"
             onClick={onClose}
@@ -135,6 +135,13 @@ export const ConnectionForm = memo(function ConnectionForm({
               >
                 Serial
               </button>
+              <button
+                type="button"
+                className={`type-btn ${connectionForm.connectionType === 'local' ? 'active' : ''}`}
+                onClick={() => onConnectionTypeChange('local')}
+              >
+                Local
+              </button>
             </div>
           </div>
 
@@ -160,7 +167,7 @@ export const ConnectionForm = memo(function ConnectionForm({
               name="sessionName"
               value={connectionForm.sessionName}
               onChange={onInputChange}
-              placeholder={connectionForm.connectionType === 'ssh' ? t('connection:sessionNamePlaceholderSSH') : t('connection:sessionNamePlaceholderSerial')}
+              placeholder={connectionForm.connectionType === 'ssh' ? t('connection:sessionNamePlaceholderSSH') : connectionForm.connectionType === 'local' ? 'Local Terminal' : t('connection:sessionNamePlaceholderSerial')}
             />
           </div>
 

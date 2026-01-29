@@ -5,7 +5,8 @@
   "description": "A modern SSH and Serial terminal client",
   "main": ".vite/build/main.js",
   "scripts": {
-    "start": "electron-forge start",
+    "start": "electron-forge start -- --no-sandbox",
+    "start:no-sandbox": "electron-forge start -- --no-sandbox",
     "package": "electron-forge package",
     "make": "npm run build-backend && electron-forge make",
     "publish": "electron-forge publish",
@@ -48,6 +49,7 @@
     "i18next": "^25.7.1",
     "i18next-browser-languagedetector": "^8.2.0",
     "netcat": "^1.5.0",
+    "node-pty": "^1.1.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-i18next": "^16.3.5",
