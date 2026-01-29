@@ -31,14 +31,29 @@ export function initializeLocalHandlers() {
         const sessionConnectionId = connectionId;
 
         try {
-            const shell = os.platform() === 'win32' ? 'powershell.exe' : (process.env.SHELL || 'bash');
+            // Determine shell
+            let shell = process.env.SHELL;
+            if (!shell) {
+                shell = os.platform() === 'win32' ? 'powershell.exe' : '/bin/bash';
+            }
+
+            // Determine CWD
+            const cwd = process.env.HOME || os.homedir() || '/';
+
+            console.log(`[LocalPTY] Spawning shell: '${shell}'`);
+            console.log(`[LocalPTY] CWD: '${cwd}'`);
+
+            // Validate shell (simple check for POSIX)
+            if (os.platform() !== 'win32' && !shell.startsWith('/') && shell !== 'bash') {
+                console.warn(`[LocalPTY] Warning: Shell path '${shell}' is not absolute. This might fail if not in PATH.`);
+            }
 
             const ptyProcess = pty.spawn(shell, [], {
                 name: 'xterm-256color',
                 cols: cols,
                 rows: rows,
-                cwd: process.env.HOME,
-                env: process.env
+                cwd: cwd,
+                env: process.env // Pass full environment
             });
 
             const webContents = event.sender;
