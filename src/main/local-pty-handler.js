@@ -75,12 +75,54 @@ export function initializeLocalHandlers() {
                 console.warn(`[LocalPTY] Warning: Shell path '${shell}' is not absolute. This might fail if not in PATH.`);
             }
 
+            // Prepare environment variables - filter out Electron/VSCode specifics that might confuse zsh
+            const ptyEnv = { ...process.env };
+
+            // Remove Electron specific variables
+            Object.keys(ptyEnv).forEach(key => {
+                if (key.startsWith('ELECTRON_') || key.startsWith('npm_') || key === 'TERM_PROGRAM') {
+                    delete ptyEnv[key];
+                }
+            });
+
+            // Set standard terminal variables
+            ptyEnv.TERM = 'xterm-256color';
+            ptyEnv.COLORTERM = 'truecolor';
+            ptyEnv.LANG = process.env.LANG || 'en_US.UTF-8';
+            ptyEnv.LC_CTYPE = process.env.LC_CTYPE || 'UTF-8';
+
+            // Ensure HOME is correct
+            ptyEnv.HOME = cwd;
+            // Set a custom TERM_PROGRAM so we can identify our shell if needed, 
+            // but keeps it distinct from 'Apple_Terminal' or 'vscode'
+            ptyEnv.TERM_PROGRAM = 'ash';
+
+            // Sanitize dimensions
+            // Force a meaningful minimum size (80x24) for the initial spawn.
+            // Spawning a shell in a tiny window (e.g. 31x32 from an unhydrated frontend) 
+            // can cause zsh/readline to glitch or disable features permanently.
+            // The frontend will send a proper 'resize' event shortly after with the true size.
+            let safeCols = parseInt(cols) || 80;
+            let safeRows = parseInt(rows) || 24;
+
+            if (safeCols < 80) {
+                console.log(`[LocalPTY] Override initial cols ${safeCols} -> 80 to prevent shell glitches`);
+                safeCols = 80;
+            }
+            if (safeRows < 24) {
+                console.log(`[LocalPTY] Override initial rows ${safeRows} -> 24 to prevent shell glitches`);
+                safeRows = 24;
+            }
+
+            console.log(`[LocalPTY] Spawning with cols=${safeCols}, rows=${safeRows}`);
+
             const ptyProcess = pty.spawn(shell, [], {
                 name: 'xterm-256color',
-                cols: cols,
-                rows: rows,
+                cols: safeCols,
+                rows: safeRows,
                 cwd: cwd,
-                env: process.env // Pass full environment
+                env: ptyEnv,
+                handleFlowControl: true // Handle flow control automatically
             });
 
             const webContents = event.sender;
@@ -136,7 +178,13 @@ export function initializeLocalHandlers() {
         const session = localPtySessions.get(connectionId);
         if (session && session.process) {
             try {
-                session.process.resize(cols, rows);
+                // Validate dimensions
+                const safeCols = Math.max(1, parseInt(cols) || 80);
+                const safeRows = Math.max(1, parseInt(rows) || 24);
+
+                console.log(`[LocalPTY] Resizing session ${connectionId} to ${safeCols}x${safeRows} (requested: ${cols}x${rows})`);
+
+                session.process.resize(safeCols, safeRows);
                 return { success: true };
             } catch (error) {
                 console.error('[LocalPTY] Resize error:', error);
