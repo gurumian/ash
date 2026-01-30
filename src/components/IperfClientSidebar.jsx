@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import './IperfClientSidebar.css';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { parseIperfOutput } from '../utils/iperfParser';
 
 export function IperfClientSidebar({ isVisible, width, onClose, activeSession, output = '', onClearOutput, onStartTest, showHeader = true }) {
   const { t } = useTranslation(['client', 'common']);
@@ -16,6 +18,14 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
   const [configExpanded, setConfigExpanded] = useState(true);
   const outputRef = useRef(null);
   const sidebarRef = useRef(null);
+  const [showGraph, setShowGraph] = useState(true);
+
+  // Parse output for graph
+  const graphData = React.useMemo(() => {
+    return parseIperfOutput(output);
+  }, [output]);
+
+  // Load current status when sidebar becomes visible
 
   // Load current status when sidebar becomes visible
   useEffect(() => {
@@ -346,7 +356,26 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
         {(status.running || output) && (
           <div className="iperf-client-output-section">
             <div className="iperf-client-output-header">
-              <span className="iperf-client-output-title">{t('client:iperf.output')}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span className="iperf-client-output-title">{t('client:iperf.output')}</span>
+                {graphData.length > 0 && (
+                  <button
+                    onClick={() => setShowGraph(!showGraph)}
+                    style={{
+                      background: 'none',
+                      cursor: 'pointer',
+                      color: showGraph ? 'var(--theme-accent, #00ff41)' : '#888',
+                      fontSize: '12px',
+                      padding: '2px 6px',
+                      border: '1px solid var(--theme-border, #2a2a2a)',
+                      borderRadius: '4px'
+                    }}
+                    title={showGraph ? "Hide Graph" : "Show Graph"}
+                  >
+                    {showGraph ? "Graph On" : "Graph Off"}
+                  </button>
+                )}
+              </div>
               <button
                 className="iperf-client-clear-btn"
                 onClick={handleClear}
@@ -355,6 +384,58 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
                 {t('client:iperf.clear')}
               </button>
             </div>
+
+            {/* Graph Visualization */}
+            {showGraph && graphData.length > 0 && (
+              <div style={{ height: '150px', marginBottom: '12px', width: '100%' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={graphData}>
+                    <defs>
+                      <linearGradient id="colorBw" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="var(--theme-accent, #00ff41)" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="var(--theme-accent, #00ff41)" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
+                    <XAxis
+                      dataKey="time"
+                      stroke="#666"
+                      fontSize={10}
+                      tickFormatter={(val) => `${val}s`}
+                      minTickGap={30}
+                    />
+                    <YAxis
+                      stroke="#666"
+                      fontSize={10}
+                      tickFormatter={(val) => val >= 1000 ? `${val / 1000} G` : `${val} M`}
+                      width={40}
+                      domain={[0, 5000]}
+                      allowDataOverflow={true}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'var(--theme-surface, #1a1a1a)',
+                        borderColor: 'var(--theme-border, #2a2a2a)',
+                        color: 'var(--theme-text, #00ff41)'
+                      }}
+                      itemStyle={{ color: 'var(--theme-text, #00ff41)' }}
+                      labelStyle={{ color: '#888' }}
+                      formatter={(value) => [`${value.toFixed(2)} Mbps`, 'Bandwidth']}
+                      labelFormatter={(label) => `Time: ${label}s`}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="bandwidth"
+                      stroke="var(--theme-accent, #00ff41)"
+                      fillOpacity={1}
+                      fill="url(#colorBw)"
+                      isAnimationActive={false}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+
             <div
               ref={outputRef}
               className="iperf-client-output"
