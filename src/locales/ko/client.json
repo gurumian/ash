@@ -19,7 +19,7 @@
     "waitingForOutput": "출력 대기 중...",
     "config": "설정",
     "graphRealtime": "실시간",
-    "graphHistory": "이력 (30분 평균)",
+    "graphHistory": "이력 (avg/30m)",
     "graphHistoryTooltip": "30분 구간별 평균 대역폭. 30분마다 한 점씩 기록되며, 시간이 지나며 쌓입니다.",
     "graphHistoryEmpty": "30분마다 한 점씩 기록됩니다. iperf3 클라이언트를 더 오래 실행하면 이력이 표시됩니다."
   }
