@@ -6,6 +6,7 @@ import { SSHConnection } from './connections/SSHConnection';
 import { SerialConnection } from './connections/SerialConnection';
 import { useTheme } from './hooks/useTheme';
 import { useConnectionHistory } from './hooks/useConnectionHistory';
+import { parseIperfLine } from './utils/iperfParser';
 import { useLogging } from './hooks/useLogging';
 import { useStopwatch } from './hooks/useStopwatch';
 import { useGroups } from './hooks/useGroups';
@@ -187,6 +188,13 @@ function App() {
   const [iperfStatus, setIperfStatus] = useState({ running: false, port: null });
   const [iperfClientStatus, setIperfClientStatus] = useState({ running: false });
   const [iperfClientOutput, setIperfClientOutput] = useState(''); // Persistent output data
+  const [iperfLongTermData, setIperfLongTermData] = useState([]);
+
+  // Aggregation state refs
+  const aggregationBuffer = useRef([]); // Stores bandwidth values for current interval
+  const lineBufferForAggregation = useRef(''); // Buffer for partial lines
+  const lastAggregationTime = useRef(Date.now());
+
   const [showIperfServerDialog, setShowIperfServerDialog] = useState(false);
   // Iperf Client Sidebar is now session state, but we need compatibility for menu handlers
   // Iperf Client Sidebar is now session state, but we need compatibility for menu handlers
@@ -379,6 +387,34 @@ function App() {
         };
 
         setIperfClientOutput(prev => truncate(prev, data.output));
+
+        // --- Aggregation Logic ---
+        lineBufferForAggregation.current += data.output;
+        if (lineBufferForAggregation.current.includes('\n')) {
+          const lines = lineBufferForAggregation.current.split('\n');
+          lineBufferForAggregation.current = lines.pop();
+          lines.forEach(line => {
+            const parsed = parseIperfLine(line);
+            if (parsed) aggregationBuffer.current.push(parsed.bandwidth);
+          });
+        }
+        const AGGREGATION_INTERVAL = 1800000; // 30 minutes for aggregation
+        const now = Date.now();
+        if (now - lastAggregationTime.current >= AGGREGATION_INTERVAL) {
+          if (aggregationBuffer.current.length > 0) {
+            const sum = aggregationBuffer.current.reduce((a, b) => a + b, 0);
+            const avg = sum / aggregationBuffer.current.length;
+            const min = Math.min(...aggregationBuffer.current);
+            const max = Math.max(...aggregationBuffer.current);
+            setIperfLongTermData(prev => {
+              const newData = [...prev, { time: now, bandwidth: avg, min, max }];
+              return newData.slice(-500);
+            });
+            aggregationBuffer.current = [];
+          }
+          lastAggregationTime.current = now;
+        }
+        // -------------------------
 
         // Also update active session's output
         if (activeSessionId) {
@@ -1557,6 +1593,7 @@ function App() {
           onStartStopwatch={startStopwatch}
           onStopStopwatch={stopStopwatch}
           onResetStopwatch={resetStopwatch}
+          iperfLongTermData={iperfLongTermData}
         />
 
         {/* Global Sidebar Container for Portals */}

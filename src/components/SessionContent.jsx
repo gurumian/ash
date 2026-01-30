@@ -20,7 +20,8 @@ export const SessionContent = ({
     handleAskUserResponse,
     resizeTerminal,
     activeSessionId, // needed for useAICommand
-    // handlers for resize
+    resizeTerminal, // Function to resize terminal, needed by SessionContent
+    iperfLongTermData
 }) => {
     const {
         id: sessionId,
@@ -248,6 +249,7 @@ export const SessionContent = ({
                                 onUpdateSession(sessionId, updates);
                             }}
                             showHeader={!aiSidebarVisible && !netcatSidebarVisible}
+                            longTermData={iperfLongTermData}
                         />
 
                         <NetcatSidebar

@@ -107,7 +107,8 @@ export const TerminalView = memo(function TerminalView({
   onRespondToRequest,
   llmSettings,
   sshConnections,
-  resizeTerminal // Function to resize terminal, needed by SessionContent
+  resizeTerminal, // Function to resize terminal, needed by SessionContent
+  iperfLongTermData
 }) {
   const { t } = useTranslation('common');
   // Track previous value for change detection (debug only)
@@ -378,6 +379,7 @@ export const TerminalView = memo(function TerminalView({
                   handleAskUserResponse={onRespondToRequest}
                   activeSessionId={session.id} // Pass own IDs
                   resizeTerminal={() => resizeTerminal && resizeTerminal()}
+                  iperfLongTermData={iperfLongTermData}
                 />
               </div>
             ))}
