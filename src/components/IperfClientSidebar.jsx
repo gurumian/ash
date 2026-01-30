@@ -21,7 +21,7 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
   useEffect(() => {
     if (isVisible) {
       loadStatus();
-      
+
       // Auto-fill host from active SSH session if available
       if (activeSession && activeSession.connectionType === 'ssh' && activeSession.isConnected && activeSession.host) {
         setHost(activeSession.host);
@@ -87,14 +87,14 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
 
   const handleStart = async () => {
     if (loading || !host || !port) return;
-    
+
     setLoading(true);
     setError(null);
     // Clear output via parent callback when starting a new test
     if (onStartTest) {
       onStartTest();
     }
-    
+
     try {
       const result = await window.electronAPI?.iperfClientStart?.({
         host,
@@ -118,10 +118,10 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
 
   const handleStop = async () => {
     if (loading) return;
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       const result = await window.electronAPI?.iperfClientStop?.();
       if (result?.success) {
@@ -160,48 +160,29 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
     >
       {/* Header */}
       {showHeader && (
-      <div
-        style={{
-          padding: '12px 16px',
-          borderBottom: '1px solid var(--theme-border, #1a1a1a)',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          background: 'var(--theme-bg, #000000)',
-          flexShrink: 0
-        }}
-      >
-        <h3 style={{ margin: 0, fontSize: '13px', fontWeight: '600', color: 'var(--theme-text, #00ff41)' }}>
-          {t('client:iperf.title')}
-        </h3>
-        {onClose && (
-        <button
-          onClick={onClose}
+        <div
           style={{
-            background: 'none',
-            border: 'none',
-            color: 'var(--theme-text, #00ff41)',
-            cursor: 'pointer',
-            padding: '4px 8px',
-            borderRadius: '4px',
-            fontSize: '18px',
-            lineHeight: '1',
-            opacity: 0.7,
-            transition: 'all 0.2s'
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.opacity = '1';
-            e.target.style.background = 'rgba(0, 255, 65, 0.1)';
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.opacity = '0.7';
-            e.target.style.background = 'none';
+            padding: '12px 16px',
+            borderBottom: '1px solid var(--theme-border, #1a1a1a)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            background: 'var(--theme-bg, #000000)',
+            flexShrink: 0
           }}
         >
-          ×
-        </button>
-        )}
-      </div>
+          <h3 style={{ margin: 0, fontSize: '13px', fontWeight: '600', color: 'var(--theme-text, #00ff41)' }}>
+            {t('client:iperf.title')}
+          </h3>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="iperf-client-close-btn"
+            >
+              ×
+            </button>
+          )}
+        </div>
       )}
 
       {/* Content */}
@@ -217,12 +198,12 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
       >
         {/* Status Section */}
         <div className="iperf-client-status-section">
-          <div 
+          <div
             className={`iperf-client-status-card ${status.running ? 'running' : 'stopped'} ${loading ? 'loading' : ''}`}
           >
             <div className="iperf-client-status-item">
               <span className="iperf-client-status-label">{t('client:iperf.status')}</span>
-              <div 
+              <div
                 className="iperf-client-status-control"
                 onClick={status.running ? handleStop : handleStart}
                 style={{ cursor: loading ? 'not-allowed' : 'pointer' }}
@@ -242,7 +223,7 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
 
         {/* Config Section - Collapsible */}
         <div className="iperf-client-config-section">
-          <div 
+          <div
             className="iperf-client-config-header"
             onClick={() => setConfigExpanded(!configExpanded)}
             style={{
@@ -255,8 +236,8 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
               borderBottom: configExpanded ? '1px solid var(--theme-border, #1a1a1a)' : 'none'
             }}
           >
-            <span style={{ 
-              color: 'var(--theme-text, #00ff41)', 
+            <span style={{
+              color: 'var(--theme-text, #00ff41)',
               fontSize: '10px',
               transform: configExpanded ? 'rotate(0deg)' : 'rotate(-90deg)',
               transition: 'transform 0.2s',
@@ -265,100 +246,99 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
             }}>
               ▶
             </span>
-            <span style={{ 
-              fontWeight: 600, 
-              color: 'var(--theme-text, #00ff41)', 
-              fontSize: '13px' 
+            <span style={{
+              fontWeight: 600,
+              color: 'var(--theme-text, #00ff41)',
+              fontSize: '13px'
             }}>
               {t('client:iperf.config')}
             </span>
           </div>
           {configExpanded && (
-          <div className="iperf-client-config-content">
-            <div className="iperf-client-config-item">
-              <label htmlFor="iperf-client-host">{t('client:iperf.host')}:</label>
-              <input
-                id="iperf-client-host"
-                type="text"
-                value={host}
-                onChange={(e) => setHost(e.target.value)}
-                placeholder="localhost"
-                disabled={loading}
-              />
-            </div>
-            <div className="iperf-client-config-item">
-              <label htmlFor="iperf-client-port">{t('client:iperf.port')}:</label>
-              <input
-                id="iperf-client-port"
-                type="number"
-                value={port}
-                onChange={(e) => setPort(parseInt(e.target.value) || 5201)}
-                placeholder="5201"
-                min="1"
-                max="65535"
-                disabled={loading}
-              />
-            </div>
-            <div className="iperf-client-config-item">
-              <label htmlFor="iperf-client-protocol">{t('client:iperf.protocol')}:</label>
-              <div className="iperf-client-protocol-toggle" id="iperf-client-protocol">
-                <button
-                  type="button"
-                  className={`iperf-client-protocol-btn ${protocol === 'tcp' ? 'active' : ''}`}
-                  onClick={() => setProtocol('tcp')}
+            <div className="iperf-client-config-content">
+              <div className="iperf-client-config-item">
+                <label htmlFor="iperf-client-host">{t('client:iperf.host')}:</label>
+                <input
+                  id="iperf-client-host"
+                  type="text"
+                  value={host}
+                  onChange={(e) => setHost(e.target.value)}
+                  placeholder="localhost"
                   disabled={loading}
-                >
-                  TCP
-                </button>
-                <button
-                  type="button"
-                  className={`iperf-client-protocol-btn ${protocol === 'udp' ? 'active' : ''}`}
-                  onClick={() => setProtocol('udp')}
+                />
+              </div>
+              <div className="iperf-client-config-item">
+                <label htmlFor="iperf-client-port">{t('client:iperf.port')}:</label>
+                <input
+                  id="iperf-client-port"
+                  type="number"
+                  value={port}
+                  onChange={(e) => setPort(parseInt(e.target.value) || 5201)}
+                  placeholder="5201"
+                  min="1"
+                  max="65535"
                   disabled={loading}
-                >
-                  UDP
-                </button>
+                />
+              </div>
+              <div className="iperf-client-config-item">
+                <label htmlFor="iperf-client-protocol">{t('client:iperf.protocol')}:</label>
+                <div className="iperf-client-protocol-toggle" id="iperf-client-protocol">
+                  <button
+                    type="button"
+                    className={`iperf-client-protocol-btn ${protocol === 'tcp' ? 'active' : ''}`}
+                    onClick={() => setProtocol('tcp')}
+                    disabled={loading}
+                  >
+                    TCP
+                  </button>
+                  <button
+                    type="button"
+                    className={`iperf-client-protocol-btn ${protocol === 'udp' ? 'active' : ''}`}
+                    onClick={() => setProtocol('udp')}
+                    disabled={loading}
+                  >
+                    UDP
+                  </button>
+                </div>
+              </div>
+              <div className="iperf-client-config-item">
+                <label htmlFor="iperf-client-streams">{t('client:iperf.parallelStreams')}:</label>
+                <input
+                  id="iperf-client-streams"
+                  type="number"
+                  value={streams}
+                  onChange={(e) => setStreams(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                  placeholder="1"
+                  min="1"
+                  max="64"
+                  disabled={loading}
+                />
+              </div>
+              <div className="iperf-client-config-item">
+                <label htmlFor="iperf-client-bandwidth">{t('client:iperf.bandwidthLabel')}:</label>
+                <input
+                  id="iperf-client-bandwidth"
+                  type="text"
+                  value={bandwidth}
+                  onChange={(e) => setBandwidth(e.target.value)}
+                  placeholder={t('client:iperf.bandwidthPlaceholder')}
+                  disabled={loading || protocol !== 'udp'}
+                />
+              </div>
+              <div className="iperf-client-config-item">
+                <label htmlFor="iperf-client-duration">{t('client:iperf.duration')}:</label>
+                <input
+                  id="iperf-client-duration"
+                  type="number"
+                  value={duration}
+                  onChange={(e) => setDuration(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                  placeholder="10"
+                  min="0"
+                  disabled={loading}
+                />
+                <span className="iperf-client-config-hint">{t('client:iperf.durationHint')} (0 = infinite)</span>
               </div>
             </div>
-            <div className="iperf-client-config-item">
-              <label htmlFor="iperf-client-streams">{t('client:iperf.parallelStreams')}:</label>
-              <input
-                id="iperf-client-streams"
-                type="number"
-                value={streams}
-                onChange={(e) => setStreams(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                placeholder="1"
-                min="1"
-                max="64"
-                disabled={loading}
-              />
-            </div>
-            <div className="iperf-client-config-item">
-              <label htmlFor="iperf-client-bandwidth">{t('client:iperf.bandwidthLabel')}:</label>
-              <input
-                id="iperf-client-bandwidth"
-                type="text"
-                value={bandwidth}
-                onChange={(e) => setBandwidth(e.target.value)}
-                placeholder={t('client:iperf.bandwidthPlaceholder')}
-                disabled={loading || protocol !== 'udp'}
-              />
-            </div>
-            <div className="iperf-client-config-item">
-              <label htmlFor="iperf-client-duration">{t('client:iperf.duration')}:</label>
-              <input
-                id="iperf-client-duration"
-                type="number"
-                value={duration}
-                onChange={(e) => setDuration(Math.max(1, parseInt(e.target.value, 10) || 10))}
-                placeholder="10"
-                min="1"
-                max="3600"
-                disabled={loading}
-              />
-              <span className="iperf-client-config-hint">{t('client:iperf.durationHint')}</span>
-            </div>
-          </div>
           )}
         </div>
 
@@ -367,7 +347,7 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
           <div className="iperf-client-output-section">
             <div className="iperf-client-output-header">
               <span className="iperf-client-output-title">{t('client:iperf.output')}</span>
-              <button 
+              <button
                 className="iperf-client-clear-btn"
                 onClick={handleClear}
                 disabled={loading}
@@ -375,7 +355,7 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
                 {t('client:iperf.clear')}
               </button>
             </div>
-            <div 
+            <div
               ref={outputRef}
               className="iperf-client-output"
             >

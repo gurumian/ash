@@ -367,12 +367,24 @@ function App() {
     // Listen for client output events - always capture even if sidebar is closed
     const handleClientOutput = (data) => {
       if (data && data.output) {
-        setIperfClientOutput(prev => prev + data.output);
+        const MAX_OUTPUT_LENGTH = 100000; // Limit buffer to ~100KB
+
+        // Helper to truncate output from the start (keeping newest)
+        const truncate = (current, newText) => {
+          const combined = (current || '') + newText;
+          if (combined.length > MAX_OUTPUT_LENGTH) {
+            return combined.slice(combined.length - MAX_OUTPUT_LENGTH);
+          }
+          return combined;
+        };
+
+        setIperfClientOutput(prev => truncate(prev, data.output));
+
         // Also update active session's output
         if (activeSessionId) {
           setSessions(prev => prev.map(s => {
             if (s.id === activeSessionId) {
-              return { ...s, iperfClientOutput: (s.iperfClientOutput || '') + data.output };
+              return { ...s, iperfClientOutput: truncate(s.iperfClientOutput, data.output) };
             }
             return s;
           }));
