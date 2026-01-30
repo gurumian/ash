@@ -16,6 +16,8 @@ export function IperfClientDialog({ isOpen, onClose, activeSession }) {
   const [output, setOutput] = useState('');
   const outputRef = useRef(null);
 
+  const sessionId = activeSession?.id;
+
   // Load current status when dialog opens
   useEffect(() => {
     if (isOpen) {
@@ -40,24 +42,27 @@ export function IperfClientDialog({ isOpen, onClose, activeSession }) {
     }
   }, [output]);
 
-  // Listen for client events - register once on mount to capture output in real-time
-  // even if dialog is closed temporarily
+  // Listen for client events - filter by sessionId
   useEffect(() => {
     const handleError = (data) => {
+      // Only handle errors for this session
+      if (data?.sessionId && data.sessionId !== sessionId) return;
       if (!isOpen) return; // Only show errors when dialog is open
       setError(data.detail || data.message || 'iperf3 client error');
       setLoading(false);
     };
 
     const handleOutput = (data) => {
-      // Always update output state in real-time - this ensures output is captured
-      // even if dialog was closed during execution
+      // Only handle output for this session
+      if (data?.sessionId && data.sessionId !== sessionId) return;
       if (data && data.output) {
         setOutput(prev => prev + data.output);
       }
     };
 
     const handleStopped = (data) => {
+      // Only handle stopped events for this session
+      if (data?.sessionId && data.sessionId !== sessionId) return;
       setStatus({ running: false });
       setLoading(false);
       if (data && data.output) {
@@ -65,22 +70,22 @@ export function IperfClientDialog({ isOpen, onClose, activeSession }) {
       }
     };
 
-    // Register listeners once when component mounts
+    // Register listeners
     const errorHandler = window.electronAPI?.onIperfClientError?.(handleError);
     const outputHandler = window.electronAPI?.onIperfClientOutput?.(handleOutput);
     const stoppedHandler = window.electronAPI?.onIperfClientStopped?.(handleStopped);
 
     return () => {
-      // Cleanup only when component unmounts
       if (errorHandler) window.electronAPI?.offIperfClientError?.(handleError);
       if (outputHandler) window.electronAPI?.offIperfClientOutput?.(handleOutput);
       if (stoppedHandler) window.electronAPI?.offIperfClientStopped?.(handleStopped);
     };
-  }, []); // Register once on mount - don't re-register when isOpen changes
+  }, [isOpen, sessionId]);
 
   const loadStatus = async () => {
+    if (!sessionId) return;
     try {
-      const result = await window.electronAPI?.iperfClientStatus?.();
+      const result = await window.electronAPI?.iperfClientStatus?.({ sessionId });
       if (result) {
         setStatus(result);
         if (result.running) {
@@ -93,7 +98,7 @@ export function IperfClientDialog({ isOpen, onClose, activeSession }) {
   };
 
   const handleStart = async () => {
-    if (loading || !host || !port) return;
+    if (loading || !host || !port || !sessionId) return;
     
     setLoading(true);
     setError(null);
@@ -101,6 +106,7 @@ export function IperfClientDialog({ isOpen, onClose, activeSession }) {
     
     try {
       const result = await window.electronAPI?.iperfClientStart?.({
+        sessionId,
         host,
         port,
         protocol,
@@ -121,13 +127,13 @@ export function IperfClientDialog({ isOpen, onClose, activeSession }) {
   };
 
   const handleStop = async () => {
-    if (loading) return;
+    if (loading || !sessionId) return;
     
     setLoading(true);
     setError(null);
     
     try {
-      const result = await window.electronAPI?.iperfClientStop?.();
+      const result = await window.electronAPI?.iperfClientStop?.({ sessionId });
       if (result?.success) {
         await loadStatus();
       } else {

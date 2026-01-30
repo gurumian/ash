@@ -331,11 +331,12 @@ function App() {
     return () => clearInterval(interval);
   }, []);
 
-  // Load iperf3 client status on mount and periodically check
+  // Load iperf3 client status for active session on mount and periodically check
   useEffect(() => {
     const loadIperfClientStatus = async () => {
+      if (!activeSessionId) return;
       try {
-        const status = await window.electronAPI?.iperfClientStatus?.();
+        const status = await window.electronAPI?.iperfClientStatus?.({ sessionId: activeSessionId });
         if (status) {
           setIperfClientStatus(status);
         }
@@ -351,44 +352,77 @@ function App() {
     const interval = setInterval(loadIperfClientStatus, 10000);
 
     // Listen for client start/stop events to update status immediately
-    const handleClientStarted = () => {
-      loadIperfClientStatus();
+    // Events now include sessionId, so we update only the relevant session
+    const handleClientStarted = (data) => {
+      const eventSessionId = data?.sessionId;
+      if (eventSessionId) {
+        // Update session's iperf client running state
+        setSessions(prev => prev.map(s => {
+          if (s.id === eventSessionId) {
+            return { ...s, iperfClientRunning: true };
+          }
+          return s;
+        }));
+      }
+      // Also reload global status if it's for the active session
+      if (eventSessionId === activeSessionId) {
+        loadIperfClientStatus();
+      }
     };
 
     const handleClientStopped = (data) => {
-      loadIperfClientStatus();
-      // Append final output if available
-      if (data && data.output) {
-        setIperfClientOutput(prev => prev + data.output);
-        // Also update active session's output
-        if (activeSessionId) {
-          setSessions(prev => prev.map(s => {
-            if (s.id === activeSessionId) {
-              return { ...s, iperfClientOutput: (s.iperfClientOutput || '') + data.output };
+      const eventSessionId = data?.sessionId;
+      if (eventSessionId) {
+        // Update session's iperf client running state and append final output
+        setSessions(prev => prev.map(s => {
+          if (s.id === eventSessionId) {
+            const updates = { iperfClientRunning: false };
+            if (data.output) {
+              updates.iperfClientOutput = (s.iperfClientOutput || '') + data.output;
             }
-            return s;
-          }));
+            return { ...s, ...updates };
+          }
+          return s;
+        }));
+      }
+      // Also reload global status if it's for the active session
+      if (eventSessionId === activeSessionId) {
+        loadIperfClientStatus();
+        if (data?.output) {
+          setIperfClientOutput(prev => prev + data.output);
         }
       }
     };
 
-    // Listen for client output events - always capture even if sidebar is closed
+    // Listen for client output events - update only the session that owns the output
     const handleClientOutput = (data) => {
-      if (data && data.output) {
-        const MAX_OUTPUT_LENGTH = 100000; // Limit buffer to ~100KB
+      const eventSessionId = data?.sessionId;
+      if (!eventSessionId || !data?.output) return;
 
-        // Helper to truncate output from the start (keeping newest)
-        const truncate = (current, newText) => {
-          const combined = (current || '') + newText;
-          if (combined.length > MAX_OUTPUT_LENGTH) {
-            return combined.slice(combined.length - MAX_OUTPUT_LENGTH);
-          }
-          return combined;
-        };
+      const MAX_OUTPUT_LENGTH = 100000; // Limit buffer to ~100KB
 
+      // Helper to truncate output from the start (keeping newest)
+      const truncate = (current, newText) => {
+        const combined = (current || '') + newText;
+        if (combined.length > MAX_OUTPUT_LENGTH) {
+          return combined.slice(combined.length - MAX_OUTPUT_LENGTH);
+        }
+        return combined;
+      };
+
+      // Update the specific session's output
+      setSessions(prev => prev.map(s => {
+        if (s.id === eventSessionId) {
+          return { ...s, iperfClientOutput: truncate(s.iperfClientOutput, data.output) };
+        }
+        return s;
+      }));
+
+      // If this is for the active session, also update global state for display
+      if (eventSessionId === activeSessionId) {
         setIperfClientOutput(prev => truncate(prev, data.output));
 
-        // --- Aggregation Logic ---
+        // --- Aggregation Logic (global, for History graph) ---
         lineBufferForAggregation.current += data.output;
         if (lineBufferForAggregation.current.includes('\n')) {
           const lines = lineBufferForAggregation.current.split('\n');
@@ -415,16 +449,6 @@ function App() {
           lastAggregationTime.current = now;
         }
         // -------------------------
-
-        // Also update active session's output
-        if (activeSessionId) {
-          setSessions(prev => prev.map(s => {
-            if (s.id === activeSessionId) {
-              return { ...s, iperfClientOutput: truncate(s.iperfClientOutput, data.output) };
-            }
-            return s;
-          }));
-        }
       }
     };
 

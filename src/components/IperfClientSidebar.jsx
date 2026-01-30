@@ -62,15 +62,21 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
     }
   }, [output]);
 
-  // Listen for client events - only for errors and status updates
+  const sessionId = activeSession?.id;
+
+  // Listen for client events - only for errors and status updates for this session
   useEffect(() => {
     const handleError = (data) => {
+      // Only handle errors for this session
+      if (data?.sessionId && data.sessionId !== sessionId) return;
       if (!isVisible) return; // Only show errors when sidebar is visible
       setError(data.detail || data.message || 'iperf3 client error');
       setLoading(false);
     };
 
     const handleStopped = (data) => {
+      // Only handle stopped events for this session
+      if (data?.sessionId && data.sessionId !== sessionId) return;
       setStatus({ running: false });
       setLoading(false);
       // Output is now managed in App.jsx, no need to handle it here
@@ -85,11 +91,12 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
       if (errorHandler) window.electronAPI?.offIperfClientError?.(handleError);
       if (stoppedHandler) window.electronAPI?.offIperfClientStopped?.(handleStopped);
     };
-  }, [isVisible]); // Re-register if visibility changes
+  }, [isVisible, sessionId]); // Re-register if visibility or sessionId changes
 
   const loadStatus = async () => {
+    if (!sessionId) return;
     try {
-      const result = await window.electronAPI?.iperfClientStatus?.();
+      const result = await window.electronAPI?.iperfClientStatus?.({ sessionId });
       if (result) {
         setStatus(result);
         if (result.running) {
@@ -111,8 +118,15 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
       onStartTest();
     }
 
+    if (!sessionId) {
+      setError('No active session');
+      setLoading(false);
+      return;
+    }
+
     try {
       const result = await window.electronAPI?.iperfClientStart?.({
+        sessionId,
         host,
         port,
         protocol,
@@ -133,13 +147,13 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
   };
 
   const handleStop = async () => {
-    if (loading) return;
+    if (loading || !sessionId) return;
 
     setLoading(true);
     setError(null);
 
     try {
-      const result = await window.electronAPI?.iperfClientStop?.();
+      const result = await window.electronAPI?.iperfClientStop?.({ sessionId });
       if (result?.success) {
         await loadStatus();
       } else {

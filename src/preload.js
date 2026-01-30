@@ -232,10 +232,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onIperfServerStopped: (callback) => ipcRenderer.on('iperf-server-stopped', (event, data) => callback(data)),
   offIperfServerStopped: (callback) => ipcRenderer.off('iperf-server-stopped', callback),
 
-  // iperf3 Client APIs
-  iperfClientStatus: () => ipcRenderer.invoke('iperf-client-status'),
+  // iperf3 Client APIs (sessionId-based: each session can have its own iperf3 client)
+  iperfClientStatus: (params) => ipcRenderer.invoke('iperf-client-status', params),
   iperfClientStart: (params) => ipcRenderer.invoke('iperf-client-start', params),
-  iperfClientStop: () => ipcRenderer.invoke('iperf-client-stop'),
+  iperfClientStop: (params) => ipcRenderer.invoke('iperf-client-stop', params),
   onIperfClientError: (callback) => ipcRenderer.on('iperf-client-error', (event, data) => callback(data)),
   offIperfClientError: (callback) => ipcRenderer.off('iperf-client-error', callback),
   onIperfClientStarted: (callback) => ipcRenderer.on('iperf-client-started', (event, data) => callback(data)),

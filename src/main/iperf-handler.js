@@ -13,8 +13,8 @@ let iperfStreams = 1;
 let iperfBandwidth = null;
 let mainWindow = null;
 
-// iperf3 client management
-let iperfClientProcess = null;
+// iperf3 client management - Map of sessionId -> { process, ... }
+const iperfClientProcesses = new Map();
 
 // Cache for found iperf3 full path (from isIperf3Available check)
 let cachedIperf3FullPath = null;
@@ -502,20 +502,40 @@ export function cleanupIperfServer() {
 
 /**
  * Initialize iperf3 client handlers
+ * Now supports multiple clients per session (sessionId-based)
  */
 export function initializeIperfClientHandlers() {
-  // Get iperf3 client status
-  ipcMain.handle('iperf-client-status', async () => {
+  // Get iperf3 client status for a specific session
+  ipcMain.handle('iperf-client-status', async (_event, params) => {
+    const sessionId = params?.sessionId;
+    if (!sessionId) {
+      // Legacy: check if any client is running
+      for (const [, entry] of iperfClientProcesses) {
+        if (entry.process && entry.process.exitCode === null) {
+          return { running: true };
+        }
+      }
+      return { running: false };
+    }
+    const entry = iperfClientProcesses.get(sessionId);
     return { 
-      running: iperfClientProcess !== null && iperfClientProcess.exitCode === null
+      running: entry?.process !== null && entry?.process?.exitCode === null,
+      sessionId
     };
   });
 
-  // Start iperf3 client
+  // Start iperf3 client for a specific session
   ipcMain.handle('iperf-client-start', async (_event, params) => {
+    const sessionId = params?.sessionId;
+    if (!sessionId) {
+      return { success: false, error: 'sessionId is required' };
+    }
+
     try {
-      if (iperfClientProcess && iperfClientProcess.exitCode === null) {
-        return { success: false, error: 'iperf3 client is already running' };
+      // Check if this session already has a running client
+      const existing = iperfClientProcesses.get(sessionId);
+      if (existing?.process && existing.process.exitCode === null) {
+        return { success: false, error: 'iperf3 client is already running for this session' };
       }
       
       const targetHost = params?.host || 'localhost';
@@ -523,7 +543,8 @@ export function initializeIperfClientHandlers() {
       const protocol = (params?.protocol || 'tcp').toString().toLowerCase();
       const streams = parseInt(params?.streams, 10) || 1;
       const bandwidth = params?.bandwidth ? String(params.bandwidth).trim() : null;
-      const duration = parseInt(params?.duration, 10) || 10;
+      const d = parseInt(params?.duration, 10);
+      const duration = (Number.isNaN(d) || d < 0) ? 10 : d; // 0 = infinite (iperf3 -t 0)
       
       const binaryPath = getIperf3BinaryPath();
       
@@ -544,6 +565,7 @@ export function initializeIperfClientHandlers() {
         
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('iperf-client-error', {
+            sessionId,
             title: 'iperf3 Client Error',
             message: 'iperf3 is not available',
             detail: errorMsg,
@@ -558,9 +580,6 @@ export function initializeIperfClientHandlers() {
       const args = ['-c', targetHost, '-p', targetPort.toString(), '-t', duration.toString()];
       
       // Add --forceflush for real-time output when piping
-      // This forces iperf3 to flush output at every interval
-      // Note: This option is supported in iperf3 3.1.5+ on all platforms (including Windows)
-      // If the iperf3 version doesn't support it, it will show an error, but the test will still work
       args.push('--forceflush');
       
       if (protocol === 'udp') {
@@ -574,57 +593,61 @@ export function initializeIperfClientHandlers() {
         args.push('-P', streams.toString());
       }
       
-      console.log(`[iperf3-client] Starting client: ${binaryPath} ${args.join(' ')}`);
+      console.log(`[iperf3-client][${sessionId}] Starting client: ${binaryPath} ${args.join(' ')}`);
       
       // Send status update when client starts
       if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('iperf-client-started');
+        mainWindow.webContents.send('iperf-client-started', { sessionId });
       }
       
-      iperfClientProcess = spawn(binaryPath, args, {
+      const proc = spawn(binaryPath, args, {
         stdio: ['ignore', 'pipe', 'pipe']
       });
+      
+      // Store in map
+      iperfClientProcesses.set(sessionId, { process: proc });
       
       let stderrOutput = '';
       let stdoutOutput = '';
       
       // Capture stdout
-      iperfClientProcess.stdout.on('data', (data) => {
+      proc.stdout.on('data', (data) => {
         const output = data.toString();
         stdoutOutput += output;
-        console.log(`[iperf3-client] stdout: ${output}`);
+        console.log(`[iperf3-client][${sessionId}] stdout: ${output}`);
         if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('iperf-client-output', { output });
+          mainWindow.webContents.send('iperf-client-output', { sessionId, output });
         }
       });
       
       // Capture stderr
-      iperfClientProcess.stderr.on('data', (data) => {
+      proc.stderr.on('data', (data) => {
         const output = data.toString();
         stderrOutput += output;
-        console.error(`[iperf3-client] stderr: ${output}`);
+        console.error(`[iperf3-client][${sessionId}] stderr: ${output}`);
         if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('iperf-client-output', { output });
+          mainWindow.webContents.send('iperf-client-output', { sessionId, output });
         }
       });
       
       // Handle process exit
-      iperfClientProcess.on('exit', (code, signal) => {
-        console.log(`[iperf3-client] Client exited with code ${code}, signal ${signal}`);
+      proc.on('exit', (code, signal) => {
+        console.log(`[iperf3-client][${sessionId}] Client exited with code ${code}, signal ${signal}`);
         const finalOutput = stdoutOutput + stderrOutput;
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('iperf-client-stopped', { 
+            sessionId,
             code, 
             signal,
             output: finalOutput ? `\n[Process exited with code ${code}]\n` : null
           });
         }
-        iperfClientProcess = null;
+        iperfClientProcesses.delete(sessionId);
       });
       
       // Handle process error (spawn failure)
-      iperfClientProcess.on('error', (err) => {
-        console.error(`[iperf3-client] Process error:`, err);
+      proc.on('error', (err) => {
+        console.error(`[iperf3-client][${sessionId}] Process error:`, err);
         
         let errorMsg;
         if (err.code === 'ENOENT') {
@@ -639,6 +662,7 @@ export function initializeIperfClientHandlers() {
         
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('iperf-client-error', {
+            sessionId,
             title: 'iperf3 Client Error',
             message: 'Failed to start iperf3 client',
             detail: errorMsg,
@@ -646,50 +670,60 @@ export function initializeIperfClientHandlers() {
           });
         }
         
-        iperfClientProcess = null;
+        iperfClientProcesses.delete(sessionId);
       });
       
-      return { success: true };
+      return { success: true, sessionId };
     } catch (e) {
-      console.error('[iperf3-client] Client creation error:', e);
-      if (iperfClientProcess) {
+      console.error(`[iperf3-client][${sessionId}] Client creation error:`, e);
+      const entry = iperfClientProcesses.get(sessionId);
+      if (entry?.process) {
         try {
-          iperfClientProcess.kill();
+          entry.process.kill();
         } catch (err) {}
-        iperfClientProcess = null;
       }
+      iperfClientProcesses.delete(sessionId);
       return { success: false, error: e.message };
     }
   });
 
-  // Stop iperf3 client
-  ipcMain.handle('iperf-client-stop', async () => {
+  // Stop iperf3 client for a specific session
+  ipcMain.handle('iperf-client-stop', async (_event, params) => {
+    const sessionId = params?.sessionId;
+    if (!sessionId) {
+      return { success: false, error: 'sessionId is required' };
+    }
+
     try {
-      if (iperfClientProcess) {
-        console.log('[iperf3-client] Stopping client...');
-        iperfClientProcess.kill();
-        iperfClientProcess = null;
-        return { success: true };
+      const entry = iperfClientProcesses.get(sessionId);
+      if (entry?.process) {
+        console.log(`[iperf3-client][${sessionId}] Stopping client...`);
+        entry.process.kill();
+        iperfClientProcesses.delete(sessionId);
+        return { success: true, sessionId };
       }
-      return { success: true, running: false };
+      return { success: true, running: false, sessionId };
     } catch (error) {
-      console.error('[iperf3-client] Error stopping client:', error);
+      console.error(`[iperf3-client][${sessionId}] Error stopping client:`, error);
       return { success: false, error: error.message };
     }
   });
 }
 
 /**
- * Cleanup iperf3 client
+ * Cleanup all iperf3 clients
  */
 export function cleanupIperfClient() {
-  if (iperfClientProcess) {
-    try {
-      iperfClientProcess.kill();
-    } catch (e) {
-      // Ignore errors during cleanup
+  for (const [sessionId, entry] of iperfClientProcesses) {
+    if (entry?.process) {
+      try {
+        console.log(`[iperf3-client] Cleaning up client for session ${sessionId}`);
+        entry.process.kill();
+      } catch (e) {
+        // Ignore errors during cleanup
+      }
     }
-    iperfClientProcess = null;
   }
+  iperfClientProcesses.clear();
 }
 
