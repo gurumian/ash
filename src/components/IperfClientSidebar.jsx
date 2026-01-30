@@ -439,7 +439,7 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
                         }}
                         itemStyle={{ color: 'var(--theme-text, #00ff41)' }}
                         labelStyle={{ color: '#888' }}
-                        formatter={(value) => [`${value.toFixed(2)} Mbps`, 'Bandwidth']}
+                        formatter={(value) => [`${(value != null ? value : 0).toFixed(2)} Mbps`, 'Bandwidth']}
                         labelFormatter={(label) => `Time: ${label}s`}
                       />
                       <Area
@@ -484,7 +484,7 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
                         itemStyle={{ color: '#00d4ff' }}
                         labelStyle={{ color: '#888' }}
                         formatter={(value) => [
-                          `${value.toFixed(2)} Mbps (Avg)`,
+                          `${(value != null ? value : 0).toFixed(2)} Mbps (Avg)`,
                           'Avg Bandwidth'
                         ]}
                         labelFormatter={(label) => `Time: ${new Date(label).toLocaleString()}`}

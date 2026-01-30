@@ -20,7 +20,6 @@ export const SessionContent = ({
     handleAskUserResponse,
     resizeTerminal,
     activeSessionId, // needed for useAICommand
-    resizeTerminal, // Function to resize terminal, needed by SessionContent
     iperfLongTermData
 }) => {
     const {
