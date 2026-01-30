@@ -17,7 +17,11 @@
     "output": "输出",
     "clear": "清除",
     "waitingForOutput": "等待输出...",
-    "config": "配置"
+    "config": "配置",
+    "graphRealtime": "实时",
+    "graphHistory": "历史 (30分钟平均)",
+    "graphHistoryTooltip": "每30分钟区间的平均带宽。每30分钟记录一点，随时间累积。",
+    "graphHistoryEmpty": "每30分钟记录一点。长时间运行 iperf3 客户端后可查看历史。"
   }
 }
 

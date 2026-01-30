@@ -17,7 +17,11 @@
     "output": "Đầu ra",
     "clear": "Xóa",
     "waitingForOutput": "Đang chờ đầu ra...",
-    "config": "Cấu hình"
+    "config": "Cấu hình",
+    "graphRealtime": "Thời gian thực",
+    "graphHistory": "Lịch sử (30 phút TB)",
+    "graphHistoryTooltip": "Trung bình băng thông mỗi 30 phút. Mỗi 30 phút ghi một điểm, tích lũy theo thời gian.",
+    "graphHistoryEmpty": "Mỗi 30 phút ghi một điểm. Chạy máy khách iperf3 lâu hơn để xem lịch sử."
   }
 }
 

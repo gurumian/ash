@@ -19,15 +19,15 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
   const outputRef = useRef(null);
   const sidebarRef = useRef(null);
   const [showGraph, setShowGraph] = useState(true);
-  const [graphView, setGraphView] = useState('realtime'); // 'realtime' | 'trend'
+  const [graphView, setGraphView] = useState('realtime'); // 'realtime' | 'history'
 
   // Parse output for graph
   const graphData = React.useMemo(() => {
     return parseIperfOutput(output);
   }, [output]);
 
-  // Use longTermData for trend view
-  const trendData = React.useMemo(() => {
+  // Use longTermData for history view (30m window average)
+  const historyData = React.useMemo(() => {
     return longTermData || [];
   }, [longTermData]);
 
@@ -364,7 +364,7 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
             <div className="iperf-client-output-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
                 <span className="iperf-client-output-title">{t('client:iperf.output')}</span>
-                {(graphData.length > 0 || trendData.length > 0) && (
+                {(graphData.length > 0 || historyData.length > 0) && (
                   <div className="iperf-graph-controls">
                     <button
                       onClick={() => setShowGraph(!showGraph)}
@@ -379,15 +379,16 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
                           className={graphView === 'realtime' ? 'active' : ''}
                           onClick={() => setGraphView('realtime')}
                           disabled={graphData.length === 0}
+                          title={t('client:iperf.graphRealtime')}
                         >
-                          Real-time
+                          {t('client:iperf.graphRealtime')}
                         </button>
                         <button
-                          className={graphView === 'trend' ? 'active' : ''}
-                          onClick={() => setGraphView('trend')}
-                          disabled={trendData.length === 0}
+                          className={graphView === 'history' ? 'active' : ''}
+                          onClick={() => setGraphView('history')}
+                          title={historyData.length === 0 ? t('client:iperf.graphHistoryEmpty') : t('client:iperf.graphHistoryTooltip')}
                         >
-                          Trend (30m)
+                          {t('client:iperf.graphHistory')}
                         </button>
                       </div>
                     )}
@@ -406,6 +407,24 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
             {/* Graph Visualization */}
             {showGraph && (
               <div style={{ height: '150px', marginBottom: '12px', width: '100%' }}>
+                {graphView === 'history' && historyData.length === 0 ? (
+                  <div
+                    className="iperf-client-history-empty"
+                    style={{
+                      height: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '16px',
+                      textAlign: 'center',
+                      color: 'var(--theme-text-muted, #666)',
+                      fontSize: '12px',
+                      lineHeight: 1.4
+                    }}
+                  >
+                    {t('client:iperf.graphHistoryEmpty')}
+                  </div>
+                ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   {graphView === 'realtime' ? (
                     <AreaChart data={graphData}>
@@ -452,9 +471,9 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
                       />
                     </AreaChart>
                   ) : (
-                    <AreaChart data={trendData}>
+                    <AreaChart data={historyData}>
                       <defs>
-                        <linearGradient id="colorTrend" x1="0" y1="0" x2="0" y2="1">
+                        <linearGradient id="colorHistory" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#00d4ff" stopOpacity={0.3} />
                           <stop offset="95%" stopColor="#00d4ff" stopOpacity={0} />
                         </linearGradient>
@@ -481,25 +500,36 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
                           borderColor: 'var(--theme-border, #2a2a2a)',
                           color: '#00d4ff'
                         }}
-                        itemStyle={{ color: '#00d4ff' }}
-                        labelStyle={{ color: '#888' }}
-                        formatter={(value) => [
-                          `${(value != null ? value : 0).toFixed(2)} Mbps (Avg)`,
-                          'Avg Bandwidth'
-                        ]}
-                        labelFormatter={(label) => `Time: ${new Date(label).toLocaleString()}`}
+                        content={({ active, payload }) => {
+                          if (!active || !payload?.length) return null;
+                          const p = payload[0].payload;
+                          const avg = (p.bandwidth != null ? p.bandwidth : 0).toFixed(2);
+                          const min = p.min != null ? (p.min).toFixed(2) : null;
+                          const max = p.max != null ? (p.max).toFixed(2) : null;
+                          return (
+                            <div style={{ padding: '4px 8px', fontSize: '11px' }}>
+                              <div style={{ color: '#888', marginBottom: '4px' }}>
+                                {new Date(p.time).toLocaleString()}
+                              </div>
+                              <div>Avg: {avg} Mbps</div>
+                              {min != null && <div>Min: {min} Mbps</div>}
+                              {max != null && <div>Max: {max} Mbps</div>}
+                            </div>
+                          );
+                        }}
                       />
                       <Area
                         type="monotone"
                         dataKey="bandwidth"
                         stroke="#00d4ff"
                         fillOpacity={1}
-                        fill="url(#colorTrend)"
+                        fill="url(#colorHistory)"
                         isAnimationActive={true}
                       />
                     </AreaChart>
                   )}
                 </ResponsiveContainer>
+                )}
               </div>
             )}
 

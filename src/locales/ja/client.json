@@ -17,7 +17,11 @@
     "output": "出力",
     "clear": "クリア",
     "waitingForOutput": "出力待機中...",
-    "config": "設定"
+    "config": "設定",
+    "graphRealtime": "リアルタイム",
+    "graphHistory": "履歴 (30分平均)",
+    "graphHistoryTooltip": "30分間隔ごとの平均帯域。30分ごとに1点記録され、時間とともに蓄積されます。",
+    "graphHistoryEmpty": "30分ごとに1点記録されます。iperf3クライアントを長時間実行すると履歴が表示されます。"
   }
 }
 

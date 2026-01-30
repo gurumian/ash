@@ -17,7 +17,11 @@
     "output": "Output",
     "clear": "Clear",
     "waitingForOutput": "Waiting for output...",
-    "config": "Configuration"
+    "config": "Configuration",
+    "graphRealtime": "Real-time",
+    "graphHistory": "History (30m avg)",
+    "graphHistoryTooltip": "Average bandwidth per 30-minute interval. One point every 30 minutes; data accumulates over time.",
+    "graphHistoryEmpty": "One data point is recorded every 30 minutes. Run iperf3 client longer to see history."
   }
 }
 
