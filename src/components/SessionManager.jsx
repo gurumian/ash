@@ -65,13 +65,13 @@ export const SessionManager = memo(function SessionManager({
   const groupCalculations = useMemo(() => {
     return groups.map(group => {
       const savedSessions = group.savedSessions || [];
-      
+
       // Match each savedSession with an active session
       // Each savedSession should match with at most one session
       // Use a Set to track which sessions have already been matched to avoid duplicates
       const matchedSessionIds = new Set();
       const groupSessions = [];
-      
+
       savedSessions.forEach(savedSession => {
         // Find all sessions that match this savedSession
         const matchingSessions = sessions.filter(session => {
@@ -82,23 +82,23 @@ export const SessionManager = memo(function SessionManager({
           // Check if this session matches the savedSession
           return matchSavedSessionWithActiveSession(savedSession, session);
         });
-        
+
         // If there are matching sessions, use the first one (or the one that's already connected)
         // Prefer connected sessions over disconnected ones
         const matchedSession = matchingSessions.find(s => s.isConnected) || matchingSessions[0];
-        
+
         if (matchedSession) {
           groupSessions.push(matchedSession);
           matchedSessionIds.add(matchedSession.id);
         }
       });
-      
+
       const totalSessions = savedSessions.length;
-      const allConnected = totalSessions > 0 && 
+      const allConnected = totalSessions > 0 &&
         groupSessions.length === totalSessions &&
         groupSessions.every(s => s.isConnected);
       const hasConnectedSessions = groupSessions.some(s => s.isConnected);
-      
+
       return {
         group,
         groupSessions,
@@ -111,7 +111,7 @@ export const SessionManager = memo(function SessionManager({
   }, [groups, sessions]);
 
   const { t } = useTranslation(['common', 'connection']);
-  
+
   // Section expansion state
   const [isFavoritesExpanded, setIsFavoritesExpanded] = useState(true);
   const [isSessionListExpanded, setIsSessionListExpanded] = useState(true);
@@ -119,15 +119,40 @@ export const SessionManager = memo(function SessionManager({
   const [isRecentExpanded, setIsRecentExpanded] = useState(true);
   const [isLibrariesExpanded, setIsLibrariesExpanded] = useState(false);
 
+  // Helper to connect a saved session
+  const handleConnectSavedSession = useCallback((savedSession) => {
+    const isTelnet = savedSession.connectionType === 'telnet';
+    const formData = {
+      connectionType: isTelnet ? 'ssh' : (savedSession.connectionType || 'ssh'),
+      useTelnet: isTelnet,
+      host: savedSession.host || '',
+      port: savedSession.port || (isTelnet ? '23' : '22'),
+      user: savedSession.user || '',
+      password: savedSession.password || '',
+      sessionName: savedSession.label || savedSession.sessionName || savedSession.name || '',
+      savePassword: !!savedSession.password,
+      serialPort: savedSession.serialPort || '',
+      baudRate: savedSession.baudRate || '9600',
+      dataBits: savedSession.dataBits || '8',
+      stopBits: savedSession.stopBits || '1',
+      parity: savedSession.parity || 'none',
+      flowControl: savedSession.flowControl || 'none',
+      postProcessing: savedSession.postProcessing || [],
+      postProcessingEnabled: savedSession.postProcessingEnabled !== false,
+      autoReconnect: savedSession.autoReconnect || false
+    };
+    onCreateNewSessionWithData(formData, true);
+  }, [onCreateNewSessionWithData]);
+
   return (
-    <div 
+    <div
       className={`session-manager ${!showSessionManager ? 'hidden' : ''} ${isResizing ? 'resizing' : ''}`}
       style={{ width: showSessionManager ? `${sessionManagerWidth}px` : '0' }}
     >
       <div className="session-manager-header">
         <h3>{t('status:sessions')}</h3>
         <div className="header-buttons">
-          <button 
+          <button
             className="new-session-btn"
             onClick={onShowConnectionForm}
             title={t('common:newSession')}
@@ -136,377 +161,387 @@ export const SessionManager = memo(function SessionManager({
           </button>
         </div>
       </div>
-      
+
       <div className="session-manager-content">
-      {/* Favorites */}
-      {favorites.length > 0 && (
-        <div className="section">
-          <div 
-            className="section-header section-header-clickable"
-            onClick={() => setIsFavoritesExpanded(!isFavoritesExpanded)}
-            style={{ cursor: 'pointer' }}
-          >
-            <button
-              className="section-toggle"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsFavoritesExpanded(!isFavoritesExpanded);
-              }}
-              title={isFavoritesExpanded ? t('common:collapse') : t('common:expand')}
+        {/* Favorites */}
+        {favorites.length > 0 && (
+          <div className="section">
+            <div
+              className="section-header section-header-clickable"
+              onClick={() => setIsFavoritesExpanded(!isFavoritesExpanded)}
+              style={{ cursor: 'pointer' }}
             >
-              {isFavoritesExpanded ? '▼' : '▶'}
-            </button>
-            {t('common:favorites')}
+              <button
+                className="section-toggle"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsFavoritesExpanded(!isFavoritesExpanded);
+                }}
+                title={isFavoritesExpanded ? t('common:collapse') : t('common:expand')}
+              >
+                {isFavoritesExpanded ? '▼' : '▶'}
+              </button>
+              {t('common:favorites')}
+            </div>
+            {isFavoritesExpanded && favorites.map((fav, index) => (
+              <FavoriteItem
+                key={`fav-${index}-${fav.name || fav.host || fav.serialPort}`}
+                fav={fav}
+                onCreateNewSessionWithData={onCreateNewSessionWithData}
+                setErrorDialog={setErrorDialog}
+              />
+            ))}
           </div>
-          {isFavoritesExpanded && favorites.map((fav, index) => (
-            <FavoriteItem
-              key={`fav-${index}-${fav.name || fav.host || fav.serialPort}`}
-              fav={fav}
-              onCreateNewSessionWithData={onCreateNewSessionWithData}
-              setErrorDialog={setErrorDialog}
-            />
-          ))}
-        </div>
-      )}
+        )}
 
-      {/* Session List - All saved sessions */}
-      {connectionHistory.length > 0 && (
-        <div className="section">
-          <div 
-            className="section-header section-header-clickable"
-            onClick={() => setIsSessionListExpanded(!isSessionListExpanded)}
-            style={{ cursor: 'pointer' }}
-          >
-            <button
-              className="section-toggle"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsSessionListExpanded(!isSessionListExpanded);
-              }}
-              title={isSessionListExpanded ? t('common:collapse') : t('common:expand')}
+        {/* Session List - All saved sessions */}
+        {connectionHistory.length > 0 && (
+          <div className="section">
+            <div
+              className="section-header section-header-clickable"
+              onClick={() => setIsSessionListExpanded(!isSessionListExpanded)}
+              style={{ cursor: 'pointer' }}
             >
-              {isSessionListExpanded ? '▼' : '▶'}
-            </button>
-            {t('common:history')}
+              <button
+                className="section-toggle"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsSessionListExpanded(!isSessionListExpanded);
+                }}
+                title={isSessionListExpanded ? t('common:collapse') : t('common:expand')}
+              >
+                {isSessionListExpanded ? '▼' : '▶'}
+              </button>
+              {t('common:history')}
+            </div>
+            {isSessionListExpanded && connectionHistory.map((conn, index) => (
+              <ConnectionHistoryItem
+                key={`conn-${index}-${conn.host || conn.serialPort}-${conn.user || ''}`}
+                conn={conn}
+                index={index}
+                favorites={favorites}
+                onConnectFromHistory={onConnectFromHistory}
+                onToggleFavorite={onToggleFavorite}
+                onRemoveConnection={onRemoveConnection}
+                onDragStart={onDragStart}
+              />
+            ))}
           </div>
-          {isSessionListExpanded && connectionHistory.map((conn, index) => (
-            <ConnectionHistoryItem
-              key={`conn-${index}-${conn.host || conn.serialPort}-${conn.user || ''}`}
-              conn={conn}
-              index={index}
-              favorites={favorites}
-              onConnectFromHistory={onConnectFromHistory}
-              onToggleFavorite={onToggleFavorite}
-              onRemoveConnection={onRemoveConnection}
-              onDragStart={onDragStart}
-            />
-          ))}
-        </div>
-      )}
+        )}
 
-      {/* Groups */}
-      {groups.length > 0 && (
-        <div className="section">
-          <div className="section-header">{t('common:groups')}</div>
-          {groupCalculations.map(({ group, groupSessions, savedSessions, totalSessions, allConnected, hasConnectedSessions }) => {
-            return (
-              <div key={group.id} className="group-container">
-                <div 
-                  className={`group-header ${dragOverGroupId === group.id ? 'drag-over' : ''} ${allConnected ? 'all-connected' : ''}`}
-                  onDragOver={(e) => onDragOver(e, group.id)}
-                  onDragLeave={onDragLeave}
-                  onDrop={(e) => onDrop(e, group.id)}
-                  onClick={() => {
-                    if (!allConnected && totalSessions > 0) {
-                      onConnectGroup(group.id);
-                    }
-                  }}
-                  style={{ cursor: (allConnected || totalSessions === 0) ? 'default' : 'pointer' }}
-                >
-                  <button
-                    className="group-toggle"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onToggleGroupExpanded(group.id);
-                    }}
-                    title={group.isExpanded ? t('common:collapse') : t('common:expand')}
-                  >
-                    {group.isExpanded ? '▼' : '▶'}
-                  </button>
-                  {editingGroupId === group.id ? (
-                    <input
-                      type="text"
-                      className="group-name-input"
-                      value={editingGroupName}
-                      onChange={(e) => setEditingGroupName(e.target.value)}
-                      onBlur={() => onSaveGroupName(group.id)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          onSaveGroupName(group.id);
-                        } else if (e.key === 'Escape') {
-                          onCancelEditingGroupName();
-                        }
-                      }}
-                      autoFocus
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                  ) : (
-                    <span 
-                      className="group-name"
-                      onDoubleClick={() => onStartEditingGroupName(group.id)}
-                      title={t('common:doubleClickToRename')}
-                    >
-                      {group.name}
-                    </span>
-                  )}
-                  <span className="group-count">({totalSessions})</span>
-                  <button
-                    className={allConnected ? "group-disconnect-btn" : "group-connect-btn"}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (allConnected) {
-                        onDisconnectGroup(group.id);
-                      } else {
+        {/* Groups */}
+        {groups.length > 0 && (
+          <div className="section">
+            <div className="section-header">{t('common:groups')}</div>
+            {groupCalculations.map(({ group, groupSessions, savedSessions, totalSessions, allConnected, hasConnectedSessions }) => {
+              return (
+                <div key={group.id} className="group-container">
+                  <div
+                    className={`group-header ${dragOverGroupId === group.id ? 'drag-over' : ''} ${allConnected ? 'all-connected' : ''}`}
+                    onDragOver={(e) => onDragOver(e, group.id)}
+                    onDragLeave={onDragLeave}
+                    onDrop={(e) => onDrop(e, group.id)}
+                    onClick={() => {
+                      if (!allConnected && totalSessions > 0) {
                         onConnectGroup(group.id);
                       }
                     }}
-                    title={allConnected ? t('common:disconnectAll') : t('common:connectAll')}
-                    disabled={totalSessions === 0}
+                    style={{ cursor: (allConnected || totalSessions === 0) ? 'default' : 'pointer' }}
                   >
-                    {allConnected ? "⏹" : "▶"}
-                  </button>
-                  <button
-                    className="group-delete-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteGroup(group.id);
-                    }}
-                    title={t('common:deleteGroup')}
-                  >
-                    🗑
-                  </button>
-                </div>
-                {group.isExpanded && (
-                  <div className="group-sessions">
-                    {/* Active sessions (connected) */}
-                    {groupSessions.map((session) => {
-                      // Find the savedSession that matches this active session
-                      const matchingSavedSession = savedSessions.find(savedSession => 
-                        matchSavedSessionWithActiveSession(savedSession, session)
-                      );
-                      
-                      return (
-                        <GroupSessionItem
-                          key={session.id}
-                          session={session}
-                          isActive={activeSessionId === session.id}
-                          groupId={group.id}
-                          savedSessionId={matchingSavedSession?.id}
-                          onSwitch={onSwitchToSession}
-                          onDisconnect={onDisconnectSession}
-                          onDragStart={onDragStart}
-                          onRemoveFromGroup={onRemoveSessionFromGroup}
-                          onOpenSettings={onOpenSessionSettings}
-                        />
-                      );
-                    })}
-                    {/* Saved sessions (not connected yet) - only show if not already connected */}
-                    {savedSessions
-                      .filter(savedSession => {
-                        // Only show saved sessions that don't have an active session
-                        const activeSession = groupSessions.find(session => 
+                    <button
+                      className="group-toggle"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleGroupExpanded(group.id);
+                      }}
+                      title={group.isExpanded ? t('common:collapse') : t('common:expand')}
+                    >
+                      {group.isExpanded ? '▼' : '▶'}
+                    </button>
+                    {editingGroupId === group.id ? (
+                      <input
+                        type="text"
+                        className="group-name-input"
+                        value={editingGroupName}
+                        onChange={(e) => setEditingGroupName(e.target.value)}
+                        onBlur={() => onSaveGroupName(group.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            onSaveGroupName(group.id);
+                          } else if (e.key === 'Escape') {
+                            onCancelEditingGroupName();
+                          }
+                        }}
+                        autoFocus
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    ) : (
+                      <span
+                        className="group-name"
+                        onDoubleClick={() => onStartEditingGroupName(group.id)}
+                        title={t('common:doubleClickToRename')}
+                      >
+                        {group.name}
+                      </span>
+                    )}
+                    <span className="group-count">({totalSessions})</span>
+                    <button
+                      className={allConnected ? "group-disconnect-btn" : "group-connect-btn"}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (allConnected) {
+                          onDisconnectGroup(group.id);
+                        } else {
+                          onConnectGroup(group.id);
+                        }
+                      }}
+                      title={allConnected ? t('common:disconnectAll') : t('common:connectAll')}
+                      disabled={totalSessions === 0}
+                    >
+                      {allConnected ? "⏹" : "▶"}
+                    </button>
+                    <button
+                      className="group-delete-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteGroup(group.id);
+                      }}
+                      title={t('common:deleteGroup')}
+                    >
+                      🗑
+                    </button>
+                  </div>
+                  {group.isExpanded && (
+                    <div className="group-sessions">
+                      {/* Active sessions (connected) */}
+                      {groupSessions.map((session) => {
+                        // Find the savedSession that matches this active session
+                        const matchingSavedSession = savedSessions.find(savedSession =>
                           matchSavedSessionWithActiveSession(savedSession, session)
                         );
-                        // Only show if no active session exists (not connected)
-                        return !activeSession;
-                      })
-                      .map((savedSession) => {
-                        const displayName = getSessionDisplayName(savedSession);
-                        
+
                         return (
-                          <div
-                            key={savedSession.id}
-                            className="session-item group-session-item saved-session"
-                          >
-                            <span className="session-name">
-                              {displayName} ({t('common:notConnected')})
-                            </span>
-                            <ConnectionStatusIcon 
-                              isConnected={false}
-                              className="connection-status disconnected"
-                            />
-                            <button
-                              className="remove-from-group-btn"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onRemoveSessionFromGroup(savedSession.id, group.id);
-                              }}
-                              title={t('common:removeFromGroup')}
-                            >
-                              🗑
-                            </button>
-                          </div>
+                          <GroupSessionItem
+                            key={session.id}
+                            session={session}
+                            isActive={activeSessionId === session.id}
+                            groupId={group.id}
+                            savedSessionId={matchingSavedSession?.id}
+                            onSwitch={onSwitchToSession}
+                            onDisconnect={onDisconnectSession}
+                            onDragStart={onDragStart}
+                            onRemoveFromGroup={onRemoveSessionFromGroup}
+                            onOpenSettings={onOpenSessionSettings}
+                          />
                         );
                       })}
-                    {savedSessions.length === 0 && (
-                      <div className="group-empty">{t('common:dragSessionsHere')}</div>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
+                      {/* Saved sessions (not connected yet) - only show if not already connected */}
+                      {savedSessions
+                        .filter(savedSession => {
+                          // Only show saved sessions that don't have an active session
+                          const activeSession = groupSessions.find(session =>
+                            matchSavedSessionWithActiveSession(savedSession, session)
+                          );
+                          // Only show if no active session exists (not connected)
+                          return !activeSession;
+                        })
+                        .map((savedSession) => {
+                          const displayName = getSessionDisplayName(savedSession);
 
-      {/* Create New Group Button */}
-      <div className="section">
-        <button
-          className="new-group-btn"
-          onClick={() => {
-            const groupName = `Group ${groups.length + 1}`;
-            onCreateGroup(groupName);
-          }}
-          title="Create a new empty group"
-        >
-          + Create New Group
-        </button>
-      </div>
-
-      {/* Active sessions (ungrouped) */}
-      {ungroupedSessions.length > 0 && (
-        <div className="section">
-          <div 
-            className="section-header section-header-clickable"
-            onClick={() => setIsActiveSessionsExpanded(!isActiveSessionsExpanded)}
-            style={{ cursor: 'pointer' }}
-          >
-            <button
-              className="section-toggle"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsActiveSessionsExpanded(!isActiveSessionsExpanded);
-              }}
-              title={isActiveSessionsExpanded ? t('common:collapse') : t('common:expand')}
-            >
-              {isActiveSessionsExpanded ? '▼' : '▶'}
-            </button>
-            {t('common:activeSessions')}
+                          return (
+                            <div
+                              key={savedSession.id}
+                              className="session-item group-session-item saved-session"
+                            >
+                              <span className="session-name">
+                                {displayName} ({t('common:notConnected')})
+                              </span>
+                              <div
+                                className="connection-status-wrapper"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleConnectSavedSession(savedSession);
+                                }}
+                                title={t('common:connect')}
+                                style={{ cursor: 'pointer', display: 'flex' }}
+                              >
+                                <ConnectionStatusIcon
+                                  isConnected={false}
+                                  className="connection-status disconnected"
+                                />
+                              </div>
+                              <button
+                                className="remove-from-group-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onRemoveSessionFromGroup(savedSession.id, group.id);
+                                }}
+                                title={t('common:removeFromGroup')}
+                              >
+                                🗑
+                              </button>
+                            </div>
+                          );
+                        })}
+                      {savedSessions.length === 0 && (
+                        <div className="group-empty">{t('common:dragSessionsHere')}</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
-          {isActiveSessionsExpanded && ungroupedSessions.map(session => (
-            <SessionItem
-              key={session.id}
-              session={session}
-              isActive={activeSessionId === session.id}
-              onSwitch={onSwitchToSession}
-              onDisconnect={onDisconnectSession}
-              onDragStart={onDragStart}
-              onOpenSettings={onOpenSessionSettings}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Connection history */}
-      {connectionHistory.length > 0 && (
-        <div className="section">
-          <div 
-            className="section-header section-header-clickable"
-            onClick={() => setIsRecentExpanded(!isRecentExpanded)}
-            style={{ cursor: 'pointer' }}
-          >
-            <button
-              className="section-toggle"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsRecentExpanded(!isRecentExpanded);
-              }}
-              title={isRecentExpanded ? t('common:collapse') : t('common:expand')}
-            >
-              {isRecentExpanded ? '▼' : '▶'}
-            </button>
-            {t('common:recent')}
-          </div>
-          {isRecentExpanded && connectionHistory.slice(0, 10).map((conn, index) => (
-            <ConnectionHistoryItem
-              key={`recent-${index}-${conn.host || conn.serialPort}-${conn.user || ''}`}
-              conn={conn}
-              index={index}
-              favorites={favorites}
-              onConnectFromHistory={onConnectFromHistory}
-              onToggleFavorite={onToggleFavorite}
-              onRemoveConnection={onRemoveConnection}
-              onDragStart={onDragStart}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Libraries / Cheat-sheets */}
-      <div className="section">
-        <div 
-          className="section-header section-header-clickable"
-          onClick={() => setIsLibrariesExpanded(!isLibrariesExpanded)}
-          style={{ cursor: 'pointer' }}
-        >
-          <button
-            className="section-toggle"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsLibrariesExpanded(!isLibrariesExpanded);
-            }}
-            title={isLibrariesExpanded ? t('common:collapse') : t('common:expand')}
-          >
-            {isLibrariesExpanded ? '▼' : '▶'}
-          </button>
-          {t('common:libraries')}
-        </div>
-        {isLibrariesExpanded && (
-          <>
-            {libraries && libraries.length > 0 ? (
-              libraries.map((library) => (
-                <LibraryItem
-                  key={library.id}
-                  library={library}
-                  activeSessionId={activeSessionId}
-                  sessions={sessions}
-                  sshConnections={sshConnections}
-                  terminalFontFamily={terminalFontFamily}
-                  onEdit={onEditLibrary}
-                  onDelete={onDeleteLibrary}
-                  onToggleExpanded={onToggleLibraryExpanded}
-                  onExport={onExportLibrary}
-                />
-              ))
-            ) : (
-              <div className="library-empty-message">
-                {t('common:noLibrariesYet')}
-              </div>
-            )}
-            <div style={{ display: 'flex', gap: '8px', flexDirection: 'column' }}>
-              <button
-                className="new-library-btn"
-                onClick={onCreateLibrary}
-                title="Create a new library"
-              >
-                + Create New Library
-              </button>
-              <button
-                className="new-library-btn import-library-btn"
-                onClick={onImportLibrary}
-                title="Import library from clipboard, file, or manual input"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                  <polyline points="7 10 12 15 17 10"></polyline>
-                  <line x1="12" y1="15" x2="12" y2="3"></line>
-                </svg>
-                Import Library
-              </button>
-            </div>
-          </>
         )}
-      </div>
+
+        {/* Create New Group Button */}
+        <div className="section">
+          <button
+            className="new-group-btn"
+            onClick={() => {
+              const groupName = `Group ${groups.length + 1}`;
+              onCreateGroup(groupName);
+            }}
+            title="Create a new empty group"
+          >
+            + Create New Group
+          </button>
+        </div>
+
+        {/* Active sessions (ungrouped) */}
+        {ungroupedSessions.length > 0 && (
+          <div className="section">
+            <div
+              className="section-header section-header-clickable"
+              onClick={() => setIsActiveSessionsExpanded(!isActiveSessionsExpanded)}
+              style={{ cursor: 'pointer' }}
+            >
+              <button
+                className="section-toggle"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsActiveSessionsExpanded(!isActiveSessionsExpanded);
+                }}
+                title={isActiveSessionsExpanded ? t('common:collapse') : t('common:expand')}
+              >
+                {isActiveSessionsExpanded ? '▼' : '▶'}
+              </button>
+              {t('common:activeSessions')}
+            </div>
+            {isActiveSessionsExpanded && ungroupedSessions.map(session => (
+              <SessionItem
+                key={session.id}
+                session={session}
+                isActive={activeSessionId === session.id}
+                onSwitch={onSwitchToSession}
+                onDisconnect={onDisconnectSession}
+                onDragStart={onDragStart}
+                onOpenSettings={onOpenSessionSettings}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Connection history */}
+        {connectionHistory.length > 0 && (
+          <div className="section">
+            <div
+              className="section-header section-header-clickable"
+              onClick={() => setIsRecentExpanded(!isRecentExpanded)}
+              style={{ cursor: 'pointer' }}
+            >
+              <button
+                className="section-toggle"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsRecentExpanded(!isRecentExpanded);
+                }}
+                title={isRecentExpanded ? t('common:collapse') : t('common:expand')}
+              >
+                {isRecentExpanded ? '▼' : '▶'}
+              </button>
+              {t('common:recent')}
+            </div>
+            {isRecentExpanded && connectionHistory.slice(0, 10).map((conn, index) => (
+              <ConnectionHistoryItem
+                key={`recent-${index}-${conn.host || conn.serialPort}-${conn.user || ''}`}
+                conn={conn}
+                index={index}
+                favorites={favorites}
+                onConnectFromHistory={onConnectFromHistory}
+                onToggleFavorite={onToggleFavorite}
+                onRemoveConnection={onRemoveConnection}
+                onDragStart={onDragStart}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Libraries / Cheat-sheets */}
+        <div className="section">
+          <div
+            className="section-header section-header-clickable"
+            onClick={() => setIsLibrariesExpanded(!isLibrariesExpanded)}
+            style={{ cursor: 'pointer' }}
+          >
+            <button
+              className="section-toggle"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsLibrariesExpanded(!isLibrariesExpanded);
+              }}
+              title={isLibrariesExpanded ? t('common:collapse') : t('common:expand')}
+            >
+              {isLibrariesExpanded ? '▼' : '▶'}
+            </button>
+            {t('common:libraries')}
+          </div>
+          {isLibrariesExpanded && (
+            <>
+              {libraries && libraries.length > 0 ? (
+                libraries.map((library) => (
+                  <LibraryItem
+                    key={library.id}
+                    library={library}
+                    activeSessionId={activeSessionId}
+                    sessions={sessions}
+                    sshConnections={sshConnections}
+                    terminalFontFamily={terminalFontFamily}
+                    onEdit={onEditLibrary}
+                    onDelete={onDeleteLibrary}
+                    onToggleExpanded={onToggleLibraryExpanded}
+                    onExport={onExportLibrary}
+                  />
+                ))
+              ) : (
+                <div className="library-empty-message">
+                  {t('common:noLibrariesYet')}
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: '8px', flexDirection: 'column' }}>
+                <button
+                  className="new-library-btn"
+                  onClick={onCreateLibrary}
+                  title="Create a new library"
+                >
+                  + Create New Library
+                </button>
+                <button
+                  className="new-library-btn import-library-btn"
+                  onClick={onImportLibrary}
+                  title="Import library from clipboard, file, or manual input"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                  </svg>
+                  Import Library
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
