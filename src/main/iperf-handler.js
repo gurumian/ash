@@ -31,7 +31,7 @@ export function setMainWindow(window) {
  */
 function isIperf3Available(binaryPath) {
   const platform = process.platform;
-  
+
   if (platform === 'win32') {
     // For Windows, check if it's a full path (bundled binary)
     if (path.isAbsolute(binaryPath) || binaryPath.includes(path.sep)) {
@@ -39,7 +39,7 @@ function isIperf3Available(binaryPath) {
     }
     // For system PATH binary, try to execute it (same as actual execution)
     try {
-      const result = spawnSync(binaryPath, ['--version'], { 
+      const result = spawnSync(binaryPath, ['--version'], {
         stdio: 'ignore',
         timeout: 3000,
         env: process.env
@@ -47,7 +47,7 @@ function isIperf3Available(binaryPath) {
       if (result.status === 0) {
         // Find the actual path using 'where' command
         try {
-          const whereResult = spawnSync('where', [binaryPath], { 
+          const whereResult = spawnSync('where', [binaryPath], {
             stdio: 'pipe',
             timeout: 3000,
             env: process.env
@@ -83,7 +83,7 @@ function isIperf3Available(binaryPath) {
         if (fs.existsSync(binPath)) {
           // Verify it's executable by trying to run it
           try {
-            const result = spawnSync(binPath, ['--version'], { 
+            const result = spawnSync(binPath, ['--version'], {
               stdio: 'ignore',
               timeout: 3000
             });
@@ -100,7 +100,7 @@ function isIperf3Available(binaryPath) {
 
       // Fallback: try to execute iperf3 from PATH (may work in some cases)
       try {
-        const result = spawnSync('iperf3', ['--version'], { 
+        const result = spawnSync('iperf3', ['--version'], {
           stdio: 'ignore',
           timeout: 3000
         });
@@ -112,7 +112,7 @@ function isIperf3Available(binaryPath) {
       // Full path provided, check if it exists and is executable
       if (fs.existsSync(binaryPath)) {
         try {
-          const result = spawnSync(binaryPath, ['--version'], { 
+          const result = spawnSync(binaryPath, ['--version'], {
             stdio: 'ignore',
             timeout: 3000
           });
@@ -127,7 +127,7 @@ function isIperf3Available(binaryPath) {
     // Linux: try to execute iperf3 from PATH (same as actual execution)
     if (binaryPath === 'iperf3' || !path.isAbsolute(binaryPath)) {
       try {
-        const result = spawnSync('iperf3', ['--version'], { 
+        const result = spawnSync('iperf3', ['--version'], {
           stdio: 'ignore',
           timeout: 3000,
           env: process.env
@@ -135,7 +135,7 @@ function isIperf3Available(binaryPath) {
         if (result.status === 0) {
           // Find the actual path using 'which' command
           try {
-            const whichResult = spawnSync('which', ['iperf3'], { 
+            const whichResult = spawnSync('which', ['iperf3'], {
               stdio: 'pipe',
               timeout: 3000,
               env: process.env
@@ -159,7 +159,7 @@ function isIperf3Available(binaryPath) {
       // Full path provided, check if it exists and is executable
       if (fs.existsSync(binaryPath)) {
         try {
-          const result = spawnSync(binaryPath, ['--version'], { 
+          const result = spawnSync(binaryPath, ['--version'], {
             stdio: 'ignore',
             timeout: 3000,
             env: process.env
@@ -182,7 +182,7 @@ function isIperf3Available(binaryPath) {
 function getIperf3BinaryPath() {
   const platform = process.platform;
   const binaryName = platform === 'win32' ? 'iperf3.exe' : 'iperf3';
-  
+
   // Windows: Use bundled binary (if exists) or system iperf3.exe
   if (platform === 'win32') {
     // In development
@@ -192,23 +192,23 @@ function getIperf3BinaryPath() {
         return devPath;
       }
     }
-    
+
     // In production
     const resourcesPath = process.resourcesPath || app.getAppPath();
     const binaryPath = path.join(resourcesPath, 'assets', 'bin', 'win32', 'x64', binaryName);
     if (fs.existsSync(binaryPath)) {
       return binaryPath;
     }
-    
+
     // Fallback to system iperf3.exe (if in PATH)
     return 'iperf3.exe';
   }
-  
+
   // macOS/Linux: Use cached full path if available (from isIperf3Available check)
   if (cachedIperf3FullPath) {
     return cachedIperf3FullPath;
   }
-  
+
   // Fallback to system iperf3 (will try PATH)
   return 'iperf3';
 }
@@ -234,7 +234,7 @@ export function initializeIperfHandlers() {
 
   // Get iperf3 server status
   ipcMain.handle('iperf-status', async () => {
-    return { 
+    return {
       running: iperfProcess !== null && iperfProcess.exitCode === null,
       port: iperfProcess ? iperfPort : null,
       host: iperfProcess ? iperfHost : null,
@@ -250,7 +250,7 @@ export function initializeIperfHandlers() {
       if (iperfProcess && iperfProcess.exitCode === null) {
         return { success: true, running: true, port: iperfPort, host: iperfHost };
       }
-      
+
       const requestedPort = params?.port || iperfPort;
       const bindAddr = params?.host || '0.0.0.0';
       iperfPort = requestedPort;
@@ -262,9 +262,9 @@ export function initializeIperfHandlers() {
       iperfProtocol = (requestedProtocol === 'udp' ? 'udp' : 'tcp');
       iperfStreams = requestedStreams > 0 ? requestedStreams : 1;
       iperfBandwidth = requestedBandwidth || null;
-      
+
       const binaryPath = getIperf3BinaryPath();
-      
+
       // Check if binary exists and is available
       if (!isIperf3Available(binaryPath)) {
         let errorMsg;
@@ -280,9 +280,9 @@ export function initializeIperfHandlers() {
           // macOS/Linux: iperf3 not found in system PATH
           errorMsg = `iperf3 is not installed on your system.\n\nPlease install it:\n  macOS: brew install iperf3\n  Linux: sudo apt-get install iperf3 (or sudo yum install iperf3)`;
         }
-        
+
         console.error(`[iperf3] ${errorMsg}`);
-        
+
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('iperf-server-error', {
             title: 'iperf3 Server Error',
@@ -291,27 +291,27 @@ export function initializeIperfHandlers() {
             error: null
           });
         }
-        
+
         return { success: false, running: false, error: errorMsg };
       }
-      
+
       // Start iperf3 server (server side does not use client-only flags like -u, -P, -b)
       const args = ['-s', '-p', iperfPort.toString()];
       if (bindAddr !== '0.0.0.0') {
         args.push('-B', bindAddr);
       }
-      
+
       console.log(`[iperf3] Starting server: ${binaryPath} ${args.join(' ')}`);
-      
+
       iperfProcess = spawn(binaryPath, args, {
         stdio: ['ignore', 'pipe', 'pipe']
       });
-      
+
       let serverReady = false;
       let serverError = null;
       let stderrOutput = '';
       let stdoutOutput = '';
-      
+
       // Capture stdout
       iperfProcess.stdout.on('data', (data) => {
         const output = data.toString();
@@ -321,7 +321,7 @@ export function initializeIperfHandlers() {
           serverReady = true;
         }
       });
-      
+
       // Capture stderr
       iperfProcess.stderr.on('data', (data) => {
         const output = data.toString();
@@ -336,7 +336,7 @@ export function initializeIperfHandlers() {
           }
         }
       });
-      
+
       // Handle process exit
       iperfProcess.on('exit', (code, signal) => {
         console.log(`[iperf3] Server exited with code ${code}, signal ${signal}`);
@@ -353,16 +353,16 @@ export function initializeIperfHandlers() {
           }
         }
         iperfProcess = null;
-        
+
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('iperf-server-stopped', { code, signal });
         }
       });
-      
+
       // Handle process error (spawn failure)
       iperfProcess.on('error', (err) => {
         console.error(`[iperf3] Process error:`, err);
-        
+
         // Handle ENOENT (file not found) error specifically
         if (err.code === 'ENOENT') {
           let errorMsg;
@@ -372,7 +372,7 @@ export function initializeIperfHandlers() {
             errorMsg = `iperf3 is not installed on your system.\n\nPlease install it:\n  macOS: brew install iperf3\n  Linux: sudo apt-get install iperf3 (or sudo yum install iperf3)`;
           }
           serverError = errorMsg;
-          
+
           if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send('iperf-server-error', {
               title: 'iperf3 Server Error',
@@ -384,39 +384,39 @@ export function initializeIperfHandlers() {
         } else {
           serverError = err.message || `Failed to start iperf3: ${err.code || 'Unknown error'}`;
         }
-        
+
         iperfProcess = null;
       });
-      
+
       // Wait a bit to see if server starts successfully
       await new Promise(resolve => setTimeout(resolve, 1500));
-      
+
       // Check if process is still running
       if (iperfProcess && iperfProcess.exitCode === null && !serverError) {
         // Process is running, check if it's actually listening
-          if (serverReady || stdoutOutput.includes('listening') || stdoutOutput.includes('Server listening')) {
-            console.log(`[iperf3] Server listening on ${bindAddr}:${iperfPort}`);
-            return { 
-              success: true, 
-              running: true, 
-              port: iperfPort, 
-              host: bindAddr,
-              protocol: iperfProtocol,
-              streams: iperfStreams,
-              bandwidth: iperfBandwidth
-            };
+        if (serverReady || stdoutOutput.includes('listening') || stdoutOutput.includes('Server listening')) {
+          console.log(`[iperf3] Server listening on ${bindAddr}:${iperfPort}`);
+          return {
+            success: true,
+            running: true,
+            port: iperfPort,
+            host: bindAddr,
+            protocol: iperfProtocol,
+            streams: iperfStreams,
+            bandwidth: iperfBandwidth
+          };
         } else {
           // Process is running but no confirmation yet, assume it's working
           console.log(`[iperf3] Server process started on ${bindAddr}:${iperfPort}`);
-            return { 
-              success: true, 
-              running: true, 
-              port: iperfPort, 
-              host: bindAddr,
-              protocol: iperfProtocol,
-              streams: iperfStreams,
-              bandwidth: iperfBandwidth
-            };
+          return {
+            success: true,
+            running: true,
+            port: iperfPort,
+            host: bindAddr,
+            protocol: iperfProtocol,
+            streams: iperfStreams,
+            bandwidth: iperfBandwidth
+          };
         }
       } else {
         // Process failed or exited
@@ -436,16 +436,16 @@ export function initializeIperfHandlers() {
             }
           }
         }
-        
+
         console.error(`[iperf3] ${errorMsg}`);
-        
+
         if (iperfProcess) {
           try {
             iperfProcess.kill();
-          } catch (e) {}
+          } catch (e) { }
           iperfProcess = null;
         }
-        
+
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('iperf-server-error', {
             title: 'iperf3 Server Error',
@@ -454,7 +454,7 @@ export function initializeIperfHandlers() {
             error: serverError ? { message: serverError } : null
           });
         }
-        
+
         return { success: false, running: false, error: errorMsg };
       }
     } catch (e) {
@@ -462,7 +462,7 @@ export function initializeIperfHandlers() {
       if (iperfProcess) {
         try {
           iperfProcess.kill();
-        } catch (err) {}
+        } catch (err) { }
         iperfProcess = null;
       }
       return { success: false, running: false, error: e.message };
@@ -518,7 +518,7 @@ export function initializeIperfClientHandlers() {
       return { running: false };
     }
     const entry = iperfClientProcesses.get(sessionId);
-    return { 
+    return {
       running: entry?.process !== null && entry?.process?.exitCode === null,
       sessionId
     };
@@ -537,7 +537,7 @@ export function initializeIperfClientHandlers() {
       if (existing?.process && existing.process.exitCode === null) {
         return { success: false, error: 'iperf3 client is already running for this session' };
       }
-      
+
       const targetHost = params?.host || 'localhost';
       const targetPort = params?.port || 5201;
       const protocol = (params?.protocol || 'tcp').toString().toLowerCase();
@@ -545,9 +545,9 @@ export function initializeIperfClientHandlers() {
       const bandwidth = params?.bandwidth ? String(params.bandwidth).trim() : null;
       const d = parseInt(params?.duration, 10);
       const duration = (Number.isNaN(d) || d < 0) ? 10 : d; // 0 = infinite (iperf3 -t 0)
-      
+
       const binaryPath = getIperf3BinaryPath();
-      
+
       // Check if binary exists and is available
       if (!isIperf3Available(binaryPath)) {
         let errorMsg;
@@ -560,9 +560,9 @@ export function initializeIperfClientHandlers() {
         } else {
           errorMsg = `iperf3 is not installed on your system.\n\nPlease install it:\n  macOS: brew install iperf3\n  Linux: sudo apt-get install iperf3 (or sudo yum install iperf3)`;
         }
-        
+
         console.error(`[iperf3-client] ${errorMsg}`);
-        
+
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('iperf-client-error', {
             sessionId,
@@ -572,83 +572,81 @@ export function initializeIperfClientHandlers() {
             error: null
           });
         }
-        
+
         return { success: false, error: errorMsg };
       }
-      
+
       // Build iperf3 client command
       const args = ['-c', targetHost, '-p', targetPort.toString(), '-t', duration.toString()];
-      
+
       // Add --forceflush for real-time output when piping
       args.push('--forceflush');
-      
+
       if (protocol === 'udp') {
         args.push('-u');
         if (bandwidth) {
           args.push('-b', bandwidth);
         }
       }
-      
+
       if (streams > 1) {
         args.push('-P', streams.toString());
       }
-      
+
       console.log(`[iperf3-client][${sessionId}] Starting client: ${binaryPath} ${args.join(' ')}`);
-      
+
       // Send status update when client starts
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('iperf-client-started', { sessionId });
       }
-      
+
       const proc = spawn(binaryPath, args, {
         stdio: ['ignore', 'pipe', 'pipe']
       });
-      
+
       // Store in map
       iperfClientProcesses.set(sessionId, { process: proc });
-      
-      let stderrOutput = '';
-      let stdoutOutput = '';
-      
+
+      let hasOutput = false;
+
       // Capture stdout
       proc.stdout.on('data', (data) => {
         const output = data.toString();
-        stdoutOutput += output;
+        hasOutput = true;
         console.log(`[iperf3-client][${sessionId}] stdout: ${output}`);
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('iperf-client-output', { sessionId, output });
         }
       });
-      
+
       // Capture stderr
       proc.stderr.on('data', (data) => {
         const output = data.toString();
-        stderrOutput += output;
+        hasOutput = true;
         console.error(`[iperf3-client][${sessionId}] stderr: ${output}`);
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('iperf-client-output', { sessionId, output });
         }
       });
-      
+
       // Handle process exit
       proc.on('exit', (code, signal) => {
         console.log(`[iperf3-client][${sessionId}] Client exited with code ${code}, signal ${signal}`);
-        const finalOutput = stdoutOutput + stderrOutput;
         if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('iperf-client-stopped', { 
+          mainWindow.webContents.send('iperf-client-stopped', {
             sessionId,
-            code, 
+            code,
             signal,
-            output: finalOutput ? `\n[Process exited with code ${code}]\n` : null
+            output: hasOutput ? `\n[Process exited with code ${code}]\n` : null
           });
         }
         iperfClientProcesses.delete(sessionId);
       });
-      
+
       // Handle process error (spawn failure)
       proc.on('error', (err) => {
         console.error(`[iperf3-client][${sessionId}] Process error:`, err);
-        
+
         let errorMsg;
         if (err.code === 'ENOENT') {
           if (process.platform === 'win32') {
@@ -659,7 +657,7 @@ export function initializeIperfClientHandlers() {
         } else {
           errorMsg = err.message || `Failed to start iperf3 client: ${err.code || 'Unknown error'}`;
         }
-        
+
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('iperf-client-error', {
             sessionId,
@@ -669,10 +667,10 @@ export function initializeIperfClientHandlers() {
             error: { code: err.code, message: err.message }
           });
         }
-        
+
         iperfClientProcesses.delete(sessionId);
       });
-      
+
       return { success: true, sessionId };
     } catch (e) {
       console.error(`[iperf3-client][${sessionId}] Client creation error:`, e);
@@ -680,7 +678,7 @@ export function initializeIperfClientHandlers() {
       if (entry?.process) {
         try {
           entry.process.kill();
-        } catch (err) {}
+        } catch (err) { }
       }
       iperfClientProcesses.delete(sessionId);
       return { success: false, error: e.message };
