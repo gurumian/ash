@@ -439,110 +439,110 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
                     {t('client:iperf.graphHistoryEmpty')}
                   </div>
                 ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  {graphView === 'realtime' ? (
-                    <AreaChart data={graphData}>
-                      <defs>
-                        <linearGradient id="colorBw" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="var(--theme-accent, #00ff41)" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="var(--theme-accent, #00ff41)" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
-                      <XAxis
-                        dataKey="time"
-                        stroke="#666"
-                        fontSize={10}
-                        tickFormatter={(val) => `${val}s`}
-                        minTickGap={30}
-                      />
-                      <YAxis
-                        stroke="#666"
-                        fontSize={10}
-                        tickFormatter={(val) => val >= 1000 ? `${val / 1000} G` : `${val} M`}
-                        width={40}
-                        domain={[0, 5000]}
-                        allowDataOverflow={true}
-                      />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: 'var(--theme-surface, #1a1a1a)',
-                          borderColor: 'var(--theme-border, #2a2a2a)',
-                          color: 'var(--theme-text, #00ff41)'
-                        }}
-                        itemStyle={{ color: 'var(--theme-text, #00ff41)' }}
-                        labelStyle={{ color: '#888' }}
-                        formatter={(value) => [`${(value != null ? value : 0).toFixed(2)} Mbps`, 'Bandwidth']}
-                        labelFormatter={(label) => `Time: ${label}s`}
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="bandwidth"
-                        stroke="var(--theme-accent, #00ff41)"
-                        fillOpacity={1}
-                        fill="url(#colorBw)"
-                        isAnimationActive={false}
-                      />
-                    </AreaChart>
-                  ) : (
-                    <AreaChart data={historyData}>
-                      <defs>
-                        <linearGradient id="colorHistory" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#00d4ff" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="#00d4ff" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
-                      <XAxis
-                        dataKey="time"
-                        stroke="#666"
-                        fontSize={10}
-                        tickFormatter={(val) => new Date(val).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        minTickGap={30}
-                      />
-                      <YAxis
-                        stroke="#666"
-                        fontSize={10}
-                        tickFormatter={(val) => val >= 1000 ? `${val / 1000} G` : `${val} M`}
-                        width={40}
-                        domain={[0, 5000]}
-                        allowDataOverflow={true}
-                      />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: 'var(--theme-surface, #1a1a1a)',
-                          borderColor: 'var(--theme-border, #2a2a2a)',
-                          color: '#00d4ff'
-                        }}
-                        content={({ active, payload }) => {
-                          if (!active || !payload?.length) return null;
-                          const p = payload[0].payload;
-                          const avg = (p.bandwidth != null ? p.bandwidth : 0).toFixed(2);
-                          const min = p.min != null ? (p.min).toFixed(2) : null;
-                          const max = p.max != null ? (p.max).toFixed(2) : null;
-                          return (
-                            <div style={{ padding: '4px 8px', fontSize: '11px' }}>
-                              <div style={{ color: '#888', marginBottom: '4px' }}>
-                                {new Date(p.time).toLocaleString()}
+                  <ResponsiveContainer width="100%" height="100%">
+                    {graphView === 'realtime' ? (
+                      <AreaChart data={graphData}>
+                        <defs>
+                          <linearGradient id="colorBw" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="var(--theme-accent, #00ff41)" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="var(--theme-accent, #00ff41)" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
+                        <XAxis
+                          dataKey="time"
+                          stroke="#666"
+                          fontSize={10}
+                          tickFormatter={(val) => `${val}s`}
+                          minTickGap={30}
+                        />
+                        <YAxis
+                          stroke="#666"
+                          fontSize={10}
+                          tickFormatter={(val) => val >= 1000 ? `${val / 1000} G` : `${val} M`}
+                          width={40}
+                          domain={[0, (dataMax) => Math.max(dataMax || 0, 5000)]}
+                          allowDataOverflow={false}
+                        />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: 'var(--theme-surface, #1a1a1a)',
+                            borderColor: 'var(--theme-border, #2a2a2a)',
+                            color: 'var(--theme-text, #00ff41)'
+                          }}
+                          itemStyle={{ color: 'var(--theme-text, #00ff41)' }}
+                          labelStyle={{ color: '#888' }}
+                          formatter={(value) => [`${(value != null ? value : 0).toFixed(2)} Mbps`, 'Bandwidth']}
+                          labelFormatter={(label) => `Time: ${label}s`}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="bandwidth"
+                          stroke="var(--theme-accent, #00ff41)"
+                          fillOpacity={1}
+                          fill="url(#colorBw)"
+                          isAnimationActive={false}
+                        />
+                      </AreaChart>
+                    ) : (
+                      <AreaChart data={historyData}>
+                        <defs>
+                          <linearGradient id="colorHistory" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#00d4ff" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="#00d4ff" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
+                        <XAxis
+                          dataKey="time"
+                          stroke="#666"
+                          fontSize={10}
+                          tickFormatter={(val) => new Date(val).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          minTickGap={30}
+                        />
+                        <YAxis
+                          stroke="#666"
+                          fontSize={10}
+                          tickFormatter={(val) => val >= 1000 ? `${val / 1000} G` : `${val} M`}
+                          width={40}
+                          domain={[0, (dataMax) => Math.max(dataMax || 0, 5000)]}
+                          allowDataOverflow={false}
+                        />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: 'var(--theme-surface, #1a1a1a)',
+                            borderColor: 'var(--theme-border, #2a2a2a)',
+                            color: '#00d4ff'
+                          }}
+                          content={({ active, payload }) => {
+                            if (!active || !payload?.length) return null;
+                            const p = payload[0].payload;
+                            const avg = (p.bandwidth != null ? p.bandwidth : 0).toFixed(2);
+                            const min = p.min != null ? (p.min).toFixed(2) : null;
+                            const max = p.max != null ? (p.max).toFixed(2) : null;
+                            return (
+                              <div style={{ padding: '4px 8px', fontSize: '11px' }}>
+                                <div style={{ color: '#888', marginBottom: '4px' }}>
+                                  {new Date(p.time).toLocaleString()}
+                                </div>
+                                <div>Avg: {avg} Mbps</div>
+                                {min != null && <div>Min: {min} Mbps</div>}
+                                {max != null && <div>Max: {max} Mbps</div>}
                               </div>
-                              <div>Avg: {avg} Mbps</div>
-                              {min != null && <div>Min: {min} Mbps</div>}
-                              {max != null && <div>Max: {max} Mbps</div>}
-                            </div>
-                          );
-                        }}
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="bandwidth"
-                        stroke="#00d4ff"
-                        fillOpacity={1}
-                        fill="url(#colorHistory)"
-                        isAnimationActive={true}
-                      />
-                    </AreaChart>
-                  )}
-                </ResponsiveContainer>
+                            );
+                          }}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="bandwidth"
+                          stroke="#00d4ff"
+                          fillOpacity={1}
+                          fill="url(#colorHistory)"
+                          isAnimationActive={true}
+                        />
+                      </AreaChart>
+                    )}
+                  </ResponsiveContainer>
                 )}
               </div>
             )}
