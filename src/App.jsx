@@ -602,10 +602,7 @@ function App() {
     return saved ? parseInt(saved, 10) : 5000;
   });
 
-  // Sync maxOutputSize to main process
-  useEffect(() => {
-    window.electronAPI?.updateSSHSettings?.({ maxOutputSize });
-  }, [maxOutputSize]);
+
 
   const [terminalBufferLimit, setTerminalBufferLimit] = useState(() => {
     const saved = localStorage.getItem('ash-terminal-buffer-limit');
@@ -615,6 +612,11 @@ function App() {
     const saved = localStorage.getItem('ash-max-output-size');
     return saved ? parseInt(saved, 10) : 1024 * 1024; // Default 1MB
   });
+
+  // Sync maxOutputSize to main process
+  useEffect(() => {
+    window.electronAPI?.updateSSHSettings?.({ maxOutputSize });
+  }, [maxOutputSize]);
   const [terminalFontSize, setTerminalFontSize] = useState(() => {
     const saved = localStorage.getItem('ash-terminal-font-size');
     return saved ? parseInt(saved, 10) : 13;
