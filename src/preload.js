@@ -20,6 +20,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Disconnect SSH connection
   sshDisconnect: (connectionId) => ipcRenderer.invoke('ssh-disconnect', connectionId),
 
+  // Update SSH settings
+  updateSSHSettings: (settings) => ipcRenderer.invoke('update-ssh-settings', settings),
+
   // SFTP file upload
   sshUploadFile: ({ connectionId, localPath, remotePath }) => ipcRenderer.invoke('ssh-upload-file', { connectionId, localPath, remotePath }),
 

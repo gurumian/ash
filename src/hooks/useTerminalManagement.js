@@ -21,7 +21,8 @@ export function useTerminalManagement({
   setShowSearchBar,
   setShowAICommandInput,
   showAICommandInput,
-  onSshClose
+  onSshClose,
+  terminalBufferLimit = 500 // Default limit if not provided
 }) {
   const terminalRefs = useRef({});
   const terminalInstances = useRef({});
@@ -816,13 +817,19 @@ export function useTerminalManagement({
         if (!dataBufferRef.current.has(connectionId)) {
           dataBufferRef.current.set(connectionId, []);
         }
-        dataBufferRef.current.get(connectionId).push(data);
+        const buffer = dataBufferRef.current.get(connectionId);
+        if (buffer.length < terminalBufferLimit) { // Limit to configured chunks to prevent memory leaks
+          buffer.push(data);
+        }
       } else {
         // Still try to buffer by connectionId - we'll match it later when mapping is ready
         if (!dataBufferRef.current.has(connectionId)) {
           dataBufferRef.current.set(connectionId, []);
         }
-        dataBufferRef.current.get(connectionId).push(data);
+        const buffer = dataBufferRef.current.get(connectionId);
+        if (buffer.length < terminalBufferLimit) { // Limit to configured chunks to prevent memory leaks
+          buffer.push(data);
+        }
       }
     };
 

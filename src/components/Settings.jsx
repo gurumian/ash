@@ -10,6 +10,8 @@ export const Settings = memo(function Settings({
   theme,
   themes,
   scrollbackLines,
+  terminalBufferLimit,
+  maxOutputSize,
   terminalFontSize,
   terminalFontFamily,
   uiFontFamily,
@@ -17,6 +19,8 @@ export const Settings = memo(function Settings({
   reconnectRetry,
   onChangeTheme,
   onChangeScrollbackLines,
+  onChangeTerminalBufferLimit,
+  onChangeMaxOutputSize,
   onChangeTerminalFontSize,
   onChangeTerminalFontFamily,
   onChangeUiFontFamily,
@@ -101,7 +105,7 @@ export const Settings = memo(function Settings({
         try {
           const baseURL = currentBaseURL.endsWith('/v1') ? currentBaseURL : `${currentBaseURL.replace(/\/$/, '')}/v1`;
           const url = `${baseURL}/tags`;
-          
+
           // Build headers
           const headers = {
             'Content-Type': 'application/json',
@@ -110,7 +114,7 @@ export const Settings = memo(function Settings({
           if (apiKey) {
             headers['X-API-Key'] = apiKey;
           }
-          
+
           const response = await fetch(url, {
             method: 'GET',
             headers: headers
@@ -237,7 +241,7 @@ export const Settings = memo(function Settings({
   useEffect(() => {
     if (llmSettings?.model && ollamaModels.length > 0) {
       const filter = llmSettings.model.toLowerCase();
-      const filtered = ollamaModels.filter(model => 
+      const filtered = ollamaModels.filter(model =>
         model.toLowerCase().includes(filter)
       );
       setFilteredModels(filtered);
@@ -279,18 +283,18 @@ export const Settings = memo(function Settings({
       <div className="settings-modal">
         <div className="modal-header">
           <h3>{t('settings:title')}</h3>
-          <button 
+          <button
             className="modal-close"
             onClick={onClose}
           >
             ×
           </button>
         </div>
-        
+
         <div className="settings-content">
           <div className="settings-section">
             <h4>{t('settings:theme')}</h4>
-            
+
             <div className="setting-group">
               <label>{t('settings:theme')}</label>
               <div className="theme-options">
@@ -300,7 +304,7 @@ export const Settings = memo(function Settings({
                     className={`theme-option ${theme === key ? 'active' : ''}`}
                     onClick={() => onChangeTheme(key)}
                   >
-                    <div 
+                    <div
                       className="theme-preview"
                       style={{ backgroundColor: themeData.background }}
                     />
@@ -337,7 +341,7 @@ export const Settings = memo(function Settings({
 
           <div className="settings-section">
             <h4>{t('settings:terminal')}</h4>
-            
+
             <div className="setting-group">
               <label>{t('settings:scrollbackLines')}</label>
               <input
@@ -353,6 +357,46 @@ export const Settings = memo(function Settings({
               <p className="setting-description">
                 {t('settings:scrollbackLinesDesc')}
                 {' '}{t('settings:scrollbackLinesCurrent')}: ~{Math.round(scrollbackLines * 80 * 10 / 1024 / 1024 * 10) / 10}{t('settings:scrollbackLinesMB')}
+              </p>
+            </div>
+
+            <div className="setting-group">
+              <label>{t('settings:terminalBufferLimit') || 'Output Buffer Limit (Chunks)'}</label>
+              <input
+                type="number"
+                min="10"
+                max="10000"
+                step="10"
+                value={terminalBufferLimit || 500}
+                onChange={onChangeTerminalBufferLimit}
+                className="settings-input"
+                style={{ width: '150px' }}
+              />
+              <p className="setting-description">
+                {t('settings:terminalBufferLimitDesc') || 'Limit the number of data chunks buffered when terminal is not ready (Default: 500)'}
+              </p>
+            </div>
+
+            <div className="setting-group">
+              <label>{t('settings:maxOutputSize') || 'Max Command Output Limit (MB)'}</label>
+              <input
+                type="number"
+                min="0.1"
+                max="100"
+                step="0.1"
+                value={(maxOutputSize || 1024 * 1024) / (1024 * 1024)} // Convert bytes to MB for display
+                onChange={(e) => {
+                  const mb = parseFloat(e.target.value);
+                  if (!isNaN(mb) && mb > 0) {
+                    // Convert MB to bytes for handler
+                    onChangeMaxOutputSize && onChangeMaxOutputSize({ target: { value: Math.floor(mb * 1024 * 1024) } });
+                  }
+                }}
+                className="settings-input"
+                style={{ width: '150px' }}
+              />
+              <p className="setting-description">
+                {t('settings:maxOutputSizeDesc') || 'Limit the maximum output size for SSH execution commands (Default: 1MB)'}
               </p>
             </div>
 
@@ -428,7 +472,7 @@ export const Settings = memo(function Settings({
 
           <div className="settings-section">
             <h4>{t('settings:connection')}</h4>
-            
+
             <div className="setting-group">
               <label>
                 <input
@@ -462,7 +506,7 @@ export const Settings = memo(function Settings({
                 <label style={{ margin: 0, flex: 1, cursor: 'pointer' }} onClick={() => onChangeReconnectRetry?.({ enabled: !reconnectRetry?.enabled })}>
                   {t('settings:reconnectEnabled')}
                 </label>
-                <div 
+                <div
                   className={`settings-toggle-switch ${reconnectRetry?.enabled !== false ? 'active' : ''}`}
                   onClick={() => onChangeReconnectRetry?.({ enabled: !reconnectRetry?.enabled })}
                 >
@@ -528,13 +572,13 @@ export const Settings = memo(function Settings({
 
           <div className="settings-section">
             <h4>{t('settings:llm')}</h4>
-            
+
             <div className="setting-group">
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
                 <label style={{ margin: 0, flex: 1, cursor: 'pointer' }} onClick={() => onChangeLlmSettings?.({ enabled: !llmSettings?.enabled })}>
                   {t('settings:enableAI')}
                 </label>
-                <div 
+                <div
                   className={`settings-toggle-switch ${llmSettings?.enabled ? 'active' : ''}`}
                   onClick={() => onChangeLlmSettings?.({ enabled: !llmSettings?.enabled })}
                 >
@@ -581,13 +625,13 @@ export const Settings = memo(function Settings({
                             // Always reset baseURL to Ollama default when switching to Ollama
                             // unless it's already an Ollama URL
                             const currentBaseURL = llmSettings?.baseURL || '';
-                            if (!currentBaseURL || 
-                                currentBaseURL.includes('openai.com') || 
-                                currentBaseURL.includes('anthropic.com')) {
+                            if (!currentBaseURL ||
+                              currentBaseURL.includes('openai.com') ||
+                              currentBaseURL.includes('anthropic.com')) {
                               updates.baseURL = 'http://localhost:11434';
                             }
-                            if (!llmSettings?.model || 
-                                llmSettings?.model.includes('claude')) {
+                            if (!llmSettings?.model ||
+                              llmSettings?.model.includes('claude')) {
                               updates.model = 'llama3.2';
                             }
                             onChangeLlmSettings?.(updates);
@@ -602,15 +646,15 @@ export const Settings = memo(function Settings({
                           onClick={() => {
                             const provider = 'ash';
                             const updates = { provider };
-                            if (!llmSettings?.baseURL || 
-                                llmSettings?.baseURL === 'http://localhost:11434' ||
-                                llmSettings?.baseURL.includes('openai.com') ||
-                                llmSettings?.baseURL.includes('anthropic.com')) {
+                            if (!llmSettings?.baseURL ||
+                              llmSettings?.baseURL === 'http://localhost:11434' ||
+                              llmSettings?.baseURL.includes('openai.com') ||
+                              llmSettings?.baseURL.includes('anthropic.com')) {
                               updates.baseURL = 'https://ash.toktoktalk.com/v1';
                             }
-                            if (!llmSettings?.model || 
-                                llmSettings?.model === 'llama3.2' ||
-                                llmSettings?.model.includes('claude')) {
+                            if (!llmSettings?.model ||
+                              llmSettings?.model === 'llama3.2' ||
+                              llmSettings?.model.includes('claude')) {
                               updates.model = 'qwen3:14b';
                             }
                             onChangeLlmSettings?.(updates);
@@ -701,7 +745,7 @@ export const Settings = memo(function Settings({
                           if ((llmSettings?.provider === 'ollama' || llmSettings?.provider === 'ash') && ollamaModels.length > 0 && showModelDropdown) {
                             if (e.key === 'ArrowDown') {
                               e.preventDefault();
-                              setHighlightedIndex(prev => 
+                              setHighlightedIndex(prev =>
                                 prev < filteredModels.length - 1 ? prev + 1 : prev
                               );
                             } else if (e.key === 'ArrowUp') {
@@ -720,7 +764,7 @@ export const Settings = memo(function Settings({
                         }}
                         placeholder={llmSettings?.provider === 'ollama' ? 'llama3.2' : 'qwen3:14b'}
                         className="settings-input"
-                        style={{ 
+                        style={{
                           width: '100%',
                           paddingRight: '32px',
                           boxSizing: 'border-box'
@@ -830,7 +874,7 @@ export const Settings = memo(function Settings({
               <p><strong>{t('common:appName')}</strong></p>
               <p>{t('settings:appDescription')}</p>
               {onShowAbout && (
-                <button 
+                <button
                   className="about-button"
                   onClick={() => {
                     onClose();
@@ -845,7 +889,7 @@ export const Settings = memo(function Settings({
         </div>
 
         <div className="modal-actions">
-          <button 
+          <button
             className="close-btn"
             onClick={onClose}
           >

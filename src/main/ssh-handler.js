@@ -143,6 +143,15 @@ export function initializeSSHHandlers() {
     }
   });
 
+  // Update SSH settings
+  ipcMain.handle('update-ssh-settings', (event, settings) => {
+    if (settings && typeof settings.maxOutputSize === 'number') {
+      setMaxOutputSize(settings.maxOutputSize);
+      return { success: true };
+    }
+    return { success: false, error: 'Invalid settings format' };
+  });
+
   // Resize SSH terminal
   // Note: IPC interface uses 'connectionId' parameter name, but it's actually sessionConnectionId
   ipcMain.handle('ssh-resize', async (event, connectionId, cols, rows) => {
@@ -389,6 +398,15 @@ export function getSSHConnections() {
  * Execute command on SSH connection (for IPC bridge)
  * @param {string} sessionConnectionId - Session-specific connection ID (IPC bridge uses 'connectionId' name)
  */
+// Module-level setting for max output size (default 1MB)
+let currentMaxOutputSize = 1024 * 1024;
+
+export function setMaxOutputSize(sizeInBytes) {
+  if (typeof sizeInBytes === 'number' && sizeInBytes > 0) {
+    currentMaxOutputSize = sizeInBytes;
+  }
+}
+
 export async function executeSSHCommand(connectionId, command) {
   const sessionConnectionId = connectionId; // IPC bridge parameter name kept for compatibility
   const conn = sshConnections.get(sessionConnectionId);
@@ -407,12 +425,28 @@ export async function executeSSHCommand(connectionId, command) {
       let output = '';
       let errorOutput = '';
 
+      const MAX_OUTPUT_SIZE = currentMaxOutputSize;
+
       stream.on('data', (data) => {
-        output += data.toString();
+        if (output.length < MAX_OUTPUT_SIZE) {
+          const chunk = data.toString();
+          if (output.length + chunk.length > MAX_OUTPUT_SIZE) {
+            output += chunk.substring(0, MAX_OUTPUT_SIZE - output.length) + '\n... [Output Truncated]';
+          } else {
+            output += chunk;
+          }
+        }
       });
 
       stream.stderr.on('data', (data) => {
-        errorOutput += data.toString();
+        if (errorOutput.length < MAX_OUTPUT_SIZE) {
+          const chunk = data.toString();
+          if (errorOutput.length + chunk.length > MAX_OUTPUT_SIZE) {
+            errorOutput += chunk.substring(0, MAX_OUTPUT_SIZE - errorOutput.length) + '\n... [Output Truncated]';
+          } else {
+            errorOutput += chunk;
+          }
+        }
       });
 
       stream.on('close', (code) => {

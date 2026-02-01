@@ -601,6 +601,20 @@ function App() {
     const saved = localStorage.getItem('ash-scrollback');
     return saved ? parseInt(saved, 10) : 5000;
   });
+
+  // Sync maxOutputSize to main process
+  useEffect(() => {
+    window.electronAPI?.updateSSHSettings?.({ maxOutputSize });
+  }, [maxOutputSize]);
+
+  const [terminalBufferLimit, setTerminalBufferLimit] = useState(() => {
+    const saved = localStorage.getItem('ash-terminal-buffer-limit');
+    return saved ? parseInt(saved, 10) : 500;
+  });
+  const [maxOutputSize, setMaxOutputSize] = useState(() => {
+    const saved = localStorage.getItem('ash-max-output-size');
+    return saved ? parseInt(saved, 10) : 1024 * 1024; // Default 1MB
+  });
   const [terminalFontSize, setTerminalFontSize] = useState(() => {
     const saved = localStorage.getItem('ash-terminal-font-size');
     return saved ? parseInt(saved, 10) : 13;
@@ -664,7 +678,8 @@ function App() {
     setShowSearchBar,
     setShowAICommandInput,
     showAICommandInput,
-    onSshClose: onSshCloseRef.current
+    onSshClose: onSshCloseRef.current,
+    terminalBufferLimit
   });
 
   // Update ref for useTheme after terminalInstances is available
@@ -1785,8 +1800,24 @@ function App() {
         uiFontFamily={uiFontFamily}
         llmSettings={llmSettings}
         reconnectRetry={reconnectRetry}
+        terminalBufferLimit={terminalBufferLimit}
         onChangeTheme={changeTheme}
         onChangeScrollbackLines={handleScrollbackChange}
+        onChangeTerminalBufferLimit={(e) => {
+          const val = parseInt(e.target.value, 10);
+          if (!isNaN(val) && val >= 10 && val <= 10000) {
+            setTerminalBufferLimit(val);
+            localStorage.setItem('ash-terminal-buffer-limit', val);
+          }
+        }}
+        maxOutputSize={maxOutputSize}
+        onChangeMaxOutputSize={(e) => {
+          const val = parseInt(e.target.value, 10);
+          if (!isNaN(val) && val >= 1024) { // Minimum 1KB
+            setMaxOutputSize(val);
+            localStorage.setItem('ash-max-output-size', val);
+          }
+        }}
         onChangeTerminalFontSize={handleTerminalFontSizeChange}
         onChangeTerminalFontFamily={handleTerminalFontFamilyChange}
         onChangeUiFontFamily={handleUiFontFamilyChange}
