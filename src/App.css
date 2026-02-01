@@ -1757,7 +1757,7 @@ textarea,
 }
 
 .group-header.drag-over {
-  background: rgba(0, 255, 65, 0.2);
+  background: color-mix(in srgb, var(--theme-accent, #00ff41) 20%, transparent);
   border: 1px dashed var(--theme-accent, #00ff41);
 }
 
@@ -1798,11 +1798,11 @@ textarea,
 
 .group-name-input:focus {
   outline: none;
-  box-shadow: 0 0 0 2px rgba(0, 255, 65, 0.2);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--theme-accent, #00ff41) 20%, transparent);
 }
 
 .group-count {
-  color: #555;
+  color: color-mix(in srgb, var(--theme-text, #00ff41) 60%, transparent);
   font-size: 11px;
 }
 
@@ -1828,7 +1828,7 @@ textarea,
 .group-connect-btn:hover:not(:disabled),
 .group-disconnect-btn:hover:not(:disabled) {
   opacity: 1;
-  background: rgba(0, 255, 65, 0.1);
+  background: color-mix(in srgb, var(--theme-accent, #00ff41) 10%, transparent);
 }
 
 .group-connect-btn:disabled,
@@ -1858,7 +1858,7 @@ textarea,
 
 .group-empty {
   padding: 8px 24px;
-  color: #555;
+  color: color-mix(in srgb, var(--theme-text, #00ff41) 50%, transparent);
   font-size: 11px;
   font-style: italic;
   text-align: center;
