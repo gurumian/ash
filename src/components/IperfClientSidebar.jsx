@@ -31,6 +31,18 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
     return longTermData || [];
   }, [longTermData]);
 
+  // Dynamic Y-axis domain from current data (no fixed 5G cap)
+  const yAxisDomain = React.useMemo(() => {
+    const data = graphView === 'realtime' ? graphData : historyData;
+    if (!data?.length) return [0, 100]; // default when empty
+    const maxBw = Math.max(
+      ...data.map((d) => (d.bandwidth != null ? d.bandwidth : 0)),
+      ...data.map((d) => (d.max != null ? d.max : 0))
+    );
+    const upper = Math.max(maxBw * 1.15, 10); // 15% headroom, min 10 Mbps
+    return [0, upper];
+  }, [graphView, graphData, historyData]);
+
   // Load current status when sidebar becomes visible
 
   // Load current status when sidebar becomes visible
@@ -461,7 +473,7 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
                           fontSize={10}
                           tickFormatter={(val) => val >= 1000 ? `${val / 1000} G` : `${val} M`}
                           width={40}
-                          domain={[0, (dataMax) => Math.max(dataMax || 0, 5000)]}
+                          domain={yAxisDomain}
                           allowDataOverflow={false}
                         />
                         <Tooltip
@@ -505,7 +517,7 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
                           fontSize={10}
                           tickFormatter={(val) => val >= 1000 ? `${val / 1000} G` : `${val} M`}
                           width={40}
-                          domain={[0, (dataMax) => Math.max(dataMax || 0, 5000)]}
+                          domain={yAxisDomain}
                           allowDataOverflow={false}
                         />
                         <Tooltip
