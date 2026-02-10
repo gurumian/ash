@@ -139,8 +139,8 @@ export function LibraryDialog({
   };
 
   return (
-    <div className="library-dialog-overlay" onClick={onClose}>
-      <div className="library-dialog" onClick={(e) => e.stopPropagation()}>
+    <div className="library-dialog-overlay">
+      <div className="library-dialog">
         <div className="library-dialog-header">
           <h3>{t('library:title', { name: library.name })}</h3>
           <button 
