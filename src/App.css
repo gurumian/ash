@@ -204,9 +204,10 @@ textarea,
   border-right: none;
 }
 
-/* Resize handle */
+/* Resize handle - wider hit area for easier gripping (visual line via hover) */
 .resize-handle {
-  width: 1px;
+  width: 8px;
+  margin: 0 -4px;
   background: transparent !important;
   cursor: col-resize;
   flex-shrink: 0;
@@ -226,7 +227,8 @@ textarea,
 /* Ensure resize handle in secondary sidebars also gets theme colors */
 #secondary-sidebars-root .resize-handle,
 .secondary-sidebars-root .resize-handle {
-  width: 1px !important;
+  width: 8px !important;
+  margin: 0 -4px !important;
   background: transparent !important;
   cursor: col-resize !important;
   flex-shrink: 0 !important;
