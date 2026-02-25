@@ -45,6 +45,7 @@
   "enablePostProcessing": "Bật tất cả xử lý sau",
   "noCommandsAdded": "Chưa có lệnh nào được thêm",
   "enterCommandPlaceholder": "Nhập lệnh (ví dụ: logread -f)",
+  "postProcessingClickToEdit": "Nhấp để chỉnh sửa",
   "postProcessingDescription": "Lệnh sẽ được thực thi tự động sau khi kết nối được thiết lập, theo thứ tự được liệt kê bên dưới.",
   "autoReconnect": "Tự động kết nối lại",
   "autoReconnectDesc": "Tự động kết nối lại khi mất kết nối (tương đương với nhấn F5)"

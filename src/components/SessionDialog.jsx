@@ -14,17 +14,21 @@ export function SessionDialog({
   const [newCommand, setNewCommand] = useState('');
   const [enabled, setEnabled] = useState(true);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [editingCommandIndex, setEditingCommandIndex] = useState(null);
+  const [editingCommand, setEditingCommand] = useState('');
   const { t } = useTranslation(['connection', 'common']);
 
   useEffect(() => {
     if (showDialog && session) {
-      // Convert old format (string array) to new format (object array)
-      const commands = (session.postProcessing || []).map(cmd =>
-        typeof cmd === 'string' ? cmd : cmd
+      const raw = session.postProcessing || [];
+      const commands = raw.map(cmd =>
+        typeof cmd === 'string' ? cmd : (cmd && typeof cmd.command === 'string' ? cmd.command : String(cmd))
       );
       setPostProcessing(commands);
-      setEnabled(session.postProcessingEnabled !== false); // Default to true if not set
+      setEnabled(session.postProcessingEnabled !== false);
       setNewCommand('');
+      setEditingCommandIndex(null);
+      setEditingCommand('');
     }
   }, [showDialog, session]);
 
@@ -39,6 +43,33 @@ export function SessionDialog({
 
   const handleRemoveCommand = (index) => {
     setPostProcessing(postProcessing.filter((_, i) => i !== index));
+    if (editingCommandIndex === index) {
+      setEditingCommandIndex(null);
+      setEditingCommand('');
+    } else if (editingCommandIndex > index) {
+      setEditingCommandIndex(editingCommandIndex - 1);
+    }
+  };
+
+  const handleEditCommand = (index) => {
+    const cmd = postProcessing[index];
+    setEditingCommandIndex(index);
+    setEditingCommand(typeof cmd === 'string' ? cmd : String(cmd));
+  };
+
+  const handleSaveEditCommand = () => {
+    if (editingCommandIndex !== null && editingCommand.trim()) {
+      const updated = [...postProcessing];
+      updated[editingCommandIndex] = editingCommand.trim();
+      setPostProcessing(updated);
+      setEditingCommandIndex(null);
+      setEditingCommand('');
+    }
+  };
+
+  const handleCancelEditCommand = () => {
+    setEditingCommandIndex(null);
+    setEditingCommand('');
   };
 
   const handleDragStart = (e, index) => {
@@ -62,6 +93,11 @@ export function SessionDialog({
 
     if (isNaN(draggedIndex) || draggedIndex === targetIndex) {
       return;
+    }
+
+    if (editingCommandIndex !== null) {
+      setEditingCommandIndex(null);
+      setEditingCommand('');
     }
 
     const newCommands = [...postProcessing];
@@ -159,61 +195,136 @@ export function SessionDialog({
                     </div>
                   ) : (
                     postProcessing.map((cmd, index) => {
-                      const cmdText = typeof cmd === 'string' ? cmd : cmd;
+                      const cmdText = typeof cmd === 'string' ? cmd : String(cmd);
+                      const isEditing = editingCommandIndex === index;
                       return (
                         <div
                           key={index}
-                          draggable
-                          onDragStart={(e) => handleDragStart(e, index)}
+                          draggable={!isEditing}
+                          onDragStart={(e) => !isEditing && handleDragStart(e, index)}
                           onDragEnd={handleDragEnd}
                           onDragOver={handleDragOver}
                           onDrop={(e) => handleDrop(e, index)}
                           style={{
                             display: 'flex',
-                            alignItems: 'center',
+                            flexDirection: 'column',
                             gap: '8px',
                             padding: '8px',
                             marginBottom: '4px',
-                            backgroundColor: 'var(--theme-border)',
+                            backgroundColor: isEditing ? 'color-mix(in srgb, var(--theme-accent) 10%, transparent)' : 'var(--theme-border)',
                             borderRadius: '4px',
-                            border: '1px solid var(--theme-border)',
+                            border: `1px solid ${isEditing ? 'var(--theme-accent)' : 'var(--theme-border)'}`,
                             opacity: enabled ? 1 : 0.5,
-                            cursor: 'move'
+                            cursor: isEditing ? 'default' : 'move'
                           }}
                         >
-                          <span style={{
-                            color: 'var(--theme-text)',
-                            fontSize: '12px',
-                            opacity: 0.5,
-                            userSelect: 'none'
-                          }}>
-                            ⋮⋮
-                          </span>
-                          <span style={{
-                            flex: 1,
-                            fontFamily: 'monospace',
-                            fontSize: '13px',
-                            color: 'var(--theme-text)',
-                            wordBreak: 'break-all',
-                            textDecoration: enabled ? 'none' : 'line-through'
-                          }}>
-                            {cmdText}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveCommand(index)}
-                            style={{
-                              padding: '4px 8px',
-                              fontSize: '12px',
-                              backgroundColor: 'rgba(255, 68, 68, 0.1)',
-                              border: '1px solid rgba(255, 68, 68, 0.3)',
-                              color: '#ff4444',
-                              cursor: 'pointer'
-                            }}
-                            title={t('connection:postProcessingRemove')}
-                          >
-                            ×
-                          </button>
+                          {isEditing ? (
+                            <>
+                              <input
+                                type="text"
+                                value={editingCommand}
+                                onChange={(e) => setEditingCommand(e.target.value)}
+                                placeholder={t('connection:enterCommandPlaceholder')}
+                                style={{
+                                  width: '100%',
+                                  padding: '6px 8px',
+                                  backgroundColor: 'var(--theme-bg)',
+                                  border: '1px solid var(--theme-border)',
+                                  borderRadius: '4px',
+                                  color: 'var(--theme-text)',
+                                  fontSize: '13px',
+                                  fontFamily: 'monospace',
+                                  boxSizing: 'border-box'
+                                }}
+                                autoFocus
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault();
+                                    handleSaveEditCommand();
+                                  } else if (e.key === 'Escape') {
+                                    e.preventDefault();
+                                    handleCancelEditCommand();
+                                  }
+                                }}
+                              />
+                              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                <button
+                                  type="button"
+                                  onClick={handleCancelEditCommand}
+                                  style={{
+                                    padding: '4px 12px',
+                                    fontSize: '12px',
+                                    backgroundColor: 'var(--theme-surface)',
+                                    border: '1px solid var(--theme-border)',
+                                    color: 'var(--theme-text)',
+                                    cursor: 'pointer',
+                                    borderRadius: '4px'
+                                  }}
+                                >
+                                  {t('common:cancel')}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={handleSaveEditCommand}
+                                  disabled={!editingCommand.trim()}
+                                  style={{
+                                    padding: '4px 12px',
+                                    fontSize: '12px',
+                                    backgroundColor: 'var(--theme-accent)',
+                                    border: 'none',
+                                    color: 'var(--theme-bg)',
+                                    cursor: editingCommand.trim() ? 'pointer' : 'not-allowed',
+                                    opacity: editingCommand.trim() ? 1 : 0.5,
+                                    borderRadius: '4px',
+                                    fontWeight: 'bold'
+                                  }}
+                                >
+                                  {t('common:save')}
+                                </button>
+                              </div>
+                            </>
+                          ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{
+                                color: 'var(--theme-text)',
+                                fontSize: '12px',
+                                opacity: 0.5,
+                                userSelect: 'none'
+                              }}>
+                                ⋮⋮
+                              </span>
+                              <span
+                                style={{
+                                  flex: 1,
+                                  fontFamily: 'monospace',
+                                  fontSize: '13px',
+                                  color: 'var(--theme-text)',
+                                  wordBreak: 'break-all',
+                                  textDecoration: enabled ? 'none' : 'line-through',
+                                  cursor: 'pointer'
+                                }}
+                                onClick={() => handleEditCommand(index)}
+                                title={t('connection:postProcessingClickToEdit')}
+                              >
+                                {cmdText}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveCommand(index)}
+                                style={{
+                                  padding: '4px 8px',
+                                  fontSize: '12px',
+                                  backgroundColor: 'rgba(255, 68, 68, 0.1)',
+                                  border: '1px solid rgba(255, 68, 68, 0.3)',
+                                  color: '#ff4444',
+                                  cursor: 'pointer'
+                                }}
+                                title={t('connection:postProcessingRemove')}
+                              >
+                                ×
+                              </button>
+                            </div>
+                          )}
                         </div>
                       );
                     })

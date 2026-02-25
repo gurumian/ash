@@ -45,6 +45,7 @@
   "enablePostProcessing": "모든 후처리 활성화",
   "noCommandsAdded": "추가된 명령이 없습니다",
   "enterCommandPlaceholder": "명령 입력 (예: logread -f)",
+  "postProcessingClickToEdit": "클릭하여 편집",
   "postProcessingDescription": "아래 순서대로 연결이 설정된 후 자동으로 실행될 명령입니다.",
   "autoReconnect": "자동 재연결",
   "autoReconnectDesc": "연결이 끊어지면 자동으로 재연결합니다 (F5 키와 동일)"

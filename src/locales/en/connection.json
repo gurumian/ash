@@ -45,6 +45,7 @@
   "enablePostProcessing": "Enable all post-processing",
   "noCommandsAdded": "No commands added yet",
   "enterCommandPlaceholder": "Enter command (e.g., logread -f)",
+  "postProcessingClickToEdit": "Click to edit",
   "postProcessingDescription": "Commands will be executed automatically after connection is established, in the order listed below.",
   "autoReconnect": "Auto Reconnect",
   "autoReconnectDesc": "Automatically reconnect when connection is lost (equivalent to pressing F5)"
