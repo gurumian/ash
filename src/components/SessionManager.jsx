@@ -331,7 +331,7 @@ export const SessionManager = memo(function SessionManager({
                             onDisconnect={onDisconnectSession}
                             onDragStart={onDragStart}
                             onRemoveFromGroup={onRemoveSessionFromGroup}
-                            onOpenSettings={onOpenSessionSettings}
+                            onOpenSettings={(session) => onOpenSessionSettings(session, matchingSavedSession ? { groupId: group.id, savedSessionId: matchingSavedSession.id } : undefined)}
                           />
                         );
                       })}

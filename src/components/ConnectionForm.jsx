@@ -27,12 +27,18 @@ export const ConnectionForm = memo(function ConnectionForm({
   const [postProcessingEnabled, setPostProcessingEnabled] = useState(true);
   const [newCommand, setNewCommand] = useState('');
   const [isPostProcessingExpanded, setIsPostProcessingExpanded] = useState(false);
+  const [editingCommandIndex, setEditingCommandIndex] = useState(null);
+  const [editingCommand, setEditingCommand] = useState('');
 
   useEffect(() => {
     if (showConnectionForm) {
-      setPostProcessing(connectionForm.postProcessing || []);
+      const raw = connectionForm.postProcessing || [];
+      const commands = raw.map(cmd => typeof cmd === 'string' ? cmd : String(cmd));
+      setPostProcessing(commands);
       setPostProcessingEnabled(connectionForm.postProcessingEnabled !== false);
       setNewCommand('');
+      setEditingCommandIndex(null);
+      setEditingCommand('');
     }
   }, [showConnectionForm, connectionForm.postProcessing, connectionForm.postProcessingEnabled]);
 
@@ -55,7 +61,35 @@ export const ConnectionForm = memo(function ConnectionForm({
   const handleRemoveCommand = (index) => {
     const newCommands = postProcessing.filter((_, i) => i !== index);
     setPostProcessing(newCommands);
+    if (editingCommandIndex === index) {
+      setEditingCommandIndex(null);
+      setEditingCommand('');
+    } else if (editingCommandIndex > index) {
+      setEditingCommandIndex(editingCommandIndex - 1);
+    }
     updateParentForm(newCommands, postProcessingEnabled);
+  };
+
+  const handleEditCommand = (index) => {
+    const cmd = postProcessing[index];
+    setEditingCommandIndex(index);
+    setEditingCommand(typeof cmd === 'string' ? cmd : String(cmd));
+  };
+
+  const handleSaveEditCommand = () => {
+    if (editingCommandIndex !== null && editingCommand.trim()) {
+      const updated = [...postProcessing];
+      updated[editingCommandIndex] = editingCommand.trim();
+      setPostProcessing(updated);
+      setEditingCommandIndex(null);
+      setEditingCommand('');
+      updateParentForm(updated, postProcessingEnabled);
+    }
+  };
+
+  const handleCancelEditCommand = () => {
+    setEditingCommandIndex(null);
+    setEditingCommand('');
   };
 
   const handleDragStart = (e, index) => {
@@ -79,6 +113,11 @@ export const ConnectionForm = memo(function ConnectionForm({
 
     if (isNaN(draggedIndex) || draggedIndex === targetIndex) {
       return;
+    }
+
+    if (editingCommandIndex !== null) {
+      setEditingCommandIndex(null);
+      setEditingCommand('');
     }
 
     const newCommands = [...postProcessing];
@@ -454,63 +493,141 @@ export const ConnectionForm = memo(function ConnectionForm({
                       {t('connection:postProcessingEmpty')}
                     </div>
                   ) : (
-                    postProcessing.map((cmd, index) => (
-                      <div
-                        key={index}
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, index)}
-                        onDragEnd={handleDragEnd}
-                        onDragOver={handleDragOver}
-                        onDrop={(e) => handleDrop(e, index)}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          padding: '6px',
-                          marginBottom: '4px',
-                          backgroundColor: 'var(--theme-surface)',
-                          borderRadius: '3px',
-                          border: '1px solid var(--theme-border)',
-                          opacity: postProcessingEnabled ? 1 : 0.5,
-                          cursor: 'move'
-                        }}
-                      >
-                        <span style={{
-                          color: 'var(--theme-text)',
-                          fontSize: '11px',
-                          opacity: 0.5,
-                          userSelect: 'none'
-                        }}>
-                          ⋮⋮
-                        </span>
-                        <span style={{
-                          flex: 1,
-                          fontFamily: 'monospace',
-                          fontSize: '11px',
-                          color: 'var(--theme-text)',
-                          wordBreak: 'break-all',
-                          textDecoration: postProcessingEnabled ? 'none' : 'line-through'
-                        }}>
-                          {cmd}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveCommand(index)}
+                    postProcessing.map((cmd, index) => {
+                      const cmdText = typeof cmd === 'string' ? cmd : String(cmd);
+                      const isEditing = editingCommandIndex === index;
+                      return (
+                        <div
+                          key={index}
+                          draggable={!isEditing}
+                          onDragStart={(e) => !isEditing && handleDragStart(e, index)}
+                          onDragEnd={handleDragEnd}
+                          onDragOver={handleDragOver}
+                          onDrop={(e) => handleDrop(e, index)}
                           style={{
-                            padding: '2px 6px',
-                            fontSize: '11px',
-                            backgroundColor: 'rgba(255, 68, 68, 0.1)',
-                            border: '1px solid rgba(255, 68, 68, 0.3)',
-                            color: '#ff4444',
-                            cursor: 'pointer',
-                            borderRadius: '3px'
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '6px',
+                            padding: '6px',
+                            marginBottom: '4px',
+                            backgroundColor: isEditing ? 'color-mix(in srgb, var(--theme-accent) 10%, transparent)' : 'var(--theme-surface)',
+                            borderRadius: '3px',
+                            border: `1px solid ${isEditing ? 'var(--theme-accent)' : 'var(--theme-border)'}`,
+                            opacity: postProcessingEnabled ? 1 : 0.5,
+                            cursor: isEditing ? 'default' : 'move'
                           }}
-                          title={t('connection:postProcessingRemove')}
                         >
-                          ×
-                        </button>
-                      </div>
-                    ))
+                          {isEditing ? (
+                            <>
+                              <input
+                                type="text"
+                                value={editingCommand}
+                                onChange={(e) => setEditingCommand(e.target.value)}
+                                placeholder={t('connection:postProcessingPlaceholder')}
+                                style={{
+                                  width: '100%',
+                                  padding: '4px 6px',
+                                  backgroundColor: 'var(--theme-background)',
+                                  border: '1px solid var(--theme-border)',
+                                  borderRadius: '3px',
+                                  color: 'var(--theme-text)',
+                                  fontSize: '11px',
+                                  fontFamily: 'monospace',
+                                  boxSizing: 'border-box'
+                                }}
+                                autoFocus
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault();
+                                    handleSaveEditCommand();
+                                  } else if (e.key === 'Escape') {
+                                    e.preventDefault();
+                                    handleCancelEditCommand();
+                                  }
+                                }}
+                              />
+                              <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                                <button
+                                  type="button"
+                                  onClick={handleCancelEditCommand}
+                                  style={{
+                                    padding: '2px 8px',
+                                    fontSize: '11px',
+                                    backgroundColor: 'var(--theme-surface)',
+                                    border: '1px solid var(--theme-border)',
+                                    color: 'var(--theme-text)',
+                                    cursor: 'pointer',
+                                    borderRadius: '3px'
+                                  }}
+                                >
+                                  {t('common:cancel')}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={handleSaveEditCommand}
+                                  disabled={!editingCommand.trim()}
+                                  style={{
+                                    padding: '2px 8px',
+                                    fontSize: '11px',
+                                    backgroundColor: 'var(--theme-accent)',
+                                    border: 'none',
+                                    color: 'var(--theme-bg)',
+                                    cursor: editingCommand.trim() ? 'pointer' : 'not-allowed',
+                                    opacity: editingCommand.trim() ? 1 : 0.5,
+                                    borderRadius: '3px',
+                                    fontWeight: 'bold'
+                                  }}
+                                >
+                                  {t('common:save')}
+                                </button>
+                              </div>
+                            </>
+                          ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{
+                                color: 'var(--theme-text)',
+                                fontSize: '11px',
+                                opacity: 0.5,
+                                userSelect: 'none'
+                              }}>
+                                ⋮⋮
+                              </span>
+                              <span
+                                style={{
+                                  flex: 1,
+                                  fontFamily: 'monospace',
+                                  fontSize: '11px',
+                                  color: 'var(--theme-text)',
+                                  wordBreak: 'break-all',
+                                  textDecoration: postProcessingEnabled ? 'none' : 'line-through',
+                                  cursor: 'pointer'
+                                }}
+                                onClick={() => handleEditCommand(index)}
+                                title={t('connection:postProcessingClickToEdit')}
+                              >
+                                {cmdText}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveCommand(index)}
+                                style={{
+                                  padding: '2px 6px',
+                                  fontSize: '11px',
+                                  backgroundColor: 'rgba(255, 68, 68, 0.1)',
+                                  border: '1px solid rgba(255, 68, 68, 0.3)',
+                                  color: '#ff4444',
+                                  cursor: 'pointer',
+                                  borderRadius: '3px'
+                                }}
+                                title={t('connection:postProcessingRemove')}
+                              >
+                                ×
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
                   )}
                 </div>
 

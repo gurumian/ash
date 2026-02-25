@@ -592,6 +592,7 @@ function App() {
   });
   const [showSessionDialog, setShowSessionDialog] = useState(false);
   const [selectedSession, setSelectedSession] = useState(null);
+  const [sessionDialogContext, setSessionDialogContext] = useState(null); // { groupId, savedSessionId } when opened from group
   const [showLibraryDialog, setShowLibraryDialog] = useState(false);
   const [showFileUploadDialog, setShowFileUploadDialog] = useState(false);
   const [fileUploadInitialPath, setFileUploadInitialPath] = useState(null);
@@ -1501,8 +1502,9 @@ function App() {
           onDeleteGroup={handleDeleteGroup}
           onCreateGroup={createGroup}
           setGroups={setGroups}
-          onOpenSessionSettings={(session) => {
+          onOpenSessionSettings={(session, context) => {
             setSelectedSession(session);
+            setSessionDialogContext(context || null);
             setShowSessionDialog(true);
           }}
           libraries={libraries}
@@ -1875,6 +1877,7 @@ function App() {
         onClose={() => {
           setShowSessionDialog(false);
           setSelectedSession(null);
+          setSessionDialogContext(null);
         }}
         onSave={(sessionId, postProcessing, enabled) => {
           // Update session
@@ -1884,7 +1887,23 @@ function App() {
               : s
           ));
 
-          // Update connection history
+          // If opened from a group, persist to group's savedSessions so it survives refresh/reconnect
+          if (sessionDialogContext?.groupId && sessionDialogContext?.savedSessionId) {
+            setGroups(prev => prev.map(g =>
+              g.id === sessionDialogContext.groupId
+                ? {
+                    ...g,
+                    savedSessions: (g.savedSessions || []).map(s =>
+                      s.id === sessionDialogContext.savedSessionId
+                        ? { ...s, postProcessing, postProcessingEnabled: enabled }
+                        : s
+                    )
+                  }
+                : g
+            ));
+          }
+
+          // Update connection history (for ungrouped sessions from ssh-connections)
           const session = sessions.find(s => s.id === sessionId);
           if (session) {
             const historyEntry = connectionHistory.find(c => {
