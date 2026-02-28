@@ -9,6 +9,14 @@ body,
   /* Remove scrollbar */
 }
 
+/* Jura font (maviz2 default) – optional for UI and Terminal */
+@font-face {
+  font-family: 'Jura';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Jura Regular'), local('Jura-Regular'), url('/fonts/Jura-Regular.ttf') format('truetype');
+}
+
 body {
   font-family: var(--ui-font-family, 'Verdana', sans-serif);
 }

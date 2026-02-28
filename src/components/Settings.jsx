@@ -432,6 +432,7 @@ export const Settings = memo(function Settings({
                 <option value="'Fira Code', 'Courier New', monospace">Fira Code</option>
                 <option value="'JetBrains Mono', 'Courier New', monospace">JetBrains Mono</option>
                 <option value="'Source Code Pro', 'Courier New', monospace">Source Code Pro</option>
+                <option value="'Jura', monospace">Jura</option>
                 <option value="'Arial', monospace">Arial</option>
                 <option value="monospace">System Monospace</option>
               </select>
@@ -457,6 +458,7 @@ export const Settings = memo(function Settings({
                 <option value="'Source Code Pro', 'Courier New', monospace">Source Code Pro</option>
                 <option value="'Arial', sans-serif">Arial</option>
                 <option value="'Helvetica', 'Arial', sans-serif">Helvetica</option>
+                <option value="'Jura', Helvetica, sans-serif">Jura</option>
                 <option value="'Times New Roman', serif">Times New Roman</option>
                 <option value="'Georgia', serif">Georgia</option>
                 <option value="'Verdana', sans-serif">Verdana</option>
