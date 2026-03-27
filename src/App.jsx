@@ -33,6 +33,7 @@ import { AboutDialog } from './components/AboutDialog';
 import { LicensesDialog } from './components/LicensesDialog';
 import { ErrorDialog } from './components/ErrorDialog';
 import { MessageDialog } from './components/MessageDialog';
+import { XmodemProgressDialog } from './components/XmodemProgressDialog';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { TerminalContextMenu } from './components/TerminalContextMenu';
 import { TerminalSearchBar } from './components/TerminalSearchBar';
@@ -179,6 +180,19 @@ function App() {
   const [showAboutDialog, setShowAboutDialog] = useState(false);
   const [showLicensesDialog, setShowLicensesDialog] = useState(false);
   const [messageDialog, setMessageDialog] = useState({ isOpen: false, type: 'info', title: '', message: '', detail: '' });
+  const [xmodemProgress, setXmodemProgress] = useState({
+    isOpen: false,
+    phase: 'idle',
+    fileName: '',
+    sessionConnectionId: null,
+    protocol: null,
+    packetSize: 128,
+    startedAt: null,
+    currentBlock: 0,
+    totalBlocks: 0,
+    bytesSent: 0,
+    totalBytes: 0,
+  });
   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
   const [showTftpServerDialog, setShowTftpServerDialog] = useState(false);
   const [tftpStatus, setTftpStatus] = useState({ running: false, port: null });
@@ -1739,6 +1753,110 @@ function App() {
             // Support upload for both SSH and Telnet connections
             return (session?.connectionType === 'ssh' || session?.connectionType === 'telnet') && session?.isConnected;
           })()}
+          showSerialTransfer={(() => {
+            if (!contextMenu.sessionId) return false;
+            const session = sessions.find(s => s.id === contextMenu.sessionId);
+            return session?.connectionType === 'serial' && session?.isConnected;
+          })()}
+          onXmodemSend={async () => {
+            const sessionId = contextMenu.sessionId;
+            setContextMenu({ visible: false, x: 0, y: 0, sessionId: null });
+            if (!sessionId) return;
+            const serialConn = sshConnections.current[sessionId];
+            const session = sessions.find(s => s.id === sessionId);
+            if (!session || session.connectionType !== 'serial' || !session.isConnected || !serialConn?.sessionConnectionId) {
+              return;
+            }
+            let progressListener = null;
+            const resetXmodemProgress = () =>
+              setXmodemProgress({
+                isOpen: false,
+                phase: 'idle',
+                fileName: '',
+                sessionConnectionId: null,
+                protocol: null,
+                packetSize: 128,
+                startedAt: null,
+                currentBlock: 0,
+                totalBlocks: 0,
+                bytesSent: 0,
+                totalBytes: 0,
+              });
+            try {
+              const pick = await window.electronAPI.showFilePicker();
+              if (!pick?.success || pick.canceled) return;
+              const sessionConnectionId = serialConn.sessionConnectionId;
+              const fileName = pick.filePath.split(/[/\\]/).filter(Boolean).pop() || pick.filePath;
+
+              progressListener = window.electronAPI.onSerialXmodemProgress((data) => {
+                if (data.sessionConnectionId !== sessionConnectionId) return;
+                setXmodemProgress((prev) => ({
+                  ...prev,
+                  phase: data.phase || prev.phase,
+                  protocol: data.protocol ?? prev.protocol,
+                  packetSize: data.packetSize ?? prev.packetSize,
+                  currentBlock: data.currentBlock ?? prev.currentBlock,
+                  totalBlocks: data.totalBlocks ?? prev.totalBlocks,
+                  bytesSent: data.bytesSent ?? prev.bytesSent,
+                  totalBytes: data.totalBytes ?? prev.totalBytes,
+                }));
+              });
+
+              setXmodemProgress({
+                isOpen: true,
+                phase: 'waiting_sync',
+                fileName,
+                sessionConnectionId,
+                protocol: null,
+                packetSize: 128,
+                startedAt: Date.now(),
+                currentBlock: 0,
+                totalBlocks: 0,
+                bytesSent: 0,
+                totalBytes: 0,
+              });
+
+              const result = await window.electronAPI.serialXmodemSend(sessionConnectionId, pick.filePath);
+
+              if (result.success) {
+                setXmodemProgress((prev) => ({
+                  ...prev,
+                  phase: 'complete',
+                  protocol: result.protocol ?? prev.protocol,
+                  bytesSent: result.bytesSent ?? 0,
+                  totalBytes: result.bytesSent ?? 0,
+                  currentBlock: result.blocks ?? prev.totalBlocks,
+                  totalBlocks: result.blocks ?? prev.totalBlocks,
+                }));
+              } else {
+                resetXmodemProgress();
+                if (!result.cancelled) {
+                  setErrorDialog({
+                    isOpen: true,
+                    title: 'Xmodem',
+                    message: result.error || 'Transfer failed',
+                    detail: '',
+                    error: null,
+                  });
+                }
+              }
+            } catch (e) {
+              resetXmodemProgress();
+              if (e?.message !== 'Transfer cancelled') {
+                setErrorDialog({
+                  isOpen: true,
+                  title: 'Xmodem',
+                  message: e.message || 'Transfer failed',
+                  detail: '',
+                  error: e,
+                });
+              }
+            } finally {
+              if (progressListener) {
+                window.electronAPI.offSerialXmodemProgress(progressListener);
+              }
+            }
+          }}
           onClose={() => setContextMenu({ visible: false, x: 0, y: 0, sessionId: null })}
         />
       </div>
@@ -2038,6 +2156,40 @@ function App() {
         title={messageDialog.title}
         message={messageDialog.message}
         detail={messageDialog.detail}
+      />
+
+      <XmodemProgressDialog
+        isOpen={xmodemProgress.isOpen}
+        phase={xmodemProgress.phase}
+        fileName={xmodemProgress.fileName}
+        protocol={xmodemProgress.protocol}
+        packetSize={xmodemProgress.packetSize}
+        startedAt={xmodemProgress.startedAt}
+        currentBlock={xmodemProgress.currentBlock}
+        totalBlocks={xmodemProgress.totalBlocks}
+        bytesSent={xmodemProgress.bytesSent}
+        totalBytes={xmodemProgress.totalBytes}
+        onCancel={() => {
+          const id = xmodemProgress.sessionConnectionId;
+          if (id) {
+            window.electronAPI.serialXmodemCancel(id);
+          }
+        }}
+        onClose={() =>
+          setXmodemProgress({
+            isOpen: false,
+            phase: 'idle',
+            fileName: '',
+            sessionConnectionId: null,
+            protocol: null,
+            packetSize: 128,
+            startedAt: null,
+            currentBlock: 0,
+            totalBlocks: 0,
+            bytesSent: 0,
+            totalBytes: 0,
+          })
+        }
       />
 
       {/* Confirm Dialog for Settings Import/Export */}

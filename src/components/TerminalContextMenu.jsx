@@ -2,7 +2,20 @@ import React, { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import './TerminalContextMenu.css';
 
-export function TerminalContextMenu({ visible, x, y, onCopy, onPaste, onSelectAll, onUpload, isSSHSession, canUpload, onClose }) {
+export function TerminalContextMenu({
+  visible,
+  x,
+  y,
+  onCopy,
+  onPaste,
+  onSelectAll,
+  onUpload,
+  isSSHSession,
+  canUpload,
+  showSerialTransfer,
+  onXmodemSend,
+  onClose,
+}) {
   const { t } = useTranslation('common');
   const menuRef = useRef(null);
 
@@ -110,6 +123,38 @@ export function TerminalContextMenu({ visible, x, y, onCopy, onPaste, onSelectAl
           >
             <span className="context-menu-label">{t('common:upload')}</span>
           </button>
+        </>
+      )}
+      {showSerialTransfer && onXmodemSend && (
+        <>
+          <div className="context-menu-separator"></div>
+          <div className="context-menu-submenu-parent">
+            <div className="context-menu-submenu-row">
+              <span className="context-menu-label">{t('common:transfer')}</span>
+              <span className="context-menu-chevron">▸</span>
+            </div>
+            <div className="context-menu-submenu-panel">
+              <div className="context-menu-submenu-parent context-menu-submenu-parent-nested">
+                <div className="context-menu-submenu-row">
+                  <span className="context-menu-label">{t('common:xmodem')}</span>
+                  <span className="context-menu-chevron">▸</span>
+                </div>
+                <div className="context-menu-submenu-panel context-menu-submenu-panel-leaf">
+                  <button
+                    type="button"
+                    className="context-menu-item context-menu-item-submenu-leaf"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onXmodemSend();
+                    }}
+                  >
+                    <span className="context-menu-label">{t('common:xmodemSend')}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         </>
       )}
     </div>

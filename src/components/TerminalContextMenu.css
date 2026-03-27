@@ -53,3 +53,65 @@
   margin: 4px 0;
 }
 
+.context-menu-submenu-parent {
+  position: relative;
+  padding: 0;
+}
+
+.context-menu-submenu-parent:hover > .context-menu-submenu-panel {
+  display: block;
+}
+
+.context-menu-submenu-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  color: var(--theme-text);
+  font-size: 13px;
+  cursor: default;
+  user-select: none;
+}
+
+.context-menu-submenu-row:hover {
+  background: color-mix(in srgb, var(--theme-accent) 10%, transparent);
+}
+
+.context-menu-chevron {
+  color: color-mix(in srgb, var(--theme-text) 60%, transparent);
+  font-size: 11px;
+  margin-left: 12px;
+}
+
+.context-menu-submenu-panel {
+  display: none;
+  position: absolute;
+  left: calc(100% - 4px);
+  top: -4px;
+  padding: 4px 0 4px 8px;
+  min-width: 168px;
+  z-index: 10001;
+}
+
+.context-menu-submenu-panel-leaf {
+  padding: 0;
+  top: -4px;
+}
+
+.context-menu-submenu-parent-nested {
+  background: var(--theme-surface);
+  border: 1px solid color-mix(in srgb, var(--theme-accent) 30%, transparent);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--theme-bg) 50%, black);
+  padding: 4px 0;
+  min-width: 160px;
+}
+
+.context-menu-item-submenu-leaf {
+  border-radius: 0;
+}
+
+.context-menu-item-submenu-leaf:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--theme-accent) 10%, transparent);
+}
+

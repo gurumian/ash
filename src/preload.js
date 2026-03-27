@@ -82,6 +82,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   serialConnect: (sessionId, options) => ipcRenderer.invoke('serial-connect', sessionId, options),
   serialWrite: (sessionId, data) => ipcRenderer.invoke('serial-write', sessionId, data),
   serialDisconnect: (sessionId) => ipcRenderer.invoke('serial-disconnect', sessionId),
+  serialXmodemSend: (sessionConnectionId, filePath) =>
+    ipcRenderer.invoke('serial-xmodem-send', sessionConnectionId, filePath),
+  serialXmodemCancel: (sessionConnectionId) =>
+    ipcRenderer.invoke('serial-xmodem-cancel', sessionConnectionId),
+  onSerialXmodemProgress: (callback) => {
+    const listener = (_event, data) => callback(data);
+    ipcRenderer.on('serial-xmodem-progress', listener);
+    return listener;
+  },
+  offSerialXmodemProgress: (listener) => ipcRenderer.removeListener('serial-xmodem-progress', listener),
 
   // Serial port events
   onSerialData: (callback) => ipcRenderer.on('serial-data', callback),

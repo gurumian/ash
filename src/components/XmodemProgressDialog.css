@@ -1,0 +1,179 @@
+.xmodem-progress-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10050;
+}
+
+.xmodem-progress-dialog {
+  background: var(--theme-surface, #1a1a1a);
+  border: 1px solid color-mix(in srgb, var(--theme-accent) 30%, transparent);
+  border-radius: 6px;
+  min-width: 340px;
+  max-width: 480px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.xmodem-progress-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid color-mix(in srgb, var(--theme-accent) 15%, transparent);
+}
+
+.xmodem-progress-header h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--theme-text);
+}
+
+.xmodem-progress-body {
+  padding: 16px 18px 18px;
+}
+
+.xmodem-progress-status {
+  margin: 0 0 14px;
+  font-size: 13px;
+  color: var(--theme-text);
+}
+
+.xmodem-progress-grid {
+  margin: 0 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.xmodem-progress-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 38%) 1fr;
+  gap: 10px 14px;
+  align-items: baseline;
+  font-size: 13px;
+}
+
+.xmodem-progress-row dt {
+  margin: 0;
+  color: color-mix(in srgb, var(--theme-text) 65%, transparent);
+  font-weight: 500;
+}
+
+.xmodem-progress-row dd {
+  margin: 0;
+  color: var(--theme-text);
+  word-break: break-word;
+}
+
+.xmodem-progress-filename {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.xmodem-progress-mono {
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, 'Cascadia Code', 'Consolas', monospace;
+}
+
+.xmodem-progress-bar-wrap {
+  margin-top: 2px;
+}
+
+.xmodem-progress-pct {
+  margin: 8px 0 0;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--theme-text) 75%, transparent);
+  text-align: right;
+}
+
+.xmodem-progress-bar-track {
+  height: 8px;
+  background: color-mix(in srgb, var(--theme-text) 12%, transparent);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.xmodem-progress-bar-fill {
+  height: 100%;
+  background: color-mix(in srgb, var(--theme-accent) 70%, var(--theme-text));
+  border-radius: 4px;
+  transition: width 0.2s ease-out;
+}
+
+.xmodem-progress-bar-indeterminate .xmodem-progress-bar-indeterminate-inner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 40%;
+  background: color-mix(in srgb, var(--theme-accent) 70%, var(--theme-text));
+  border-radius: 4px;
+  animation: xmodem-indeterminate 1.2s ease-in-out infinite;
+}
+
+@keyframes xmodem-indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(350%);
+  }
+}
+
+.xmodem-progress-detail {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: color-mix(in srgb, var(--theme-text) 70%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+
+.xmodem-progress-footer {
+  padding: 0 18px 16px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.xmodem-progress-footer-cancel {
+  justify-content: flex-start;
+}
+
+.xmodem-progress-cancel {
+  padding: 8px 18px;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 4px;
+  border: 1px solid color-mix(in srgb, var(--theme-text) 25%, transparent);
+  background: transparent;
+  color: color-mix(in srgb, var(--theme-text) 90%, transparent);
+}
+
+.xmodem-progress-cancel:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--theme-text) 8%, transparent);
+}
+
+.xmodem-progress-cancel:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.xmodem-progress-ok {
+  padding: 8px 20px;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 4px;
+  border: 1px solid color-mix(in srgb, var(--theme-accent) 40%, transparent);
+  background: color-mix(in srgb, var(--theme-accent) 18%, transparent);
+  color: var(--theme-text);
+}
+
+.xmodem-progress-ok:hover {
+  background: color-mix(in srgb, var(--theme-accent) 28%, transparent);
+}

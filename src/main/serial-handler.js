@@ -1,7 +1,9 @@
 import { ipcMain } from 'electron';
+import { readFile } from 'fs/promises';
 import { SerialBufferedTransform } from './serial-buffer-transform.js';
 import crypto from 'crypto';
 import { generateConnectionKey } from '../utils/connectionKey.js';
+import { runXmodemSend, sendSenderCancelBurst } from './xmodem-send.js';
 
 
 // Serial port support
@@ -185,11 +187,87 @@ export function initializeSerialHandlers() {
       if (!connInfo || !connInfo.port) {
         throw new Error('Serial port not connected');
       }
+      if (connInfo.xmodemLock) {
+        return { success: false, error: 'Xmodem transfer in progress' };
+      }
 
       connInfo.port.write(data);
       return { success: true };
     } catch (error) {
       console.error('Serial write error:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Xmodem send (file path is chosen in the renderer via show-file-picker)
+  ipcMain.handle('serial-xmodem-send', async (event, sessionConnectionId, filePath) => {
+    let connInfo;
+    try {
+      if (typeof filePath !== 'string' || !filePath.trim()) {
+        return { success: false, error: 'Invalid file path' };
+      }
+      connInfo = serialConnections.get(sessionConnectionId);
+      if (!connInfo?.port?.isOpen || !connInfo.parser) {
+        return { success: false, error: 'Serial port not connected' };
+      }
+      if (connInfo.xmodemLock) {
+        return { success: false, error: 'Xmodem transfer already in progress' };
+      }
+      const buf = await readFile(filePath);
+      connInfo.xmodemLock = true;
+      connInfo.xmodemAbortRequested = false;
+      try {
+        const webContents = connInfo.webContents;
+        const notify = (payload) => {
+          try {
+            if (webContents && !webContents.isDestroyed()) {
+              webContents.send('serial-xmodem-progress', {
+                sessionConnectionId,
+                ...payload,
+              });
+            }
+          } catch (_) {
+            /* ignore */
+          }
+        };
+        const shouldAbort = () => Boolean(connInfo.xmodemAbortRequested);
+        const result = await runXmodemSend(connInfo.port, connInfo.parser, buf, notify, shouldAbort);
+        return {
+          success: true,
+          bytesSent: result.bytesSent,
+          blocks: result.blocks,
+          protocol: result.protocol,
+        };
+      } finally {
+        connInfo.xmodemLock = false;
+        connInfo.xmodemAbortRequested = false;
+      }
+    } catch (error) {
+      console.error('serial-xmodem-send error:', error);
+      if (connInfo) {
+        connInfo.xmodemLock = false;
+        connInfo.xmodemAbortRequested = false;
+      }
+      const cancelled =
+        error.message === 'Transfer cancelled' || error.code === 'XMODEM_CANCELLED';
+      return { success: false, error: error.message, cancelled };
+    }
+  });
+
+  ipcMain.handle('serial-xmodem-cancel', async (event, sessionConnectionId) => {
+    try {
+      const connInfo = serialConnections.get(sessionConnectionId);
+      if (!connInfo) {
+        return { success: false, error: 'Serial port not connected' };
+      }
+      if (!connInfo.xmodemLock) {
+        return { success: false, error: 'No Xmodem transfer in progress' };
+      }
+      sendSenderCancelBurst(connInfo.port);
+      connInfo.xmodemAbortRequested = true;
+      return { success: true };
+    } catch (error) {
+      console.error('serial-xmodem-cancel error:', error);
       return { success: false, error: error.message };
     }
   });
