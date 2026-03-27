@@ -4,11 +4,13 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.65);
+  background: transparent;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 16px;
   z-index: 10050;
+  pointer-events: none;
 }
 
 .xmodem-progress-dialog {
@@ -18,6 +20,7 @@
   min-width: 340px;
   max-width: 480px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
 }
 
 .xmodem-progress-header {
