@@ -10,6 +10,7 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
   const [host, setHost] = useState('localhost');
   const [port, setPort] = useState(5201);
   const [protocol, setProtocol] = useState('tcp'); // 'tcp' | 'udp'
+  const [direction, setDirection] = useState('upload'); // 'upload' | 'download' (download = iperf3 -R)
   const [streams, setStreams] = useState(1);
   const [bandwidth, setBandwidth] = useState(''); // e.g., 100M
   const [duration, setDuration] = useState(10); // seconds
@@ -142,6 +143,7 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
         host,
         port,
         protocol,
+        direction,
         streams,
         bandwidth: bandwidth || null,
         duration
@@ -342,6 +344,28 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
                     UDP
                   </button>
                 </div>
+              </div>
+              <div className="iperf-client-config-item">
+                <label htmlFor="iperf-client-direction">{t('client:iperf.direction')}:</label>
+                <div className="iperf-client-protocol-toggle" id="iperf-client-direction">
+                  <button
+                    type="button"
+                    className={`iperf-client-protocol-btn ${direction === 'upload' ? 'active' : ''}`}
+                    onClick={() => setDirection('upload')}
+                    disabled={loading}
+                  >
+                    {t('client:iperf.directionUpload')}
+                  </button>
+                  <button
+                    type="button"
+                    className={`iperf-client-protocol-btn ${direction === 'download' ? 'active' : ''}`}
+                    onClick={() => setDirection('download')}
+                    disabled={loading}
+                  >
+                    {t('client:iperf.directionDownload')}
+                  </button>
+                </div>
+                <span className="iperf-client-config-hint">{t('client:iperf.directionHint')}</span>
               </div>
               <div className="iperf-client-config-item">
                 <label htmlFor="iperf-client-streams">{t('client:iperf.parallelStreams')}:</label>
