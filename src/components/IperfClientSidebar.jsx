@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import './IperfClientSidebar.css';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -22,6 +22,25 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
   const [showGraph, setShowGraph] = useState(true);
   const [graphView, setGraphView] = useState('realtime'); // 'realtime' | 'history'
 
+  const sessionId = activeSession?.id;
+  /** Only auto-fill host when this terminal session first shows iperf; avoid clobber on iperf output / status updates */
+  const hostPrefilledForSessionIdRef = useRef(null);
+
+  const loadStatus = useCallback(async () => {
+    if (!sessionId) return;
+    try {
+      const result = await window.electronAPI?.iperfClientStatus?.({ sessionId });
+      if (result) {
+        setStatus(result);
+        if (result.running) {
+          setLoading(false);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load iperf3 client status:', err);
+    }
+  }, [sessionId]);
+
   // Parse output for graph
   const graphData = React.useMemo(() => {
     return parseIperfOutput(output);
@@ -44,22 +63,25 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
     return [0, upper];
   }, [graphView, graphData, historyData]);
 
-  // Load current status when sidebar becomes visible
-
-  // Load current status when sidebar becomes visible
   useEffect(() => {
-    if (isVisible) {
+    if (isVisible && sessionId) {
       loadStatus();
-
-      // Auto-fill host from active SSH session if available
-      if (activeSession && activeSession.connectionType === 'ssh' && activeSession.isConnected && activeSession.host) {
-        setHost(activeSession.host);
-      } else {
-        // Reset to localhost if no active SSH session
-        setHost('localhost');
-      }
     }
-  }, [isVisible, activeSession]);
+  }, [isVisible, sessionId, loadStatus]);
+
+  // deps: only isVisible + sessionId — do not depend on full session (iperf output etc.) or prefill runs every tick
+  useEffect(() => {
+    if (!isVisible || !sessionId) return;
+    if (hostPrefilledForSessionIdRef.current === sessionId) return;
+    hostPrefilledForSessionIdRef.current = sessionId;
+
+    if (activeSession?.connectionType === 'ssh' && activeSession.isConnected && activeSession.host) {
+      setHost(activeSession.host);
+    } else {
+      setHost('localhost');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: prefill only when tab visibility or session tab id changes
+  }, [isVisible, sessionId]);
 
   // Auto-collapse config when test starts
   useEffect(() => {
@@ -74,8 +96,6 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
       outputRef.current.scrollTop = outputRef.current.scrollHeight;
     }
   }, [output]);
-
-  const sessionId = activeSession?.id;
 
   // Listen for client events - only for errors and status updates for this session
   useEffect(() => {
@@ -105,21 +125,6 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
       if (stoppedHandler) window.electronAPI?.offIperfClientStopped?.(handleStopped);
     };
   }, [isVisible, sessionId]); // Re-register if visibility or sessionId changes
-
-  const loadStatus = async () => {
-    if (!sessionId) return;
-    try {
-      const result = await window.electronAPI?.iperfClientStatus?.({ sessionId });
-      if (result) {
-        setStatus(result);
-        if (result.running) {
-          setLoading(false);
-        }
-      }
-    } catch (err) {
-      console.error('Failed to load iperf3 client status:', err);
-    }
-  };
 
   const handleStart = async () => {
     if (loading || !host || !port) return;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import './IperfClientDialog.css';
 
@@ -16,25 +16,43 @@ export function IperfClientDialog({ isOpen, onClose, activeSession }) {
   const [error, setError] = useState(null);
   const [output, setOutput] = useState('');
   const outputRef = useRef(null);
+  /** Reset when dialog closes so each open can prefill once; while open, do not clobber host on session updates */
+  const hostPrefilledForOpenKeyRef = useRef(null);
 
   const sessionId = activeSession?.id;
 
-  // Load current status when dialog opens
-  useEffect(() => {
-    if (isOpen) {
-      loadStatus();
-      // Don't clear output when dialog opens - preserve previous run results
-      // User can manually clear with the Clear button if needed
-      
-      // Auto-fill host from active SSH session if available
-      if (activeSession && activeSession.connectionType === 'ssh' && activeSession.isConnected && activeSession.host) {
-        setHost(activeSession.host);
-      } else {
-        // Reset to localhost if no active SSH session
-        setHost('localhost');
+  const loadStatus = useCallback(async () => {
+    if (!sessionId) return;
+    try {
+      const result = await window.electronAPI?.iperfClientStatus?.({ sessionId });
+      if (result) {
+        setStatus(result);
+        if (result.running) {
+          setLoading(false);
+        }
       }
+    } catch (err) {
+      console.error('Failed to load iperf3 client status:', err);
     }
-  }, [isOpen, activeSession]);
+  }, [sessionId]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      hostPrefilledForOpenKeyRef.current = null;
+      return;
+    }
+    loadStatus();
+    const key = sessionId ?? '';
+    if (hostPrefilledForOpenKeyRef.current === key) return;
+    hostPrefilledForOpenKeyRef.current = key;
+
+    if (activeSession?.connectionType === 'ssh' && activeSession.isConnected && activeSession.host) {
+      setHost(activeSession.host);
+    } else {
+      setHost('localhost');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- prefill only when dialog opens or session id changes
+  }, [isOpen, sessionId, loadStatus]);
 
   // Auto-scroll output to bottom
   useEffect(() => {
@@ -82,21 +100,6 @@ export function IperfClientDialog({ isOpen, onClose, activeSession }) {
       if (stoppedHandler) window.electronAPI?.offIperfClientStopped?.(handleStopped);
     };
   }, [isOpen, sessionId]);
-
-  const loadStatus = async () => {
-    if (!sessionId) return;
-    try {
-      const result = await window.electronAPI?.iperfClientStatus?.({ sessionId });
-      if (result) {
-        setStatus(result);
-        if (result.running) {
-          setLoading(false);
-        }
-      }
-    } catch (err) {
-      console.error('Failed to load iperf3 client status:', err);
-    }
-  };
 
   const handleStart = async () => {
     if (loading || !host || !port || !sessionId) return;
