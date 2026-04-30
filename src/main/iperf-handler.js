@@ -545,6 +545,11 @@ export function initializeIperfClientHandlers() {
       const bandwidth = params?.bandwidth ? String(params.bandwidth).trim() : null;
       const d = parseInt(params?.duration, 10);
       const duration = (Number.isNaN(d) || d < 0) ? 10 : d; // 0 = infinite (iperf3 -t 0)
+      const direction = (params?.direction || 'upload').toString().toLowerCase();
+      const reverse =
+        params?.reverse === true ||
+        direction === 'download' ||
+        direction === 'reverse';
 
       const binaryPath = getIperf3BinaryPath();
 
@@ -581,6 +586,11 @@ export function initializeIperfClientHandlers() {
 
       // Add --forceflush for real-time output when piping
       args.push('--forceflush');
+
+      // Reverse: server → client (iperf3 -R), i.e. download at the client
+      if (reverse) {
+        args.push('-R');
+      }
 
       if (protocol === 'udp') {
         args.push('-u');
