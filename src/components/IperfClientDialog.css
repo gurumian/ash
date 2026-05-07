@@ -274,6 +274,11 @@
   border: 1px solid var(--theme-border);
 }
 
+.iperf-client-direction-toggle {
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+
 .iperf-client-protocol-btn {
   border: none;
   background: transparent;

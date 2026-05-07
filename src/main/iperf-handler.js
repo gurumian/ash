@@ -546,10 +546,16 @@ export function initializeIperfClientHandlers() {
       const d = parseInt(params?.duration, 10);
       const duration = (Number.isNaN(d) || d < 0) ? 10 : d; // 0 = infinite (iperf3 -t 0)
       const direction = (params?.direction || 'upload').toString().toLowerCase();
+      const bidir =
+        params?.bidir === true ||
+        params?.bidirectional === true ||
+        direction === 'bidirectional' ||
+        direction === 'bidir';
       const reverse =
-        params?.reverse === true ||
-        direction === 'download' ||
-        direction === 'reverse';
+        !bidir &&
+        (params?.reverse === true ||
+          direction === 'download' ||
+          direction === 'reverse');
 
       const binaryPath = getIperf3BinaryPath();
 
@@ -587,8 +593,11 @@ export function initializeIperfClientHandlers() {
       // Add --forceflush for real-time output when piping
       args.push('--forceflush');
 
-      // Reverse: server → client (iperf3 -R), i.e. download at the client
-      if (reverse) {
+      // Bidirectional: simultaneous up + down (--bidir). Mutually exclusive with -R.
+      if (bidir) {
+        args.push('--bidir');
+      } else if (reverse) {
+        // Reverse: server → client (iperf3 -R), i.e. download at the client
         args.push('-R');
       }
 

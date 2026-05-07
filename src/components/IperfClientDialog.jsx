@@ -8,7 +8,7 @@ export function IperfClientDialog({ isOpen, onClose, activeSession }) {
   const [host, setHost] = useState('localhost');
   const [port, setPort] = useState(5201);
   const [protocol, setProtocol] = useState('tcp'); // 'tcp' | 'udp'
-  const [direction, setDirection] = useState('upload'); // 'upload' | 'download' (download = iperf3 -R)
+  const [direction, setDirection] = useState('upload'); // 'upload' | 'download' | 'bidirectional' (download = -R, bidirectional = --bidir)
   const [streams, setStreams] = useState(1);
   const [bandwidth, setBandwidth] = useState(''); // e.g., 100M
   const [duration, setDuration] = useState(10); // seconds
@@ -239,7 +239,7 @@ export function IperfClientDialog({ isOpen, onClose, activeSession }) {
               </div>
               <div className="iperf-client-config-item">
                 <label htmlFor="iperf-client-direction">{t('client:iperf.direction')}:</label>
-                <div className="iperf-client-protocol-toggle" id="iperf-client-direction">
+                <div className="iperf-client-protocol-toggle iperf-client-direction-toggle" id="iperf-client-direction">
                   <button
                     type="button"
                     className={`iperf-client-protocol-btn ${direction === 'upload' ? 'active' : ''}`}
@@ -256,8 +256,20 @@ export function IperfClientDialog({ isOpen, onClose, activeSession }) {
                   >
                     {t('client:iperf.directionDownload')}
                   </button>
+                  <button
+                    type="button"
+                    className={`iperf-client-protocol-btn ${direction === 'bidirectional' ? 'active' : ''}`}
+                    onClick={() => setDirection('bidirectional')}
+                    disabled={loading}
+                  >
+                    {t('client:iperf.directionBidirectional')}
+                  </button>
                 </div>
-                <span className="iperf-client-config-hint">{t('client:iperf.directionHint')}</span>
+                <span className="iperf-client-config-hint">
+                  {direction === 'bidirectional'
+                    ? t('client:iperf.directionHintBidirectional')
+                    : t('client:iperf.directionHint')}
+                </span>
               </div>
               <div className="iperf-client-config-item">
                 <label htmlFor="iperf-client-streams">{t('client:iperf.parallelStreams')}:</label>
