@@ -27,7 +27,9 @@
     "graphRealtime": "Real-time",
     "graphHistory": "History (avg/30m)",
     "graphHistoryTooltip": "Average bandwidth per 30-minute interval. One point every 30 minutes; data accumulates over time.",
-    "graphHistoryEmpty": "One data point is recorded every 30 minutes. Run iperf3 client longer to see history."
+    "graphHistoryEmpty": "One data point is recorded every 30 minutes. Run iperf3 client longer to see history.",
+    "graphTooltipTime": "Time: {{time}}s",
+    "graphTooltipBandwidth": "Bandwidth"
   }
 }
 

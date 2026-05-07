@@ -27,7 +27,9 @@
     "graphRealtime": "リアルタイム",
     "graphHistory": "履歴 (avg/30m)",
     "graphHistoryTooltip": "30分間隔ごとの平均帯域。30分ごとに1点記録され、時間とともに蓄積されます。",
-    "graphHistoryEmpty": "30分ごとに1点記録されます。iperf3クライアントを長時間実行すると履歴が表示されます。"
+    "graphHistoryEmpty": "30分ごとに1点記録されます。iperf3クライアントを長時間実行すると履歴が表示されます。",
+    "graphTooltipTime": "時間: {{time}} 秒",
+    "graphTooltipBandwidth": "帯域幅"
   }
 }
 

@@ -27,7 +27,9 @@
     "graphRealtime": "Thời gian thực",
     "graphHistory": "Lịch sử (avg/30m)",
     "graphHistoryTooltip": "Trung bình băng thông mỗi 30 phút. Mỗi 30 phút ghi một điểm, tích lũy theo thời gian.",
-    "graphHistoryEmpty": "Mỗi 30 phút ghi một điểm. Chạy máy khách iperf3 lâu hơn để xem lịch sử."
+    "graphHistoryEmpty": "Mỗi 30 phút ghi một điểm. Chạy máy khách iperf3 lâu hơn để xem lịch sử.",
+    "graphTooltipTime": "Thời gian: {{time}} giây",
+    "graphTooltipBandwidth": "Băng thông"
   }
 }
 

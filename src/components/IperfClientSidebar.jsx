@@ -51,12 +51,19 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
     return longTermData || [];
   }, [longTermData]);
 
+  const realtimeBidirectional = React.useMemo(
+    () => graphData.some((d) => d.upload != null || d.download != null),
+    [graphData]
+  );
+
   // Dynamic Y-axis domain from current data (no fixed 5G cap)
   const yAxisDomain = React.useMemo(() => {
     const data = graphView === 'realtime' ? graphData : historyData;
     if (!data?.length) return [0, 100]; // default when empty
     const maxBw = Math.max(
       ...data.map((d) => (d.bandwidth != null ? d.bandwidth : 0)),
+      ...data.map((d) => (d.upload != null ? d.upload : 0)),
+      ...data.map((d) => (d.download != null ? d.download : 0)),
       ...data.map((d) => (d.max != null ? d.max : 0))
     );
     const upper = Math.max(maxBw * 1.15, 10); // 15% headroom, min 10 Mbps
@@ -473,7 +480,29 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
 
             {/* Graph Visualization */}
             {showGraph && (
-              <div style={{ height: '150px', marginBottom: '12px', width: '100%' }}>
+              <div style={{ marginBottom: '12px', width: '100%' }}>
+                {graphView === 'realtime' && realtimeBidirectional && graphData.length > 0 && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: 14,
+                      alignItems: 'center',
+                      fontSize: 11,
+                      marginBottom: 6,
+                      color: 'var(--theme-text-muted, #888)',
+                    }}
+                  >
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ width: 12, height: 3, borderRadius: 1, background: 'var(--theme-accent, #00ff41)' }} />
+                      {t('client:iperf.directionUpload')}
+                    </span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ width: 12, height: 3, borderRadius: 1, background: '#38bdf8' }} />
+                      {t('client:iperf.directionDownload')}
+                    </span>
+                  </div>
+                )}
+                <div style={{ height: '150px', width: '100%' }}>
                 {graphView === 'history' && historyData.length === 0 ? (
                   <div
                     className="iperf-client-history-empty"
@@ -494,11 +523,19 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     {graphView === 'realtime' ? (
-                      <AreaChart data={graphData}>
+                      <AreaChart data={graphData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                         <defs>
-                          <linearGradient id="colorBw" x1="0" y1="0" x2="0" y2="1">
+                          <linearGradient id="iperfColorBw" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="var(--theme-accent, #00ff41)" stopOpacity={0.3} />
                             <stop offset="95%" stopColor="var(--theme-accent, #00ff41)" stopOpacity={0} />
+                          </linearGradient>
+                          <linearGradient id="iperfColorUpload" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="var(--theme-accent, #00ff41)" stopOpacity={0.35} />
+                            <stop offset="95%" stopColor="var(--theme-accent, #00ff41)" stopOpacity={0} />
+                          </linearGradient>
+                          <linearGradient id="iperfColorDownload" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.35} />
+                            <stop offset="95%" stopColor="#38bdf8" stopOpacity={0} />
                           </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
@@ -525,17 +562,62 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
                           }}
                           itemStyle={{ color: 'var(--theme-text, #00ff41)' }}
                           labelStyle={{ color: '#888' }}
-                          formatter={(value) => [`${(value != null ? value : 0).toFixed(2)} Mbps`, 'Bandwidth']}
-                          labelFormatter={(label) => `Time: ${label}s`}
+                          content={({ active, payload, label }) => {
+                            if (!active || !payload?.length) return null;
+                            const row = payload[0]?.payload;
+                            if (realtimeBidirectional && row && (row.upload != null || row.download != null)) {
+                              const up = row.upload != null ? Number(row.upload).toFixed(2) : '—';
+                              const down = row.download != null ? Number(row.download).toFixed(2) : '—';
+                              return (
+                                <div style={{ padding: '6px 10px', fontSize: '11px' }}>
+                                  <div style={{ color: '#888', marginBottom: 6 }}>{t('client:iperf.graphTooltipTime', { time: label })}</div>
+                                  <div style={{ color: 'var(--theme-accent, #00ff41)' }}>{t('client:iperf.directionUpload')}: {up} Mbps</div>
+                                  <div style={{ color: '#38bdf8' }}>{t('client:iperf.directionDownload')}: {down} Mbps</div>
+                                </div>
+                              );
+                            }
+                            const v = payload[0]?.value;
+                            return (
+                              <div style={{ padding: '6px 10px', fontSize: '11px', color: 'var(--theme-text, #00ff41)' }}>
+                                <div style={{ color: '#888', marginBottom: 4 }}>{t('client:iperf.graphTooltipTime', { time: label })}</div>
+                                <div>{t('client:iperf.graphTooltipBandwidth')}: {(v != null ? v : 0).toFixed(2)} Mbps</div>
+                              </div>
+                            );
+                          }}
                         />
-                        <Area
-                          type="monotone"
-                          dataKey="bandwidth"
-                          stroke="var(--theme-accent, #00ff41)"
-                          fillOpacity={1}
-                          fill="url(#colorBw)"
-                          isAnimationActive={false}
-                        />
+                        {realtimeBidirectional ? (
+                          <>
+                            <Area
+                              type="monotone"
+                              dataKey="download"
+                              name={t('client:iperf.directionDownload')}
+                              stroke="#38bdf8"
+                              fillOpacity={1}
+                              fill="url(#iperfColorDownload)"
+                              isAnimationActive={false}
+                              connectNulls
+                            />
+                            <Area
+                              type="monotone"
+                              dataKey="upload"
+                              name={t('client:iperf.directionUpload')}
+                              stroke="var(--theme-accent, #00ff41)"
+                              fillOpacity={1}
+                              fill="url(#iperfColorUpload)"
+                              isAnimationActive={false}
+                              connectNulls
+                            />
+                          </>
+                        ) : (
+                          <Area
+                            type="monotone"
+                            dataKey="bandwidth"
+                            stroke="var(--theme-accent, #00ff41)"
+                            fillOpacity={1}
+                            fill="url(#iperfColorBw)"
+                            isAnimationActive={false}
+                          />
+                        )}
                       </AreaChart>
                     ) : (
                       <AreaChart data={historyData}>
@@ -597,6 +679,7 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
                     )}
                   </ResponsiveContainer>
                 )}
+                </div>
               </div>
             )}
 

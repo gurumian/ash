@@ -27,7 +27,9 @@
     "graphRealtime": "实时",
     "graphHistory": "历史 (avg/30m)",
     "graphHistoryTooltip": "每30分钟区间的平均带宽。每30分钟记录一点，随时间累积。",
-    "graphHistoryEmpty": "每30分钟记录一点。长时间运行 iperf3 客户端后可查看历史。"
+    "graphHistoryEmpty": "每30分钟记录一点。长时间运行 iperf3 客户端后可查看历史。",
+    "graphTooltipTime": "时间: {{time}} 秒",
+    "graphTooltipBandwidth": "带宽"
   }
 }
 
