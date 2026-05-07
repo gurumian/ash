@@ -4,6 +4,9 @@ import './IperfClientSidebar.css';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { parseIperfOutput } from '../utils/iperfParser';
 
+/** Cap realtime chart points so Recharts stays responsive on very long runs. */
+const IPERF_REALTIME_GRAPH_MAX_POINTS = 720;
+
 export function IperfClientSidebar({ isVisible, width, onClose, activeSession, output = '', onClearOutput, onStartTest, showHeader = true, longTermData = [] }) {
   const { t } = useTranslation(['client', 'common']);
   const [status, setStatus] = useState({ running: false });
@@ -41,9 +44,11 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
     }
   }, [sessionId]);
 
-  // Parse output for graph
+  // Parse output for graph (trim to tail only — UI keeps ~100KB text but chart need not plot all points)
   const graphData = React.useMemo(() => {
-    return parseIperfOutput(output);
+    const pts = parseIperfOutput(output);
+    if (pts.length <= IPERF_REALTIME_GRAPH_MAX_POINTS) return pts;
+    return pts.slice(-IPERF_REALTIME_GRAPH_MAX_POINTS);
   }, [output]);
 
   // Use longTermData for history view (30m window average)

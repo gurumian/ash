@@ -208,6 +208,9 @@ function App() {
   const aggregationBuffer = useRef([]); // Stores bandwidth values for current interval
   const lineBufferForAggregation = useRef(''); // Buffer for partial lines
   const lastAggregationTime = useRef(Date.now());
+  /** Batched iperf stdout chunks before React setState (long runs: avoids UI freeze). */
+  const iperfPendingBySessionRef = useRef({});
+  const iperfFlushTimerRef = useRef(null);
 
   const [showIperfServerDialog, setShowIperfServerDialog] = useState(false);
   // Iperf Client Sidebar is now session state, but we need compatibility for menu handlers
@@ -384,85 +387,106 @@ function App() {
       }
     };
 
+    const MAX_IPERF_OUTPUT_LENGTH = 100000;
+    const IPERF_UI_BATCH_MS = 120;
+    const AGGREGATION_BUFFER_CAP = 80000;
+
+    const truncateIperfOutput = (current, newText) => {
+      const combined = (current || '') + newText;
+      if (combined.length > MAX_IPERF_OUTPUT_LENGTH) {
+        return combined.slice(combined.length - MAX_IPERF_OUTPUT_LENGTH);
+      }
+      return combined;
+    };
+
+    const flushIperfOutputBatch = () => {
+      if (iperfFlushTimerRef.current != null) {
+        clearTimeout(iperfFlushTimerRef.current);
+        iperfFlushTimerRef.current = null;
+      }
+      const snap = iperfPendingBySessionRef.current;
+      const ids = Object.keys(snap);
+      if (ids.length === 0) return;
+      iperfPendingBySessionRef.current = {};
+
+      setSessions(prev => prev.map(s => {
+        const chunk = snap[s.id];
+        if (!chunk) return s;
+        return { ...s, iperfClientOutput: truncateIperfOutput(s.iperfClientOutput, chunk) };
+      }));
+
+      const activeChunk = snap[activeSessionId];
+      if (!activeChunk) return;
+
+      setIperfClientOutput(prev => truncateIperfOutput(prev, activeChunk));
+
+      lineBufferForAggregation.current += activeChunk;
+      if (lineBufferForAggregation.current.includes('\n')) {
+        const lines = lineBufferForAggregation.current.split('\n');
+        lineBufferForAggregation.current = lines.pop();
+        lines.forEach(line => {
+          const parsed = parseIperfLine(line);
+          if (parsed) aggregationBuffer.current.push(parsed.bandwidth);
+        });
+      }
+      if (aggregationBuffer.current.length > AGGREGATION_BUFFER_CAP) {
+        aggregationBuffer.current = aggregationBuffer.current.slice(-Math.floor(AGGREGATION_BUFFER_CAP / 2));
+      }
+
+      const AGGREGATION_INTERVAL = 1800000;
+      const now = Date.now();
+      if (now - lastAggregationTime.current >= AGGREGATION_INTERVAL) {
+        if (aggregationBuffer.current.length > 0) {
+          const sum = aggregationBuffer.current.reduce((a, b) => a + b, 0);
+          const avg = sum / aggregationBuffer.current.length;
+          const min = Math.min(...aggregationBuffer.current);
+          const max = Math.max(...aggregationBuffer.current);
+          setIperfLongTermData(prev => {
+            const newData = [...prev, { time: now, bandwidth: avg, min, max }];
+            return newData.slice(-500);
+          });
+          aggregationBuffer.current = [];
+        }
+        lastAggregationTime.current = now;
+      }
+    };
+
     const handleClientStopped = (data) => {
+      flushIperfOutputBatch();
+
       const eventSessionId = data?.sessionId;
       if (eventSessionId) {
-        // Update session's iperf client running state and append final output
         setSessions(prev => prev.map(s => {
           if (s.id === eventSessionId) {
             const updates = { iperfClientRunning: false };
             if (data.output) {
-              updates.iperfClientOutput = (s.iperfClientOutput || '') + data.output;
+              updates.iperfClientOutput = truncateIperfOutput(s.iperfClientOutput, data.output);
             }
             return { ...s, ...updates };
           }
           return s;
         }));
       }
-      // Also reload global status if it's for the active session
       if (eventSessionId === activeSessionId) {
         loadIperfClientStatus();
         if (data?.output) {
-          setIperfClientOutput(prev => prev + data.output);
+          setIperfClientOutput(prev => truncateIperfOutput(prev, data.output));
         }
       }
     };
 
-    // Listen for client output events - update only the session that owns the output
     const handleClientOutput = (data) => {
       const eventSessionId = data?.sessionId;
       if (!eventSessionId || !data?.output) return;
 
-      const MAX_OUTPUT_LENGTH = 100000; // Limit buffer to ~100KB
+      iperfPendingBySessionRef.current[eventSessionId] =
+        (iperfPendingBySessionRef.current[eventSessionId] || '') + data.output;
 
-      // Helper to truncate output from the start (keeping newest)
-      const truncate = (current, newText) => {
-        const combined = (current || '') + newText;
-        if (combined.length > MAX_OUTPUT_LENGTH) {
-          return combined.slice(combined.length - MAX_OUTPUT_LENGTH);
-        }
-        return combined;
-      };
-
-      // Update the specific session's output
-      setSessions(prev => prev.map(s => {
-        if (s.id === eventSessionId) {
-          return { ...s, iperfClientOutput: truncate(s.iperfClientOutput, data.output) };
-        }
-        return s;
-      }));
-
-      // If this is for the active session, also update global state for display
-      if (eventSessionId === activeSessionId) {
-        setIperfClientOutput(prev => truncate(prev, data.output));
-
-        // --- Aggregation Logic (global, for History graph) ---
-        lineBufferForAggregation.current += data.output;
-        if (lineBufferForAggregation.current.includes('\n')) {
-          const lines = lineBufferForAggregation.current.split('\n');
-          lineBufferForAggregation.current = lines.pop();
-          lines.forEach(line => {
-            const parsed = parseIperfLine(line);
-            if (parsed) aggregationBuffer.current.push(parsed.bandwidth);
-          });
-        }
-        const AGGREGATION_INTERVAL = 1800000; // 30 minutes for aggregation
-        const now = Date.now();
-        if (now - lastAggregationTime.current >= AGGREGATION_INTERVAL) {
-          if (aggregationBuffer.current.length > 0) {
-            const sum = aggregationBuffer.current.reduce((a, b) => a + b, 0);
-            const avg = sum / aggregationBuffer.current.length;
-            const min = Math.min(...aggregationBuffer.current);
-            const max = Math.max(...aggregationBuffer.current);
-            setIperfLongTermData(prev => {
-              const newData = [...prev, { time: now, bandwidth: avg, min, max }];
-              return newData.slice(-500);
-            });
-            aggregationBuffer.current = [];
-          }
-          lastAggregationTime.current = now;
-        }
-        // -------------------------
+      if (iperfFlushTimerRef.current == null) {
+        iperfFlushTimerRef.current = setTimeout(() => {
+          iperfFlushTimerRef.current = null;
+          flushIperfOutputBatch();
+        }, IPERF_UI_BATCH_MS);
       }
     };
 
@@ -481,6 +505,11 @@ function App() {
       if (outputHandler) {
         window.electronAPI?.offIperfClientOutput?.(handleClientOutput);
       }
+      if (iperfFlushTimerRef.current != null) {
+        clearTimeout(iperfFlushTimerRef.current);
+        iperfFlushTimerRef.current = null;
+      }
+      flushIperfOutputBatch();
     };
   }, [activeSessionId]);
 

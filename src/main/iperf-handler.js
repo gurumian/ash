@@ -19,6 +19,43 @@ const iperfClientProcesses = new Map();
 // Cache for found iperf3 full path (from isIperf3Available check)
 let cachedIperf3FullPath = null;
 
+/** Coalesce iperf stdout/stderr before IPC to avoid flooding the renderer (long-run freeze / black screen). */
+const IPERF_CLIENT_IPC_FLUSH_MS = 80;
+
+function createIperfClientOutputBatcher(sessionId) {
+  let pending = '';
+  let timer = null;
+
+  const sendPending = () => {
+    timer = null;
+    if (!pending || !mainWindow || mainWindow.isDestroyed()) {
+      pending = '';
+      return;
+    }
+    const out = pending;
+    pending = '';
+    mainWindow.webContents.send('iperf-client-output', { sessionId, output: out });
+  };
+
+  return {
+    append(chunk) {
+      if (!chunk) return;
+      pending += chunk;
+      if (timer == null) {
+        timer = setTimeout(sendPending, IPERF_CLIENT_IPC_FLUSH_MS);
+      }
+    },
+    /** Flush pending output; safe to call multiple times. */
+    flush() {
+      if (timer != null) {
+        clearTimeout(timer);
+        timer = null;
+      }
+      sendPending();
+    },
+  };
+}
+
 /**
  * Set main window reference for error dialogs
  */
@@ -624,32 +661,28 @@ export function initializeIperfClientHandlers() {
       });
 
       // Store in map
-      iperfClientProcesses.set(sessionId, { process: proc });
+      const outputBatcher = createIperfClientOutputBatcher(sessionId);
+      iperfClientProcesses.set(sessionId, { process: proc, outputBatcher });
 
       let hasOutput = false;
 
-      // Capture stdout
+      // Capture stdout (batch IPC; avoid logging full stream on long runs)
       proc.stdout.on('data', (data) => {
         const output = data.toString();
         hasOutput = true;
-        console.log(`[iperf3-client][${sessionId}] stdout: ${output}`);
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('iperf-client-output', { sessionId, output });
-        }
+        outputBatcher.append(output);
       });
 
       // Capture stderr
       proc.stderr.on('data', (data) => {
         const output = data.toString();
         hasOutput = true;
-        console.error(`[iperf3-client][${sessionId}] stderr: ${output}`);
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('iperf-client-output', { sessionId, output });
-        }
+        outputBatcher.append(output);
       });
 
       // Handle process exit
       proc.on('exit', (code, signal) => {
+        outputBatcher.flush();
         console.log(`[iperf3-client][${sessionId}] Client exited with code ${code}, signal ${signal}`);
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('iperf-client-stopped', {
@@ -664,6 +697,7 @@ export function initializeIperfClientHandlers() {
 
       // Handle process error (spawn failure)
       proc.on('error', (err) => {
+        outputBatcher.flush();
         console.error(`[iperf3-client][${sessionId}] Process error:`, err);
 
         let errorMsg;
@@ -715,6 +749,7 @@ export function initializeIperfClientHandlers() {
       const entry = iperfClientProcesses.get(sessionId);
       if (entry?.process) {
         console.log(`[iperf3-client][${sessionId}] Stopping client...`);
+        entry.outputBatcher?.flush();
         entry.process.kill();
         iperfClientProcesses.delete(sessionId);
         return { success: true, sessionId };
