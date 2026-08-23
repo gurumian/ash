@@ -3,7 +3,14 @@ import ReactMarkdown from 'react-markdown';
 import { visit } from 'unist-util-visit';
 import { ThinkingSection } from './ThinkingSection';
 import { FunctionResultsSection } from './FunctionResultsSection';
-import { parseAndCleanContent } from '../utils/parseFunctionResult';
+import { parseAndCleanContent, removeThinkingTags } from '../utils/parseFunctionResult';
+import './AIChatSidebar.css';
+
+const STARTER_PROMPTS = [
+  { label: 'Disk usage', prompt: 'Check disk usage and explain anything that looks abnormal.' },
+  { label: 'Why slow?', prompt: 'This machine feels slow. Diagnose the likely cause.' },
+  { label: 'Wi-Fi clients', prompt: 'List connected wireless stations. Do not ask which interface.' }
+];
 
 // Copy icon SVG component - Modern clipboard style (two overlapping rectangles)
 const CopyIcon = ({ size = 14, color = 'var(--theme-text)' }) => (
@@ -234,60 +241,20 @@ export const AIChatSidebar = memo(function AIChatSidebar({
     >
       {/* Header */}
       {showHeader && (
-        <div
-          style={{
-            padding: '12px 16px',
-            borderBottom: '1px solid var(--theme-border)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px',
-            background: 'var(--theme-bg)'
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <h3 style={{ margin: 0, fontSize: '13px', fontWeight: '600', color: 'var(--theme-text)' }}>
-                AI Chat
-              </h3>
-              {/* Backend Status Indicator - Circular Lamp */}
-              <div
-                style={{
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  backgroundColor:
-                    backendStatus === 'ready' ? 'var(--theme-accent)' :
-                      backendStatus === 'starting' ? '#ffaa00' : '#666',
-                  boxShadow:
-                    backendStatus === 'ready' ? '0 0 4px color-mix(in srgb, var(--theme-accent) 50%, transparent)' :
-                      backendStatus === 'starting' ? '0 0 4px rgba(255, 170, 0, 0.5)' : 'none',
-                  transition: 'background-color 0.3s, box-shadow 0.3s',
-                  flexShrink: 0
-                }}
+        <div className="ai-chat-header">
+          <div className="ai-chat-header-row">
+            <h3 className="ai-chat-title">
+              AI
+              <span
+                className={`ai-chat-lamp ${backendStatus === 'ready' ? 'ready' : backendStatus === 'starting' ? 'starting' : ''}`}
                 title={
-                  backendStatus === 'ready' ? 'Backend Ready' :
-                    backendStatus === 'starting' ? 'Backend Starting' : 'Backend Not Ready'
+                  backendStatus === 'ready' ? 'Backend ready' :
+                    backendStatus === 'starting' ? 'Backend starting' : 'Backend not ready'
                 }
               />
-            </div>
+            </h3>
             {onClose && (
-              <button
-                onClick={onClose}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--theme-text)',
-                  cursor: 'pointer',
-                  fontSize: '18px',
-                  lineHeight: '1',
-                  padding: '4px 8px',
-                  opacity: 0.7,
-                  transition: 'opacity 0.2s'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
-                onMouseLeave={(e) => e.currentTarget.style.opacity = '0.7'}
-                title="Close"
-              >
+              <button className="ai-chat-icon-btn" onClick={onClose} title="Close">
                 ×
               </button>
             )}
@@ -563,21 +530,27 @@ export const AIChatSidebar = memo(function AIChatSidebar({
       )}
 
       {/* Messages */}
-      <div
-        className="ai-chat-messages-scroll"
-        style={{
-          flex: 1,
-          overflowY: 'auto',
-          padding: '16px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '16px',
-          minHeight: 0 // Allow flex shrinking
-        }}
-      >
+      <div className="ai-chat-messages ai-chat-messages-scroll">
         {messages.length === 0 ? (
-          <div style={{ color: 'color-mix(in srgb, var(--theme-text) 60%, transparent)', fontSize: '12px', textAlign: 'center', marginTop: '40px' }}>
-            No messages yet. Start a conversation with AI.
+          <div className="ai-empty">
+            <div className="ai-empty-kicker">Session agent</div>
+            <div className="ai-empty-title">Ask about this machine</div>
+            <div className="ai-empty-hint">
+              It will run commands on the active session and explain what the output means.
+            </div>
+            <div className="ai-empty-chips">
+              {STARTER_PROMPTS.map((item) => (
+                <button
+                  key={item.label}
+                  type="button"
+                  className="ai-empty-chip"
+                  disabled={isActiveProcessing || backendStatus !== 'ready'}
+                  onClick={() => onExecuteAICommand(item.prompt, mode)}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
           </div>
         ) : (
           messages.map((msg, index) => {
@@ -640,25 +613,14 @@ export const AIChatSidebar = memo(function AIChatSidebar({
             return (
               <div
                 key={msg.id || `msg-${msg.role}-${index}`}
-                style={{
-                  padding: '12px',
-                  background: msg.role === 'user' ? 'color-mix(in srgb, var(--theme-accent) 5%, transparent)' : 'color-mix(in srgb, var(--theme-accent) 2%, transparent)',
-                  border: `1px solid ${msg.role === 'user' ? 'color-mix(in srgb, var(--theme-accent) 20%, transparent)' : 'color-mix(in srgb, var(--theme-accent) 10%, transparent)'}`,
-                  borderRadius: '6px',
-                  wordBreak: 'break-word'
-                }}
+                className={`ai-msg ${msg.role === 'user' ? 'ai-msg-user' : 'ai-msg-ai'}`}
               >
-                <div
-                  style={{
-                    fontSize: '11px',
-                    color: 'color-mix(in srgb, var(--theme-text) 60%, transparent)',
-                    marginBottom: '6px',
-                    fontWeight: '600',
-                    textTransform: 'uppercase'
-                  }}
-                >
-                  {msg.role === 'user' ? 'You' : msg.role === 'assistant' ? 'AI' : msg.role}
-                </div>
+                <div className="ai-msg-meta">{msg.role === 'user' ? 'You' : 'AI'}</div>
+                {msg.role === 'user' ? (
+                  <div className="ai-msg-bubble">
+                    {cleanedContent || msg.content}
+                  </div>
+                ) : null}
 
                 {/* Thinking Section - Fixed height, collapsible */}
                 {msg.role === 'assistant' && (thinking || plan || (todos && todos.length > 0)) && (
@@ -671,16 +633,24 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                   />
                 )}
 
-                <div
-                  style={{
-                    color: 'var(--theme-text)',
-                    fontSize: '13px',
-                    lineHeight: '1.6',
-                    fontFamily: 'var(--ui-font-family)'
-                  }}
-                >
+                {msg.role === 'assistant' && (
+                <div className="ai-msg-body">
                   <ReactMarkdown
                     remarkPlugins={[
+                      () => (tree) => {
+                        visit(tree, (node, index, parent) => {
+                          if (!parent || typeof index !== 'number') return;
+                          if (node.type === 'html' && /<\/?\s*(?:think|thinking|reasoning)\b/i.test(node.value || '')) {
+                            parent.children.splice(index, 1);
+                            return index;
+                          }
+                          if (node.type === 'text' && node.value && /think>/i.test(node.value)) {
+                            node.value = node.value
+                              .replace(/(^|\n)\s*think>\s*/gi, '$1')
+                              .replace(/<\/?\s*(?:think|thinking|reasoning)\s*>/gi, '');
+                          }
+                        });
+                      },
                       // Custom plugin to unwrap code blocks from paragraphs at Markdown AST level
                       // This prevents <p><pre> hydration errors by removing paragraphs that contain code blocks
                       () => {
@@ -713,6 +683,9 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                       }
                     ]}
                     components={{
+                      think: () => null,
+                      thinking: () => null,
+                      reasoning: () => null,
                       // Customize markdown components to match terminal theme
                       p: ({ children, ...props }) => {
                         // Helper to recursively process children and style tool result JSON
@@ -971,64 +944,33 @@ export const AIChatSidebar = memo(function AIChatSidebar({
                       )
                     }}
                   >
-                    {cleanedContent}
+                    {removeThinkingTags(cleanedContent)}
                   </ReactMarkdown>
                 </div>
+                )}
 
-                {/* Function Results Section - Fixed height, collapsible */}
                 {allToolResults.length > 0 && (
                   <FunctionResultsSection
-                    toolResults={allToolResults.filter(tr => tr.source === 'execution' || tr.source === 'legacy')}
+                    toolResults={allToolResults.filter(tr =>
+                      tr.source === 'execution' ||
+                      tr.source === 'legacy' ||
+                      tr.stdout ||
+                      tr.stderr ||
+                      tr.command
+                    )}
                     messageId={msg.id || `msg-${index}`}
+                    isStreaming={isActiveProcessing && isLastAssistantMessage}
                   />
                 )}
 
-                {/* Done indicator and Copy button - Bottom of message */}
                 {showCopyButton && (
-                  <div
-                    style={{
-                      marginTop: '12px',
-                      paddingTop: '8px',
-                      borderTop: '1px solid color-mix(in srgb, var(--theme-accent) 10%, transparent)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: '8px'
-                    }}
-                  >
-                    <span style={{ color: 'var(--theme-text)', fontSize: '10px', opacity: 0.8 }}>
-                      ✓ Done
-                    </span>
+                  <div className="ai-msg-foot">
                     <button
+                      className="ai-copy-btn"
                       onClick={() => handleCopy(msg.content)}
-                      style={{
-                        background: 'transparent',
-                        border: '1px solid color-mix(in srgb, var(--theme-accent) 30%, transparent)',
-                        borderRadius: '4px',
-                        padding: '6px',
-                        color: 'var(--theme-text)',
-                        cursor: 'pointer',
-                        opacity: 0.8,
-                        transition: 'all 0.2s',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: '28px',
-                        height: '28px'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.opacity = '1';
-                        e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--theme-accent) 50%, transparent)';
-                        e.currentTarget.style.background = 'color-mix(in srgb, var(--theme-accent) 5%, transparent)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.opacity = '0.8';
-                        e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--theme-accent) 30%, transparent)';
-                        e.currentTarget.style.background = 'transparent';
-                      }}
-                      title="Copy message"
+                      title="Copy"
                     >
-                      <CopyIcon size={18} color="var(--theme-text)" />
+                      <CopyIcon size={14} color="var(--theme-text)" />
                     </button>
                   </div>
                 )}
@@ -1038,166 +980,41 @@ export const AIChatSidebar = memo(function AIChatSidebar({
         )}
         {/* Show "AI is thinking..." if current active conversation is processing */}
         {isActiveProcessing && (
-          <div
-            style={{
-              padding: '12px',
-              background: 'color-mix(in srgb, var(--theme-accent) 2%, transparent)',
-              border: '1px solid color-mix(in srgb, var(--theme-accent) 10%, transparent)',
-              borderRadius: '6px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '8px'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'color-mix(in srgb, var(--theme-text) 70%, transparent)', fontSize: '12px' }}>
-                <span
-                  style={{
-                    display: 'inline-block',
-                    width: '12px',
-                    height: '12px',
-                    border: '2px solid var(--theme-accent)',
-                    borderTopColor: 'transparent',
-                    borderRadius: '50%',
-                    animation: 'spin 1s linear infinite'
-                  }}
-                />
-                AI is thinking...
+          <div className="ai-status">
+            <div className="ai-status-row">
+              <div className="ai-status-live">
+                <span className="ai-status-spin" />
+                {streamingToolResult ? 'Running command' : 'Working'}
               </div>
-              {onStopAICommand && (
+              {onStopAICommand ? (
                 <button
+                  type="button"
+                  className="ai-status-stop"
+                  title="Stop"
                   onClick={(e) => {
-                    // Prevent event propagation
                     e.preventDefault();
                     e.stopPropagation();
-
-                    // Handle stop command - wrap in promise to catch any async rejections
                     try {
                       const result = onStopAICommand();
-                      // If stopAICommand returns a promise, catch its rejections
                       if (result && typeof result.catch === 'function') {
-                        result.catch((error) => {
-                          // Silently ignore abort errors - they're expected
-                          // Other errors are unlikely but if they occur, we log them in dev
-                          if (process.env.NODE_ENV === 'development' &&
-                            error?.name !== 'AbortError' &&
-                            !error?.message?.includes('aborted')) {
-                            console.debug('Unexpected error in stopAICommand:', error);
-                          }
-                        });
+                        result.catch(() => {});
                       }
-                    } catch (error) {
-                      // Ignore synchronous errors - abort is expected to cause errors
-                      // Promise rejections are handled above
-                    }
+                    } catch (_) { /* abort is expected */ }
                   }}
-                  style={{
-                    padding: '4px',
-                    background: 'color-mix(in srgb, var(--theme-surface) 60%, transparent)',
-                    border: '1px solid color-mix(in srgb, var(--theme-accent) 30%, transparent)',
-                    borderRadius: '3px',
-                    color: 'var(--theme-text)',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: '20px',
-                    height: '20px'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'color-mix(in srgb, var(--theme-accent) 10%, transparent)';
-                    e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--theme-accent) 50%, transparent)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'color-mix(in srgb, var(--theme-surface) 80%, transparent)';
-                    e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--theme-accent) 30%, transparent)';
-                  }}
-                  title="Stop AI execution"
                 >
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 12 12"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <rect
-                      x="2"
-                      y="2"
-                      width="8"
-                      height="8"
-                      rx="1"
-                      fill="currentColor"
-                    />
-                  </svg>
+                  Stop
                 </button>
-              )}
+              ) : null}
             </div>
-
-            {/* Show streaming tool result stdout/stderr in real-time */}
-            {streamingToolResult && (
-              <div
-                style={{
-                  marginTop: '8px',
-                  padding: '8px',
-                  background: 'rgba(0, 0, 0, 0.3)',
-                  border: '1px solid color-mix(in srgb, var(--theme-accent) 20%, transparent)',
-                  borderRadius: '4px',
-                  fontSize: '11px',
-                  fontFamily: 'monospace'
-                }}
-              >
-                {streamingToolResult.name && (
-                  <div
-                    style={{
-                      fontSize: '10px',
-                      color: 'color-mix(in srgb, var(--theme-text) 60%, transparent)',
-                      marginBottom: '4px',
-                      fontWeight: '600'
-                    }}
-                  >
-                    Executing: {streamingToolResult.command || streamingToolResult.name}
-                  </div>
-                )}
-                {streamingToolResult.stdout && (
-                  <pre
-                    style={{
-                      margin: 0,
-                      padding: 0,
-                      color: 'var(--theme-text)',
-                      fontSize: '11px',
-                      lineHeight: '1.5',
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word',
-                      fontFamily: 'monospace',
-                      overflow: 'auto',
-                      maxHeight: '200px'
-                    }}
-                  >
-                    {streamingToolResult.stdout}
-                  </pre>
-                )}
-                {streamingToolResult.stderr && (
-                  <pre
-                    style={{
-                      margin: streamingToolResult.stdout ? '4px 0 0 0' : 0,
-                      padding: 0,
-                      color: '#ff4141',
-                      fontSize: '11px',
-                      lineHeight: '1.5',
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word',
-                      fontFamily: 'monospace',
-                      overflow: 'auto',
-                      maxHeight: '200px'
-                    }}
-                  >
-                    {streamingToolResult.stderr}
-                  </pre>
-                )}
-              </div>
-            )}
+            {streamingToolResult ? (
+              <>
+                {(streamingToolResult.command || streamingToolResult.name) ? (
+                  <div className="ai-status-cmd">{streamingToolResult.command || streamingToolResult.name}</div>
+                ) : null}
+                {streamingToolResult.stdout ? <pre className="ai-status-out">{streamingToolResult.stdout}</pre> : null}
+                {streamingToolResult.stderr ? <pre className="ai-status-out ai-cmd-err">{streamingToolResult.stderr}</pre> : null}
+              </>
+            ) : null}
           </div>
         )}
 
@@ -1328,23 +1145,14 @@ export const AIChatSidebar = memo(function AIChatSidebar({
         </div>
       )}
 
-      {/* AI Input at bottom */}
-      <div
-        style={{
-          borderTop: '1px solid var(--theme-border)',
-          padding: '12px',
-          background: 'var(--theme-bg)',
-          flexShrink: 0
-        }}
-      >
-        <div style={{
-          filter: backendStatus !== 'ready' ? 'blur(4px)' : 'blur(0px)',
-          animation: backendStatus !== 'ready' ? 'blur-pulse 2s ease-in-out infinite' : 'none',
-          transition: 'filter 0.3s ease-out',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '8px'
-        }}>
+      {/* Composer */}
+      <div className="ai-composer">
+        {backendStatus !== 'ready' ? (
+          <div className="ai-composer-overlay">
+            {backendStatus === 'starting' ? 'Starting backend…' : 'Backend not ready'}
+          </div>
+        ) : null}
+        <div className="ai-composer-box">
           <div className="ai-chat-input-container">
             <textarea
               ref={inputRef}
@@ -1372,47 +1180,17 @@ export const AIChatSidebar = memo(function AIChatSidebar({
             />
           </div>
 
-          {/* Controls Layout (Bottom Row) */}
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center'
-          }}>
-            {/* Left side: Hint text */}
-            <div style={{ fontSize: '10px', color: '#666', fontFamily: 'var(--ui-font-family)' }}>
-              Enter to run, Shift+Enter for new line
-            </div>
-
-            {/* Right side: Controls */}
-            <div style={{
-              display: 'flex',
-              gap: '6px',
-              alignItems: 'center'
-            }}>
+          <div className="ai-composer-bar">
+            <div className="ai-composer-hint">Enter to send · Shift+Enter for newline</div>
+            <div className="ai-composer-actions">
               {/* Mode selector */}
               <div style={{ position: 'relative', display: 'inline-block' }}>
                 <button
                   type="button"
+                  className="ai-mode-btn"
                   onClick={() => setShowModeDropdown(!showModeDropdown)}
                   disabled={isActiveProcessing || backendStatus !== 'ready'}
-                  style={{
-                    padding: '4px 20px 4px 8px',
-                    background: 'color-mix(in srgb, var(--theme-surface) 60%, transparent)',
-                    border: '1px solid color-mix(in srgb, var(--theme-accent) 30%, transparent)',
-                    borderRadius: '3px',
-                    color: 'var(--theme-text)',
-                    fontSize: '11px',
-                    fontWeight: '600',
-                    cursor: isActiveProcessing || backendStatus !== 'ready' ? 'not-allowed' : 'pointer',
-                    fontFamily: 'var(--ui-font-family)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    opacity: isActiveProcessing || backendStatus !== 'ready' ? 0.6 : 1,
-                    position: 'relative',
-                    minWidth: '60px'
-                  }}
-                  title="Select AI mode: ask (simple) or agent (multi-step)"
+                  title="ask: answer only · agent: run commands"
                 >
                   <span>{mode === 'ask' ? 'ask' : 'agent'}</span>
                   <span style={{
@@ -1491,26 +1269,11 @@ export const AIChatSidebar = memo(function AIChatSidebar({
 
               {/* Execute button */}
               <button
+                type="button"
+                className="ai-send-btn"
                 onClick={handleExecute}
                 disabled={!inputValue.trim() || isActiveProcessing || backendStatus !== 'ready'}
-                style={{
-                  padding: '4px 8px',
-                  background: inputValue.trim() && !isActiveProcessing && backendStatus === 'ready' ? 'color-mix(in srgb, var(--theme-accent) 20%, transparent)' : 'color-mix(in srgb, var(--theme-surface) 30%, transparent)',
-                  border: `1px solid ${inputValue.trim() && !isActiveProcessing && backendStatus === 'ready' ? 'var(--theme-accent)' : 'color-mix(in srgb, var(--theme-accent) 30%, transparent)'}`,
-                  borderRadius: '3px',
-                  color: 'var(--theme-text)',
-                  cursor: inputValue.trim() && !isActiveProcessing && backendStatus === 'ready' ? 'pointer' : 'not-allowed',
-                  fontSize: '14px',
-                  lineHeight: '1',
-                  width: '28px',
-                  height: '24px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'all 0.2s',
-                  fontFamily: 'var(--ui-font-family)'
-                }}
-                title="Execute (Enter)"
+                title="Send"
               >
                 ▲
               </button>

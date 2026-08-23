@@ -59,7 +59,16 @@ export function parseFunctionResults(content) {
           const parsed = JSON.parse(jsonStr);
 
           // Double check it has the structure we expect
-          if (parsed.success !== undefined) {
+          // Only treat this as a tool result if it was marked [function]:
+          // or it looks like an actual command result (has output/exitCode).
+          // Bare `{ "success": ... }` in prose should not become a command row.
+          const looksLikeResult = Boolean(
+            prefix.includes('[function]:') ||
+            parsed.output !== undefined ||
+            parsed.stdout !== undefined ||
+            parsed.exitCode !== undefined
+          );
+          if (parsed.success !== undefined && looksLikeResult) {
             results.push({
               name: parsed.name || 'function',
               success: parsed.success,
@@ -163,51 +172,86 @@ function extractBalancedJson(text, startIndex) {
   return null; // Unbalanced or malformed
 }
 
+const THINK_NAME = String.raw`(?:think|thinking|reasoning)`;
+
+// Fresh regexes every call — module-level /g regexes keep lastIndex and skip later messages.
+function thinkCompleteRe() {
+  return new RegExp(
+    `<\\s*${THINK_NAME}\\b[^>]*>[\\s\\S]*?<\\s*/\\s*${THINK_NAME}\\s*>` +
+    `|&lt;\\s*${THINK_NAME}\\s*&gt;[\\s\\S]*?&lt;\\s*/\\s*${THINK_NAME}\\s*&gt;` +
+    `|(?:(?:^|\\n)\\s*think>|(?<![</])think>)[\\s\\S]*?(?:<\\s*/\\s*${THINK_NAME}\\s*>|&lt;\\s*/\\s*${THINK_NAME}\\s*&gt;)`,
+    'gi'
+  );
+}
+
+function thinkCaptureRe() {
+  return new RegExp(
+    `(?:<\\s*${THINK_NAME}\\b[^>]*>|&lt;\\s*${THINK_NAME}\\s*&gt;|(?:^|\\n)\\s*think>|(?<![</])think>)` +
+    `([\\s\\S]*?)` +
+    `(?:<\\s*/\\s*${THINK_NAME}\\s*>|&lt;\\s*/\\s*${THINK_NAME}\\s*&gt;|$)`,
+    'gi'
+  );
+}
+
+function thinkOpenRe() {
+  return new RegExp(
+    `<\\s*${THINK_NAME}\\b[^>]*>|&lt;\\s*${THINK_NAME}\\s*&gt;|(?:^|\\n)\\s*think>|(?<![</])think>`,
+    'gi'
+  );
+}
+
+function thinkCloseRe() {
+  return new RegExp(
+    `<\\s*/\\s*${THINK_NAME}\\s*>|&lt;\\s*/\\s*${THINK_NAME}\\s*&gt;`,
+    'gi'
+  );
+}
+
+function thinkUnclosedBlockRe() {
+  return new RegExp(
+    `(?:<\\s*${THINK_NAME}\\b[^>]*>|&lt;\\s*${THINK_NAME}\\s*&gt;|(?:^|\\n)\\s*think>|(?<![</])think>)[\\s\\S]*$`,
+    'i'
+  );
+}
+
 /**
- * Extract thinking/reasoning content from text
- * Handles patterns like <think>...</think>, <thinking>...</thinking> or <reasoning>...</reasoning>
- * Supports partial/unclosed tags for streaming
- * @param {string} content - Content that may contain thinking tags
- * @returns {string} Extracted thinking content
+ * Extract thinking/reasoning content from text.
+ * Handles <think>, leftover `think>` (when markdown ate `<`), and unclosed tags.
  */
 export function extractThinking(content) {
   if (!content || typeof content !== 'string') {
     return '';
   }
 
-  // Pattern: <think>... (optional </think>)
-  // We use a non-global regex loop or specific match to handle the "open at end" case
-  // But matchAll works if we construct the regex correctly to match closed OR open-at-end
-
-  // Regex: <tag> content (</tag> OR end-of-string)
-  const thinkingPattern = /<(?:think|thinking|reasoning)>([\s\S]*?)(?:<\/(?:think|thinking|reasoning)>|$)/gis;
-  const matches = [...content.matchAll(thinkingPattern)];
-
+  const matches = [...content.matchAll(thinkCaptureRe())];
   if (matches.length > 0) {
-    // Combine all thinking blocks
-    return matches.map(m => m[1].trim()).join('\n\n');
+    return matches.map((m) => (m[1] || '').trim()).filter(Boolean).join('\n\n');
   }
 
   return '';
 }
 
 /**
- * Remove thinking tags from content
- * @param {string} content - Content to clean
- * @returns {string} Content with thinking tags removed
+ * Remove thinking tags so they never reach the visible reply.
+ * @param {string} content
+ * @param {{ swallowUnclosed?: boolean }} [options]
+ *   swallowUnclosed (default true): drop everything after an unclosed think tag.
+ *   Set false for tool stdout so a leftover `think>` does not wipe useful output.
  */
-export function removeThinkingTags(content) {
+export function removeThinkingTags(content, options = {}) {
   if (!content || typeof content !== 'string') {
     return content;
   }
 
-  // Remove <think>...</think> (closed) OR <think>...$ (unclosed)
-  const thinkingPattern = /<(?:think|thinking|reasoning)>[\s\S]*?(?:<\/(?:think|thinking|reasoning)>|$)/gis;
-  let cleaned = content.replace(thinkingPattern, '');
-
-  // Clean up extra newlines
+  const swallowUnclosed = options.swallowUnclosed !== false;
+  let cleaned = content.replace(thinkCompleteRe(), '');
+  if (swallowUnclosed) {
+    cleaned = cleaned.replace(thinkUnclosedBlockRe(), '');
+  }
+  cleaned = cleaned.replace(thinkCloseRe(), '');
+  cleaned = cleaned.replace(thinkOpenRe(), '');
+  cleaned = cleaned.replace(/(^|\n)\s*think>\s*/gi, '$1');
   cleaned = cleaned.replace(/\n\s*\n\s*\n+/g, '\n\n').trim();
-
   return cleaned;
 }
 

@@ -1,95 +1,48 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { FunctionResult } from './FunctionResult';
 
-/**
- * FunctionResultsSection Component - Displays function/tool execution results in a collapsible, fixed-height section
- * 
- * Features:
- * - Fixed height (collapsed: 40px, expanded: 200px)
- * - Collapsible with expand/collapse button
- * - Scrollable content when expanded
- * - Shows all function execution results
- */
-export function FunctionResultsSection({ toolResults, messageId }) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  
-  if (!toolResults || toolResults.length === 0) {
-    return null;
-  }
-  
+function isBareToolId(item) {
+  const name = item?.name || '';
+  return /^ash_[a-z0-9_]+$/i.test(name) && !item.command;
+}
+
+function isInterruptedStream(item) {
+  const stdout = String(item?.stdout || '').trim();
+  const stderr = String(item?.stderr || '');
+  return !stdout && stderr.includes('Output data stream was missing or interrupted');
+}
+
+export function FunctionResultsSection({ toolResults, messageId, isStreaming = false }) {
+  if (!toolResults || toolResults.length === 0) return null;
+
+  const hasNamedCommand = toolResults.some((item) => item.command);
+  const visible = toolResults.filter((item) => {
+    if (isInterruptedStream(item)) return false;
+    if (isBareToolId(item) && (hasNamedCommand || !(item.stdout || item.stderr || item.content))) {
+      return false;
+    }
+    return item.source !== 'thinking' || item.stdout || item.stderr || item.content || item.command;
+  });
+  if (visible.length === 0) return null;
+
   return (
-    <div
-      style={{
-        marginTop: '8px',
-        border: '1px solid color-mix(in srgb, var(--theme-accent) 20%, transparent)',
-        borderRadius: '4px',
-        background: 'color-mix(in srgb, var(--theme-accent) 2%, transparent)',
-        overflow: 'hidden',
-        transition: 'height 0.2s ease'
-      }}
-    >
-      {/* Header - always visible */}
-      <div
-        style={{
-          height: '40px',
-          padding: '8px 12px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          cursor: 'pointer',
-          background: 'color-mix(in srgb, var(--theme-accent) 5%, transparent)',
-          borderBottom: isExpanded ? '1px solid color-mix(in srgb, var(--theme-accent) 10%, transparent)' : 'none'
-        }}
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--theme-text)' }}>
-            ⚙️ Function Results
-          </span>
-          <span style={{ fontSize: '9px', color: 'color-mix(in srgb, var(--theme-text) 60%, transparent)' }}>
-            {toolResults.length} {toolResults.length === 1 ? 'result' : 'results'}
-          </span>
-        </div>
-        <span
-          style={{
-            fontSize: '12px',
-            color: 'var(--theme-text)',
-            transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-            transition: 'transform 0.2s'
-          }}
-        >
-          ▼
-        </span>
+    <div className="ai-cmd-list">
+      <div className="ai-cmd-list-label">
+        {visible.length} command{visible.length === 1 ? '' : 's'}
       </div>
-      
-      {/* Content - scrollable when expanded */}
-      {isExpanded && (
-        <div
-          className="function-results-scroll"
-          style={{
-            height: '160px', // 200px total - 40px header
-            overflowY: 'auto',
-            padding: '8px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px'
-          }}
-        >
-          {toolResults.map((toolResult, idx) => (
-            <FunctionResult
-              key={`func-${messageId}-${idx}`}
-              name={toolResult.name || 'Command'}
-              command={toolResult.command || null}
-              success={toolResult.success !== undefined ? toolResult.success : true}
-              exitCode={toolResult.exitCode}
-              stdout={toolResult.stdout}
-              stderr={toolResult.stderr}
-              content={toolResult.content}
-            />
-          ))}
-        </div>
-      )}
+      {visible.map((item, idx) => (
+        <FunctionResult
+          key={`cmd-${messageId}-${idx}`}
+          name={item.name || 'Command'}
+          command={item.command || null}
+          success={item.success !== undefined ? item.success : true}
+          exitCode={item.exitCode ?? item.exitCode}
+          stdout={item.stdout}
+          stderr={item.stderr}
+          content={item.content}
+          defaultOpen={idx === visible.length - 1}
+        />
+      ))}
     </div>
   );
 }
-

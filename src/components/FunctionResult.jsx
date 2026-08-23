@@ -1,189 +1,75 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { removeThinkingTags } from '../utils/parseFunctionResult';
 
-/**
- * FunctionResult Component - Renders structured tool/function execution results
- * 
- * Displays command execution results with:
- * - Success/failure status indicator
- * - Exit code badge
- * - Syntax-highlighted stdout/stderr output
- * - Terminal-style formatting
- */
-export function FunctionResult({ 
-  name, 
-  command, // 실제 실행된 명령어 (있으면 이것을 표시)
-  success, 
-  exitCode, 
-  stdout, 
+function previewText(text, lines = 8) {
+  if (!text) return '';
+  const parts = String(text).replace(/\s+$/, '').split('\n');
+  if (parts.length <= lines) return parts.join('\n');
+  return `${parts.slice(0, lines).join('\n')}\n…`;
+}
+
+function statusOf({ success, exitCode, hasOutput }) {
+  const failed = success === false || (exitCode !== undefined && exitCode !== null && exitCode !== 0);
+  if (!failed) return 'ok';
+  return hasOutput ? 'warn' : 'fail';
+}
+
+export function FunctionResult({
+  name,
+  command,
+  success,
+  exitCode,
+  stdout,
   stderr,
-  content // Fallback for unstructured content
+  content,
+  defaultOpen = false
 }) {
-  // Use content as fallback if structured fields are not available
-  const hasStructuredData = name && (stdout !== undefined || stderr !== undefined);
-  const displayContent = hasStructuredData ? (stdout || stderr || '') : (content || '');
+  const [open, setOpen] = useState(defaultOpen);
+  const hasStructured = Boolean(name && (stdout !== undefined || stderr !== undefined));
+  const label = command || (!/^ash_/.test(name || '') ? name : '') || 'command';
+  const rawOut = stdout && stdout.trim() ? stdout : '';
+  const rawErr = stderr && stderr.trim() ? stderr : '';
+  const stdoutText = removeThinkingTags(rawOut, { swallowUnclosed: false }) || '';
+  const stderrText = removeThinkingTags(rawErr, { swallowUnclosed: false }) || '';
+  const fallback = removeThinkingTags(!hasStructured && content ? content : '', { swallowUnclosed: false }) || '';
+  const hasOut = Boolean(stdoutText || stderrText || fallback);
+  const hadRawOut = Boolean(rawOut || rawErr || fallback);
+  const status = statusOf({ success, exitCode, hasOutput: hasOut || hadRawOut });
+
+  useEffect(() => {
+    if (defaultOpen) setOpen(true);
+  }, [defaultOpen]);
+
+  const collapsedPreview = previewText(stdoutText || stderrText || fallback);
+  const mark = status === 'fail' ? '✕' : status === 'warn' ? '!' : '✓';
 
   return (
-    <div
-      style={{
-        marginTop: '8px',
-        padding: '10px',
-        background: success 
-          ? 'color-mix(in srgb, var(--theme-accent) 5%, transparent)' 
-          : 'rgba(255, 65, 65, 0.05)',
-        border: `1px solid ${
-          success 
-            ? 'color-mix(in srgb, var(--theme-accent) 30%, transparent)' 
-            : 'rgba(255, 65, 65, 0.3)'
-        }`,
-        borderRadius: '6px',
-        fontSize: '11px',
-        fontFamily: 'monospace'
-      }}
-    >
-      {/* Header with status and exit code */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '6px',
-          flexWrap: 'wrap',
-          gap: '4px'
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px'
-          }}
-        >
-          <span
-            style={{
-              fontSize: '12px',
-              fontWeight: '600',
-              color: success ? 'var(--theme-text)' : '#ff4141'
-            }}
-          >
-            {success ? '✓' : '✗'} {command || name || 'Command'}
-          </span>
-        </div>
-        {exitCode !== undefined && exitCode !== null && (
-          <span
-            style={{
-              padding: '2px 6px',
-              borderRadius: '3px',
-              background: success 
-                ? 'color-mix(in srgb, var(--theme-accent) 20%, transparent)' 
-                : 'rgba(255, 65, 65, 0.2)',
-              color: success ? 'var(--theme-text)' : '#ff4141',
-              fontSize: '10px',
-              fontWeight: '600'
-            }}
-          >
-            Exit {exitCode}
-          </span>
-        )}
+    <div className={`ai-cmd${status === 'fail' ? ' fail' : status === 'warn' ? ' warn' : ''}`}>
+      <div className="ai-cmd-head" onClick={() => hasOut && setOpen((v) => !v)}>
+        <span className="ai-cmd-status">{mark}</span>
+        <span className="ai-cmd-name" title={label}>{label}</span>
+        {exitCode !== undefined && exitCode !== null && exitCode !== 0 ? (
+          <span className="ai-cmd-exit">{exitCode}</span>
+        ) : null}
+        {hasOut ? <span className="ai-think-chevron" style={{ transform: open ? 'rotate(180deg)' : 'none' }}>▾</span> : null}
       </div>
-
-      {/* Output section */}
-      {displayContent && (
-        <div
-          style={{
-            background: 'color-mix(in srgb, var(--theme-bg) 70%, transparent)',
-            border: '1px solid color-mix(in srgb, var(--theme-accent) 10%, transparent)',
-            borderRadius: '4px',
-            padding: '8px',
-            marginTop: '6px'
-          }}
-        >
-          {/* stdout */}
-          {stdout && stdout.trim() && (
-            <div>
-              <div
-                style={{
-                  fontSize: '9px',
-                  color: '#888',
-                  marginBottom: '4px',
-                  textTransform: 'uppercase',
-                  fontWeight: '600'
-                }}
-              >
-                stdout:
-              </div>
-              <pre
-                style={{
-                  margin: 0,
-                  padding: 0,
-                  color: 'var(--theme-text)',
-                  fontSize: '11px',
-                  lineHeight: '1.5',
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word',
-                  fontFamily: 'monospace',
-                  overflow: 'auto',
-                  maxHeight: '300px'
-                }}
-              >
-                {stdout}
-              </pre>
-            </div>
-          )}
-
-          {/* stderr */}
-          {stderr && stderr.trim() && (
-            <div style={{ marginTop: stdout && stdout.trim() ? '8px' : '0' }}>
-              <div
-                style={{
-                  fontSize: '9px',
-                  color: '#ff4141',
-                  marginBottom: '4px',
-                  textTransform: 'uppercase',
-                  fontWeight: '600'
-                }}
-              >
-                stderr:
-              </div>
-              <pre
-                style={{
-                  margin: 0,
-                  padding: 0,
-                  color: '#ff4141',
-                  fontSize: '11px',
-                  lineHeight: '1.5',
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word',
-                  fontFamily: 'monospace',
-                  overflow: 'auto',
-                  maxHeight: '300px'
-                }}
-              >
-                {stderr}
-              </pre>
-            </div>
-          )}
-
-          {/* Fallback: unstructured content */}
-          {!hasStructuredData && displayContent && (
-            <pre
-              style={{
-                margin: 0,
-                padding: 0,
-                color: 'var(--theme-text)',
-                fontSize: '11px',
-                lineHeight: '1.5',
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
-                fontFamily: 'monospace',
-                overflow: 'auto',
-                maxHeight: '300px'
-              }}
-            >
-              {displayContent}
-            </pre>
-          )}
+      {hasOut && !open && collapsedPreview ? (
+        <div className="ai-cmd-body ai-cmd-preview">
+          <pre>{collapsedPreview}</pre>
         </div>
-      )}
+      ) : null}
+      {open && hasOut ? (
+        <div className="ai-cmd-body">
+          {stdoutText ? <pre>{stdoutText}</pre> : null}
+          {stderrText ? (
+            <div style={{ marginTop: stdoutText ? 8 : 0 }}>
+              <div className="ai-cmd-err-label">stderr</div>
+              <pre className="ai-cmd-err">{stderrText}</pre>
+            </div>
+          ) : null}
+          {fallback ? <pre>{fallback}</pre> : null}
+        </div>
+      ) : null}
     </div>
   );
 }

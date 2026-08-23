@@ -331,22 +331,27 @@ class QwenAgentService {
 
                     // Handle chunked format (large outputs)
                     if (data.chunked) {
-                      // Initialize accumulator for this tool
-                      if (!chunkAccumulators.has(toolName)) {
+                      const existing = chunkAccumulators.get(toolName);
+                      const metadata = {
+                        name: data.name || existing?.metadata?.name || toolName,
+                        command: data.command || existing?.metadata?.command || null,
+                        success: data.success !== undefined ? data.success : (existing?.metadata?.success ?? true),
+                        exitCode: data.exitCode !== undefined ? data.exitCode : (existing?.metadata?.exitCode ?? 0),
+                        total_size: data.total_size || existing?.metadata?.total_size || 0
+                      };
+                      if (existing) {
+                        existing.metadata = metadata;
+                      } else {
                         chunkAccumulators.set(toolName, {
                           stdout: '',
                           stderr: '',
-                          metadata: {
-                            name: data.name,
-                            command: data.command || null,
-                            success: data.success !== undefined ? data.success : true,
-                            exitCode: data.exitCode !== undefined ? data.exitCode : 0,
-                            total_size: data.total_size || 0
-                          }
+                          metadata
                         });
                       }
                       // Wait for chunks - don't process yet
                     } else if (data.name && (data.stdout !== undefined || data.stderr !== undefined)) {
+                      // A full result replaces any in-flight chunked accumulator
+                      chunkAccumulators.delete(toolName);
                       // Non-chunked structured format
                       // Command 가져오기 (백엔드에서 전달된 command 우선 사용, 없으면 큐에서)
                       let command = data.command || null;
@@ -402,7 +407,7 @@ class QwenAgentService {
                     }
                     console.log(`[QwenAgentService] 📦 Received chunk: tool=${toolName}, stream=${data.stream}, index=${data.index}, chunk_size=${(data.chunk || '').length} bytes, accumulated=${accumulator.stdout.length + accumulator.stderr.length} bytes`);
                   } else {
-                    // Accumulator not initialized - this shouldn't happen, but create one as fallback
+                    // Chunks can arrive before the chunked metadata event
                     console.warn(`[QwenAgentService] ⚠️ Received chunk for ${toolName} but accumulator not found, creating fallback accumulator`);
                     chunkAccumulators.set(toolName, {
                       stdout: data.stream === 'stdout' ? (data.chunk || '') : '',
@@ -458,30 +463,9 @@ class QwenAgentService {
                     // Clean up accumulator
                     chunkAccumulators.delete(toolName);
                   } else {
-                    console.warn(`[QwenAgentService] ⚠️ Received tool_result_complete for ${toolName} but accumulator not found. Creating fallback result.`);
-
-                    // Fallback: Create result even if accumulator missing (to prevent hanging state)
-                    let command = null;
-                    // Try to get command from queue for known execution tools
-                    if ((toolName === 'ash_ssh_execute' || toolName === 'ash_telnet_execute' || toolName === 'ash_execute_command') && commandQueue.length > 0) {
-                      command = commandQueue.shift();
-                      console.log(`[QwenAgentService] ⚠️ Using queued command for fallback: '${command}'`);
-                    }
-
-                    const toolResult = {
-                      name: toolName,
-                      command: command,
-                      success: data.success !== undefined ? data.success : false,
-                      exitCode: data.exitCode !== undefined ? data.exitCode : -1,
-                      stdout: '',
-                      stderr: '[Error: Output data stream was missing or interrupted]'
-                    };
-
-                    messages.push({ role: 'tool', name: toolName, toolResult });
-
-                    if (onToolResult) {
-                      onToolResult(toolName, toolResult);
-                    }
+                    // Duplicate complete after a non-chunked tool_result, or a late
+                    // complete from size-limit recovery. Do not invent a failed command row.
+                    console.warn(`[QwenAgentService] ⚠️ Received tool_result_complete for ${toolName} but accumulator not found. Ignoring duplicate complete.`);
                   }
                 } else if (data.type === 'message') {
                   // Other message types (for debugging/visibility)

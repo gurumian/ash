@@ -41,6 +41,7 @@ from qwen_agent.agents import Assistant
 import uvicorn
 import json
 import logging
+import re
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
@@ -349,7 +350,16 @@ Summary:"""
                     last_msg = chunk[-1]
                     if last_msg.get('role') == 'assistant':
                         summary_text = last_msg.get('content', '')
-            return summary_text or ""
+            # Summarizer models often wrap CoT in <think>; never leak that into stdout.
+            summary_text = re.sub(
+                r'<\s*(?:think|thinking|reasoning)\b[^>]*>.*?<\s*/\s*(?:think|thinking|reasoning)\s*>',
+                '',
+                summary_text or '',
+                flags=re.IGNORECASE | re.DOTALL,
+            )
+            summary_text = re.sub(r'</?\s*(?:think|thinking|reasoning)\s*>', '', summary_text, flags=re.IGNORECASE)
+            summary_text = re.sub(r'(?m)^\s*think>\s*', '', summary_text)
+            return summary_text.strip()
         
         try:
             logger.info(f"Running assistant with {len(messages)} messages.")
@@ -685,7 +695,7 @@ Summary:"""
                                 'type': 'tool_result',
                                 'name': tool_name_for_summary,
                                 'command': cmd_for_summary,
-                                'success': False,
+                                'success': True,
                                 'exitCode': 0,
                                 'stdout': summarized_stdout,
                                 'stderr': '',
@@ -697,7 +707,8 @@ Summary:"""
                             summarized_sse = f"data: {summarized_json}\n\n"
                             if len(summarized_sse.encode('utf-8')) < MAX_CHUNK_SIZE:
                                 yield summarized_sse
-                                yield from _emit({'type': 'tool_result_complete', 'name': tool_name_for_summary})
+                                # Full tool_result, not a chunked stream — do not emit tool_result_complete
+                                # (that event would create a fake failed ash_execute_command row).
                                 yield from _emit({'type': 'message', 'content': 'Summary generated and stored. You can continue with your next command.', 'role': 'system'})
                                 return
 
