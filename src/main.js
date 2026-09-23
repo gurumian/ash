@@ -26,6 +26,9 @@ if (process.platform === 'linux') {
   app.commandLine.appendSwitch('no-sandbox');
 }
 
+// A restarted update inherits this flag. Leaving it set makes every later close start another copy.
+delete process.env.ASH_RELAUNCH;
+
 /** A packaged deb stays in the terminal session and dies with it. AppImage must stay attached so its mount is not dropped. */
 function detachPackagedTerminalLaunch() {
   if (process.platform !== 'linux' || process.env.APPIMAGE) return;
@@ -109,8 +112,13 @@ function childPids(pid) {
 }
 
 function relaunchDetached() {
+  const env = { ...process.env };
+  delete env.ASH_RELAUNCH;
   try {
-    execFileSync('sh', ['-c', 'nohup "$1" >/dev/null 2>&1 &', 'sh', process.execPath], { stdio: 'ignore' });
+    execFileSync('sh', ['-c', 'nohup "$1" >/dev/null 2>&1 &', 'sh', process.execPath], {
+      stdio: 'ignore',
+      env,
+    });
   } catch {
     /* the current process still exits */
   }

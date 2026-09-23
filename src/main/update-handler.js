@@ -536,6 +536,8 @@ export function initializeUpdateHandlers(scheduleCheck) {
   // Configure auto-updater behavior
   currentUpdater().autoDownload = false; // Ask user before downloading (like FAC1)
   currentUpdater().autoInstallOnAppQuit = true;
+  // DebUpdater relaunches on its own when this stays true, and our quit path starts another copy.
+  currentUpdater().autoRunAppAfterInstall = false;
   currentUpdater().logger = console; // Enable logging (like FAC1)
   
   const status = {
