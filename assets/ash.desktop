@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.5
+Type=Application
+Name=ash
+GenericName=ash Terminal
+Exec=ash %U
+Icon=ash
+StartupWMClass=ash
+Categories=Utility;
+X-AppImage-Name=ash

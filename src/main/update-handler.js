@@ -1,6 +1,7 @@
-import { autoUpdater } from 'electron-updater';
+import { autoUpdater as appImageUpdater, DebUpdater } from 'electron-updater';
 import { ipcMain, app, dialog, BrowserWindow } from 'electron';
 import { themes } from '../themes/themes.js';
+import { installAppImageCommand } from './appimage-command.js';
 
 // Update server configuration
 const UPDATE_SERVER = 'https://cdn.toktoktalk.com';
@@ -17,6 +18,17 @@ const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 
 let checkOnStartupTimeout;
 let isAutoCheck = false; // Flag to distinguish auto checks from manual checks
+let updater = null;
+
+function currentUpdater() {
+  if (!updater) {
+    // Forge deb packages do not ship resources/package-type, so electron-updater
+    // would treat them as an AppImage and skip the check when APPIMAGE is unset.
+    const deb = process.platform === 'linux' && !process.env.APPIMAGE && !process.env.SNAP;
+    updater = deb ? new DebUpdater() : appImageUpdater;
+  }
+  return updater;
+}
 
 // Check for updates 5 seconds after app is ready
 export function scheduleStartupCheck() {
@@ -53,7 +65,7 @@ export function scheduleStartupCheck() {
       
       // Mark as auto check (startup check is also automatic)
       isAutoCheck = true;
-      autoUpdater.checkForUpdatesAndNotify().catch(err => {
+      currentUpdater().checkForUpdatesAndNotify().catch(err => {
         console.error('Auto-update check failed:', err);
         BrowserWindow.getAllWindows().forEach(window => {
           try {
@@ -104,10 +116,14 @@ const sendUpdateStatus = (status) => {
 
 // Setup update event handlers (like FAC1's setupEventHandlers method)
 function setupUpdateEventHandlers() {
+  currentUpdater().on('appimage-filename-updated', (destination) => {
+    installAppImageCommand(destination);
+  });
+
   // Auto-check for updates every 4 hours
   setInterval(() => {
     isAutoCheck = true; // Mark as auto check
-    autoUpdater.checkForUpdatesAndNotify().catch(err => {
+    currentUpdater().checkForUpdatesAndNotify().catch(err => {
       console.error('Auto-update check failed:', err);
       // Don't show error dialog for auto checks - just log it
     }).finally(() => {
@@ -119,7 +135,7 @@ function setupUpdateEventHandlers() {
   }, 4 * 60 * 60 * 1000); // 4 hours
   
   // Update available - show dialog to user (like FAC1)
-  autoUpdater.on('update-available', (info) => {
+  currentUpdater().on('update-available', (info) => {
     console.log('Update available:', info.version);
     
     // Get main window reference
@@ -363,7 +379,7 @@ function setupUpdateEventHandlers() {
           progressWindow.show();
         });
 
-        autoUpdater.downloadUpdate();
+        currentUpdater().downloadUpdate();
       } else {
         console.log('User postponed update');
       }
@@ -371,13 +387,13 @@ function setupUpdateEventHandlers() {
   });
   
   // Update not available
-  autoUpdater.on('update-not-available', (info) => {
+  currentUpdater().on('update-not-available', (info) => {
     console.log('Update not available. Current version is latest.');
     sendToAllWindows('update-not-available', null);
   });
   
   // Update download progress
-  autoUpdater.on('download-progress', (progressObj) => {
+  currentUpdater().on('download-progress', (progressObj) => {
     const percent = Math.round(progressObj.percent);
     const speed = (progressObj.bytesPerSecond / 1024 / 1024).toFixed(2);
     const downloaded = (progressObj.transferred / 1024 / 1024).toFixed(2);
@@ -411,7 +427,7 @@ function setupUpdateEventHandlers() {
   });
   
   // Update downloaded and ready to install
-  autoUpdater.on('update-downloaded', (info) => {
+  currentUpdater().on('update-downloaded', (info) => {
     console.log('Update downloaded:', info.version);
     
     // Close progress window (like FAC1)
@@ -443,7 +459,8 @@ function setupUpdateEventHandlers() {
     }).then((result) => {
       if (result.response === 0) {
         console.log('User chose to restart and install');
-        autoUpdater.quitAndInstall();
+        process.env.ASH_RELAUNCH = '1';
+        currentUpdater().quitAndInstall();
       } else {
         console.log('User postponed restart - will install on next app start');
       }
@@ -451,7 +468,7 @@ function setupUpdateEventHandlers() {
   });
   
   // Update error
-  autoUpdater.on('error', (err) => {
+  currentUpdater().on('error', (err) => {
     console.error('Auto-updater error:', err);
     
     // Close progress window if open (like FAC1)
@@ -488,7 +505,7 @@ function setupUpdateEventHandlers() {
   });
   
   // Log update check events for debugging
-  autoUpdater.logger = {
+  currentUpdater().logger = {
     info: (message) => console.log('[electron-updater]', message),
     warn: (message) => console.warn('[electron-updater]', message),
     error: (message) => console.error('[electron-updater]', message),
@@ -511,15 +528,15 @@ export function initializeUpdateHandlers(scheduleCheck) {
   
   // Configure server URL (like FAC1 - URL must end with slash)
   // Server automatically generates latest.yml at /update/ash/latest.yml
-  autoUpdater.setFeedURL({
+  currentUpdater().setFeedURL({
     provider: 'generic',
     url: `${UPDATE_SERVER}/update/${APP_NAME}/`  // Note: trailing slash required (like FAC1)
   });
   
   // Configure auto-updater behavior
-  autoUpdater.autoDownload = false; // Ask user before downloading (like FAC1)
-  autoUpdater.autoInstallOnAppQuit = true;
-  autoUpdater.logger = console; // Enable logging (like FAC1)
+  currentUpdater().autoDownload = false; // Ask user before downloading (like FAC1)
+  currentUpdater().autoInstallOnAppQuit = true;
+  currentUpdater().logger = console; // Enable logging (like FAC1)
   
   const status = {
     message: 'Initializing update handlers...',
@@ -541,8 +558,12 @@ export function initializeUpdateHandlers(scheduleCheck) {
   } else if (process.platform === 'darwin') {
     console.log('Update format: DMG/ZIP (latest-mac.yml)');
   } else if (process.platform === 'linux') {
-    console.log('Update format: AppImage (latest-linux.yml)');
-    console.log('AppImage updates support automatic installation without sudo');
+    if (process.env.APPIMAGE) {
+      console.log('Update format: AppImage (latest-linux.yml)');
+      console.log('AppImage updates support automatic installation without sudo');
+    } else if (!process.env.SNAP) {
+      console.log('Update format: deb (latest-linux.yml)');
+    }
   }
   
   // Setup event handlers (like FAC1's setupEventHandlers)
@@ -576,7 +597,10 @@ export function initializeUpdateHandlers(scheduleCheck) {
       console.log('Checking for updates...');
       console.log('Current version:', app.getVersion());
       console.log('Update feed URL:', `${UPDATE_SERVER}/update/${APP_NAME}`);
-      const result = await autoUpdater.checkForUpdates();
+      const result = await currentUpdater().checkForUpdates();
+      if (!result) {
+        return { success: false, error: 'Updater inactive' };
+      }
       console.log('Update check result:', result);
       console.log('Update info:', result?.updateInfo);
       console.log('CancellationToken:', result?.cancellationToken);
@@ -613,7 +637,8 @@ export function initializeUpdateHandlers(scheduleCheck) {
       console.log('Quit and install is disabled in development mode');
       return;
     }
-    autoUpdater.quitAndInstall(false, true);
+    process.env.ASH_RELAUNCH = '1';
+    currentUpdater().quitAndInstall(false, true);
   });
   
   // Schedule startup check (only in production)
@@ -627,7 +652,7 @@ export function initializeUpdateHandlers(scheduleCheck) {
       // Default: check after 5 seconds
       setTimeout(() => {
         console.log('Executing default startup update check...');
-        autoUpdater.checkForUpdatesAndNotify().catch(err => {
+        currentUpdater().checkForUpdatesAndNotify().catch(err => {
           console.error('Auto-update check failed:', err);
         });
       }, 5000);

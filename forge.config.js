@@ -5,6 +5,19 @@ const path = require('path');
 const fs = require('fs');
 const packageJson = require('./package.json');
 
+const linuxIconDir = path.resolve(__dirname, 'assets/icons/icons');
+const linuxIcons = Object.fromEntries(
+  ['16x16', '32x32', '64x64', '128x128', '256x256', '512x512'].map((size) => [
+    size,
+    path.join(linuxIconDir, `${size}.png`),
+  ]),
+);
+
+const packageAuthor = packageJson.author;
+const linuxMaintainer = typeof packageAuthor === 'string'
+  ? packageAuthor
+  : `${packageAuthor.name} <${packageAuthor.email}>`;
+
 // Platform-specific makers
 const makers = [
   // Windows NSIS installer - Build only on Windows
@@ -57,13 +70,33 @@ const makers = [
   },
   {
     name: '@electron-forge/maker-deb',
-    config: {},
+    platforms: ['linux'],
+    config: {
+      options: {
+        name: 'ash',
+        productName: 'ash',
+        genericName: 'ash Terminal',
+        description: packageJson.description,
+        categories: ['Utility'],
+        maintainer: linuxMaintainer,
+        icon: linuxIcons,
+        desktopTemplate: path.resolve(__dirname, 'assets/ash.desktop'),
+      },
+    },
   },
   {
     name: '@reforged/maker-appimage',
     platforms: ['linux'],
     config: {
-      name: 'ash',
+      options: {
+        name: 'ash',
+        productName: 'ash',
+        genericName: 'ash Terminal',
+        bin: 'ash',
+        categories: ['Utility'],
+        icon: path.resolve(__dirname, 'assets/icons/icon.png'),
+        desktopFile: path.resolve(__dirname, 'assets/ash.desktop'),
+      },
     },
   },
 ];
@@ -76,9 +109,11 @@ module.exports = {
     appBundleId: 'com.gurumlab.ash',
     executableName: 'ash',
     icon: path.resolve(__dirname, 'assets/icons/icon'), // Icon path without extension
+    ...(process.platform === 'linux' ? { executableArgs: ['--no-sandbox'] } : {}),
     extraResource: (() => {
       const resources = [
         path.resolve(__dirname, 'app-update.yml'), // Auto-updater configuration
+        path.resolve(__dirname, 'assets/icons/icon.png'),
       ];
 
       // Map process.arch to architecture name (32-bit/ia32 not supported)

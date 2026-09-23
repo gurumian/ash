@@ -14,7 +14,6 @@ let SerialPort;
 try {
   const serialport = require('serialport');
   SerialPort = serialport.SerialPort;
-  console.log('SerialPort loaded successfully');
 } catch (error) {
   console.error('Failed to load serialport:', error);
 }

@@ -83,6 +83,12 @@ function getIndexHtmlPath() {
   return devPath;
 }
 
+function windowIconPath() {
+  const packaged = path.join(process.resourcesPath, 'icon.png');
+  if (fs.existsSync(packaged)) return packaged;
+  return path.join(app.getAppPath(), 'assets/icons/icon.png');
+}
+
 /**
  * Create the main application window
  */
@@ -95,6 +101,7 @@ export async function createWindow() {
     width: 800,
     height: 600,
     title: 'ash',
+    icon: windowIconPath(),
     backgroundColor: '#000000',
     show: false, // Don't show until ready-to-show event
     // macOS: hidden title bar with black overlay for traffic lights area
@@ -119,6 +126,9 @@ export async function createWindow() {
     ),
     webPreferences: {
       preload: getPreloadPath(),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,
     },
   });
 
