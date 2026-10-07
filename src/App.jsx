@@ -74,6 +74,7 @@ function App() {
     addSessionToGroup: addSessionToGroupHook,
     addSavedSessionToGroup,
     removeSessionFromGroup,
+    reorderSavedSession,
     matchSavedSessionWithActiveSession
   } = useGroups();
 
@@ -916,6 +917,7 @@ function App() {
     handleDragStart,
     handleDragOver,
     handleDragLeave,
+    handleDragEnd,
     handleDrop,
     handleDropOnNewGroup
   } = useDragAndDrop({
@@ -1534,6 +1536,7 @@ function App() {
           onDragStart={handleDragStart}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
+          onDragEnd={handleDragEnd}
           onDrop={handleDrop}
           onConnectGroup={connectGroup}
           onDisconnectGroup={handleDisconnectGroup}
@@ -1542,6 +1545,7 @@ function App() {
           onSaveGroupName={saveGroupName}
           onCancelEditingGroupName={cancelEditingGroupName}
           onRemoveSessionFromGroup={removeSessionFromGroup}
+          onReorderSavedSession={reorderSavedSession}
           onDeleteGroup={handleDeleteGroup}
           onCreateGroup={createGroup}
           setGroups={setGroups}

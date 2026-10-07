@@ -41,7 +41,14 @@ export function useDragAndDrop({
       const data = e.dataTransfer.getData('application/json');
       if (data) {
         const dragData = JSON.parse(data);
-        if (dragData.type === 'saved-session') {
+        if (dragData.type === 'group-session-reorder') {
+          // Reorder is handled on the session row. Dropping on the same
+          // group's header must not duplicate the session. Dropping on a
+          // different group still adds the connected session there.
+          if (dragData.groupId !== groupId && draggedSessionId) {
+            addSessionToGroup(draggedSessionId, groupId);
+          }
+        } else if (dragData.type === 'saved-session') {
           // Add saved session to group without connecting
           const conn = dragData.connection;
           
@@ -84,6 +91,11 @@ export function useDragAndDrop({
     setDraggedSessionId(null);
     setDragOverGroupId(null);
   }, [sessions, draggedSessionId, addSessionToGroup, addSavedSessionToGroup]);
+
+  const handleDragEnd = useCallback(() => {
+    setDraggedSessionId(null);
+    setDragOverGroupId(null);
+  }, []);
 
   const handleDropOnNewGroup = useCallback(async (e) => {
     e.preventDefault();
@@ -190,6 +202,7 @@ export function useDragAndDrop({
     handleDragStart,
     handleDragOver,
     handleDragLeave,
+    handleDragEnd,
     handleDrop,
     handleDropOnNewGroup
   };

@@ -245,6 +245,25 @@ export function useGroups() {
     }));
   };
 
+  const reorderSavedSession = (groupId, fromSavedSessionId, toSavedSessionId) => {
+    if (!fromSavedSessionId || !toSavedSessionId || fromSavedSessionId === toSavedSessionId) {
+      return;
+    }
+
+    setGroups(prevGroups => prevGroups.map(g => {
+      if (g.id !== groupId) return g;
+
+      const savedSessions = [...(g.savedSessions || [])];
+      const fromIndex = savedSessions.findIndex(saved => saved.id === fromSavedSessionId);
+      const toIndex = savedSessions.findIndex(saved => saved.id === toSavedSessionId);
+      if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) return g;
+
+      const [moved] = savedSessions.splice(fromIndex, 1);
+      savedSessions.splice(toIndex, 0, moved);
+      return { ...g, savedSessions };
+    }));
+  };
+
   return {
     groups,
     setGroups,
@@ -262,6 +281,7 @@ export function useGroups() {
     addSessionToGroup,
     addSavedSessionToGroup,
     removeSessionFromGroup,
+    reorderSavedSession,
     matchSavedSessionWithActiveSession
   };
 }

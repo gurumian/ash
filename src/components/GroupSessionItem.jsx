@@ -12,6 +12,11 @@ export const GroupSessionItem = memo(function GroupSessionItem({
   onSwitch,
   onDisconnect,
   onDragStart,
+  onDragEnd,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+  isReorderTarget = false,
   onRemoveFromGroup,
   onOpenSettings
 }) {
@@ -35,6 +40,10 @@ export const GroupSessionItem = memo(function GroupSessionItem({
     onDragStart(e, session.id);
   }, [session.id, onDragStart]);
 
+  const handleDragEnd = useCallback((e) => {
+    if (onDragEnd) onDragEnd(e);
+  }, [onDragEnd]);
+
   const handleSettings = useCallback((e) => {
     e.stopPropagation();
     if (onOpenSettings) {
@@ -44,9 +53,13 @@ export const GroupSessionItem = memo(function GroupSessionItem({
 
   return (
     <div
-      className={`session-item group-session-item ${isActive ? 'active' : ''}`}
+      className={`session-item group-session-item ${isActive ? 'active' : ''} ${isReorderTarget ? 'reorder-target' : ''}`}
       draggable
       onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
       onClick={handleSwitch}
     >
       <span className="session-name">{session.name}</span>

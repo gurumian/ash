@@ -1,4 +1,4 @@
-import React, { memo, useMemo, useCallback, useState } from 'react';
+import React, { memo, useMemo, useCallback, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SessionItem } from './SessionItem';
 import { FavoriteItem } from './FavoriteItem';
@@ -37,6 +37,7 @@ export const SessionManager = memo(function SessionManager({
   onDragStart,
   onDragOver,
   onDragLeave,
+  onDragEnd,
   onDrop,
   onConnectGroup,
   onDisconnectGroup,
@@ -45,6 +46,7 @@ export const SessionManager = memo(function SessionManager({
   onSaveGroupName,
   onCancelEditingGroupName,
   onRemoveSessionFromGroup,
+  onReorderSavedSession,
   onDeleteGroup,
   onCreateGroup,
   setGroups,
@@ -72,6 +74,8 @@ export const SessionManager = memo(function SessionManager({
       const matchedSessionIds = new Set();
       const groupSessions = [];
 
+      const orderedEntries = [];
+
       savedSessions.forEach(savedSession => {
         // Find all sessions that match this savedSession
         const matchingSessions = sessions.filter(session => {
@@ -91,6 +95,7 @@ export const SessionManager = memo(function SessionManager({
           groupSessions.push(matchedSession);
           matchedSessionIds.add(matchedSession.id);
         }
+        orderedEntries.push({ savedSession, session: matchedSession || null });
       });
 
       const totalSessions = savedSessions.length;
@@ -103,6 +108,7 @@ export const SessionManager = memo(function SessionManager({
         group,
         groupSessions,
         savedSessions,
+        orderedEntries,
         totalSessions,
         allConnected,
         hasConnectedSessions
@@ -118,6 +124,58 @@ export const SessionManager = memo(function SessionManager({
   const [isActiveSessionsExpanded, setIsActiveSessionsExpanded] = useState(true);
   const [isRecentExpanded, setIsRecentExpanded] = useState(true);
   const [isLibrariesExpanded, setIsLibrariesExpanded] = useState(false);
+  const [reorderOverKey, setReorderOverKey] = useState(null);
+  const reorderDragRef = useRef(null);
+
+  const handleGroupSessionDragStart = useCallback((e, groupId, savedSessionId, activeSessionId) => {
+    reorderDragRef.current = { groupId, savedSessionId };
+    e.dataTransfer.setData('application/json', JSON.stringify({
+      type: 'group-session-reorder',
+      groupId,
+      savedSessionId
+    }));
+    e.dataTransfer.effectAllowed = 'move';
+    if (activeSessionId) {
+      onDragStart(e, activeSessionId);
+    }
+  }, [onDragStart]);
+
+  const handleGroupSessionDragEnd = useCallback((e) => {
+    reorderDragRef.current = null;
+    setReorderOverKey(null);
+    if (onDragEnd) onDragEnd(e);
+  }, [onDragEnd]);
+
+  const handleGroupSessionDragOver = useCallback((e, groupId, savedSessionId) => {
+    const drag = reorderDragRef.current;
+    if (!drag || drag.groupId !== groupId || drag.savedSessionId === savedSessionId) {
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+    const key = `${groupId}:${savedSessionId}`;
+    setReorderOverKey(prev => (prev === key ? prev : key));
+  }, []);
+
+  const handleGroupSessionDragLeave = useCallback((e, groupId, savedSessionId) => {
+    if (e.currentTarget.contains(e.relatedTarget)) return;
+    const key = `${groupId}:${savedSessionId}`;
+    setReorderOverKey(prev => (prev === key ? null : prev));
+  }, []);
+
+  const handleGroupSessionDrop = useCallback((e, groupId, savedSessionId) => {
+    const drag = reorderDragRef.current;
+    reorderDragRef.current = null;
+    setReorderOverKey(null);
+    if (!drag || drag.groupId !== groupId) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    if (onReorderSavedSession && drag.savedSessionId !== savedSessionId) {
+      onReorderSavedSession(groupId, drag.savedSessionId, savedSessionId);
+    }
+  }, [onReorderSavedSession]);
 
   // Helper to connect a saved session
   const handleConnectSavedSession = useCallback((savedSession) => {
@@ -233,7 +291,7 @@ export const SessionManager = memo(function SessionManager({
         {groups.length > 0 && (
           <div className="section">
             <div className="section-header">{t('common:groups')}</div>
-            {groupCalculations.map(({ group, groupSessions, savedSessions, totalSessions, allConnected, hasConnectedSessions }) => {
+            {groupCalculations.map(({ group, savedSessions, orderedEntries, totalSessions, allConnected }) => {
               return (
                 <div key={group.id} className="group-container">
                   <div
@@ -313,76 +371,75 @@ export const SessionManager = memo(function SessionManager({
                   </div>
                   {group.isExpanded && (
                     <div className="group-sessions">
-                      {/* Active sessions (connected) */}
-                      {groupSessions.map((session) => {
-                        // Find the savedSession that matches this active session
-                        const matchingSavedSession = savedSessions.find(savedSession =>
-                          matchSavedSessionWithActiveSession(savedSession, session)
-                        );
+                      {orderedEntries.map(({ savedSession, session }) => {
+                        const reorderKey = `${group.id}:${savedSession.id}`;
+                        const isReorderTarget = reorderOverKey === reorderKey;
+                        const reorderHandlers = {
+                          onDragOver: (e) => handleGroupSessionDragOver(e, group.id, savedSession.id),
+                          onDragLeave: (e) => handleGroupSessionDragLeave(e, group.id, savedSession.id),
+                          onDrop: (e) => handleGroupSessionDrop(e, group.id, savedSession.id)
+                        };
 
+                        if (session) {
+                          return (
+                            <GroupSessionItem
+                              key={savedSession.id}
+                              session={session}
+                              isActive={activeSessionId === session.id}
+                              groupId={group.id}
+                              savedSessionId={savedSession.id}
+                              isReorderTarget={isReorderTarget}
+                              onSwitch={onSwitchToSession}
+                              onDisconnect={onDisconnectSession}
+                              onDragStart={(e) => handleGroupSessionDragStart(e, group.id, savedSession.id, session.id)}
+                              onDragEnd={handleGroupSessionDragEnd}
+                              onRemoveFromGroup={onRemoveSessionFromGroup}
+                              onOpenSettings={(active) => onOpenSessionSettings(active, { groupId: group.id, savedSessionId: savedSession.id })}
+                              {...reorderHandlers}
+                            />
+                          );
+                        }
+
+                        const displayName = getSessionDisplayName(savedSession);
                         return (
-                          <GroupSessionItem
-                            key={session.id}
-                            session={session}
-                            isActive={activeSessionId === session.id}
-                            groupId={group.id}
-                            savedSessionId={matchingSavedSession?.id}
-                            onSwitch={onSwitchToSession}
-                            onDisconnect={onDisconnectSession}
-                            onDragStart={onDragStart}
-                            onRemoveFromGroup={onRemoveSessionFromGroup}
-                            onOpenSettings={(session) => onOpenSessionSettings(session, matchingSavedSession ? { groupId: group.id, savedSessionId: matchingSavedSession.id } : undefined)}
-                          />
+                          <div
+                            key={savedSession.id}
+                            className={`session-item group-session-item saved-session ${isReorderTarget ? 'reorder-target' : ''}`}
+                            draggable
+                            onDragStart={(e) => handleGroupSessionDragStart(e, group.id, savedSession.id)}
+                            onDragEnd={handleGroupSessionDragEnd}
+                            {...reorderHandlers}
+                          >
+                            <span className="session-name">
+                              {displayName} ({t('common:notConnected')})
+                            </span>
+                            <div
+                              className="connection-status-wrapper"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleConnectSavedSession(savedSession);
+                              }}
+                              title={t('common:connect')}
+                              style={{ cursor: 'pointer', display: 'flex' }}
+                            >
+                              <ConnectionStatusIcon
+                                isConnected={false}
+                                className="connection-status disconnected"
+                              />
+                            </div>
+                            <button
+                              className="remove-from-group-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onRemoveSessionFromGroup(savedSession.id, group.id);
+                              }}
+                              title={t('common:removeFromGroup')}
+                            >
+                              🗑
+                            </button>
+                          </div>
                         );
                       })}
-                      {/* Saved sessions (not connected yet) - only show if not already connected */}
-                      {savedSessions
-                        .filter(savedSession => {
-                          // Only show saved sessions that don't have an active session
-                          const activeSession = groupSessions.find(session =>
-                            matchSavedSessionWithActiveSession(savedSession, session)
-                          );
-                          // Only show if no active session exists (not connected)
-                          return !activeSession;
-                        })
-                        .map((savedSession) => {
-                          const displayName = getSessionDisplayName(savedSession);
-
-                          return (
-                            <div
-                              key={savedSession.id}
-                              className="session-item group-session-item saved-session"
-                            >
-                              <span className="session-name">
-                                {displayName} ({t('common:notConnected')})
-                              </span>
-                              <div
-                                className="connection-status-wrapper"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleConnectSavedSession(savedSession);
-                                }}
-                                title={t('common:connect')}
-                                style={{ cursor: 'pointer', display: 'flex' }}
-                              >
-                                <ConnectionStatusIcon
-                                  isConnected={false}
-                                  className="connection-status disconnected"
-                                />
-                              </div>
-                              <button
-                                className="remove-from-group-btn"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onRemoveSessionFromGroup(savedSession.id, group.id);
-                                }}
-                                title={t('common:removeFromGroup')}
-                              >
-                                🗑
-                              </button>
-                            </div>
-                          );
-                        })}
                       {savedSessions.length === 0 && (
                         <div className="group-empty">{t('common:dragSessionsHere')}</div>
                       )}
