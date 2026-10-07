@@ -845,10 +845,6 @@ function App() {
       }));
     },
     llmSettings,
-    terminalInstances,
-    terminalFontSize,
-    setTerminalFontSize,
-    resizeTerminal,
     onReconnectSession,
     sessions,
     reconnectingSessions

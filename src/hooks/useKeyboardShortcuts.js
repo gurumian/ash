@@ -12,10 +12,6 @@ export function useKeyboardShortcuts({
   showAIChatSidebar,
   setShowAIChatSidebar,
   llmSettings,
-  terminalInstances,
-  terminalFontSize,
-  setTerminalFontSize,
-  resizeTerminal,
   onReconnectSession,
   sessions,
   reconnectingSessions
@@ -113,46 +109,6 @@ export function useKeyboardShortcuts({
           event.preventDefault();
         }
       }
-      // Ctrl + '+' or Ctrl + '=' - increase font size
-      if ((event.ctrlKey || event.metaKey) && (event.key === '+' || event.key === '=')) {
-        const currentSize = terminalFontSize || 13;
-        const newSize = Math.min(32, currentSize + 1);
-        if (newSize !== currentSize) {
-          setTerminalFontSize(newSize);
-          localStorage.setItem('ash-terminal-font-size', newSize.toString());
-          // Update all terminal instances
-          setTimeout(() => {
-            Object.keys(terminalInstances.current || {}).forEach(sessionId => {
-              const terminal = terminalInstances.current[sessionId];
-              if (terminal && !terminal.isDisposed) {
-                terminal.options.fontSize = newSize;
-              }
-            });
-            resizeTerminal();
-          }, 0);
-        }
-        event.preventDefault();
-      }
-      // Ctrl + '-' - decrease font size
-      if ((event.ctrlKey || event.metaKey) && event.key === '-') {
-        const currentSize = terminalFontSize || 13;
-        const newSize = Math.max(8, currentSize - 1);
-        if (newSize !== currentSize) {
-          setTerminalFontSize(newSize);
-          localStorage.setItem('ash-terminal-font-size', newSize.toString());
-          // Update all terminal instances
-          setTimeout(() => {
-            Object.keys(terminalInstances.current || {}).forEach(sessionId => {
-              const terminal = terminalInstances.current[sessionId];
-              if (terminal && !terminal.isDisposed) {
-                terminal.options.fontSize = newSize;
-              }
-            });
-            resizeTerminal();
-          }, 0);
-        }
-        event.preventDefault();
-      }
     };
 
     // Use capture phase to catch events before they reach terminal
@@ -163,6 +119,6 @@ export function useKeyboardShortcuts({
       window.removeEventListener('keydown', handleKeyDown, true);
       document.removeEventListener('keydown', handleKeyDown, true);
     };
-  }, [activeSessionId, showSearchBar, setShowSearchBar, showAICommandInput, setShowAICommandInput, llmSettings, terminalInstances, terminalFontSize, setTerminalFontSize, resizeTerminal, onReconnectSession, sessions, reconnectingSessions]);
+  }, [activeSessionId, showSearchBar, setShowSearchBar, showAICommandInput, setShowAICommandInput, llmSettings, onReconnectSession, sessions, reconnectingSessions]);
 }
 
