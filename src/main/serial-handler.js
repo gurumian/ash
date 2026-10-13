@@ -1,9 +1,13 @@
 import { ipcMain } from 'electron';
-import { readFile } from 'fs/promises';
+import { readFile, readdir, stat } from 'fs/promises';
 import { SerialBufferedTransform } from './serial-buffer-transform.js';
 import crypto from 'crypto';
 import { generateConnectionKey } from '../utils/connectionKey.js';
 import { runXmodemSend, sendSenderCancelBurst } from './xmodem-send.js';
+
+// serialport's Linux lister only keeps names matching
+// tty(S|WCH|ACM|USB|AMA|MFD|O|XRUSB) and rfcomm, so Jetson Tegra HS UARTs never appear.
+const PLATFORM_UART_NAME = /^ttyTHS\d+$/;
 
 
 // Serial port support
@@ -19,6 +23,43 @@ try {
 }
 
 /**
+ * Onboard UARTs that serialport's Linux name filter drops.
+ * Only character devices that actually exist under /dev are returned.
+ */
+async function listPlatformUarts() {
+  if (process.platform !== 'linux') {
+    return [];
+  }
+
+  let names;
+  try {
+    names = await readdir('/dev');
+  } catch {
+    return [];
+  }
+
+  const ports = [];
+  for (const name of names) {
+    if (!PLATFORM_UART_NAME.test(name)) {
+      continue;
+    }
+    const path = `/dev/${name}`;
+    try {
+      const info = await stat(path);
+      if (!info.isCharacterDevice()) {
+        continue;
+      }
+    } catch {
+      continue;
+    }
+    ports.push({ path });
+  }
+
+  ports.sort((a, b) => a.path.localeCompare(b.path, undefined, { numeric: true }));
+  return ports;
+}
+
+/**
  * Initialize Serial port handlers
  */
 export function initializeSerialHandlers() {
@@ -31,7 +72,7 @@ export function initializeSerialHandlers() {
       }
 
       const ports = await SerialPort.list();
-      return ports.map(port => {
+      const listed = ports.map(port => {
         let portPath = port.path;
         // On macOS, prefer /dev/cu.* over /dev/tty.* for outgoing connections
         // to avoid waiting for DCD (Data Carrier Detect)
@@ -49,6 +90,14 @@ export function initializeSerialHandlers() {
           productId: port.productId
         };
       });
+
+      const seen = new Set(listed.map(port => port.path));
+      for (const port of await listPlatformUarts()) {
+        if (!seen.has(port.path)) {
+          listed.push(port);
+        }
+      }
+      return listed;
     } catch (error) {
       console.error('Error listing serial ports:', error);
       return [];
