@@ -17,6 +17,8 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
   const [streams, setStreams] = useState(1);
   const [bandwidth, setBandwidth] = useState(''); // e.g., 100M
   const [duration, setDuration] = useState(10); // seconds
+  const [saveResults, setSaveResults] = useState(false);
+  const [savedPath, setSavedPath] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [configExpanded, setConfigExpanded] = useState(true);
@@ -143,6 +145,7 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
 
     setLoading(true);
     setError(null);
+    setSavedPath(null);
     // Clear output via parent callback when starting a new test
     if (onStartTest) {
       onStartTest();
@@ -163,10 +166,12 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
         direction,
         streams,
         bandwidth: bandwidth || null,
-        duration
+        duration,
+        saveResults
       });
       if (result?.success) {
         setStatus({ running: true });
+        setSavedPath(result.savedPath || null);
       } else {
         setError(result?.error || 'Failed to start iperf3 client');
         setLoading(false);
@@ -204,6 +209,9 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
   };
 
   if (!isVisible) return null;
+
+  const today = new Date();
+  const saveDateHint = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
   return (
     <div
@@ -432,6 +440,37 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
                   disabled={loading}
                 />
                 <span className="iperf-client-config-hint">{t('client:iperf.durationHint')} (0 = infinite)</span>
+              </div>
+              <div className="iperf-client-config-item">
+                <div className="iperf-client-save-row">
+                  <span className="iperf-client-save-label">{t('client:iperf.saveResults')}</span>
+                  <div
+                    className={`iperf-client-save-switch ${saveResults ? 'active' : ''} ${loading || status.running ? 'disabled' : ''}`}
+                    role="switch"
+                    aria-checked={saveResults}
+                    aria-disabled={loading || status.running}
+                    tabIndex={loading || status.running ? -1 : 0}
+                    onClick={() => {
+                      if (loading || status.running) return;
+                      setSaveResults((on) => !on);
+                    }}
+                    onKeyDown={(e) => {
+                      if (loading || status.running) return;
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setSaveResults((on) => !on);
+                      }
+                    }}
+                  >
+                    <span className="iperf-client-save-switch-knob" />
+                  </div>
+                  <span className={`iperf-client-save-state ${saveResults ? 'active' : ''}`}>
+                    {saveResults ? t('common:enabled') : t('common:disabled')}
+                  </span>
+                </div>
+                <span className="iperf-client-config-hint">
+                  {t('client:iperf.saveResultsHint', { date: saveDateHint })}
+                </span>
               </div>
             </div>
           )}
@@ -688,6 +727,11 @@ export function IperfClientSidebar({ isVisible, width, onClose, activeSession, o
               </div>
             )}
 
+            {savedPath && (
+              <div className="iperf-client-saved-path" title={savedPath}>
+                {t('client:iperf.savedPath', { path: savedPath })}
+              </div>
+            )}
             <div
               ref={outputRef}
               className="iperf-client-output"

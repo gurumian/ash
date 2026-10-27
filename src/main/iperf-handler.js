@@ -22,6 +22,46 @@ let cachedIperf3FullPath = null;
 /** Coalesce iperf stdout/stderr before IPC to avoid flooding the renderer (long-run freeze / black screen). */
 const IPERF_CLIENT_IPC_FLUSH_MS = 80;
 
+function pad2(n) {
+  return String(n).padStart(2, '0');
+}
+
+/** ~/Documents/ash/YYYY-MM-DD/{runId}/result.txt */
+function createIperfResultFile(meta) {
+  const now = new Date();
+  const date = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
+  const time = `${pad2(now.getHours())}${pad2(now.getMinutes())}${pad2(now.getSeconds())}`;
+  const suffix = Math.random().toString(16).slice(2, 6);
+  const runId = `${time}-${suffix}`;
+  const dir = path.join(os.homedir(), 'Documents', 'ash', date, runId);
+  fs.mkdirSync(dir, { recursive: true });
+  const filePath = path.join(dir, 'result.txt');
+  const lines = [
+    '# iperf3',
+    `# started: ${now.toISOString()}`,
+    `# host: ${meta.host}`,
+    `# port: ${meta.port}`,
+    `# protocol: ${meta.protocol}`,
+    `# direction: ${meta.direction}`,
+    `# streams: ${meta.streams}`,
+  ];
+  if (meta.bandwidth) lines.push(`# bandwidth: ${meta.bandwidth}`);
+  lines.push(`# duration: ${meta.duration}`, '');
+  fs.writeFileSync(filePath, `${lines.join('\n')}\n`, 'utf8');
+  const stream = fs.createWriteStream(filePath, { flags: 'a' });
+  return { filePath, stream };
+}
+
+function toHomeDisplayPath(absPath) {
+  const home = os.homedir();
+  const prefix = home.endsWith(path.sep) ? home : home + path.sep;
+  if (absPath === home) return '~';
+  if (absPath.startsWith(prefix)) {
+    return `~/${absPath.slice(prefix.length).split(path.sep).join('/')}`;
+  }
+  return absPath;
+}
+
 function createIperfClientOutputBatcher(sessionId) {
   let pending = '';
   let timer = null;
@@ -651,9 +691,50 @@ export function initializeIperfClientHandlers() {
 
       console.log(`[iperf3-client][${sessionId}] Starting client: ${binaryPath} ${args.join(' ')}`);
 
+      const saveResults = params?.saveResults === true;
+      let resultStream = null;
+      let savedPath = null;
+      if (saveResults) {
+        try {
+          const created = createIperfResultFile({
+            host: targetHost,
+            port: targetPort,
+            protocol,
+            direction: bidir ? 'bidirectional' : (reverse ? 'download' : 'upload'),
+            streams,
+            bandwidth,
+            duration
+          });
+          resultStream = created.stream;
+          savedPath = toHomeDisplayPath(created.filePath);
+          resultStream.on('error', (err) => {
+            console.error(`[iperf3-client][${sessionId}] Result file write error:`, err);
+            resultStream = null;
+          });
+          console.log(`[iperf3-client][${sessionId}] Saving results to ${created.filePath}`);
+        } catch (err) {
+          console.error(`[iperf3-client][${sessionId}] Failed to create result file:`, err);
+          return { success: false, error: err.message || 'Failed to create result file' };
+        }
+      }
+
+      const writeResult = (text) => {
+        if (!text || !resultStream || resultStream.destroyed || resultStream.writableEnded) return;
+        resultStream.write(text);
+      };
+      const closeResult = () => {
+        if (!resultStream || resultStream.destroyed || resultStream.writableEnded) {
+          resultStream = null;
+          return;
+        }
+        const stream = resultStream;
+        resultStream = null;
+        stream.end();
+      };
+
       // Send status update when client starts
       if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('iperf-client-started', { sessionId });
+        mainWindow.webContents.send('iperf-client-started', { sessionId, savedPath });
       }
 
       const proc = spawn(binaryPath, args, {
@@ -670,6 +751,7 @@ export function initializeIperfClientHandlers() {
       proc.stdout.on('data', (data) => {
         const output = data.toString();
         hasOutput = true;
+        writeResult(output);
         outputBatcher.append(output);
       });
 
@@ -677,19 +759,23 @@ export function initializeIperfClientHandlers() {
       proc.stderr.on('data', (data) => {
         const output = data.toString();
         hasOutput = true;
+        writeResult(output);
         outputBatcher.append(output);
       });
 
       // Handle process exit
       proc.on('exit', (code, signal) => {
         outputBatcher.flush();
+        const exitLine = `\n[Process exited with code ${code}]\n`;
+        writeResult(exitLine);
+        closeResult();
         console.log(`[iperf3-client][${sessionId}] Client exited with code ${code}, signal ${signal}`);
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('iperf-client-stopped', {
             sessionId,
             code,
             signal,
-            output: hasOutput ? `\n[Process exited with code ${code}]\n` : null
+            output: hasOutput ? exitLine : null
           });
         }
         iperfClientProcesses.delete(sessionId);
@@ -698,6 +784,7 @@ export function initializeIperfClientHandlers() {
       // Handle process error (spawn failure)
       proc.on('error', (err) => {
         outputBatcher.flush();
+        closeResult();
         console.error(`[iperf3-client][${sessionId}] Process error:`, err);
 
         let errorMsg;
@@ -724,7 +811,7 @@ export function initializeIperfClientHandlers() {
         iperfClientProcesses.delete(sessionId);
       });
 
-      return { success: true, sessionId };
+      return { success: true, sessionId, savedPath };
     } catch (e) {
       console.error(`[iperf3-client][${sessionId}] Client creation error:`, e);
       const entry = iperfClientProcesses.get(sessionId);
