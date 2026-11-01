@@ -279,6 +279,38 @@ export const themes = {
       brightCyan: '#0db9d7',
       brightWhite: '#acb0d0'
     }
+  },
+  void_vibe: {
+    name: 'Void Vibe',
+    // Gray chrome from maviz title bar / status bar (--theme-panel-bg over black)
+    background: '#5f5f5f',
+    surface: '#6c6c6c',
+    text: '#e8e8e8',
+    border: '#4a4a4a',
+    accent: '#cfcfcf',
+    terminal: {
+      background: '#5f5f5f',
+      foreground: '#e8e8e8',
+      cursor: '#e8e8e8',
+      cursorAccent: '#5f5f5f',
+      selection: '#787878',
+      black: '#1e1e1e',
+      red: '#e06c75',
+      green: '#98c379',
+      yellow: '#e5c07b',
+      blue: '#61afef',
+      magenta: '#c678dd',
+      cyan: '#56b6c2',
+      white: '#d4d4d4',
+      brightBlack: '#808080',
+      brightRed: '#ff7b86',
+      brightGreen: '#b5e890',
+      brightYellow: '#ffd68a',
+      brightBlue: '#7ec3ff',
+      brightMagenta: '#e09aef',
+      brightCyan: '#7fd4de',
+      brightWhite: '#ffffff'
+    }
   }
 };
 
